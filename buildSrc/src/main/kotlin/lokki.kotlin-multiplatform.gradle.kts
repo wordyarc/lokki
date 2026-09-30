@@ -1,14 +1,13 @@
 @file:OptIn(ExperimentalWasmDsl::class)
 
+import lokki.buildlogic.targetJvm
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
-    alias(libs.plugins.kotlin.multiplatform)
+    id("org.jetbrains.kotlin.multiplatform")
 }
 
 kotlin {
-    explicitApi()
-
     androidNativeArm32()
     androidNativeArm64()
     androidNativeX64()
@@ -20,7 +19,9 @@ kotlin {
 
     js().nodejs()
 
-    jvm()
+    jvm {
+        targetJvm(compilerOptions)
+    }
 
     linuxArm64()
     linuxX64()
@@ -40,8 +41,13 @@ kotlin {
     watchosDeviceArm64()
     watchosSimulatorArm64()
 
-    applyDefaultHierarchyTemplate()
+    sourceSets {
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+        }
+    }
+}
 
-    @OptIn(org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation::class)
-    abiValidation()
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
 }

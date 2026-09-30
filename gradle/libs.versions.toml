@@ -1,4 +1,8 @@
 [versions]
+# JDK that compiles and tests every module, and the oldest JVM their bytecode runs on
+jvm-toolchain = "25"
+jvm-target = "17"
+
 # https://github.com/JetBrains/kotlin
 kotlin = "2.4.20"
 
@@ -7,8 +11,6 @@ junit = "4.13.2"
 
 # https://github.com/gmazzo/gradle-buildconfig-plugin
 buildconfig = "5.6.5"
-
-node-gradle = "7.0.2"
 
 [libraries]
 kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", version.ref = "kotlin" }
@@ -26,12 +28,19 @@ kotlin-gradle-plugin-api  = { group = "org.jetbrains.kotlin", name = "kotlin-gra
 
 junit = { module = "junit:junit", version.ref = "junit" }
 
-[plugins]
-kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
-kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
-buildconfig = { id = "com.github.gmazzo.buildconfig", version.ref = "buildconfig"}
-node-gradle = { id = "com.github.node-gradle.node", version.ref = "node-gradle" }
+# Plugins that buildSrc puts on the classpath of every build script
+kotlin-gradle-plugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
+buildconfig-gradle-plugin = { module = "com.github.gmazzo.buildconfig:plugin", version.ref = "buildconfig" }
 
-gradle-java-test-fixtures = { id = "java-test-fixtures" }
-gradle-idea = { id = "idea" }
-gradle-plugin = { id = "java-gradle-plugin" }
+[bundles]
+# Libraries the compiler test framework loads by path
+kotlin-compiler-test-libraries = [
+    "kotlin-stdlib",
+    "kotlin-stdlib-jdk8",
+    "kotlin-reflect",
+    "kotlin-test",
+    "kotlin-script-runtime",
+    "kotlin-annotations-jvm",
+    "kotlin-stdlib-js",
+    "kotlin-test-js",
+]

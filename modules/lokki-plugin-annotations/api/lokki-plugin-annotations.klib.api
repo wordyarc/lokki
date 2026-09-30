@@ -5,7 +5,7 @@
 // - Show manifest properties: true
 // - Show declarations: true
 
-// Library unique name: <org.jetbrains.kotlin.compiler.plugin.template:plugin-annotations>
+// Library unique name: <org.jetbrains.kotlin.compiler.plugin.template:lokki-plugin-annotations>
 open annotation class org.jetbrains.kotlin.compiler.plugin.template/SomeAnnotation : kotlin/Annotation { // org.jetbrains.kotlin.compiler.plugin.template/SomeAnnotation|null[0]
     constructor <init>() // org.jetbrains.kotlin.compiler.plugin.template/SomeAnnotation.<init>|<init>(){}[0]
 }
