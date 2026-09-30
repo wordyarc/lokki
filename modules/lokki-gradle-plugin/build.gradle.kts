@@ -14,8 +14,6 @@ buildConfig {
     packageName("org.jetbrains.kotlin.compiler.plugin.template")
 
     buildConfigField("KOTLIN_PLUGIN_ID", pluginId)
-
-    // Every module is published with the group and the version of this one.
     buildConfigField("KOTLIN_PLUGIN_GROUP", group.toString())
     buildConfigField("KOTLIN_PLUGIN_NAME", "lokki-compiler-plugin")
     buildConfigField("KOTLIN_PLUGIN_VERSION", version.toString())

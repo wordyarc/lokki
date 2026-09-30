@@ -7,7 +7,6 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
 import org.gradle.process.CommandLineArgumentProvider
 
-// The task input is the content of the files, not their paths.
 class ClasspathSystemProperty(
     @get:Input val name: String,
     @get:Classpath val files: FileCollection,

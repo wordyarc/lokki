@@ -18,15 +18,7 @@ open class AbstractJsDiagnosticTest : AbstractJsDiagnosticWithBackendTestBase(Fi
 
     override fun configure(builder: TestConfigurationBuilder) = with(builder) {
         super.configure(builder)
-        /*
-         * Containers of different directives, which can be used in tests:
-         * - ModuleStructureDirectives
-         * - LanguageSettingsDirectives
-         * - DiagnosticsDirectives
-         * - FirDiagnosticsDirectives
-         *
-         * All of them are located in `org.jetbrains.kotlin.test.directives` package
-         */
+
         defaultDirectives {
             +FirDiagnosticsDirectives.FIR_DUMP
             +FirDiagnosticsDirectives.DISABLE_GENERATED_FIR_TAGS

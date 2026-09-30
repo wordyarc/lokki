@@ -16,7 +16,6 @@ plugins {
     id("com.github.gmazzo.buildconfig")
 }
 
-// Downloads the V8 shell that runs the JS box tests.
 apply<D8Plugin>()
 val d8 = the<D8EnvSpec>()
 
@@ -100,7 +99,6 @@ tasks.test {
     systemProperty("idea.ignore.disabled.plugins", "true")
     jvmArgumentProviders.add(LocationSystemProperty("idea.home.path", provider { workingDir.path }))
 
-    // The test framework looks up each of its libraries by a system property named after the artifact.
     val libraries = compilerTestLibrariesClasspath.get()
     libs.bundles.kotlin.compiler.test.libraries.get().forEach { library ->
         val artifact = libraries.incoming.artifactView {
@@ -116,7 +114,6 @@ tasks.test {
         ClasspathSystemProperty("annotationsRuntime.js.classpath", files(annotationsJsRuntimeClasspath))
     )
 
-    // Properties required to run JS tests from the internal test framework.
     dependsOn(tasks.withType<D8SetupTask>())
     jvmArgumentProviders.add(LocationSystemProperty("javascript.engine.path.V8", d8.executable))
     jvmArgumentProviders.add(ClasspathSystemProperty("javascript.engine.path.repl", files("repl.js")))

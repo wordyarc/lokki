@@ -8,7 +8,7 @@ import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerPluginSupportPlugin
 import org.jetbrains.kotlin.gradle.plugin.SubpluginArtifact
 import org.jetbrains.kotlin.gradle.plugin.SubpluginOption
 
-@Suppress("unused") // Used via reflection.
+@Suppress("unused")
 class SimpleGradlePlugin : KotlinCompilerPluginSupportPlugin {
     override fun apply(target: Project) {
         target.extensions.create("simplePlugin", SimpleGradleExtension::class.java)
@@ -30,7 +30,6 @@ class SimpleGradlePlugin : KotlinCompilerPluginSupportPlugin {
         val project = kotlinCompilation.target.project
 
         kotlinCompilation.defaultSourceSet.dependencies {
-            // Add annotations library to all compilations.
             implementation(ANNOTATIONS_LIBRARY_COORDINATES)
         }
 

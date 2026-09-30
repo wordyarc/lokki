@@ -22,17 +22,6 @@ open class AbstractJsBoxTest : AbstractJsTest(
         super.configure(builder)
 
         with(builder) {
-            /*
-             * Containers of different directives, which can be used in tests:
-             * - ModuleStructureDirectives
-             * - LanguageSettingsDirectives
-             * - DiagnosticsDirectives
-             * - FirDiagnosticsDirectives
-             * - CodegenTestDirectives
-             * - JvmEnvironmentConfigurationDirectives
-             *
-             * All of them are located in `org.jetbrains.kotlin.test.directives` package
-             */
             defaultDirectives {
                 +CodegenTestDirectives.DUMP_IR
                 +FirDiagnosticsDirectives.FIR_DUMP

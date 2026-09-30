@@ -17,17 +17,7 @@ open class AbstractJvmBoxTest : AbstractJvmBlackBoxCodegenTestBase(FirParser.Lig
 
     override fun configure(builder: TestConfigurationBuilder) = with(builder) {
         super.configure(this)
-        /*
-         * Containers of different directives, which can be used in tests:
-         * - ModuleStructureDirectives
-         * - LanguageSettingsDirectives
-         * - DiagnosticsDirectives
-         * - FirDiagnosticsDirectives
-         * - CodegenTestDirectives
-         * - JvmEnvironmentConfigurationDirectives
-         *
-         * All of them are located in `org.jetbrains.kotlin.test.directives` package
-         */
+
         defaultDirectives {
             +CodegenTestDirectives.DUMP_IR
             +FirDiagnosticsDirectives.FIR_DUMP
