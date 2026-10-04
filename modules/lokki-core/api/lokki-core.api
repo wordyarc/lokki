@@ -1,0 +1,19 @@
+public abstract interface annotation class io/lokki/InternalLokkiApi : java/lang/annotation/Annotation {
+}
+
+public final class io/lokki/LokkiException : java/lang/RuntimeException {
+	public fun <init> (Ljava/lang/String;Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+}
+
+public abstract interface annotation class io/lokki/internal/LokkiIntrinsic : java/lang/annotation/Annotation {
+	public abstract fun kind ()Lio/lokki/internal/LokkiIntrinsic$Kind;
+}
+
+public final class io/lokki/internal/LokkiIntrinsic$Kind : java/lang/Enum {
+	public static final field MOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static fun values ()[Lio/lokki/internal/LokkiIntrinsic$Kind;
+}
+

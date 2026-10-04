@@ -1,29 +1,56 @@
-# Kotlin Compiler Plugin template
+# lokki
 
-This is a template project for writing a compiler plugin for the Kotlin compiler.
+A mocking library for Kotlin with a MockK-like DSL, built on a K2 compiler plugin (FIR + IR).
+A mock is an ordinary class generated at compile time, so tests need no reflection over user types, no proxies and
+no JVM instrumentation.
 
-## Details
+**Status: early development.** The plugin generates a class for every `mock<T>()` of an interface, one class per
+source file, and keeps incremental compilation correct when the mocked type changes. Every member of such a mock
+throws `LokkiException`: stubbing and verification are not implemented yet.
 
-This project has three modules:
-- The [`:lokki-compiler-plugin`](modules/lokki-compiler-plugin/src/main/kotlin) module contains the compiler plugin itself.
-- The [`:lokki-plugin-annotations`](modules/lokki-plugin-annotations/src/commonMain/kotlin) module contains annotations which can be used in
-user code for interacting with compiler plugin.
-- The [`:lokki-gradle-plugin`](modules/lokki-gradle-plugin/src/main/kotlin) module contains a simple Gradle plugin to add the compiler plugin and
-annotation dependency to a Kotlin project. 
+```kotlin
+plugins {
+    kotlin("jvm") version "2.4.20"
+    id("io.lokki") version "<version>"
+}
+```
 
-Extension point registration:
-- K2 Frontend (FIR) extensions can be registered in `SimplePluginRegistrar`.
-- All other extensions (including K1 frontend and backend) can be registered in `SimplePluginComponentRegistrar`.
+```kotlin
+val car = mock<Car>()
+```
 
-## Tests
+The Gradle plugin applies the compiler plugin to the `test` and `testFixtures` compilations and to the source sets of
+JVM test suites, and adds `lokki-core` to their dependencies.
 
-The [Kotlin compiler test framework][test-framework] is set up for this project.
-To create a new test, add a new `.kt` file in a [modules/lokki-compiler-plugin/testData](modules/lokki-compiler-plugin/testData) sub-directory:
-`testData/box` for codegen tests and `testData/diagnostics` for diagnostics tests.
-The generated JUnit 5 test classes will be updated automatically when tests are next run.
-They can be manually updated with the `generateTests` Gradle task as well.
-To aid in running tests, it is recommended to install the [Kotlin Compiler DevKit][test-plugin] IntelliJ plugin,
-which is pre-configured in this repository.
+## Modules
+
+| Module | Artifact | Purpose |
+|---|---|---|
+| [`modules/lokki-core`](modules/lokki-core) | `io.lokki:lokki-core` | Runtime: the public DSL and the support for generated code. |
+| [`modules/lokki-compiler-plugin`](modules/lokki-compiler-plugin) | `io.lokki:lokki-compiler-plugin` | Compiler plugin `io.lokki.compiler`: collects `mock<T>()` calls, generates mock classes and lowers the DSL. |
+| [`modules/lokki-gradle-plugin`](modules/lokki-gradle-plugin) | `io.lokki:lokki-gradle-plugin` | Gradle plugin `io.lokki`. |
+| [`modules/compiler-tests`](modules/compiler-tests) | not published | Compiler tests on the [Kotlin compiler test framework][test-framework]. |
+| [`integration-testing`](integration-testing) | not published | A composite build that tests the real Gradle plugin end to end. |
+
+## Build and tests
+
+The build uses JDK toolchains: 25 to compile and to run tests, 17 to run the Gradle plugin tests on the minimal
+supported Gradle (8.11.1). Gradle downloads the missing ones.
+
+```
+./gradlew build                                    # everything in the main build, including the ABI check
+./gradlew :compiler-tests:test --tests '*MyTest*'  # compiler tests
+./gradlew :lokki-gradle-plugin:functionalTest      # Gradle TestKit tests, including incremental compilation
+./gradlew -p integration-testing check             # end-to-end tests with the real Gradle plugin
+./gradlew updateKotlinAbi                          # update the ABI dumps after a public API change
+```
+
+The build cache is enabled, so add `--rerun` to run tests again without changes.
+
+To add a compiler test, put a `.kt` file into [`modules/compiler-tests/src/test/data`](modules/compiler-tests/src/test/data):
+`box` for codegen tests (`fun box(): String` must return `"OK"`) and `diagnostics` for frontend tests.
+The JUnit classes are generated into `build/generated/tests` on the next test run.
+The [Kotlin Compiler DevKit][test-plugin] IntelliJ plugin, pre-configured in this repository, helps to run them.
 
 [//]: # (Links)
 

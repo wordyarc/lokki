@@ -1,45 +1,23 @@
-@file:OptIn(ExperimentalWasmDsl::class)
-
+import lokki.buildlogic.abiCheckEnabled
 import lokki.buildlogic.targetJvm
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import lokki.buildlogic.version
+import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
 
 plugins {
     id("org.jetbrains.kotlin.multiplatform")
 }
 
 kotlin {
-    androidNativeArm32()
-    androidNativeArm64()
-    androidNativeX64()
-    androidNativeX86()
-
-    iosArm64()
-    iosSimulatorArm64()
-    iosX64()
-
-    js().nodejs()
-
     jvm {
-        targetJvm(compilerOptions)
+        targetJvm(compilerOptions, version("jvm-target-runtime"))
     }
 
-    linuxArm64()
-    linuxX64()
+    if (abiCheckEnabled) {
+        explicitApi()
 
-    macosArm64()
-
-    mingwX64()
-
-    tvosArm64()
-    tvosSimulatorArm64()
-
-    wasmJs().nodejs()
-    wasmWasi().nodejs()
-
-    watchosArm32()
-    watchosArm64()
-    watchosDeviceArm64()
-    watchosSimulatorArm64()
+        @OptIn(ExperimentalAbiValidation::class)
+        abiValidation()
+    }
 
     sourceSets {
         commonTest.dependencies {

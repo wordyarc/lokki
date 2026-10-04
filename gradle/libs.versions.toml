@@ -1,11 +1,17 @@
 [versions]
 # -- JVM compatibility --------------------------------------------------------
 jvm-toolchain = "25"
-jvm-target = "17"
+jvm-target-runtime = "1.8"
+jvm-target-tooling = "17"
+
+# -- Gradle compatibility -----------------------------------------------------
+gradle-min-version = "8.11.1"
+gradle-min-kotlin = "2.0"
 
 # -- Dependencies -------------------------------------------------------------
 kotlin = "2.4.20"
 junit = "4.13.2"
+junit-jupiter = "5.14.4"
 buildconfig = "5.6.5"
 
 [libraries]
@@ -25,8 +31,6 @@ kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect", vers
 kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test", version.ref = "kotlin" }
 kotlin-script-runtime = { group = "org.jetbrains.kotlin", name = "kotlin-script-runtime", version.ref = "kotlin" }
 kotlin-annotations-jvm = { group = "org.jetbrains.kotlin", name = "kotlin-annotations-jvm", version.ref = "kotlin" }
-kotlin-stdlib-js = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib-js", version.ref = "kotlin" }
-kotlin-test-js = { group = "org.jetbrains.kotlin", name = "kotlin-test-js", version.ref = "kotlin" }
 
 # -- Build logic --------------------------------------------------------------
 kotlin-gradle-plugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
@@ -40,6 +44,4 @@ kotlin-compiler-test-libraries = [
     "kotlin-test",
     "kotlin-script-runtime",
     "kotlin-annotations-jvm",
-    "kotlin-stdlib-js",
-    "kotlin-test-js",
 ]
