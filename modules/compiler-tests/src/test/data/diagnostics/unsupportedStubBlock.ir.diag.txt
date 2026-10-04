@@ -1,33 +1,33 @@
-/unsupportedStubBlock.kt:28:5: error: The block of 'every' must be a lambda literal.
+/unsupportedStubBlock.kt:36:5: error: The block of 'every' must be a lambda literal.
 
-/unsupportedStubBlock.kt:29:11: error: The block of 'every' must be a single call of a mock member.
+/unsupportedStubBlock.kt:37:11: error: The block of 'every' must be a single call of a mock member.
 
-/unsupportedStubBlock.kt:30:11: error: The block of 'every' must be a single call of a mock member.
+/unsupportedStubBlock.kt:38:11: error: The block of 'every' must be a single call of a mock member.
 
-/unsupportedStubBlock.kt:31:11: error: The block of 'every' must be a single call of a mock member.
+/unsupportedStubBlock.kt:39:11: error: The block of 'every' must be a single call of a mock member.
 
-/unsupportedStubBlock.kt:32:11: error: The block of 'every' must be a single call of a mock member.
+/unsupportedStubBlock.kt:40:11: error: The block of 'every' must be a single call of a mock member.
 
-/unsupportedStubBlock.kt:33:13: error: The receiver of the stubbed call must not use matchers.
+/unsupportedStubBlock.kt:41:13: error: The receiver of the stubbed call must not use matchers.
 
-/unsupportedStubBlock.kt:34:23: error: A matcher inside an expression is not supported: pass the matcher as a whole argument.
+/unsupportedStubBlock.kt:42:23: error: A matcher inside an expression is not supported: pass the matcher as a whole argument.
 
-/unsupportedStubBlock.kt:35:42: error: A matcher inside an expression is not supported: pass the matcher as a whole argument.
+/unsupportedStubBlock.kt:43:42: error: A matcher inside an expression is not supported: pass the matcher as a whole argument.
 
-/unsupportedStubBlock.kt:36:26: error: An argument of the matcher 'eq' must not use matchers.
+/unsupportedStubBlock.kt:44:26: error: An argument of the matcher 'eq' must not use matchers.
 
-/unsupportedStubBlock.kt:37:23: error: An argument of the stubbed call must not return from the block.
+/unsupportedStubBlock.kt:45:23: error: An argument of the stubbed call must not return from the block.
 
-/unsupportedStubBlock.kt:38:23: error: A matcher of a value class cannot be combined with omitted arguments: pass all arguments explicitly.
+/unsupportedStubBlock.kt:46:23: error: A matcher of a value class cannot be combined with omitted arguments: pass all arguments explicitly.
 
-/unsupportedStubBlock.kt:39:23: error: A matcher of a value class cannot be combined with omitted arguments: pass all arguments explicitly.
+/unsupportedStubBlock.kt:47:23: error: A matcher of a value class cannot be combined with omitted arguments: pass all arguments explicitly.
 
-/unsupportedStubBlock.kt:40:26: error: A matcher of the extension receiver cannot be combined with omitted arguments: pass all arguments explicitly.
+/unsupportedStubBlock.kt:48:26: error: A matcher of the extension receiver cannot be combined with omitted arguments: pass all arguments explicitly.
 
-/unsupportedStubBlock.kt:41:25: error: A matcher cannot be spread into a vararg parameter.
+/unsupportedStubBlock.kt:49:25: error: A matcher cannot be spread into a vararg parameter.
 
-/unsupportedStubBlock.kt:42:26: error: The receiver of the stubbed call must not use matchers.
+/unsupportedStubBlock.kt:50:26: error: The receiver of the stubbed call must not use matchers.
 
-/unsupportedStubBlock.kt:43:71: error: 'every' must be called directly: a reference to it is not supported.
+/unsupportedStubBlock.kt:51:71: error: 'every' must be called directly: a reference to it is not supported.
 
-/unsupportedStubBlock.kt:44:56: error: The block of 'every' must be a lambda literal.
+/unsupportedStubBlock.kt:52:56: error: The block of 'every' must be a lambda literal.

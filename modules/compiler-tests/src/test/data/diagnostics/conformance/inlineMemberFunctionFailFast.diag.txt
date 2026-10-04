@@ -1,0 +1,3 @@
+/inlineMemberFunctionFailFast.kt:10:5: warning: Expected performance impact from inlining is insignificant. Inlining works best for functions with parameters of function types.
+
+/inlineMemberFunctionFailFast.kt:26:24: error: A call of 'addOne' cannot be intercepted: it is inline. Stub the member it calls.

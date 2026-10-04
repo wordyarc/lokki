@@ -1,7 +1,7 @@
 package io.lokki.compiler.ir.lower
 
+import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiDiagnostics
-import io.lokki.compiler.ir.IntrinsicKind
 import io.lokki.compiler.ir.LokkiSymbols
 import io.lokki.compiler.ir.collect.MockClassKey
 import io.lokki.compiler.ir.collect.mockClassKey

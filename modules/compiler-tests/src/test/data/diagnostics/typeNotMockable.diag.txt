@@ -1,0 +1,31 @@
+/typeNotMockable.kt:36:10: error: 'sample.Bolt' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+
+/typeNotMockable.kt:37:10: error: 'sample.Plate' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+
+/typeNotMockable.kt:38:10: error: 'sample.Vin' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+
+/typeNotMockable.kt:39:10: error: 'sample.Garage' cannot be mocked: it is an object.
+
+/typeNotMockable.kt:40:10: error: 'sample.Color' cannot be mocked: it is an enum class.
+
+/typeNotMockable.kt:41:10: error: 'sample.Marker' cannot be mocked: it is an annotation class.
+
+/typeNotMockable.kt:42:10: error: 'sample.Shape' cannot be mocked: it is sealed.
+
+/typeNotMockable.kt:43:10: error: 'sample.Part' cannot be mocked: it is sealed.
+
+/typeNotMockable.kt:44:10: error: 'sample.Bolt' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+
+/typeNotMockable.kt:45:10: error: 'kotlin.String' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+
+/typeNotMockable.kt:46:10: error: 'kotlin.Int' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+
+/typeNotMockable.kt:47:10: error: 'kotlin.Array' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+
+/typeNotMockable.kt:48:10: error: Cannot use 'Nothing' as reified type parameter.
+
+/typeNotMockable.kt:49:22: error: 'sample.Bolt' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+
+/typeNotMockable.kt:50:22: error: 'sample.Bolt' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+
+/typeNotMockable.kt:63:10: error: 'Local' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.

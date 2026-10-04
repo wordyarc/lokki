@@ -63,6 +63,10 @@ public abstract class io/lokki/MatcherScope {
 	public final fun push (Lio/lokki/Matcher;Lkotlin/reflect/KClass;)Ljava/lang/Object;
 }
 
+public final class io/lokki/MockKt {
+	public static final fun isMock (Ljava/lang/Object;)Z
+}
+
 public final class io/lokki/Runs {
 	public static final field INSTANCE Lio/lokki/Runs;
 }

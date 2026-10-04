@@ -1,0 +1,47 @@
+/test.kt:82:13: error: A call of 'top' cannot be intercepted: it is not a member.
+
+/test.kt:83:13: error: A call of 'topProperty' cannot be intercepted: it is not a member.
+
+/test.kt:84:13: error: A call of 'local' cannot be intercepted: it is not a member.
+
+/test.kt:85:18: error: A call of 'first' cannot be intercepted: it is an extension, not a member. Stub the member it calls.
+
+/test.kt:86:18: error: A call of 'empty' cannot be intercepted: it is an extension, not a member. Stub the member it calls.
+
+/test.kt:87:13: error: A call of 'Impl' cannot be intercepted: it is not a member.
+
+/test.kt:88:21: error: A call of 'cached' cannot be intercepted: it is final.
+
+/test.kt:89:21: error: A call of 'typed' cannot be intercepted: it is inline. Stub the member it calls.
+
+/test.kt:90:21: error: A call of 'state' cannot be intercepted: it is final.
+
+/test.kt:91:21: error: A call of 'field' cannot be intercepted: it is final.
+
+/test.kt:92:18: error: A call of 'load' cannot be intercepted: its receiver type 'sample.Impl' is final.
+
+/test.kt:93:18: error: A call of 'toString' cannot be intercepted: its receiver type 'sample.Impl' is final.
+
+/test.kt:94:22: error: A call of 'lookup' cannot be intercepted: it is final.
+
+/test.kt:95:22: error: A call of 'LIMIT' cannot be intercepted: it is final.
+
+/test.kt:96:23: error: A call of 'hex' cannot be intercepted: its receiver type 'sample.Color' is final.
+
+/test.kt:97:18: error: A call of 'length' cannot be intercepted: its receiver type 'kotlin.String' is final.
+
+/test.kt:98:15: error: A call of 'plus' cannot be intercepted: it is final.
+
+/test.kt:99:20: error: A call of 'id' cannot be intercepted: it is final.
+
+/test.kt:100:20: error: A call of 'code' cannot be intercepted: it is final.
+
+/test.kt:101:20: error: A call of 'field' cannot be intercepted: it is a field.
+
+/test.kt:102:20: error: A call of 'version' cannot be intercepted: it is static.
+
+/test.kt:103:13: error: A call of 'toString' cannot be intercepted: it is a member of the matcher scope, not of a mock. Write the receiver of the call explicitly.
+
+/test.kt:104:18: error: A call of 'hashCode' cannot be intercepted: it is a member of the matcher scope, not of a mock. Write the receiver of the call explicitly.
+
+/test.kt:105:26: error: A call of 'toString' cannot be intercepted: it is a member of the matcher scope, not of a mock. Write the receiver of the call explicitly.

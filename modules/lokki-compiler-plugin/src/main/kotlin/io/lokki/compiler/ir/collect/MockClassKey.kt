@@ -1,6 +1,6 @@
 package io.lokki.compiler.ir.collect
 
-import io.lokki.compiler.ir.IntrinsicKind
+import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.ir.intrinsicKind
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.declarations.IrClass

@@ -1,6 +1,7 @@
 package io.lokki.compiler.ir.lower
 
-import io.lokki.compiler.ir.IntrinsicKind
+import io.lokki.compiler.COMPOSITE_MATCHERS
+import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.ir.LokkiSymbols
 import io.lokki.compiler.ir.intrinsicKind
 import io.lokki.compiler.ir.irArrayOf
@@ -384,7 +385,13 @@ private class StubbedCall(
 private fun IrSimpleFunction.stubbedCall(): StubbedCall? {
     val statement = (body as? IrBlockBody)?.statements?.singleOrNull()
     var expression = if (statement is IrReturn) statement.value else statement
-    while (expression is IrTypeOperatorCall && expression.operator in CASTS) expression = expression.argument
+    while (true) {
+        expression = when {
+            expression is IrTypeOperatorCall && expression.operator in CASTS -> expression.argument
+            expression is IrCall && expression.origin == IrStatementOrigin.EXCLEXCL -> expression.arguments[0]
+            else -> break
+        }
+    }
     var frozen = emptyList<IrVariable>()
     if (expression is IrBlock && expression.origin == IrStatementOrigin.ARGUMENTS_REORDERING_FOR_CALL) {
         frozen = expression.statements.filterIsInstance<IrVariable>()
@@ -453,7 +460,6 @@ private const val ALL_ANY = "allAny"
 private const val TYPED = "typed"
 private const val SPREAD = "spread"
 private val ANY_MATCHERS = setOf("any", "anyNullable", ALL_ANY)
-private val COMPOSITE_MATCHERS = setOf("and", "or", "not")
 private val CAPTURE_MATCHERS = setOf("capture", "captureNullable")
 private val COMPARISON_MATCHERS = setOf("cmpEq", "more", "less", "range")
 private val TYPED_MATCHERS =

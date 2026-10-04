@@ -105,7 +105,8 @@ fun box(): String {
     every { radio.start() } returns true
     if (!(radio as Engine).start()) return "Fail: member with two root declarations"
 
-    if (failure { every { "abc".length } returns 3 } != "abc is not a lokki mock") return "Fail: stub of a non-mock"
+    val text: CharSequence = "abc"
+    if (failure { every { text.length } returns 3 } != "abc is not a lokki mock") return "Fail: stub of a non-mock"
 
     return "OK"
 }

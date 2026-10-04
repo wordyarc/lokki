@@ -1,9 +1,9 @@
-/unsupportedMock.kt:14:44: error: The mocked type must be known at compile time, but 'T of sample.create' is not a class.
+/unsupportedMock.kt:16:44: error: The mocked type must be known at compile time, but 'T of sample.create' is not a class.
 
-/unsupportedMock.kt:17:5: error: 'sample.Engine' is not an interface: lokki cannot mock classes yet.
+/unsupportedMock.kt:19:5: error: 'sample.Engine' is not an interface: lokki cannot mock classes yet.
 
-/unsupportedMock.kt:18:5: error: 'sample.Shape' is sealed and cannot be mocked.
+/unsupportedMock.kt:20:5: error: 'sample.Shape' is sealed and cannot be mocked.
 
-/unsupportedMock.kt:19:5: error: 'sample.Box' has type parameters: lokki cannot mock generic types yet.
+/unsupportedMock.kt:21:5: error: 'sample.Box' has type parameters: lokki cannot mock generic types yet.
 
-/unsupportedMock.kt:20:5: error: 'kotlin.Function0' has type parameters: lokki cannot mock generic types yet.
+/unsupportedMock.kt:22:5: error: 'kotlin.Function0' has type parameters: lokki cannot mock generic types yet.

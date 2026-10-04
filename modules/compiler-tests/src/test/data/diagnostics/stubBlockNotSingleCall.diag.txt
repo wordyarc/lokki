@@ -1,0 +1,33 @@
+/stubBlockNotSingleCall.kt:29:11: error: The block of 'every' must be a single call of a mock member, but it is empty.
+
+/stubBlockNotSingleCall.kt:30:11: error: The block of 'every' must be a single call of a mock member, but it has several statements.
+
+/stubBlockNotSingleCall.kt:31:11: error: The block of 'every' must be a single call of a mock member, but it has several statements.
+
+/stubBlockNotSingleCall.kt:35:13: error: The block of 'every' must be a single call of a mock member, but it is a safe call. Use '!!' on the receiver instead of '?.'.
+
+/stubBlockNotSingleCall.kt:36:13: error: The block of 'every' must be a single call of a mock member, but it compares values with an operator. Call 'equals' explicitly.
+
+/stubBlockNotSingleCall.kt:37:13: error: The block of 'every' must be a single call of a mock member, but it compares values with an operator. Call 'equals' explicitly.
+
+/stubBlockNotSingleCall.kt:38:13: error: The block of 'every' must be a single call of a mock member, but it compares values with an operator. Call 'compareTo' explicitly.
+
+/stubBlockNotSingleCall.kt:39:13: error: The block of 'every' must be a single call of a mock member, but it is a string template. Call 'toString' explicitly.
+
+/stubBlockNotSingleCall.kt:40:13: error: The block of 'every' must be a single call of a mock member, but it wraps the call into a lambda. Move the wrapping call outside the block.
+
+/stubBlockNotSingleCall.kt:41:13: error: The block of 'every' must be a single call of a mock member, but it wraps the call into a lambda. Move the wrapping call outside the block.
+
+/stubBlockNotSingleCall.kt:42:13: error: The block of 'every' must be a single call of a mock member, but it wraps the call into a lambda. Move the wrapping call outside the block.
+
+/stubBlockNotSingleCall.kt:43:13: error: The block of 'every' must be a single call of a mock member, but it is a compound assignment, which reads and writes the property. Stub the setter with a plain assignment of a matcher.
+
+/stubBlockNotSingleCall.kt:44:13: error: The block of 'every' must be a single call of a mock member, but it is a compound assignment, which reads and writes the property. Stub the setter with a plain assignment of a matcher.
+
+/stubBlockNotSingleCall.kt:45:13: error: The block of 'every' must be a single call of a mock member, but it is not a call.
+
+/stubBlockNotSingleCall.kt:46:13: error: The block of 'every' must be a single call of a mock member, but it is not a call.
+
+/stubBlockNotSingleCall.kt:47:13: error: The block of 'every' must be a single call of a mock member, but it is not a call.
+
+/stubBlockNotSingleCall.kt:48:21: error: The block of 'every' must be a single call of a mock member, but it is not a call.

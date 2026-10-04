@@ -1,0 +1,7 @@
+/chainedCallDisabled.kt:26:22: error: A matcher in the receiver of the stubbed call needs chained mocks, which are disabled: stub the call in the receiver separately.
+
+/chainedCallDisabled.kt:27:22: error: A matcher in the receiver of the stubbed call needs chained mocks, which are disabled: stub the call in the receiver separately.
+
+/chainedCallDisabled.kt:28:22: error: A matcher in the receiver of the stubbed call needs chained mocks, which are disabled: stub the call in the receiver separately.
+
+/chainedCallDisabled.kt:29:23: error: A matcher in the receiver of the stubbed call needs chained mocks, which are disabled: stub the call in the receiver separately.
