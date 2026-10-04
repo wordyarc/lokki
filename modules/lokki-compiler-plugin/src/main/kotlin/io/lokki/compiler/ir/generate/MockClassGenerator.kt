@@ -119,7 +119,8 @@ internal class MockClassGenerator(
         state.initializer = DeclarationIrBuilder(context, state.symbol).run {
             irExprBody(
                 irCallConstructor(symbols.mockState.primaryConstructor!!.symbol, emptyList()).apply {
-                    arguments[0] = irGetField(null, descriptor)
+                    arguments[0] = irGet(mock.thisReceiver!!)
+                    arguments[1] = irGetField(null, descriptor)
                 }
             )
         }

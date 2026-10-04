@@ -1,5 +1,6 @@
 package io.lokki.internal
 
+import io.lokki.CapturingSlot
 import io.lokki.Matcher
 
 @PublishedApi
@@ -13,10 +14,15 @@ internal class EqMatcher(private val value: Any?) : Matcher<Any?> {
 }
 
 @PublishedApi
-internal class ArrayMatcher(private val elements: Array<Matcher<Any?>>) : Matcher<Any?> {
+internal class ArrayMatcher(private val elements: Array<Matcher<Any?>>) : Matcher<Any?>, CapturingMatcher {
     override fun match(arg: Any?): Boolean {
         val actual = arg.arrayElements() ?: return false
         return actual.size == elements.size && elements.indices.all { elements[it].match(actual[it]) }
+    }
+
+    override fun capture(arg: Any?) {
+        val actual = arg.arrayElements() ?: return
+        elements.forEachIndexed { index, element -> (element as? CapturingMatcher)?.capture(actual[index]) }
     }
 }
 
@@ -47,11 +53,13 @@ internal object Matchers {
         toInclusive: Boolean = true,
     ): Matcher<Any?> = and(more(from, fromInclusive), less(to, toInclusive))
 
-    fun and(left: Matcher<Any?>, right: Matcher<Any?>): Matcher<Any?> = Matcher { left.match(it) && right.match(it) }
+    fun and(left: Matcher<Any?>, right: Matcher<Any?>): Matcher<Any?> =
+        CompositeMatcher(arrayOf(left, right)) { left.match(it) && right.match(it) }
 
-    fun or(left: Matcher<Any?>, right: Matcher<Any?>): Matcher<Any?> = Matcher { left.match(it) || right.match(it) }
+    fun or(left: Matcher<Any?>, right: Matcher<Any?>): Matcher<Any?> =
+        CompositeMatcher(arrayOf(left, right)) { left.match(it) || right.match(it) }
 
-    fun not(value: Matcher<Any?>): Matcher<Any?> = Matcher { !value.match(it) }
+    fun not(value: Matcher<Any?>): Matcher<Any?> = CompositeMatcher(arrayOf(value)) { !value.match(it) }
 
     @Suppress("UNCHECKED_CAST")
     fun match(matcher: (Nothing) -> Boolean): Matcher<Any?> {
@@ -59,17 +67,59 @@ internal object Matchers {
         return Matcher { it != null && predicate(it) }
     }
 
+    inline fun <reified T> match(matcher: Matcher<T>): Matcher<Any?> = Matcher { it is T && matcher.match(it) }
+
     @Suppress("UNCHECKED_CAST")
     fun matchNullable(matcher: (Nothing?) -> Boolean): Matcher<Any?> = Matcher(matcher as (Any?) -> Boolean)
 
+    @Suppress("UNCHECKED_CAST")
+    fun capture(lst: MutableList<*>): Matcher<Any?> =
+        CaptureMatcher { if (it != null) (lst as MutableList<Any?>).add(it) }
+
+    @Suppress("UNCHECKED_CAST")
+    fun capture(lst: CapturingSlot<*>): Matcher<Any?> =
+        CaptureMatcher { if (it != null) (lst as CapturingSlot<Any?>).captured = it }
+
+    @Suppress("UNCHECKED_CAST")
+    fun captureNullable(lst: MutableList<*>): Matcher<Any?> = CaptureMatcher { (lst as MutableList<Any?>).add(it) }
+
+    @Suppress("UNCHECKED_CAST")
+    fun captureNullable(lst: CapturingSlot<*>): Matcher<Any?> =
+        CaptureMatcher { (lst as CapturingSlot<Any?>).captured = it }
+
     inline fun <reified T> ofType(): Matcher<Any?> = Matcher { it is T }
 
-    inline fun <reified T> typed(matcher: Matcher<Any?>): Matcher<Any?> =
-        Matcher { (it == null || it is T) && matcher.match(it) }
+    inline fun <reified T> typed(matcher: Matcher<Any?>): Matcher<Any?> = filtered(matcher) { it == null || it is T }
+
+    fun filtered(matcher: Matcher<Any?>, accepts: (Any?) -> Boolean): Matcher<Any?> =
+        CompositeMatcher(arrayOf(matcher)) { accepts(it) && matcher.match(it) }
 
     fun spread(array: Any): Array<Matcher<Any?>> {
         val elements = array.arrayElements()!!
         return Array(elements.size) { EqMatcher(elements[it]) }
+    }
+}
+
+internal interface CapturingMatcher {
+    fun capture(arg: Any?)
+}
+
+private class CaptureMatcher(private val capture: (Any?) -> Unit) : Matcher<Any?>, CapturingMatcher {
+    override fun match(arg: Any?): Boolean = true
+
+    override fun capture(arg: Any?) {
+        capture.invoke(arg)
+    }
+}
+
+private class CompositeMatcher(
+    private val operands: Array<Matcher<Any?>>,
+    private val matches: (Any?) -> Boolean,
+) : Matcher<Any?>, CapturingMatcher {
+    override fun match(arg: Any?): Boolean = matches(arg)
+
+    override fun capture(arg: Any?) {
+        operands.forEach { (it as? CapturingMatcher)?.capture(arg) }
     }
 }
 
@@ -93,7 +143,7 @@ private fun Any?.arrayElements(): List<Any?>? =
         else -> null
     }
 
-private fun deepEquals(a: Any?, b: Any?): Boolean =
+internal fun deepEquals(a: Any?, b: Any?): Boolean =
     when (a) {
         is Array<*> -> b is Array<*> && a.contentDeepEquals(b)
         is BooleanArray -> b is BooleanArray && a.contentEquals(b)

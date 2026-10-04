@@ -3,11 +3,9 @@
 
 package sample
 
-import io.lokki.InternalLokkiApi
 import io.lokki.MatcherScope
 import io.lokki.StubScope
 import io.lokki.every
-import io.lokki.internal.LokkiIntrinsic
 
 @JvmInline
 value class Id(val value: Int)
@@ -23,11 +21,7 @@ fun top(): String = ""
 
 fun Repo.first(): String = find(1)
 
-fun MatcherScope.anyId(): Int = any()
-
-@OptIn(InternalLokkiApi::class)
-@LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
-fun <T> MatcherScope.custom(): T = TODO()
+fun MatcherScope.anyId(): Id = any()
 
 fun test(repo: Repo, nullable: Repo?, block: MatcherScope.() -> String) {
     <!LOKKI_UNSUPPORTED!>every(block)<!> returns "a"
@@ -38,10 +32,11 @@ fun test(repo: Repo, nullable: Repo?, block: MatcherScope.() -> String) {
     every { repo.<!LOKKI_UNSUPPORTED!>toString()<!> } returns "a"
     every { <!LOKKI_UNSUPPORTED!>any<Repo>()<!>.find(1) } returns "a"
     every { repo.find(<!LOKKI_UNSUPPORTED!>any<Int>() + 1<!>) } returns "a"
-    every { repo.find(<!LOKKI_UNSUPPORTED!>anyId()<!>) } returns "a"
+    every { repo.find(listOf(any<Int>()).<!LOKKI_UNSUPPORTED!>size<!>) } returns "a"
     every { repo.find(eq(<!LOKKI_UNSUPPORTED!>any()<!>)) } returns "a"
-    every { repo.find(<!LOKKI_UNSUPPORTED!>custom()<!>) } returns "a"
+    every { repo.find(<!LOKKI_UNSUPPORTED!>return@every "b"<!>) } returns "a"
     every { repo.load(<!LOKKI_UNSUPPORTED!>any()<!>) } returns "a"
+    every { repo.load(<!LOKKI_UNSUPPORTED!>anyId()<!>) } returns "a"
     with(repo) { every { <!LOKKI_UNSUPPORTED!>any<String>()<!>.label() } returns "a" }
     every { repo.names(*<!LOKKI_UNSUPPORTED!>any()<!>) } returns 1
     val reference: (MatcherScope.() -> String) -> StubScope<String> = <!LOKKI_UNSUPPORTED!>::every<!>

@@ -2,8 +2,10 @@ package io.lokki.compiler.ir
 
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.ir.declarations.IrClass
+import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.util.companionObject
+import org.jetbrains.kotlin.ir.util.erasedUpperBound
 import org.jetbrains.kotlin.ir.util.functions
 import org.jetbrains.kotlin.ir.util.properties
 import org.jetbrains.kotlin.name.ClassId
@@ -16,6 +18,7 @@ internal class LokkiSymbols(context: IrPluginContext) {
     val generatedMock by lazy { findClass(INTERNAL_PACKAGE, "GeneratedMock") }
     val state by lazy { generatedMock.properties.single { it.name.asString() == "lokki\$state" } }
     val of by lazy { generatedMock.companionObject()!!.function("of") }
+    val withoutStateChanges by lazy { generatedMock.companionObject()!!.function("withoutStateChanges") }
 
     val mockDescriptor by lazy { findClass(INTERNAL_PACKAGE, "MockDescriptor") }
 
@@ -25,6 +28,9 @@ internal class LokkiSymbols(context: IrPluginContext) {
     val captureDefaults by lazy { mockState.function("captureDefaults") }
 
     val matcher by lazy { findClass(PACKAGE, "Matcher") }
+    val matcherScope by lazy { findClass(PACKAGE, "MatcherScope") }
+    val matcherOf by lazy { matcherScope.function("matcherOf") }
+    val registrationScope by lazy { findClass(INTERNAL_PACKAGE, "RegistrationScope") }
     val anyMatcher by lazy { findClass(INTERNAL_PACKAGE, "AnyMatcher") }
     val eqMatcher by lazy { findClass(INTERNAL_PACKAGE, "EqMatcher") }
     val arrayMatcher by lazy { findClass(INTERNAL_PACKAGE, "ArrayMatcher") }
@@ -32,11 +38,19 @@ internal class LokkiSymbols(context: IrPluginContext) {
 
     fun matcherFactory(name: String): IrSimpleFunction = matchers.function(name)
 
+    fun matcherFactory(function: IrSimpleFunction): IrSimpleFunction {
+        val factories = matchers.functions.filter { it.name == function.name }.toList()
+        return factories.singleOrNull() ?: factories.single { it.firstParameterClass == function.firstParameterClass }
+    }
+
     private fun findClass(packageName: FqName, name: String): IrClass =
         finder.findClass(ClassId(packageName, Name.identifier(name)))!!.owner
 }
 
 private fun IrClass.function(name: String): IrSimpleFunction = functions.single { it.name.asString() == name }
+
+private val IrSimpleFunction.firstParameterClass: IrClass?
+    get() = parameters.firstOrNull { it.kind == IrParameterKind.Regular }?.type?.erasedUpperBound
 
 private val PACKAGE = FqName("io.lokki")
 private val INTERNAL_PACKAGE = FqName("io.lokki.internal")

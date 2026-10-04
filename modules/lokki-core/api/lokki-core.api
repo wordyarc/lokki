@@ -1,4 +1,51 @@
+public abstract interface class io/lokki/AdditionalAnswerScope {
+	public abstract fun andThen (Ljava/lang/Object;)Lio/lokki/AdditionalAnswerScope;
+	public abstract fun andThenAnswer (Lio/lokki/Answer;)Lio/lokki/AdditionalAnswerScope;
+	public abstract fun andThenAnswer (Lkotlin/jvm/functions/Function2;)Lio/lokki/AdditionalAnswerScope;
+	public abstract fun andThenMany (Ljava/util/List;)Lio/lokki/AdditionalAnswerScope;
+	public abstract fun andThenMany ([Ljava/lang/Object;)Lio/lokki/AdditionalAnswerScope;
+	public abstract fun andThenThrows (Ljava/lang/Throwable;)Lio/lokki/AdditionalAnswerScope;
+	public abstract fun andThenThrowsMany (Ljava/util/List;)Lio/lokki/AdditionalAnswerScope;
+}
+
+public abstract interface class io/lokki/Answer {
+	public abstract fun answer (Lio/lokki/Call;)Ljava/lang/Object;
+}
+
+public final class io/lokki/AnswerScope {
+	public final fun captured (Ljava/util/List;)Ljava/lang/Object;
+	public final fun getArgs ()Ljava/util/List;
+	public final fun getCall ()Lio/lokki/Call;
+	public final fun getInvocation ()Lio/lokki/Invocation;
+	public final fun getNArgs ()I
+	public final fun getNothing ()Ljava/lang/Void;
+	public final fun getSelf ()Ljava/lang/Object;
+}
+
+public final class io/lokki/Call {
+	public final fun getInvocation ()Lio/lokki/Invocation;
+}
+
+public final class io/lokki/CapturingSlot {
+	public fun <init> ()V
+	public final fun clear ()V
+	public final fun getCaptured ()Ljava/lang/Object;
+	public final fun isCaptured ()Z
+	public final fun isNull ()Z
+	public final fun setCaptured (Ljava/lang/Object;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/lokki/CapturingSlotKt {
+	public static final fun slot ()Lio/lokki/CapturingSlot;
+}
+
 public abstract interface annotation class io/lokki/InternalLokkiApi : java/lang/annotation/Annotation {
+}
+
+public final class io/lokki/Invocation {
+	public final fun getArgs ()Ljava/util/List;
+	public final fun getSelf ()Ljava/lang/Object;
 }
 
 public final class io/lokki/LokkiException : java/lang/RuntimeException {
@@ -11,14 +58,30 @@ public abstract interface class io/lokki/Matcher {
 }
 
 public abstract class io/lokki/MatcherScope {
+	public final fun matcherOf (Ljava/lang/Object;)Lio/lokki/Matcher;
+	public final fun pop ()Lio/lokki/Matcher;
+	public final fun push (Lio/lokki/Matcher;Lkotlin/reflect/KClass;)Ljava/lang/Object;
+}
+
+public final class io/lokki/Runs {
+	public static final field INSTANCE Lio/lokki/Runs;
 }
 
 public abstract interface class io/lokki/StubScope {
-	public abstract fun returns (Ljava/lang/Object;)V
+	public abstract fun answers (Lio/lokki/Answer;)Lio/lokki/AdditionalAnswerScope;
+	public abstract fun answers (Lkotlin/jvm/functions/Function2;)Lio/lokki/AdditionalAnswerScope;
+	public abstract fun returns (Ljava/lang/Object;)Lio/lokki/AdditionalAnswerScope;
+	public abstract fun returnsArgument (I)Lio/lokki/AdditionalAnswerScope;
+	public abstract fun returnsMany (Ljava/util/List;)Lio/lokki/AdditionalAnswerScope;
+	public abstract fun returnsMany ([Ljava/lang/Object;)Lio/lokki/AdditionalAnswerScope;
+	public abstract fun throws (Ljava/lang/Throwable;)Lio/lokki/AdditionalAnswerScope;
+	public abstract fun throwsMany (Ljava/util/List;)Lio/lokki/AdditionalAnswerScope;
 }
 
 public final class io/lokki/StubbingKt {
+	public static final fun andThenJust (Lio/lokki/AdditionalAnswerScope;Lio/lokki/Runs;)Lio/lokki/AdditionalAnswerScope;
 	public static final fun every (Lkotlin/jvm/functions/Function1;)Lio/lokki/StubScope;
+	public static final fun just (Lio/lokki/StubScope;Lio/lokki/Runs;)Lio/lokki/AdditionalAnswerScope;
 }
 
 public final class io/lokki/internal/AnyMatcher : io/lokki/Matcher {
@@ -26,8 +89,9 @@ public final class io/lokki/internal/AnyMatcher : io/lokki/Matcher {
 	public fun match (Ljava/lang/Object;)Z
 }
 
-public final class io/lokki/internal/ArrayMatcher : io/lokki/Matcher {
+public final class io/lokki/internal/ArrayMatcher : io/lokki/Matcher, io/lokki/internal/CapturingMatcher {
 	public fun <init> ([Lio/lokki/Matcher;)V
+	public fun capture (Ljava/lang/Object;)V
 	public fun match (Ljava/lang/Object;)Z
 }
 
@@ -43,6 +107,7 @@ public abstract interface class io/lokki/internal/GeneratedMock {
 
 public final class io/lokki/internal/GeneratedMock$Companion {
 	public final fun of (Ljava/lang/Object;)Lio/lokki/internal/GeneratedMock;
+	public final fun withoutStateChanges (Lkotlin/jvm/functions/Function0;)Ljava/lang/Object;
 }
 
 public abstract interface annotation class io/lokki/internal/LokkiIntrinsic : java/lang/annotation/Annotation {
@@ -61,9 +126,14 @@ public final class io/lokki/internal/LokkiIntrinsic$Kind : java/lang/Enum {
 public final class io/lokki/internal/Matchers {
 	public static final field INSTANCE Lio/lokki/internal/Matchers;
 	public final fun and (Lio/lokki/Matcher;Lio/lokki/Matcher;)Lio/lokki/Matcher;
+	public final fun capture (Lio/lokki/CapturingSlot;)Lio/lokki/Matcher;
+	public final fun capture (Ljava/util/List;)Lio/lokki/Matcher;
+	public final fun captureNullable (Lio/lokki/CapturingSlot;)Lio/lokki/Matcher;
+	public final fun captureNullable (Ljava/util/List;)Lio/lokki/Matcher;
 	public final fun cmpEq (Ljava/lang/Comparable;)Lio/lokki/Matcher;
 	public final fun eq (Ljava/lang/Object;Z)Lio/lokki/Matcher;
 	public static synthetic fun eq$default (Lio/lokki/internal/Matchers;Ljava/lang/Object;ZILjava/lang/Object;)Lio/lokki/Matcher;
+	public final fun filtered (Lio/lokki/Matcher;Lkotlin/jvm/functions/Function1;)Lio/lokki/Matcher;
 	public final fun isNull (Z)Lio/lokki/Matcher;
 	public static synthetic fun isNull$default (Lio/lokki/internal/Matchers;ZILjava/lang/Object;)Lio/lokki/Matcher;
 	public final fun less (Ljava/lang/Comparable;Z)Lio/lokki/Matcher;
@@ -88,9 +158,20 @@ public final class io/lokki/internal/MockDescriptor {
 }
 
 public final class io/lokki/internal/MockState {
-	public fun <init> (Lio/lokki/internal/MockDescriptor;)V
+	public fun <init> (Ljava/lang/Object;Lio/lokki/internal/MockDescriptor;)V
 	public final fun answer (I[Ljava/lang/Object;)Ljava/lang/Object;
-	public final fun captureDefaults (Ljava/lang/String;Lkotlin/jvm/functions/Function0;)[Ljava/lang/Object;
+	public final fun captureDefaults (Ljava/lang/String;[Ljava/lang/String;Lkotlin/jvm/functions/Function1;)[Ljava/lang/Object;
 	public final fun stub (Ljava/lang/String;[Lio/lokki/Matcher;)Lio/lokki/StubScope;
+}
+
+public final class io/lokki/internal/Registration {
+	public static final field INSTANCE Lio/lokki/internal/Registration;
+	public final fun enter ()V
+	public final fun exit ()V
+	public final fun isActive ()Z
+}
+
+public final class io/lokki/internal/RegistrationScope : io/lokki/MatcherScope {
+	public fun <init> ()V
 }
 

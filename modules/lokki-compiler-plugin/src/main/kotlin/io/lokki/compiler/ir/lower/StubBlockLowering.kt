@@ -10,17 +10,20 @@ import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.ir.IrElement
-import org.jetbrains.kotlin.ir.builders.IrBlockBuilder
+import org.jetbrains.kotlin.ir.builders.IrBlockBodyBuilder
 import org.jetbrains.kotlin.ir.builders.IrBuilder
 import org.jetbrains.kotlin.ir.builders.Scope
+import org.jetbrains.kotlin.ir.builders.declarations.addValueParameter
 import org.jetbrains.kotlin.ir.builders.declarations.buildFun
 import org.jetbrains.kotlin.ir.builders.irBlockBody
 import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irCallConstructor
 import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.builders.irGetObjectValue
+import org.jetbrains.kotlin.ir.builders.irIfThenElse
 import org.jetbrains.kotlin.ir.builders.irInt
 import org.jetbrains.kotlin.ir.builders.irNull
+import org.jetbrains.kotlin.ir.builders.irReturn
 import org.jetbrains.kotlin.ir.builders.irString
 import org.jetbrains.kotlin.ir.builders.irTemporary
 import org.jetbrains.kotlin.ir.declarations.IrClass
@@ -49,7 +52,15 @@ import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.types.classifierOrNull
+import org.jetbrains.kotlin.ir.types.isBoolean
+import org.jetbrains.kotlin.ir.types.isByte
+import org.jetbrains.kotlin.ir.types.isChar
+import org.jetbrains.kotlin.ir.types.isDouble
+import org.jetbrains.kotlin.ir.types.isFloat
+import org.jetbrains.kotlin.ir.types.isLong
 import org.jetbrains.kotlin.ir.types.isPrimitiveType
+import org.jetbrains.kotlin.ir.types.isShort
+import org.jetbrains.kotlin.ir.types.makeNullable
 import org.jetbrains.kotlin.ir.types.typeWith
 import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.defaultValueForType
@@ -62,6 +73,7 @@ import org.jetbrains.kotlin.ir.util.nonDispatchParameters
 import org.jetbrains.kotlin.ir.util.parentAsClass
 import org.jetbrains.kotlin.ir.util.patchDeclarationParents
 import org.jetbrains.kotlin.ir.util.primaryConstructor
+import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.IrVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
@@ -72,6 +84,8 @@ internal class StubBlockLowering(
     private val symbols: LokkiSymbols,
     private val unsupported: (IrElement, String) -> Unit,
 ) {
+    private val matcherType = symbols.matcher.typeWith(context.irBuiltIns.anyNType)
+
     fun lower(every: IrCall, scope: Scope): IrExpression = stub(every, scope) ?: every
 
     private fun stub(every: IrCall, scope: Scope): IrExpression? {
@@ -88,54 +102,115 @@ internal class StubBlockLowering(
         }
         val parameters = member.nonDispatchParameters
         val declared = member.root.parameters
-        val capturesDefaults = null in stubbed.arguments
+        val stub = StubBlock(block, stubbed.arguments.firstOrNull().isAllAny)
+        val capturesDefaults = !stub.allAny && null in stubbed.arguments
 
-        return IrBlockBuilder(context, scope, every.startOffset, every.endOffset, resultType = every.type).block {
-            val receiver = irTemporary(stubbed.receiver)
-            val state = irTemporary(irStateOf(irGet(receiver)))
-            val key = member.memberKeys.first()
-            val values = arrayOfNulls<IrVariable>(parameters.size)
-            val matchers = arrayOfNulls<IrVariable>(parameters.size)
-            for (index in stubbed.order) {
-                val argument = stubbed.arguments[index] ?: continue
-                val parameter = parameters[index]
-                if (argument.isIndependentOf(block)) {
-                    values[index] = irTemporary(argument)
-                    continue
+        val registration = lambda(every, every.type)
+        registration.body = DeclarationIrBuilder(context, registration.symbol, every.startOffset, every.endOffset)
+            .irBlockBody {
+                val receiver = irTemporary(stubbed.receiver)
+                val state = irTemporary(irStateOf(irGet(receiver)))
+                val key = member.memberKeys.first()
+                val values = arrayOfNulls<IrVariable>(parameters.size)
+                val matchers = arrayOfNulls<IrVariable>(parameters.size)
+                for (index in stubbed.order) {
+                    val argument = stubbed.arguments[index] ?: continue
+                    val parameter = parameters[index]
+                    if (argument.isIndependentOf(block)) {
+                        values[index] = irTemporary(argument)
+                        continue
+                    }
+                    if (capturesDefaults) placeholderProblem(parameter, argument)?.let { return fail(argument, it) }
+                    val matcher = irArgumentMatcher(argument, declared[parameter.indexInParameters], stub)
+                        ?: return null
+                    matchers[index] = irTemporary(matcher)
                 }
-                if (capturesDefaults) placeholderProblem(parameter, argument)?.let { return fail(argument, it) }
-                val matcher = irArgumentMatcher(argument, declared[parameter.indexInParameters], block) ?: return null
-                matchers[index] = irTemporary(matcher)
-            }
-            val defaults = if (capturesDefaults) {
-                call.dispatchReceiver = irGet(receiver)
-                parameters.forEachIndexed { index, parameter ->
-                    val argument = stubbed.arguments[index]
-                    call.arguments[parameter.indexInParameters] =
-                        argument?.let { values[index]?.let(::irGet) ?: irPlaceholder(it) }
+                val defaults = if (capturesDefaults) {
+                    call.dispatchReceiver = irGet(receiver)
+                    irTemporary(irCaptureDefaults(every, state, key, stubbed, values))
+                } else {
+                    null
                 }
-                irTemporary(irCaptureDefaults(state, key, call))
-            } else {
-                null
-            }
-            +irCall(symbols.stub.symbol, every.type, listOf(every.typeArguments[0]!!)).apply {
-                arguments[0] = irGet(state)
-                arguments[1] = irString(key)
-                arguments[2] = irArrayOf(
-                    symbols.matcher.typeWith(context.irBuiltIns.anyNType),
-                    parameters.indices.map { index ->
-                        matchers[index]?.let(::irGet)
-                            ?: irEq(values[index]?.let(::irGet) ?: irArrayGet(defaults!!, index))
-                    },
+                +irReturn(
+                    irCall(symbols.stub.symbol, every.type, listOf(every.typeArguments[0]!!)).apply {
+                        arguments[0] = irGet(state)
+                        arguments[1] = irString(key)
+                        arguments[2] = irArrayOf(
+                            matcherType,
+                            parameters.indices.map { index ->
+                                when {
+                                    matchers[index] != null -> irGet(matchers[index]!!)
+                                    stub.allAny -> irAny()
+                                    else -> irEq(values[index]?.let(::irGet) ?: irArrayGet(defaults!!, index))
+                                }
+                            },
+                        )
+                    }
                 )
             }
+
+        return DeclarationIrBuilder(context, scope.scopeOwnerSymbol, every.startOffset, every.endOffset).run {
+            irCall(symbols.withoutStateChanges.symbol, every.type, listOf(every.type)).apply {
+                val companion = symbols.withoutStateChanges.parentAsClass
+                arguments[0] = irGetObjectValue(companion.defaultType, companion.symbol)
+                arguments[1] = registration.expression(every.type)
+            }
         }.patchDeclarationParents(scope.getLocalDeclarationParent())
+    }
+
+    private fun IrBuilder.irCaptureDefaults(
+        every: IrCall,
+        state: IrVariable,
+        key: String,
+        stubbed: StubbedCall,
+        values: Array<IrVariable?>,
+    ): IrExpression {
+        val call = stubbed.call
+        val parameters = call.symbol.owner.nonDispatchParameters
+        val capture = lambda(every, context.irBuiltIns.unitType)
+        val alternate = capture.addValueParameter("alternate", context.irBuiltIns.booleanType)
+        parameters.forEachIndexed { index, parameter ->
+            call.arguments[parameter.indexInParameters] = stubbed.arguments[index]?.let { argument ->
+                values[index]?.let(::irGet) ?: irPlaceholder(argument, alternate)
+            }
+        }
+        capture.body = DeclarationIrBuilder(context, capture.symbol, startOffset, endOffset).irBlockBody { +call }
+        return irCall(symbols.captureDefaults).apply {
+            arguments[0] = irGet(state)
+            arguments[1] = irString(key)
+            arguments[2] = irArrayOf(
+                context.irBuiltIns.stringType.makeNullable(),
+                parameters.mapIndexed { index, parameter ->
+                    if (stubbed.arguments[index] == null) irString(parameter.name.asString()) else irNull()
+                },
+            )
+            arguments[3] = capture.expression(context.irBuiltIns.booleanType, capture.returnType)
+        }
     }
 
     private fun fail(element: IrElement, reason: String): Nothing? {
         unsupported(element, reason)
         return null
     }
+
+    private fun lambda(every: IrCall, type: IrType): IrSimpleFunction =
+        context.irFactory.buildFun {
+            startOffset = every.startOffset
+            endOffset = every.endOffset
+            origin = IrDeclarationOrigin.LOCAL_FUNCTION_FOR_LAMBDA
+            name = SpecialNames.ANONYMOUS
+            visibility = DescriptorVisibilities.LOCAL
+            returnType = type
+        }
+
+    private fun IrSimpleFunction.expression(vararg types: IrType): IrExpression =
+        IrFunctionExpressionImpl(
+            startOffset,
+            endOffset,
+            context.irBuiltIns.functionN(types.size - 1).typeWith(*types),
+            this,
+            IrStatementOrigin.LAMBDA,
+        )
 
     private fun placeholderProblem(parameter: IrValueParameter, argument: IrExpression): String? =
         when {
@@ -148,19 +223,20 @@ internal class StubBlockLowering(
             else -> null
         }
 
-    private fun IrBuilder.irArgumentMatcher(
+    private fun IrBlockBodyBuilder.irArgumentMatcher(
         argument: IrExpression,
         declared: IrValueParameter,
-        block: IrSimpleFunction,
+        stub: StubBlock,
     ): IrExpression? {
-        if (argument !is IrVararg) return irMatcher(argument, declared.type.erasedUpperBound, block)
+        if (argument !is IrVararg) return irMatcher(argument, declared.type.erasedUpperBound, stub)
         val elementType = declared.varargElementType!!.erasedUpperBound
         val elements = argument.elements.map { element ->
-            if (element is IrSpreadElement) {
-                if (!element.expression.isIndependentOf(block)) {
+            when {
+                element !is IrSpreadElement ->
+                    irMatcher(element as IrExpression, elementType, stub, stub.allAny) ?: return null
+                !element.expression.isIndependentOf(stub.block) ->
                     return fail(element.expression, "A matcher cannot be spread into a vararg parameter")
-                }
-                IrSpreadElementImpl(
+                else -> IrSpreadElementImpl(
                     startOffset,
                     endOffset,
                     irCall(symbols.matcherFactory(SPREAD)).apply {
@@ -168,54 +244,55 @@ internal class StubBlockLowering(
                         arguments[1] = element.expression
                     },
                 )
-            } else {
-                irMatcher(element as IrExpression, elementType, block) ?: return null
             }
         }
         return irCallConstructor(symbols.arrayMatcher.primaryConstructor!!.symbol, emptyList()).apply {
-            arguments[0] = irArrayOf(symbols.matcher.typeWith(context.irBuiltIns.anyNType), elements)
+            arguments[0] = irArrayOf(matcherType, elements)
         }
     }
 
-    private fun IrBuilder.irMatcher(argument: IrExpression, declared: IrClass, block: IrSimpleFunction): IrExpression? =
+    private fun IrBlockBodyBuilder.irMatcher(
+        argument: IrExpression,
+        declared: IrClass,
+        stub: StubBlock,
+        allAny: Boolean = false,
+    ): IrExpression? =
         when {
-            argument is IrCall && argument.intrinsicKind == IntrinsicKind.MATCHER ->
-                irBuiltinMatcher(argument, declared, block)
-            argument.isIndependentOf(block) -> irEq(argument)
+            argument.isIndependentOf(stub.block) -> if (allAny) irAny() else irEq(argument)
+            argument.isBuiltinMatcher -> irBuiltinMatcher(argument as IrCall, declared, stub)
+            argument.isHelperOf(stub.block) -> irHelperMatcher(argument, stub)
+            argument.contains { it.returnsFrom(stub.block) } ->
+                fail(argument, "An argument of the stubbed call must not return from the block")
             else -> fail(
                 argument,
-                "A matcher must be a whole argument: matcher helpers and matchers inside expressions " +
-                    "are not supported yet",
+                "A matcher inside an expression is not supported: pass the matcher as a whole argument",
             )
         }
 
-    private fun IrBuilder.irBuiltinMatcher(call: IrCall, declared: IrClass, block: IrSimpleFunction): IrExpression? {
+    private fun IrBlockBodyBuilder.irBuiltinMatcher(call: IrCall, declared: IrClass, stub: StubBlock): IrExpression? {
         val name = call.symbol.owner.name.asString()
         val type = call.typeArguments[0]!!
         val matcher = when (name) {
-            in ANY_MATCHERS -> irGetObjectValue(symbols.anyMatcher.defaultType, symbols.anyMatcher.symbol)
-            in COMPOSITE_MATCHERS -> irFactory(call) { irMatcher(it, declared, block) }
-            in VALUE_MATCHERS -> irFactory(call) { value ->
-                value.takeIf { it.isIndependentOf(block) }
+            in ANY_MATCHERS -> irAny()
+            in COMPOSITE_MATCHERS -> irFactory(call) { irMatcher(it, declared, stub) }
+            else -> irFactory(call) { value ->
+                value.takeIf { it.isIndependentOf(stub.block) }
                     ?: fail(value, "An argument of the matcher '$name' must not use matchers")
             }
-            OF_TYPE -> irReifiedFactory(name, type)
-            else -> fail(call, "The matcher '$name' is not supported by this version of the lokki compiler plugin")
         } ?: return null
-        val typed = name in TYPED_MATCHERS && type.isStrictSubtypeOf(declared)
-        return if (typed) irReifiedFactory(TYPED, type, matcher) else matcher
-    }
-
-    private fun IrBuilder.irReifiedFactory(name: String, type: IrType, matcher: IrExpression? = null): IrExpression =
-        irCall(symbols.matcherFactory(name)).apply {
+        if (name !in TYPED_MATCHERS || !type.isStrictSubtypeOf(declared)) return matcher
+        return irCall(symbols.matcherFactory(TYPED)).apply {
             typeArguments[0] = type
             arguments[0] = irMatchers()
-            if (matcher != null) arguments[1] = matcher
+            arguments[1] = matcher
         }
+    }
 
     private inline fun IrBuilder.irFactory(call: IrCall, argument: (IrExpression) -> IrExpression?): IrExpression? {
         val function = call.symbol.owner
-        return irCall(symbols.matcherFactory(function.name.asString())).apply {
+        val factory = symbols.matcherFactory(function)
+        return irCall(factory).apply {
+            if (factory.typeParameters.isNotEmpty()) typeArguments[0] = call.typeArguments[0]
             arguments[0] = irMatchers()
             function.nonDispatchParameters.forEachIndexed { index, parameter ->
                 val passed = call.arguments[parameter.indexInParameters] ?: return@forEachIndexed
@@ -224,8 +301,29 @@ internal class StubBlockLowering(
         }
     }
 
+    private fun IrBlockBodyBuilder.irHelperMatcher(helper: IrExpression, stub: StubBlock): IrExpression {
+        val scope = stub.scope ?: irTemporary(
+            irCallConstructor(symbols.registrationScope.primaryConstructor!!.symbol, emptyList()),
+            irType = symbols.matcherScope.defaultType,
+        ).also { stub.scope = it }
+        val value = helper.transform(
+            object : IrElementTransformerVoid() {
+                override fun visitGetValue(expression: IrGetValue): IrExpression =
+                    if (expression.isScopeOf(stub.block)) irGet(scope) else expression
+            },
+            null,
+        )
+        return irCall(symbols.matcherOf).apply {
+            arguments[0] = irGet(scope)
+            arguments[1] = value
+        }
+    }
+
     private fun IrBuilder.irMatchers(): IrExpression =
         irGetObjectValue(symbols.matchers.defaultType, symbols.matchers.symbol)
+
+    private fun IrBuilder.irAny(): IrExpression =
+        irGetObjectValue(symbols.anyMatcher.defaultType, symbols.anyMatcher.symbol)
 
     private fun IrBuilder.irStateOf(instance: IrExpression): IrExpression =
         irCall(symbols.state.getter!!).apply {
@@ -235,29 +333,6 @@ internal class StubBlockLowering(
                 arguments[1] = instance
             }
         }
-
-    private fun IrBlockBuilder.irCaptureDefaults(state: IrVariable, key: String, call: IrCall): IrExpression {
-        val lambda = context.irFactory.buildFun {
-            startOffset = this@irCaptureDefaults.startOffset
-            endOffset = this@irCaptureDefaults.endOffset
-            origin = IrDeclarationOrigin.LOCAL_FUNCTION_FOR_LAMBDA
-            name = SpecialNames.ANONYMOUS
-            visibility = DescriptorVisibilities.LOCAL
-            returnType = context.irBuiltIns.unitType
-        }
-        lambda.body = DeclarationIrBuilder(context, lambda.symbol, startOffset, endOffset).irBlockBody { +call }
-        return irCall(symbols.captureDefaults).apply {
-            arguments[0] = irGet(state)
-            arguments[1] = irString(key)
-            arguments[2] = IrFunctionExpressionImpl(
-                startOffset,
-                endOffset,
-                context.irBuiltIns.functionN(0).typeWith(context.irBuiltIns.unitType),
-                lambda,
-                IrStatementOrigin.LAMBDA,
-            )
-        }
-    }
 
     private fun IrBuilder.irEq(value: IrExpression): IrExpression =
         irCallConstructor(symbols.eqMatcher.primaryConstructor!!.symbol, emptyList()).apply { arguments[0] = value }
@@ -270,12 +345,35 @@ internal class StubBlockLowering(
         }
     }
 
-    private fun IrBuilder.irPlaceholder(argument: IrExpression): IrExpression =
-        when {
-            argument is IrVararg -> IrVarargImpl(startOffset, endOffset, argument.type, argument.varargElementType)
-            argument.type.isPrimitiveType() -> IrConstImpl.defaultValueForType(startOffset, endOffset, argument.type)
-            else -> irNull(argument.type)
+    private fun IrBuilder.irPlaceholder(argument: IrExpression, alternate: IrValueParameter): IrExpression {
+        val type = argument.type
+        return when {
+            argument is IrVararg -> IrVarargImpl(startOffset, endOffset, type, argument.varargElementType)
+            type.isBoolean() -> irGet(alternate)
+            type.isPrimitiveType() -> irIfThenElse(
+                type,
+                irGet(alternate),
+                irOne(type),
+                IrConstImpl.defaultValueForType(startOffset, endOffset, type),
+            )
+            else -> irNull(type)
         }
+    }
+
+    private fun IrBuilder.irOne(type: IrType): IrExpression =
+        when {
+            type.isByte() -> IrConstImpl.byte(startOffset, endOffset, type, 1)
+            type.isShort() -> IrConstImpl.short(startOffset, endOffset, type, 1)
+            type.isLong() -> IrConstImpl.long(startOffset, endOffset, type, 1)
+            type.isFloat() -> IrConstImpl.float(startOffset, endOffset, type, 1f)
+            type.isDouble() -> IrConstImpl.double(startOffset, endOffset, type, 1.0)
+            type.isChar() -> IrConstImpl.char(startOffset, endOffset, type, '\u0001')
+            else -> IrConstImpl.int(startOffset, endOffset, type, 1)
+        }
+}
+
+private class StubBlock(val block: IrSimpleFunction, val allAny: Boolean) {
+    var scope: IrVariable? = null
 }
 
 private class StubbedCall(
@@ -307,29 +405,43 @@ private fun IrSimpleFunction.stubbedCall(): StubbedCall? {
     )
 }
 
+private val IrExpression?.isAllAny: Boolean
+    get() = when (this) {
+        is IrVararg -> (elements.firstOrNull() as? IrExpression).isAllAny
+        is IrCall -> intrinsicKind == IntrinsicKind.MATCHER && symbol.owner.name.asString() == ALL_ANY
+        else -> false
+    }
+
+private val IrExpression.isBuiltinMatcher: Boolean
+    get() = this is IrCall && intrinsicKind == IntrinsicKind.MATCHER && symbol.owner.name.asString() in BUILTIN_MATCHERS
+
 private fun IrType.isStrictSubtypeOf(declared: IrClass): Boolean {
     if (classifierOrNull is IrTypeParameterSymbol) return true
     val type = erasedUpperBound
     return type != declared && type.isSubclassOf(declared)
 }
 
-private fun IrExpression.isIndependentOf(block: IrSimpleFunction): Boolean {
-    var independent = true
+private fun IrElement.isScopeOf(block: IrSimpleFunction): Boolean =
+    this is IrGetValue && (symbol.owner as? IrValueParameter)?.parent == block
+
+private fun IrElement.returnsFrom(block: IrSimpleFunction): Boolean =
+    this is IrReturn && returnTargetSymbol == block.symbol
+
+private fun IrExpression.isIndependentOf(block: IrSimpleFunction): Boolean =
+    !contains { it.isScopeOf(block) || it.returnsFrom(block) }
+
+private fun IrExpression.isHelperOf(block: IrSimpleFunction): Boolean =
+    this is IrCall && arguments.any { it?.isScopeOf(block) == true } && !contains { it.returnsFrom(block) }
+
+private fun IrExpression.contains(predicate: (IrElement) -> Boolean): Boolean {
+    var found = false
     acceptVoid(object : IrVisitorVoid() {
         override fun visitElement(element: IrElement) {
-            if (independent) element.acceptChildrenVoid(this)
-        }
-
-        override fun visitGetValue(expression: IrGetValue) {
-            if ((expression.symbol.owner as? IrValueParameter)?.parent == block) independent = false
-        }
-
-        override fun visitReturn(expression: IrReturn) {
-            if (expression.returnTargetSymbol == block.symbol) independent = false
-            super.visitReturn(expression)
+            found = found || predicate(element)
+            if (!found) element.acceptChildrenVoid(this)
         }
     })
-    return independent
+    return found
 }
 
 private val CASTS = setOf(
@@ -339,11 +451,14 @@ private val CASTS = setOf(
     IrTypeOperator.IMPLICIT_COERCION_TO_UNIT,
 )
 
-private val ANY_MATCHERS = setOf("any", "anyNullable")
-private val COMPOSITE_MATCHERS = setOf("and", "or", "not")
-private val VALUE_MATCHERS =
-    setOf("eq", "neq", "refEq", "nrefEq", "isNull", "cmpEq", "more", "less", "range", "match", "matchNullable")
-private val TYPED_MATCHERS = ANY_MATCHERS + setOf("cmpEq", "more", "less", "range", "match", "matchNullable")
-private const val OF_TYPE = "ofType"
+private const val ALL_ANY = "allAny"
 private const val TYPED = "typed"
 private const val SPREAD = "spread"
+private val ANY_MATCHERS = setOf("any", "anyNullable", ALL_ANY)
+private val COMPOSITE_MATCHERS = setOf("and", "or", "not")
+private val CAPTURE_MATCHERS = setOf("capture", "captureNullable")
+private val COMPARISON_MATCHERS = setOf("cmpEq", "more", "less", "range")
+private val TYPED_MATCHERS =
+    setOf("any", "anyNullable", "match", "matchNullable") + COMPARISON_MATCHERS + CAPTURE_MATCHERS
+private val BUILTIN_MATCHERS =
+    TYPED_MATCHERS + COMPOSITE_MATCHERS + setOf(ALL_ANY, "eq", "neq", "refEq", "nrefEq", "isNull", "ofType")
