@@ -19,6 +19,9 @@ import org.jetbrains.kotlin.types.Variance
 internal val IrSimpleFunction.memberKeys: List<String>
     get() = roots().map { it.memberKey }
 
+internal val IrSimpleFunction.root: IrSimpleFunction
+    get() = roots().first()
+
 private fun IrSimpleFunction.roots(): List<IrSimpleFunction> =
     if (overriddenSymbols.isEmpty()) listOf(this) else overriddenSymbols.flatMap { it.owner.roots() }.distinct()
 

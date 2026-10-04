@@ -1,0 +1,1 @@
+/test.kt:20:5: error: 'spy' requires a newer version of the lokki compiler plugin.

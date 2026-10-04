@@ -1,0 +1,31 @@
+/unsupportedStubBlock.kt:33:5: error: The block of 'every' must be a lambda literal.
+
+/unsupportedStubBlock.kt:34:11: error: The block of 'every' must be a single call of a mock member.
+
+/unsupportedStubBlock.kt:35:11: error: The block of 'every' must be a single call of a mock member.
+
+/unsupportedStubBlock.kt:36:11: error: The block of 'every' must be a single call of a mock member.
+
+/unsupportedStubBlock.kt:37:11: error: The block of 'every' must be a single call of a mock member.
+
+/unsupportedStubBlock.kt:38:18: error: Stubbing 'toString' is not supported yet.
+
+/unsupportedStubBlock.kt:39:13: error: The receiver of the stubbed call must not use matchers.
+
+/unsupportedStubBlock.kt:40:23: error: A matcher must be a whole argument: matcher helpers and matchers inside expressions are not supported yet.
+
+/unsupportedStubBlock.kt:41:23: error: A matcher must be a whole argument: matcher helpers and matchers inside expressions are not supported yet.
+
+/unsupportedStubBlock.kt:42:26: error: An argument of the matcher 'eq' must not use matchers.
+
+/unsupportedStubBlock.kt:43:23: error: The matcher 'custom' is not supported by this version of the lokki compiler plugin.
+
+/unsupportedStubBlock.kt:44:23: error: A matcher of a value class cannot be combined with omitted arguments: pass all arguments explicitly.
+
+/unsupportedStubBlock.kt:45:26: error: A matcher of the extension receiver cannot be combined with omitted arguments: pass all arguments explicitly.
+
+/unsupportedStubBlock.kt:46:25: error: A matcher cannot be spread into a vararg parameter.
+
+/unsupportedStubBlock.kt:47:71: error: 'every' must be called directly: a reference to it is not supported.
+
+/unsupportedStubBlock.kt:48:56: error: The block of 'every' must be a lambda literal.

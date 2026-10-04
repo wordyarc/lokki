@@ -27,6 +27,10 @@ internal class LokkiSymbols(context: IrPluginContext) {
     val matcher by lazy { findClass(PACKAGE, "Matcher") }
     val anyMatcher by lazy { findClass(INTERNAL_PACKAGE, "AnyMatcher") }
     val eqMatcher by lazy { findClass(INTERNAL_PACKAGE, "EqMatcher") }
+    val arrayMatcher by lazy { findClass(INTERNAL_PACKAGE, "ArrayMatcher") }
+    val matchers by lazy { findClass(INTERNAL_PACKAGE, "Matchers") }
+
+    fun matcherFactory(name: String): IrSimpleFunction = matchers.function(name)
 
     private fun findClass(packageName: FqName, name: String): IrClass =
         finder.findClass(ClassId(packageName, Name.identifier(name)))!!.owner

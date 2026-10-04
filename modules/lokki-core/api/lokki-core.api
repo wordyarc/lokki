@@ -26,6 +26,11 @@ public final class io/lokki/internal/AnyMatcher : io/lokki/Matcher {
 	public fun match (Ljava/lang/Object;)Z
 }
 
+public final class io/lokki/internal/ArrayMatcher : io/lokki/Matcher {
+	public fun <init> ([Lio/lokki/Matcher;)V
+	public fun match (Ljava/lang/Object;)Z
+}
+
 public final class io/lokki/internal/EqMatcher : io/lokki/Matcher {
 	public fun <init> (Ljava/lang/Object;)V
 	public fun match (Ljava/lang/Object;)Z
@@ -51,6 +56,31 @@ public final class io/lokki/internal/LokkiIntrinsic$Kind : java/lang/Enum {
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static fun values ()[Lio/lokki/internal/LokkiIntrinsic$Kind;
+}
+
+public final class io/lokki/internal/Matchers {
+	public static final field INSTANCE Lio/lokki/internal/Matchers;
+	public final fun and (Lio/lokki/Matcher;Lio/lokki/Matcher;)Lio/lokki/Matcher;
+	public final fun cmpEq (Ljava/lang/Comparable;)Lio/lokki/Matcher;
+	public final fun eq (Ljava/lang/Object;Z)Lio/lokki/Matcher;
+	public static synthetic fun eq$default (Lio/lokki/internal/Matchers;Ljava/lang/Object;ZILjava/lang/Object;)Lio/lokki/Matcher;
+	public final fun isNull (Z)Lio/lokki/Matcher;
+	public static synthetic fun isNull$default (Lio/lokki/internal/Matchers;ZILjava/lang/Object;)Lio/lokki/Matcher;
+	public final fun less (Ljava/lang/Comparable;Z)Lio/lokki/Matcher;
+	public static synthetic fun less$default (Lio/lokki/internal/Matchers;Ljava/lang/Comparable;ZILjava/lang/Object;)Lio/lokki/Matcher;
+	public final fun match (Lkotlin/jvm/functions/Function1;)Lio/lokki/Matcher;
+	public final fun matchNullable (Lkotlin/jvm/functions/Function1;)Lio/lokki/Matcher;
+	public final fun more (Ljava/lang/Comparable;Z)Lio/lokki/Matcher;
+	public static synthetic fun more$default (Lio/lokki/internal/Matchers;Ljava/lang/Comparable;ZILjava/lang/Object;)Lio/lokki/Matcher;
+	public final fun neq (Ljava/lang/Object;)Lio/lokki/Matcher;
+	public final fun not (Lio/lokki/Matcher;)Lio/lokki/Matcher;
+	public final fun nrefEq (Ljava/lang/Object;)Lio/lokki/Matcher;
+	public final fun or (Lio/lokki/Matcher;Lio/lokki/Matcher;)Lio/lokki/Matcher;
+	public final fun range (Ljava/lang/Comparable;Ljava/lang/Comparable;ZZ)Lio/lokki/Matcher;
+	public static synthetic fun range$default (Lio/lokki/internal/Matchers;Ljava/lang/Comparable;Ljava/lang/Comparable;ZZILjava/lang/Object;)Lio/lokki/Matcher;
+	public final fun refEq (Ljava/lang/Object;Z)Lio/lokki/Matcher;
+	public static synthetic fun refEq$default (Lio/lokki/internal/Matchers;Ljava/lang/Object;ZILjava/lang/Object;)Lio/lokki/Matcher;
+	public final fun spread (Ljava/lang/Object;)[Lio/lokki/Matcher;
 }
 
 public final class io/lokki/internal/MockDescriptor {
