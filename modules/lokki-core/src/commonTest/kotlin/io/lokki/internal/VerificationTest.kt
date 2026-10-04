@@ -6,14 +6,16 @@ import io.lokki.Matcher
 import io.lokki.Runs
 import io.lokki.just
 import kotlin.test.Test
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.test.fail
 
 class VerificationTest {
-    private val descriptor = MockDescriptor("Repo", ANY_KEYS + arrayOf(FIND, SAVE))
-    private val state = MockState(Any(), MockSpec("repo", 0), descriptor)
+    private val mock = TestMock("repo", FIND, SAVE, COUNT)
+    private val state = mock.`lokki$state`
     private val name = state.name
 
     init {
@@ -40,7 +42,7 @@ class VerificationTest {
 
     @Test
     fun testCallsAreRecordedInOrderEvenWithoutAnswer() {
-        val other = MockState(Any(), MockSpec(null, 0), descriptor)
+        val other = MockState(Any(), MockSpec(null, 0), state.descriptor)
         find(1, false)
         assertFailsWith<LokkiException> { other.answer(SAVE_MEMBER, arrayOf("x")) }
         find(2, true)
@@ -66,7 +68,7 @@ class VerificationTest {
 
         assertEquals(
             "Verification failed: call 1 of 1: $name.find(eq(1), any()) was not called.\n\n" +
-                "Calls to same mock:\n1) $name.save(x)\n",
+                "Calls to same mock:\n1) $name.save(x)\n$CALL_SITES",
             failure(Verification(), expectation(1)),
         )
     }
@@ -79,7 +81,7 @@ class VerificationTest {
             "Verification failed: call 1 of 1: $name.find(eq(1), any()). " +
                 "Only one matching call to $name/find happened, but arguments are not matching:\n" +
                 "[0]: argument: 2, matcher: eq(1), result: -\n" +
-                "[1]: argument: true, matcher: any(), result: +\n",
+                "[1]: argument: true, matcher: any(), result: +\n$CALL_SITES",
             failure(Verification(), expectation(1)),
         )
     }
@@ -92,7 +94,7 @@ class VerificationTest {
 
         assertEquals(
             "Verification failed: call 2 of 2: $name.find(eq(1), any()). No matching calls found.\n\n" +
-                "Calls to same method:\n1) $name.find(2, true)\n2) $name.find(3, true)\n",
+                "Calls to same method:\n1) $name.find(2, true)\n2) $name.find(3, true)\n$CALL_SITES",
             failure(Verification(), SAVE to arrayOf(AnyMatcher), expectation(1)),
         )
     }
@@ -108,19 +110,19 @@ class VerificationTest {
         assertEquals(
             "Verification failed: call 1 of 1: $name.find(eq(1), any()). " +
                 "2 matching calls found, but needs exactly 3 calls\n" +
-                "Calls:\n1) $name.find(1, false)\n2) $name.save(x)\n3) $name.find(1, true)\n",
+                "Calls:\n1) $name.find(1, false)\n2) $name.save(x)\n3) $name.find(1, true)\n$CALL_SITES",
             failure(Verification(exactly = 3), expectation(1)),
         )
         assertEquals(
             "Verification failed: call 1 of 1: $name.find(eq(1), any()). " +
                 "2 matching calls found, but needs at least 3 calls\n" +
-                "Calls:\n1) $name.find(1, false)\n2) $name.save(x)\n3) $name.find(1, true)\n",
+                "Calls:\n1) $name.find(1, false)\n2) $name.save(x)\n3) $name.find(1, true)\n$CALL_SITES",
             failure(Verification(atLeast = 3), expectation(1)),
         )
         assertEquals(
             "Verification failed: call 1 of 1: $name.find(eq(1), any()). " +
                 "2 matching calls found, but needs at least 0 and at most 1 calls\n" +
-                "Calls:\n1) $name.find(1, false)\n2) $name.save(x)\n3) $name.find(1, true)\n",
+                "Calls:\n1) $name.find(1, false)\n2) $name.save(x)\n3) $name.find(1, true)\n$CALL_SITES",
             failure(Verification(atLeast = 0, atMost = 1), expectation(1)),
         )
     }
@@ -131,7 +133,8 @@ class VerificationTest {
 
         assertEquals(
             "Verification failed: call 1 of 1: $name.find(eq(1), any()). " +
-                "One matching call found, but needs at least 2 and at most 3 calls\nCall: $name.find(1, false)",
+                "One matching call found, but needs at least 2 and at most 3 calls\n" +
+                "Call: $name.find(1, false)$CALL_SITES",
             failure(Verification(atLeast = 2, atMost = 3), expectation(1)),
         )
     }
@@ -144,7 +147,7 @@ class VerificationTest {
         verify(expectation(3), verification = Verification(exactly = 0))
         assertEquals(
             "Verification failed: call 1 of 1: $name.find(eq(1), any()) should not be called\n\n" +
-                "Calls:\n1) $name.find(1, false)\n2) $name.find(2, false)\n",
+                "Calls:\n1) $name.find(1, false)\n2) $name.find(2, false)\n$CALL_SITES",
             failure(Verification(exactly = 0), expectation(1)),
         )
     }
@@ -218,6 +221,103 @@ class VerificationTest {
         assertFalse(slot.isCaptured)
     }
 
+    @Test
+    fun testPredicateIsCalledOncePerCall() {
+        var calls = 0
+        val counting = Matchers.named("counting()") { calls++; it == 1 }
+        find(2, true)
+
+        val message = failure(Verification(), FIND to arrayOf(counting, AnyMatcher))
+        assertEquals(1, calls)
+        assertContains(message!!, "[0]: argument: 2, matcher: counting(), result: -\n")
+
+        find(1, false)
+        verify(FIND to arrayOf(counting, AnyMatcher))
+        assertEquals(3, calls)
+    }
+
+    @Test
+    fun testLinkIsExpectedAtLeastOnce() {
+        save("x")
+
+        assertEquals(
+            "Verification failed: call 1 of 2: $name.find(eq(1), eq(false)) was not called.\n\n" +
+                "Calls to same mock:\n1) $name.save(x)\n$CALL_SITES",
+            assertFailsWith<AssertionError> { verifyLink(Verification(exactly = 1)) }.message,
+        )
+
+        find(1, false)
+        find(1, false)
+        verifyLink(Verification(exactly = 1))
+        state.confirmVerified()
+    }
+
+    @Test
+    fun testLinkIsOnlyEvaluatedWithoutLowerBoundOrInverse() {
+        save("x")
+
+        val verifications = listOf(Verification(exactly = 0), Verification(atLeast = 0), Verification(inverse = true))
+        for (verification in verifications) {
+            verification.expectLink(mock, FIND) { fail("matchers of a link that is not expected") }
+            verification.expect(state, FIND, arrayOf(EqMatcher(5), AnyMatcher))
+            verification.check()
+        }
+    }
+
+    @Test
+    fun testLinkOnObjectThatIsNotMockIsOnlyEvaluated() {
+        save("x")
+        val verification = Verification()
+
+        verification.expectLink("not a mock", FIND) { fail("matchers of a link that is not expected") }
+        verification.expect(state, SAVE, arrayOf(AnyMatcher))
+        verification.check()
+    }
+
+    @Test
+    fun testMatchedCallsAreMarkedVerified() {
+        find(1, false)
+        save("x")
+        verify(expectation(1))
+
+        assertEquals(
+            "Verification acknowledgment failed\n\nVerified call count: 1\nRecorded call count: 2\n\n\n" +
+                "Not verified calls:\n1) $name.save(x)\n$CALL_SITES",
+            assertFailsWith<AssertionError> { state.confirmVerified() }.message,
+        )
+        failure(Verification(), SAVE to arrayOf(AnyMatcher), expectation(3))
+        verify(SAVE to arrayOf(AnyMatcher), expectation(3), verification = Verification(inverse = true))
+        assertFailsWith<AssertionError> { state.confirmVerified() }
+
+        verify(SAVE to arrayOf(AnyMatcher))
+        state.confirmVerified()
+    }
+
+    @Test
+    fun testCallsWithoutAnswerAreReportedFirst() {
+        assertFailsWith<LokkiException> { state.answer(COUNT_MEMBER, emptyArray()) }
+        save("x")
+        verify(SAVE to arrayOf(AnyMatcher))
+
+        val unanswered = "Calls without an answer threw LokkiException:\n1) $name.count()\n\n"
+        assertEquals(
+            unanswered + "Verification failed: call 1 of 1: $name.find(eq(1), any()) was not called.\n\n" +
+                "Calls to same mock:\n1) $name.count()\n2) $name.save(x)\n$CALL_SITES",
+            failure(Verification(), expectation(1)),
+        )
+        assertEquals(
+            unanswered + "Verification acknowledgment failed\n\nVerified call count: 1\nRecorded call count: 2\n\n\n" +
+                "Not verified calls:\n1) $name.count()\n$CALL_SITES",
+            assertFailsWith<AssertionError> { state.confirmVerified() }.message,
+        )
+    }
+
+    private fun verifyLink(verification: Verification) {
+        verification.expectLink(mock, FIND) { arrayOf(EqMatcher(1), EqMatcher(false)) }
+        verification.expect(state, SAVE, arrayOf(AnyMatcher))
+        verification.check()
+    }
+
     private fun find(id: Int, includeDeleted: Boolean) {
         state.answer(FIND_MEMBER, arrayOf(id, includeDeleted))
     }
@@ -242,10 +342,13 @@ class VerificationTest {
     private companion object {
         const val FIND = "sample.Repo#find(kotlin.Int,kotlin.Boolean)"
         const val SAVE = "sample.Repo#save(kotlin.String)"
+        const val COUNT = "sample.Repo#count()"
         const val EQUALS = 0
         const val HASH_CODE = 1
         const val TO_STRING = 2
         const val FIND_MEMBER = 3
         const val SAVE_MEMBER = 4
+        const val COUNT_MEMBER = 5
+        const val CALL_SITES = "\nCall sites are not recorded; rerun with -Dlokki.recordStackTraces=true"
     }
 }

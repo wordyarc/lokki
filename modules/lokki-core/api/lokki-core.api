@@ -64,6 +64,8 @@ public abstract class io/lokki/MatcherScope {
 }
 
 public final class io/lokki/MockKt {
+	public static final fun clearMocks (Ljava/lang/Object;[Ljava/lang/Object;ZZZZZ)V
+	public static synthetic fun clearMocks$default (Ljava/lang/Object;[Ljava/lang/Object;ZZZZZILjava/lang/Object;)V
 	public static final fun isMock (Ljava/lang/Object;)Z
 }
 
@@ -84,11 +86,14 @@ public abstract interface class io/lokki/StubScope {
 
 public final class io/lokki/StubbingKt {
 	public static final fun andThenJust (Lio/lokki/AdditionalAnswerScope;Lio/lokki/Runs;)Lio/lokki/AdditionalAnswerScope;
+	public static final fun checkUnnecessaryStub ([Ljava/lang/Object;)V
 	public static final fun every (Lkotlin/jvm/functions/Function1;)Lio/lokki/StubScope;
 	public static final fun just (Lio/lokki/StubScope;Lio/lokki/Runs;)Lio/lokki/AdditionalAnswerScope;
 }
 
 public final class io/lokki/VerificationKt {
+	public static final fun confirmVerified ([Ljava/lang/Object;Z)V
+	public static synthetic fun confirmVerified$default ([Ljava/lang/Object;ZILjava/lang/Object;)V
 	public static final fun verify (ZIIILkotlin/jvm/functions/Function1;)V
 	public static synthetic fun verify$default (ZIIILkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 }
@@ -186,6 +191,7 @@ public final class io/lokki/internal/MockState {
 	public fun <init> (Ljava/lang/Object;Lio/lokki/internal/MockSpec;Lio/lokki/internal/MockDescriptor;)V
 	public final fun answer (I[Ljava/lang/Object;)Ljava/lang/Object;
 	public final fun captureDefaults (Ljava/lang/String;[Ljava/lang/String;Lkotlin/jvm/functions/Function1;)[Ljava/lang/Object;
+	public final fun exclude (Ljava/lang/String;[Lio/lokki/Matcher;Z)V
 	public final fun stub (Ljava/lang/String;[Lio/lokki/Matcher;)Lio/lokki/StubScope;
 }
 
@@ -206,5 +212,6 @@ public final class io/lokki/internal/Verification {
 	public synthetic fun <init> (ZIIIILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun check ()V
 	public final fun expect (Lio/lokki/internal/MockState;Ljava/lang/String;[Lio/lokki/Matcher;)V
+	public final fun expectLink (Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
 }
 

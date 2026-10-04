@@ -27,68 +27,103 @@ internal class Verification(
     }
 
     fun expect(state: MockState, key: String, matchers: Array<Matcher<Any?>>) {
-        expectations += Expectation(state, state.descriptor.member(key), matchers)
+        expectations += Expectation(state, state.descriptor.member(key), matchers, min, max)
+    }
+
+    fun expectLink(receiver: Any?, key: String, matchers: (MockState) -> Array<Matcher<Any?>>) {
+        if (inverse || min == 0) return
+        val state = (receiver as? GeneratedMock)?.`lokki$state` ?: return
+        expectations += Expectation(state, state.descriptor.member(key), matchers(state), 1, Int.MAX_VALUE)
     }
 
     fun check() {
         val matched = expectations.mapIndexed { index, expectation ->
-            val calls = expectation.state.records()
-            val matching = calls.filter(expectation::matches)
-            if (matching.size > 1 && expectation.capturesIntoSlot) {
-                throw LokkiException(
-                    "$expectation execution is being verified more than once and its arguments are being captured " +
-                        "with a slot.\nThis will store only the argument of the last invocation in the slot.\n" +
-                        "If you want to store all the arguments, use a mutableList to capture arguments."
-                )
-            }
-            val description = "call ${index + 1} of ${expectations.size}: $expectation"
-            val failure = failure(description, expectation, calls, matching)
-            if (failure != null) {
+            val outcome = expectation.verify("call ${index + 1} of ${expectations.size}: $expectation")
+            if (outcome.failure != null) {
                 if (inverse) return
-                throw AssertionError("Verification failed: $failure")
+                fail("Verification failed: ${outcome.failure}")
             }
-            matching
+            outcome.matching
         }
-        if (inverse) {
-            val verified = matched.flatten().distinct()
-            throw AssertionError("Inverse verification failed.\n\nVerified calls:\n${verified.numbered()}")
-        }
+        if (inverse) fail("Inverse verification failed.\n\nVerified calls:\n${matched.flatten().distinct().numbered()}")
         expectations.forEachIndexed { index, expectation -> matched[index].forEach(expectation::capture) }
+        expectations.forEachIndexed { index, expectation -> expectation.state.markVerified(matched[index]) }
     }
 
-    private fun failure(
-        description: String,
-        expectation: Expectation,
-        calls: List<CallRecord>,
-        matching: List<CallRecord>,
-    ): String? {
-        val callsOfMember = calls.filter { it.member == expectation.member }
-        return when {
+    private fun fail(message: String): Nothing {
+        val unanswered = expectations.map { it.state }.distinct().flatMap { it.unansweredRecords() }
+        throw AssertionError(unanswered.unansweredReport() + message)
+    }
+}
+
+private class Expectation(
+    val state: MockState,
+    private val member: Int,
+    private val matchers: Array<Matcher<Any?>>,
+    private val min: Int,
+    private val max: Int,
+) {
+    fun verify(description: String): Outcome {
+        val calls = state.records()
+        val callsOfMember = calls.filter { it.member == member }
+        val only = callsOfMember.singleOrNull()?.let { call ->
+            call to BooleanArray(matchers.size) { matchers[it].match(call.arguments[it]) }
+        }
+        val matching = when {
+            only == null -> callsOfMember.filter { matchers.match(it.arguments) }
+            only.second.all { it } -> callsOfMember
+            else -> emptyList()
+        }
+        if (matching.size > 1 && matchers.any { it.capturesIntoSlot }) {
+            throw LokkiException(
+                "$this execution is being verified more than once and its arguments are being captured " +
+                    "with a slot.\nThis will store only the argument of the last invocation in the slot.\n" +
+                    "If you want to store all the arguments, use a mutableList to capture arguments."
+            )
+        }
+        val failure = when {
             min == 0 && max == 0 -> when {
                 matching.isEmpty() -> null
-                else -> "$description should not be called\n\nCalls:\n${callsOfMember.numbered()}\n"
+                else -> "$description should not be called\n\n" +
+                    "Calls:\n${callsOfMember.numbered()}\n${callsOfMember.callSites()}"
             }
             callsOfMember.isEmpty() -> when {
                 min == 0 -> null
                 calls.isEmpty() -> "$description was not called"
-                else -> "$description was not called.\n\nCalls to same mock:\n${calls.numbered()}\n"
+                else -> "$description was not called.\n\nCalls to same mock:\n${calls.numbered()}\n${calls.callSites()}"
             }
-            callsOfMember.size == 1 -> when {
-                matching.isNotEmpty() -> when {
-                    1 in min..max -> null
-                    else -> "$description. One matching call found, but needs ${bounds()}\nCall: ${matching[0]}"
+            only != null -> {
+                val (call, results) = only
+                when {
+                    matching.isNotEmpty() -> when {
+                        1 in min..max -> null
+                        else -> "$description. One matching call found, but needs ${bounds()}\n" +
+                            "Call: $call${call.callSite()}"
+                    }
+                    0 in min..max -> null
+                    else -> "$description. Only one matching call to ${state.name}/" +
+                        "${state.descriptor.memberName(member)} happened, but arguments are not matching:\n" +
+                        "${difference(call, results)}${call.callSite()}"
                 }
-                0 in min..max -> null
-                else -> "$description. Only one matching call to ${expectation.method} happened, " +
-                    "but arguments are not matching:\n${expectation.difference(callsOfMember[0])}"
             }
             matching.size in min..max -> null
-            matching.isEmpty() ->
-                "$description. No matching calls found.\n\nCalls to same method:\n${callsOfMember.numbered()}\n"
+            matching.isEmpty() -> "$description. No matching calls found.\n\n" +
+                "Calls to same method:\n${callsOfMember.numbered()}\n${callsOfMember.callSites()}"
             else -> "$description. ${matching.size} matching calls found, but needs ${bounds()}\n" +
-                "Calls:\n${calls.numbered()}\n"
+                "Calls:\n${calls.numbered()}\n${calls.callSites()}"
         }
+        return Outcome(matching, failure)
     }
+
+    fun capture(record: CallRecord) {
+        matchers.capture(record.arguments)
+    }
+
+    private fun difference(record: CallRecord, results: BooleanArray): String =
+        record.arguments.withIndex().joinToString("") { (index, argument) ->
+            val result = if (results[index]) "+" else "-"
+            "[$index]: argument: ${argument.toStr()}, matcher: ${matchers[index]}, result: $result\n"
+        }
 
     private fun bounds(): String =
         when {
@@ -96,30 +131,8 @@ internal class Verification(
             min == max -> "exactly $min calls"
             else -> "at least $min and at most $max calls"
         }
-}
-
-private class Expectation(val state: MockState, val member: Int, private val matchers: Array<Matcher<Any?>>) {
-    val capturesIntoSlot: Boolean
-        get() = matchers.any { it.capturesIntoSlot }
-
-    val method: String
-        get() = "${state.name}/${state.descriptor.memberName(member)}"
-
-    fun matches(record: CallRecord): Boolean = record.member == member && matchers.match(record.arguments)
-
-    fun capture(record: CallRecord) {
-        matchers.capture(record.arguments)
-    }
-
-    fun difference(record: CallRecord): String =
-        record.arguments.withIndex().joinToString("") { (index, argument) ->
-            val matcher = matchers[index]
-            val result = if (matcher.match(argument)) "+" else "-"
-            "[$index]: argument: ${argument.toStr()}, matcher: $matcher, result: $result\n"
-        }
 
     override fun toString(): String = state.call(member, matchers.joinToString())
 }
 
-private fun List<CallRecord>.numbered(): String =
-    withIndex().joinToString("\n") { (index, call) -> "${index + 1}) $call" }
+private class Outcome(val matching: List<CallRecord>, val failure: String?)

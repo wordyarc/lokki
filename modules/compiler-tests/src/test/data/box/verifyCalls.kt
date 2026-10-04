@@ -14,6 +14,8 @@ interface Repo {
     fun count(): Int
 }
 
+private const val CALL_SITES = "Call sites are not recorded; rerun with -Dlokki.recordStackTraces=true"
+
 private fun failure(expected: String, block: () -> Unit): String? {
     val message = try {
         block()
@@ -44,15 +46,16 @@ fun box(): String {
     }
     failure(
         "Verification failed: call 1 of 1: $name.find(eq(2), eq(false)). No matching calls found.\n\n" +
-            "Calls to same method:\n1) $name.find(1, false)\n2) $name.find(2, true)\n"
+            "Calls to same method:\n1) $name.find(1, false)\n2) $name.find(2, true)\n\n$CALL_SITES"
     ) { verify { repo.find(2) } }?.let { return it }
     failure(
         "Verification failed: call 1 of 1: $name.find(any(), any()). " +
-            "2 matching calls found, but needs exactly 3 calls\nCalls:\n1) $name.find(1, false)\n2) $name.find(2, true)\n"
+            "2 matching calls found, but needs exactly 3 calls\n" +
+            "Calls:\n1) $name.find(1, false)\n2) $name.find(2, true)\n\n$CALL_SITES"
     ) { verify(exactly = 3) { repo.find(any(), any()) } }?.let { return it }
     failure(
         "Verification failed: call 2 of 2: $name.count() was not called.\n\n" +
-            "Calls to same mock:\n1) $name.find(1, false)\n2) $name.find(2, true)\n"
+            "Calls to same mock:\n1) $name.find(1, false)\n2) $name.find(2, true)\n\n$CALL_SITES"
     ) {
         verify {
             repo.find(1)
@@ -96,7 +99,7 @@ fun box(): String {
     if (names != listOf("a", "b")) return "Fail: capture into a list $names"
     failure(
         "Verification failed: call 2 of 2: $name.find(eq(5), eq(false)). No matching calls found.\n\n" +
-            "Calls to same method:\n1) $name.find(1, false)\n2) $name.find(2, true)\n"
+            "Calls to same method:\n1) $name.find(1, false)\n2) $name.find(2, true)\n\n$CALL_SITES"
     ) {
         verify {
             repo.save(capture(names))

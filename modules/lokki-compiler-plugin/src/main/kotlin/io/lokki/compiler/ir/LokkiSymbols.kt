@@ -31,6 +31,7 @@ internal class LokkiSymbols(context: IrPluginContext) {
 
     val verification by lazy { findClass(INTERNAL_PACKAGE, "Verification") }
     val expect by lazy { verification.function("expect") }
+    val expectLink by lazy { verification.function("expectLink") }
     val check by lazy { verification.function("check") }
 
     val matcher by lazy { findClass(PACKAGE, "Matcher") }

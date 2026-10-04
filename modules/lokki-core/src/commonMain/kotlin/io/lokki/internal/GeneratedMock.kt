@@ -21,3 +21,10 @@ internal interface GeneratedMock {
         }
     }
 }
+
+internal fun states(function: String, mocks: Array<out Any>): List<MockState> {
+    if (mocks.isEmpty()) {
+        throw LokkiException("$function() without mocks is not supported yet: pass the mocks explicitly")
+    }
+    return mocks.map { GeneratedMock.of(it).`lokki$state` }
+}

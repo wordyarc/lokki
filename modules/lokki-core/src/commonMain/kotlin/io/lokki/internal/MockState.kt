@@ -20,6 +20,9 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
     private val records = ArrayList<CallRecord>()
 
     @Volatile
+    private var exclusions = emptyArray<Exclusion>()
+
+    @Volatile
     private var capture: DefaultsCapture? = null
 
     fun answer(member: Int, arguments: Array<Any?>): Any? {
@@ -29,9 +32,9 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
             throw DefaultsCaptured()
         }
         val changesState = !Registration.isActive
-        if (changesState && member > TO_STRING) record(member, arguments)
-        val stub = findStub(member, arguments) ?: return defaultAnswer(member, arguments)
-        if (changesState) stub.capture(arguments)
+        val record = if (changesState && member > TO_STRING) record(member, arguments) else null
+        val stub = findStub(member, arguments) ?: return defaultAnswer(member, arguments, record)
+        if (changesState) stub.use(arguments)
         return when (val answer = stub.answer(advance = changesState)) {
             is ConstantAnswer -> answer.value
             is ThrowingAnswer -> throw answer.exception
@@ -42,6 +45,12 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
 
     fun <T> stub(key: String, matchers: Array<Matcher<Any?>>): StubScope<T> =
         PendingStub(this, descriptor.member(key), matchers)
+
+    fun exclude(key: String, matchers: Array<Matcher<Any?>>, current: Boolean) {
+        val exclusion = Exclusion(descriptor.member(key), matchers)
+        synchronized(this) { exclusions += exclusion }
+        if (current) synchronized(records) { records.removeAll { exclusion.matches(it.member, it.arguments) } }
+    }
 
     fun captureDefaults(key: String, names: Array<String?>, call: (Boolean) -> Unit): Array<Any?> =
         synchronized(this) {
@@ -71,10 +80,53 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
 
     internal fun records(): List<CallRecord> = synchronized(records) { records.toList() }
 
+    internal fun unansweredRecords(): List<CallRecord> = synchronized(records) { records.filter { it.unanswered } }
+
+    internal fun markVerified(calls: List<CallRecord>) {
+        synchronized(records) { calls.forEach { it.verified = true } }
+    }
+
+    internal fun confirmVerified() {
+        val (recorded, unverified) = synchronized(records) { records.size to records.filterNot { it.verified } }
+        if (unverified.isEmpty()) return
+        throw AssertionError(
+            unansweredRecords().unansweredReport() +
+                "Verification acknowledgment failed\n\n" +
+                "Verified call count: ${recorded - unverified.size}\nRecorded call count: $recorded\n\n\n" +
+                "Not verified calls:\n${unverified.numbered()}\n${unverified.callSites()}"
+        )
+    }
+
+    internal fun checkUnnecessaryStub() {
+        val unused = describeStubs { !it.used }
+        if (unused.isEmpty()) return
+        throw AssertionError(
+            "Unnecessary stubbings detected.\nFollowing stubbings are not used, either because there are " +
+                "unnecessary or because tested code doesn't call them :\n\n" +
+                unused.withIndex().joinToString("\n") { (index, stub) -> "${index + 1}) $stub" }
+        )
+    }
+
+    internal fun clear(answers: Boolean, recordedCalls: Boolean, verificationMarks: Boolean, exclusionRules: Boolean) {
+        synchronized(this) {
+            if (answers) stubs = arrayOfNulls(descriptor.memberCount)
+            if (exclusionRules) exclusions = emptyArray()
+        }
+        synchronized(records) {
+            if (recordedCalls) records.clear()
+            if (verificationMarks) records.forEach { it.verified = false }
+        }
+    }
+
     internal fun call(member: Int, arguments: String): String = "$name.${descriptor.memberName(member)}($arguments)"
 
-    private fun record(member: Int, arguments: Array<Any?>) {
-        synchronized(records) { records += CallRecord(this, member, arguments, nextSequenceNumber()) }
+    private fun record(member: Int, arguments: Array<Any?>): CallRecord? {
+        val exclusions = exclusions
+        if (exclusions.isNotEmpty() && exclusions.any { it.matches(member, arguments) }) return null
+        val callStack = captureCallStack()
+        return synchronized(records) {
+            CallRecord(this, member, arguments, nextSequenceNumber(), callStack).also { records += it }
+        }
     }
 
     private fun captureArguments(member: Int, call: (Boolean) -> Unit, alternate: Boolean): Array<Any?> {
@@ -94,22 +146,25 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         return checkNotNull(capture.arguments) { "default arguments of member $member were not captured" }
     }
 
-    private fun defaultAnswer(member: Int, arguments: Array<Any?>): Any? =
+    private fun defaultAnswer(member: Int, arguments: Array<Any?>, record: CallRecord?): Any? =
         when (member) {
             EQUALS -> owner === arguments[0]
             HASH_CODE -> identityHashCode(owner)
             TO_STRING -> name
-            else -> throw LokkiException(
-                "no answer found for ${call(member, arguments.joinToString { it.toStr() })} " +
-                    "among the configured answers: (${configuredAnswers()})"
-            )
+            else -> {
+                if (record != null) synchronized(records) { record.unanswered = true }
+                throw LokkiException(
+                    "no answer found for ${call(member, arguments.joinToString { it.toStr() })} " +
+                        "among the configured answers: (${describeStubs { true }.joinToString("\n")})"
+                )
+            }
         }
 
-    private fun configuredAnswers(): String {
+    private inline fun describeStubs(predicate: (StubEntry) -> Boolean): List<String> {
         val stubs = stubs
-        return stubs.indices
-            .flatMap { member -> stubs[member].orEmpty().map { call(member, it.arguments) } }
-            .joinToString("\n")
+        return stubs.indices.flatMap { member ->
+            stubs[member].orEmpty().filter(predicate).map { call(member, it.arguments) }
+        }
     }
 
     private fun findStub(member: Int, arguments: Array<Any?>): StubEntry? {
@@ -127,7 +182,12 @@ internal class CallRecord(
     val member: Int,
     val arguments: Array<Any?>,
     val sequenceNumber: Long,
+    val callStack: Throwable?,
 ) {
+    var verified = false
+
+    var unanswered = false
+
     override fun toString(): String = state.call(member, arguments.joinToString { it.toStr() })
 }
 
@@ -139,12 +199,17 @@ internal class StubEntry(private val matchers: Array<Matcher<Any?>>, answers: Li
 
     private var position = 0
 
+    @Volatile
+    var used = false
+        private set
+
     val arguments: String
         get() = matchers.joinToString()
 
     fun matches(arguments: Array<Any?>): Boolean = matchers.match(arguments)
 
-    fun capture(arguments: Array<Any?>) {
+    fun use(arguments: Array<Any?>) {
+        if (!used) used = true
         if (captures) matchers.capture(arguments)
     }
 
@@ -219,6 +284,10 @@ private class PendingStub<T>(
         }
         return this
     }
+}
+
+private class Exclusion(private val member: Int, private val matchers: Array<Matcher<Any?>>) {
+    fun matches(member: Int, arguments: Array<Any?>): Boolean = member == this.member && matchers.match(arguments)
 }
 
 private class ArgumentList(private val arguments: Array<Any?>) : AbstractList<Any?>() {

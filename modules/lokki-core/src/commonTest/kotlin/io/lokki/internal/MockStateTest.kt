@@ -3,6 +3,7 @@ package io.lokki.internal
 import io.lokki.CapturingSlot
 import io.lokki.LokkiException
 import kotlin.test.Test
+import kotlin.test.assertContains
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -255,6 +256,83 @@ class MockStateTest {
         assertEquals(listOf<Any?>("a", "b"), List(2) { state.answer(FIND_MEMBER, arrayOf(2, true)) })
         assertEquals(listOf(2, 2), ids)
     }
+
+    @Test
+    fun testExcludedCallsAreNotRecorded() {
+        state.stub<String>(FIND, arrayOf(AnyMatcher, AnyMatcher)) returns "a"
+        find(1, false)
+        find(2, false)
+        find(1, true)
+
+        state.exclude(FIND, arrayOf(EqMatcher(1), AnyMatcher), current = false)
+        find(1, false)
+        find(3, false)
+        assertEquals(
+            listOf("$name.find(1, false)", "$name.find(2, false)", "$name.find(1, true)", "$name.find(3, false)"),
+            records(),
+        )
+
+        state.exclude(FIND, arrayOf(AnyMatcher, EqMatcher(true)), current = true)
+        assertEquals(listOf("$name.find(1, false)", "$name.find(2, false)", "$name.find(3, false)"), records())
+        assertEquals("a", state.answer(FIND_MEMBER, arrayOf(4, true)))
+        assertEquals(3, records().size)
+
+        state.clear(answers = false, recordedCalls = false, verificationMarks = false, exclusionRules = true)
+        find(4, true)
+        assertEquals("$name.find(4, true)", records().last())
+    }
+
+    @Test
+    fun testStubIsUsedByCallsOutsideRegistration() {
+        state.stub<String>(FIND, arrayOf(EqMatcher(1), AnyMatcher)) returns "one"
+        state.stub<String>(FIND, arrayOf(EqMatcher(2), AnyMatcher)) returns "two"
+        state.stub<String>(FIND, arrayOf(EqMatcher(3), AnyMatcher)) returns "three"
+        GeneratedMock.withoutStateChanges { find(2, false) }
+        find(3, false)
+
+        assertEquals(
+            "Unnecessary stubbings detected.\nFollowing stubbings are not used, either because there are " +
+                "unnecessary or because tested code doesn't call them :\n\n" +
+                "1) $name.find(eq(1), any())\n2) $name.find(eq(2), any())",
+            assertFailsWith<AssertionError> { state.checkUnnecessaryStub() }.message,
+        )
+
+        find(1, true)
+        find(2, true)
+        state.checkUnnecessaryStub()
+    }
+
+    @Test
+    fun testClearRemovesSelectedState() {
+        state.stub<String>(FIND, arrayOf(AnyMatcher, AnyMatcher)) returns "a"
+        find(1, false)
+        state.markVerified(state.records())
+        find(2, false)
+
+        state.clear(answers = false, recordedCalls = false, verificationMarks = true, exclusionRules = false)
+        assertContains(
+            assertFailsWith<AssertionError> { state.confirmVerified() }.message!!,
+            "Verified call count: 0\nRecorded call count: 2",
+        )
+
+        state.clear(answers = false, recordedCalls = true, verificationMarks = false, exclusionRules = false)
+        assertEquals(emptyList(), records())
+        state.confirmVerified()
+        assertEquals("a", state.answer(FIND_MEMBER, arrayOf(3, true)))
+
+        state.clear(answers = true, recordedCalls = false, verificationMarks = false, exclusionRules = false)
+        assertEquals(
+            "no answer found for $name.find(4, true) among the configured answers: ()",
+            assertFailsWith<LokkiException> { state.answer(FIND_MEMBER, arrayOf(4, true)) }.message,
+        )
+        assertEquals(listOf("$name.find(3, true)", "$name.find(4, true)"), records())
+    }
+
+    private fun find(id: Int, includeDeleted: Boolean) {
+        state.answer(FIND_MEMBER, arrayOf(id, includeDeleted))
+    }
+
+    private fun records(): List<String> = state.records().map { it.toString() }
 
     private companion object {
         const val FIND = "sample.Repo#find(kotlin.Int,kotlin.Boolean)"
