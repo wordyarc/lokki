@@ -87,22 +87,25 @@ public final class io/lokki/StubbingKt {
 public final class io/lokki/internal/AnyMatcher : io/lokki/Matcher {
 	public static final field INSTANCE Lio/lokki/internal/AnyMatcher;
 	public fun match (Ljava/lang/Object;)Z
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class io/lokki/internal/ArrayMatcher : io/lokki/Matcher, io/lokki/internal/CapturingMatcher {
 	public fun <init> ([Lio/lokki/Matcher;)V
 	public fun capture (Ljava/lang/Object;)V
 	public fun match (Ljava/lang/Object;)Z
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class io/lokki/internal/EqMatcher : io/lokki/Matcher {
 	public fun <init> (Ljava/lang/Object;)V
 	public fun match (Ljava/lang/Object;)Z
+	public fun toString ()Ljava/lang/String;
 }
 
 public abstract interface class io/lokki/internal/GeneratedMock {
 	public static final field Companion Lio/lokki/internal/GeneratedMock$Companion;
-	public abstract fun getLokki$state ()Lio/lokki/internal/MockState;
+	public abstract synthetic fun getLokki$state ()Lio/lokki/internal/MockState;
 }
 
 public final class io/lokki/internal/GeneratedMock$Companion {
@@ -142,6 +145,7 @@ public final class io/lokki/internal/Matchers {
 	public final fun matchNullable (Lkotlin/jvm/functions/Function1;)Lio/lokki/Matcher;
 	public final fun more (Ljava/lang/Comparable;Z)Lio/lokki/Matcher;
 	public static synthetic fun more$default (Lio/lokki/internal/Matchers;Ljava/lang/Comparable;ZILjava/lang/Object;)Lio/lokki/Matcher;
+	public final fun named (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lio/lokki/Matcher;
 	public final fun neq (Ljava/lang/Object;)Lio/lokki/Matcher;
 	public final fun not (Lio/lokki/Matcher;)Lio/lokki/Matcher;
 	public final fun nrefEq (Ljava/lang/Object;)Lio/lokki/Matcher;
@@ -155,10 +159,17 @@ public final class io/lokki/internal/Matchers {
 
 public final class io/lokki/internal/MockDescriptor {
 	public fun <init> (Ljava/lang/String;[Ljava/lang/String;)V
+	public fun <init> (Ljava/lang/String;[Ljava/lang/String;[Ljava/lang/String;)V
+}
+
+public final class io/lokki/internal/MockSpec {
+	public fun <init> (Ljava/lang/String;I)V
+	public final fun getFlags ()I
+	public final fun getName ()Ljava/lang/String;
 }
 
 public final class io/lokki/internal/MockState {
-	public fun <init> (Ljava/lang/Object;Lio/lokki/internal/MockDescriptor;)V
+	public fun <init> (Ljava/lang/Object;Lio/lokki/internal/MockSpec;Lio/lokki/internal/MockDescriptor;)V
 	public final fun answer (I[Ljava/lang/Object;)Ljava/lang/Object;
 	public final fun captureDefaults (Ljava/lang/String;[Ljava/lang/String;Lkotlin/jvm/functions/Function1;)[Ljava/lang/Object;
 	public final fun stub (Ljava/lang/String;[Lio/lokki/Matcher;)Lio/lokki/StubScope;

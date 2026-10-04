@@ -26,7 +26,8 @@ fun mockTest(name: String, type: String, mock: String = "mock<$type>()"): String
         @Test
         fun strictMockHasNoAnswer() {
             val exception = assertFailsWith<LokkiException> { exercise($mock) }
-            assertEquals("no answer found for ${'$'}{exercisedMember()}", exception.message)
+            val member = exception.message?.replace(Regex("\\(#\\d+\\)\\.(\\w+)\\(.*"), ".${'$'}1")
+            assertEquals("no answer found for ${'$'}{exercisedMember()}", member)
         }
     }
     """

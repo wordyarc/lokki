@@ -77,7 +77,9 @@ class TestProject(
     fun mockedMethods(sourceSet: String, className: String, project: String = "."): Set<String> {
         val classes = listOf(sourceSet, "main").map { dir.resolve("$project/build/classes/kotlin/$it").toURI().toURL() }
         return URLClassLoader(classes.toTypedArray()).use { loader ->
-            val generated = loader.loadClass("io.lokki.internal.GeneratedMock").declaredMethods.map { it.name }
+            val generated = listOf(loader.loadClass("io.lokki.internal.GeneratedMock"), Any::class.java)
+                .flatMap { it.declaredMethods.asList() }
+                .map { it.name }
             loader.loadClass(className).declaredMethods.filterNot { it.name in generated }.mapTo(HashSet()) { method ->
                 "${method.name}(${method.parameterTypes.joinToString { it.name }})"
             }

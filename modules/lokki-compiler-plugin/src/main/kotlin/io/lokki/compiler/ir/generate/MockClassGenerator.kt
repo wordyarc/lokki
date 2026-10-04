@@ -13,7 +13,9 @@ import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.incremental.components.LookupTracker
 import org.jetbrains.kotlin.ir.builders.declarations.addBackingField
 import org.jetbrains.kotlin.ir.builders.declarations.addField
+import org.jetbrains.kotlin.ir.builders.declarations.addValueParameter
 import org.jetbrains.kotlin.ir.builders.declarations.buildClass
+import org.jetbrains.kotlin.ir.builders.irAnnotation
 import org.jetbrains.kotlin.ir.builders.irAs
 import org.jetbrains.kotlin.ir.builders.irBlockBody
 import org.jetbrains.kotlin.ir.builders.irCall
@@ -25,6 +27,7 @@ import org.jetbrains.kotlin.ir.builders.irInt
 import org.jetbrains.kotlin.ir.builders.irReturn
 import org.jetbrains.kotlin.ir.builders.irString
 import org.jetbrains.kotlin.ir.declarations.IrClass
+import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOriginImpl
 import org.jetbrains.kotlin.ir.declarations.IrField
@@ -32,6 +35,7 @@ import org.jetbrains.kotlin.ir.declarations.IrOverridableDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
+import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.declarations.name
 import org.jetbrains.kotlin.ir.types.IrTypeSystemContextImpl
 import org.jetbrains.kotlin.ir.types.isUnit
@@ -48,6 +52,7 @@ import org.jetbrains.kotlin.ir.util.nonDispatchParameters
 import org.jetbrains.kotlin.ir.util.primaryConstructor
 import org.jetbrains.kotlin.load.kotlin.PackagePartClassUtils
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.util.OperatorNameConventions
 
 internal class MockClassGenerator(
     private val context: IrPluginContext,
@@ -69,19 +74,21 @@ internal class MockClassGenerator(
         mock.superTypes = listOf(key.mockedClass.defaultType, symbols.generatedMock.defaultType)
         mock.createThisReceiverParameter()
         key.file.addChild(mock)
-        mock.addSimpleDelegatingConstructor(anyConstructor, context.irBuiltIns, isPrimary = true)
+        val spec = mock.addSimpleDelegatingConstructor(anyConstructor, context.irBuiltIns, isPrimary = true)
+            .addValueParameter("spec", symbols.mockSpec.defaultType, MOCK_PARAMETER)
         mock.addFakeOverrides(typeSystem)
 
         val stateProperty = mock.declarations.filterIsInstance<IrProperty>()
             .single { symbols.state.symbol in it.overriddenSymbols }
-        val members = mock.declarations.flatMap { member ->
+        val (methodsOfAny, declared) = mock.declarations.flatMap { member ->
             when (member) {
-                is IrSimpleFunction -> listOfNotNull(member.takeUnless { it.isMethodOfAny() })
+                is IrSimpleFunction -> listOf(member)
                 is IrProperty -> if (member == stateProperty) emptyList() else listOfNotNull(member.getter, member.setter)
                 else -> emptyList()
             }
-        }
-        val state = stateProperty.implementState(mock, mock.addDescriptor(key.mockedClass, members))
+        }.partition { it.isMethodOfAny() }
+        val members = METHODS_OF_ANY.map { name -> methodsOfAny.single { it.name == name } } + declared
+        val state = stateProperty.implementState(mock, spec, mock.addDescriptor(key.mockedClass, members))
         members.forEachIndexed { index, member -> member.implement(mock, state, index) }
         lookupTracker?.recordMockedTypeLookups(key)
         return mock
@@ -96,36 +103,43 @@ internal class MockClassGenerator(
             isStatic = true
             isFinal = true
         }
+        val keys = members.map { it.memberKeys }
+        val aliases = keys.flatMap { memberKeys -> memberKeys.drop(1).flatMap { listOf(it, memberKeys.first()) } }
+        val arrays = listOfNotNull(keys.map { it.first() }, aliases.takeIf { it.isNotEmpty() })
+        val constructor = symbols.mockDescriptor.constructors.single { it.parameters.size == arrays.size + 1 }
+        descriptor.markSynthetic()
         descriptor.initializer = DeclarationIrBuilder(context, descriptor.symbol).run {
             irExprBody(
-                irCallConstructor(symbols.mockDescriptor.primaryConstructor!!.symbol, emptyList()).apply {
+                irCallConstructor(constructor.symbol, emptyList()).apply {
                     arguments[0] = irString(mockedClass.name.asString())
-                    arguments[1] = irArrayOf(
-                        context.irBuiltIns.stringType,
-                        members.map { irString(it.memberKeys.joinToString(KEY_SEPARATOR)) },
-                    )
+                    arrays.forEachIndexed { index, strings ->
+                        arguments[index + 1] = irArrayOf(context.irBuiltIns.stringType, strings.map(::irString))
+                    }
                 }
             )
         }
         return descriptor
     }
 
-    private fun IrProperty.implementState(mock: IrClass, descriptor: IrField): IrField {
+    private fun IrProperty.implementState(mock: IrClass, spec: IrValueParameter, descriptor: IrField): IrField {
         materialize()
         val state = addBackingField {
             type = symbols.mockState.defaultType
             isFinal = true
         }
+        state.markSynthetic()
         state.initializer = DeclarationIrBuilder(context, state.symbol).run {
             irExprBody(
                 irCallConstructor(symbols.mockState.primaryConstructor!!.symbol, emptyList()).apply {
                     arguments[0] = irGet(mock.thisReceiver!!)
-                    arguments[1] = irGetField(null, descriptor)
+                    arguments[1] = irGet(spec)
+                    arguments[2] = irGetField(null, descriptor)
                 }
             )
         }
         getter!!.run {
             materialize()
+            markSynthetic()
             parameters = listOf(mock.thisReceiver!!.copyTo(this))
             body = DeclarationIrBuilder(context, symbol).irBlockBody {
                 +irReturn(irGetField(irGet(dispatchReceiverParameter!!), state))
@@ -154,6 +168,10 @@ internal class MockClassGenerator(
         }
     }
 
+    private fun IrDeclaration.markSynthetic() {
+        annotations += DeclarationIrBuilder(context, symbol).irAnnotation(symbols.jvmSynthetic)
+    }
+
     private fun IrOverridableDeclaration<*>.materialize() {
         isFakeOverride = false
         origin = this@MockClassGenerator.origin
@@ -170,4 +188,5 @@ private val MockClassKey.mockClassName: Name
 
 private val DESCRIPTOR = Name.identifier("lokki\$descriptor")
 private val MOCK_PARAMETER = IrDeclarationOriginImpl("LOKKI_MOCK_PARAMETER", isSynthetic = true)
-private const val KEY_SEPARATOR = "|"
+private val METHODS_OF_ANY =
+    listOf(OperatorNameConventions.EQUALS, OperatorNameConventions.HASH_CODE, OperatorNameConventions.TO_STRING)

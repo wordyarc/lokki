@@ -66,7 +66,6 @@ import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.defaultValueForType
 import org.jetbrains.kotlin.ir.util.erasedUpperBound
 import org.jetbrains.kotlin.ir.util.functions
-import org.jetbrains.kotlin.ir.util.isMethodOfAny
 import org.jetbrains.kotlin.ir.util.isNullable
 import org.jetbrains.kotlin.ir.util.isSubclassOf
 import org.jetbrains.kotlin.ir.util.nonDispatchParameters
@@ -96,7 +95,6 @@ internal class StubBlockLowering(
             ?: return fail(block, "The block of '$function' must be a single call of a mock member")
         val call = stubbed.call
         val member = call.symbol.owner
-        if (member.isMethodOfAny()) return fail(call, "Stubbing '${member.name}' is not supported yet")
         if (!stubbed.receiver.isIndependentOf(block)) {
             return fail(stubbed.receiver, "The receiver of the stubbed call must not use matchers")
         }

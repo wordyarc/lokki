@@ -1,5 +1,6 @@
 package io.lokki
 
+import io.lokki.internal.toStr
 import kotlin.concurrent.Volatile
 
 public class CapturingSlot<T> {
@@ -27,7 +28,7 @@ public class CapturingSlot<T> {
         value = NotCaptured
     }
 
-    override fun toString(): String = if (isCaptured) "slot(captured=$value)" else "slot()"
+    override fun toString(): String = if (isCaptured) "slot(captured=${value.toStr()})" else "slot()"
 }
 
 public fun <T> slot(): CapturingSlot<T> = CapturingSlot()

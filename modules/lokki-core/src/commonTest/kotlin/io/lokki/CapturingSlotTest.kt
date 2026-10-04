@@ -33,4 +33,13 @@ class CapturingSlotTest {
         slot.clear()
         assertFalse(slot.isCaptured)
     }
+
+    @Test
+    fun testCapturedArrayIsPrintedByContent() {
+        val slot = slot<IntArray>()
+
+        slot.captured = intArrayOf(1, 2)
+
+        assertEquals("slot(captured=[1, 2])", slot.toString())
+    }
 }

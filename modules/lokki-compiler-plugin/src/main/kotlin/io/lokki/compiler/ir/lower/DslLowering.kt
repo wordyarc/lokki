@@ -10,20 +10,22 @@ import io.lokki.compiler.ir.collect.notMockableReason
 import io.lokki.compiler.ir.intrinsicKind
 import org.jetbrains.kotlin.backend.common.IrElementTransformerVoidWithContext
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
+import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.ir.IrElement
+import org.jetbrains.kotlin.ir.builders.irCall
+import org.jetbrains.kotlin.ir.builders.irCallConstructor
+import org.jetbrains.kotlin.ir.builders.irInt
+import org.jetbrains.kotlin.ir.builders.irNull
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrFunctionReference
-import org.jetbrains.kotlin.ir.expressions.impl.IrConstructorCallImpl
-import org.jetbrains.kotlin.ir.expressions.impl.fromSymbolOwner
-import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.primaryConstructor
 
 internal class DslLowering(
     private val context: IrPluginContext,
-    symbols: LokkiSymbols,
+    private val symbols: LokkiSymbols,
     private val file: IrFile,
     private val mocks: Map<MockClassKey, IrClass>,
 ) : IrElementTransformerVoidWithContext() {
@@ -52,12 +54,20 @@ internal class DslLowering(
     private fun lowerMock(call: IrCall): IrExpression {
         val mock = call.mockClassKey(file)?.let(mocks::get)
             ?: return call.also { unsupported(it, it.mockedType.notMockableReason!!) }
-        return IrConstructorCallImpl.fromSymbolOwner(
-            call.startOffset,
-            call.endOffset,
-            mock.defaultType,
-            mock.primaryConstructor!!.symbol,
-        )
+        val scope = currentScope!!.scope.scopeOwnerSymbol
+        return DeclarationIrBuilder(context, scope, call.startOffset, call.endOffset).run {
+            val instance = irCallConstructor(mock.primaryConstructor!!.symbol, emptyList()).apply {
+                arguments[0] = irCallConstructor(symbols.mockSpec.primaryConstructor!!.symbol, emptyList()).apply {
+                    arguments[0] = call.arguments[0] ?: irNull()
+                    arguments[1] = irInt(0)
+                }
+            }
+            val block = call.arguments[1] ?: return instance
+            irCall(symbols.apply, call.type, listOf(call.type)).apply {
+                arguments[0] = instance
+                arguments[1] = block
+            }
+        }
     }
 
     private fun unsupported(element: IrElement, reason: String) {

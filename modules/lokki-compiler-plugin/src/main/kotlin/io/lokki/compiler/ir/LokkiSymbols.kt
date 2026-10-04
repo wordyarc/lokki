@@ -8,6 +8,7 @@ import org.jetbrains.kotlin.ir.util.companionObject
 import org.jetbrains.kotlin.ir.util.erasedUpperBound
 import org.jetbrains.kotlin.ir.util.functions
 import org.jetbrains.kotlin.ir.util.properties
+import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
@@ -21,6 +22,7 @@ internal class LokkiSymbols(context: IrPluginContext) {
     val withoutStateChanges by lazy { generatedMock.companionObject()!!.function("withoutStateChanges") }
 
     val mockDescriptor by lazy { findClass(INTERNAL_PACKAGE, "MockDescriptor") }
+    val mockSpec by lazy { findClass(INTERNAL_PACKAGE, "MockSpec") }
 
     val mockState by lazy { findClass(INTERNAL_PACKAGE, "MockState") }
     val answer by lazy { mockState.function("answer") }
@@ -35,6 +37,9 @@ internal class LokkiSymbols(context: IrPluginContext) {
     val eqMatcher by lazy { findClass(INTERNAL_PACKAGE, "EqMatcher") }
     val arrayMatcher by lazy { findClass(INTERNAL_PACKAGE, "ArrayMatcher") }
     val matchers by lazy { findClass(INTERNAL_PACKAGE, "Matchers") }
+
+    val jvmSynthetic by lazy { finder.findConstructors(ClassId(JVM_PACKAGE, Name.identifier("JvmSynthetic"))).single() }
+    val apply by lazy { finder.findFunctions(CallableId(KOTLIN_PACKAGE, Name.identifier("apply"))).single() }
 
     fun matcherFactory(name: String): IrSimpleFunction = matchers.function(name)
 
@@ -52,5 +57,7 @@ private fun IrClass.function(name: String): IrSimpleFunction = functions.single 
 private val IrSimpleFunction.firstParameterClass: IrClass?
     get() = parameters.firstOrNull { it.kind == IrParameterKind.Regular }?.type?.erasedUpperBound
 
+private val KOTLIN_PACKAGE = FqName("kotlin")
+private val JVM_PACKAGE = FqName("kotlin.jvm")
 private val PACKAGE = FqName("io.lokki")
 private val INTERNAL_PACKAGE = FqName("io.lokki.internal")

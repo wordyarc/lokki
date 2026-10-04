@@ -22,8 +22,10 @@ private fun failure(block: () -> Unit): String =
         block()
         "registered"
     } catch (e: LokkiException) {
-        "${e.message} / ${e.cause?.message}"
+        "${e.message} / ${e.cause?.message}".replace(CALL, ".$1")
     }
+
+private val CALL = Regex("""\(#\d+\)\.(\w+)\(.*""", RegexOption.DOT_MATCHES_ALL)
 
 private fun unstable(name: String): String =
     "default value of '$name' is unstable, has no equals, or depends on a matcher argument; " +

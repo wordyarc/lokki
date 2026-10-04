@@ -11,7 +11,9 @@ import io.lokki.StubScope
 import kotlin.concurrent.Volatile
 
 @PublishedApi
-internal class MockState(private val owner: Any, private val descriptor: MockDescriptor) {
+internal class MockState(private val owner: Any, spec: MockSpec, private val descriptor: MockDescriptor) {
+    private val name = "${descriptor.name}(${spec.name.orEmpty()}#${MockIds.next()})"
+
     @Volatile
     private var stubs = arrayOfNulls<Array<StubEntry>>(descriptor.memberCount)
 
@@ -24,8 +26,7 @@ internal class MockState(private val owner: Any, private val descriptor: MockDes
             capture.arguments = arguments
             throw DefaultsCaptured()
         }
-        val stub = findStub(member, arguments)
-            ?: throw LokkiException("no answer found for ${descriptor.name}.${descriptor.memberName(member)}")
+        val stub = findStub(member, arguments) ?: return defaultAnswer(member, arguments)
         val changesState = !Registration.isActive
         if (changesState) stub.capture(arguments)
         return when (val answer = stub.answer(advance = changesState)) {
@@ -78,6 +79,26 @@ internal class MockState(private val owner: Any, private val descriptor: MockDes
         return checkNotNull(capture.arguments) { "default arguments of member $member were not captured" }
     }
 
+    private fun defaultAnswer(member: Int, arguments: Array<Any?>): Any? =
+        when (member) {
+            EQUALS -> owner === arguments[0]
+            HASH_CODE -> identityHashCode(owner)
+            TO_STRING -> name
+            else -> throw LokkiException(
+                "no answer found for ${call(member, arguments.joinToString { it.toStr() })} " +
+                    "among the configured answers: (${configuredAnswers()})"
+            )
+        }
+
+    private fun configuredAnswers(): String {
+        val stubs = stubs
+        return stubs.indices
+            .flatMap { member -> stubs[member].orEmpty().map { call(member, it.arguments) } }
+            .joinToString("\n")
+    }
+
+    private fun call(member: Int, arguments: String): String = "$name.${descriptor.memberName(member)}($arguments)"
+
     private fun findStub(member: Int, arguments: Array<Any?>): StubEntry? {
         val entries = stubs[member] ?: return null
         for (index in entries.lastIndex downTo 0) {
@@ -95,6 +116,9 @@ internal class StubEntry(private val matchers: Array<Matcher<Any?>>, answers: Li
     private var answers = answers.toTypedArray()
 
     private var position = 0
+
+    val arguments: String
+        get() = matchers.joinToString()
 
     fun matches(arguments: Array<Any?>): Boolean {
         for (index in matchers.indices) {
@@ -187,3 +211,13 @@ private class DefaultsCapture(val member: Int, val thread: Any) {
 }
 
 private class DefaultsCaptured : RuntimeException()
+
+private object MockIds {
+    private var last = 0
+
+    fun next(): Int = synchronized(this) { ++last }
+}
+
+private const val EQUALS = 0
+private const val HASH_CODE = 1
+private const val TO_STRING = 2

@@ -60,7 +60,7 @@ fun box(): String {
         car.drive()
         return "Fail: no exception"
     } catch (e: LokkiException) {
-        if (e.message != "no answer found for Car.drive") return "Fail message: ${e.message}"
+        if (!e.message!!.startsWith("no answer found for $car.drive() ")) return "Fail message: ${e.message}"
     }
 
     val boatClass = boatFromAnotherPackage().javaClass

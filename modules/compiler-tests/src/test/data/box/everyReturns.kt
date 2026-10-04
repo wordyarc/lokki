@@ -42,8 +42,10 @@ private fun failure(block: () -> Unit): String? =
         block()
         null
     } catch (e: LokkiException) {
-        e.message
+        e.message?.replace(CALL, ".$1")
     }
+
+private val CALL = Regex("""\(#\d+\)\.(\w+)\(.*""", RegexOption.DOT_MATCHES_ALL)
 
 fun box(): String {
     val car = newCar()
@@ -65,7 +67,7 @@ fun box(): String {
 
     every { car.driver = "me" } returns Unit
     car.driver = "me"
-    if (failure { car.driver = "you" } != "no answer found for Car.<set-driver>") return "Fail: setter"
+    if (failure { car.driver = "you" } != "no answer found for Car.setDriver") return "Fail: setter"
 
     every { car.park() } returns Unit
     car.park()

@@ -1,6 +1,4 @@
-/unsupportedStubBlock.kt:27:5: error: The block of 'every' must be a lambda literal.
-
-/unsupportedStubBlock.kt:28:11: error: The block of 'every' must be a single call of a mock member.
+/unsupportedStubBlock.kt:28:5: error: The block of 'every' must be a lambda literal.
 
 /unsupportedStubBlock.kt:29:11: error: The block of 'every' must be a single call of a mock member.
 
@@ -8,7 +6,7 @@
 
 /unsupportedStubBlock.kt:31:11: error: The block of 'every' must be a single call of a mock member.
 
-/unsupportedStubBlock.kt:32:18: error: Stubbing 'toString' is not supported yet.
+/unsupportedStubBlock.kt:32:11: error: The block of 'every' must be a single call of a mock member.
 
 /unsupportedStubBlock.kt:33:13: error: The receiver of the stubbed call must not use matchers.
 
@@ -28,6 +26,8 @@
 
 /unsupportedStubBlock.kt:41:25: error: A matcher cannot be spread into a vararg parameter.
 
-/unsupportedStubBlock.kt:42:71: error: 'every' must be called directly: a reference to it is not supported.
+/unsupportedStubBlock.kt:42:26: error: The receiver of the stubbed call must not use matchers.
 
-/unsupportedStubBlock.kt:43:56: error: The block of 'every' must be a lambda literal.
+/unsupportedStubBlock.kt:43:71: error: 'every' must be called directly: a reference to it is not supported.
+
+/unsupportedStubBlock.kt:44:56: error: The block of 'every' must be a lambda literal.

@@ -6,7 +6,7 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 
 class MockStateThreadTest {
-    private val state = MockState(Any(), MockDescriptor("Repo", arrayOf(FIND)))
+    private val state = MockState(Any(), MockSpec(null, 0), MockDescriptor("Repo", ANY_KEYS + FIND))
 
     @Test
     fun testCallFromAnotherThreadAnswersWhileDefaultsAreCaptured() {
@@ -14,8 +14,8 @@ class MockStateThreadTest {
         var answer: Any? = null
 
         val arguments = state.captureDefaults(FIND, arrayOf(null, "includeDeleted")) {
-            thread { answer = state.answer(0, arrayOf(1, true)) }.join()
-            state.answer(0, arrayOf(0, false))
+            thread { answer = state.answer(FIND_MEMBER, arrayOf(1, true)) }.join()
+            state.answer(FIND_MEMBER, arrayOf(0, false))
         }
 
         assertEquals("found", answer)
@@ -28,7 +28,7 @@ class MockStateThreadTest {
         var answers: List<Any?> = emptyList()
 
         GeneratedMock.withoutStateChanges {
-            thread { answers = List(2) { state.answer(0, arrayOf(1, true)) } }.join()
+            thread { answers = List(2) { state.answer(FIND_MEMBER, arrayOf(1, true)) } }.join()
         }
 
         assertEquals(listOf<Any?>("a", "b"), answers)
@@ -36,5 +36,6 @@ class MockStateThreadTest {
 
     private companion object {
         const val FIND = "sample.Repo#find(kotlin.Int,kotlin.Boolean)"
+        const val FIND_MEMBER = 3
     }
 }

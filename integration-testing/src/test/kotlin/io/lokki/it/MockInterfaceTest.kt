@@ -7,6 +7,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotEquals
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 class MockInterfaceTest {
     interface Engine {
@@ -15,17 +16,28 @@ class MockInterfaceTest {
 
     @Test
     fun strictMockHasNoAnswerForMemberCalledFromMain() {
-        val garage = Garage(mock<Car>())
+        val car = mock<Car>("rental")
+        val garage = Garage(car)
 
-        assertEquals("no answer found for Car.drive", assertFailsWith<LokkiException> { garage.leave() }.message)
-        assertEquals("no answer found for Car.<get-plate>", assertFailsWith<LokkiException> { garage.plate() }.message)
+        assertTrue(car.toString().startsWith("Car(rental#"))
+        assertEquals(
+            "no answer found for $car.drive(1) among the configured answers: ()",
+            assertFailsWith<LokkiException> { garage.leave() }.message,
+        )
+        assertEquals(
+            "no answer found for $car.getPlate() among the configured answers: ()",
+            assertFailsWith<LokkiException> { garage.plate() }.message,
+        )
     }
 
     @Test
     fun strictMockHasNoAnswerForMemberOfNestedInterface() {
         val engine: Engine = mock()
 
-        assertEquals("no answer found for Engine.start", assertFailsWith<LokkiException> { engine.start() }.message)
+        assertEquals(
+            "no answer found for $engine.start() among the configured answers: ()",
+            assertFailsWith<LokkiException> { engine.start() }.message,
+        )
     }
 
     @Test

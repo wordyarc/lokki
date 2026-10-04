@@ -4,6 +4,7 @@ import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.declarations.IrTypeParameter
+import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.IrSimpleType
@@ -11,6 +12,7 @@ import org.jetbrains.kotlin.ir.types.IrStarProjection
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.IrTypeProjection
 import org.jetbrains.kotlin.ir.types.isMarkedNullable
+import org.jetbrains.kotlin.ir.util.isFromJava
 import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.util.parentAsClass
 import org.jetbrains.kotlin.ir.util.render
@@ -27,16 +29,26 @@ private fun IrSimpleFunction.roots(): List<IrSimpleFunction> =
 
 private val IrSimpleFunction.memberKey: String
     get() = buildString {
+        val nullability = !isFromJava()
         append(parentAsClass.kotlinFqName.asString()).append('#')
         val context = parameters.filter { it.kind == IrParameterKind.Context }
-        if (context.isNotEmpty()) context.joinTo(this, ",", "context(", ")") { it.type.key }
-        parameters.find { it.kind == IrParameterKind.ExtensionReceiver }?.let { append(it.type.key).append('.') }
+        if (context.isNotEmpty()) context.joinTo(this, ",", "context(", ")") { it.key(nullability) }
+        if (typeParameters.isNotEmpty()) {
+            typeParameters.joinTo(this, ",", "<", ">") { parameter ->
+                parameter.superTypes.joinToString("&", "#${parameter.position}:") { it.key(nullability) }
+            }
+        }
+        val receiver = parameters.find { it.kind == IrParameterKind.ExtensionReceiver }
+        if (receiver != null) append(receiver.key(nullability)).append('.')
         append(name.asString())
-        parameters.filter { it.kind == IrParameterKind.Regular }.joinTo(this, ",", "(", ")") { it.type.key }
+        parameters.filter { it.kind == IrParameterKind.Regular }.joinTo(this, ",", "(", ")") { it.key(nullability) }
     }
 
-private val IrType.key: String
-    get() = if (this !is IrSimpleType) render() else buildString {
+private fun IrValueParameter.key(nullability: Boolean): String =
+    varargElementType?.let { "vararg ${it.key(nullability)}" } ?: type.key(nullability)
+
+private fun IrType.key(nullability: Boolean): String =
+    if (this !is IrSimpleType) render() else buildString {
         when (val classifier = classifier) {
             is IrClassSymbol -> append(classifier.owner.kotlinFqName.asString())
             is IrTypeParameterSymbol -> append('#').append(classifier.owner.position)
@@ -46,11 +58,11 @@ private val IrType.key: String
             arguments.joinTo(this, ",", "<", ">") { argument ->
                 when (argument) {
                     is IrStarProjection -> "*"
-                    is IrTypeProjection -> argument.variance.prefix + argument.type.key
+                    is IrTypeProjection -> argument.variance.prefix + argument.type.key(nullability)
                 }
             }
         }
-        if (isMarkedNullable()) append('?')
+        if (nullability && isMarkedNullable()) append('?')
     }
 
 private val IrTypeParameter.position: Int

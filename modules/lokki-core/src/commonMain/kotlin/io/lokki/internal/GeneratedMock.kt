@@ -4,6 +4,7 @@ import io.lokki.LokkiException
 
 @PublishedApi
 internal interface GeneratedMock {
+    @get:JvmSynthetic
     val `lokki$state`: MockState
 
     companion object {

@@ -58,8 +58,10 @@ private fun answer(block: () -> String): String =
     try {
         block()
     } catch (e: LokkiException) {
-        e.message!!
+        e.message!!.replace(CALL, ".$1")
     }
+
+private val CALL = Regex("""\(#\d+\)\.(\w+)\(.*""", RegexOption.DOT_MATCHES_ALL)
 
 private const val NONE = "no answer found for Api.find"
 

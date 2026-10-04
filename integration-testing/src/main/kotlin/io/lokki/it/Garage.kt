@@ -9,4 +9,6 @@ class Garage(private val car: Car) {
     fun leave(): String = car.drive(1)
 
     fun plate(): String = car.plate
+
+    override fun toString(): String = "Garage($car)"
 }

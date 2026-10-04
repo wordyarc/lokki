@@ -1,6 +1,7 @@
 package sample
 
 import io.lokki.LokkiException
+import io.lokki.every
 import io.lokki.mock
 import java.lang.reflect.Modifier
 import kotlin.coroutines.Continuation
@@ -53,25 +54,36 @@ fun box(): String {
     }
     if (mock<Car>().javaClass != mockClass) return "Fail: second mock in the file has another class"
 
+    if (!Regex("""Car\(#\d+\)""").matches(car.toString())) return "Fail toString: $car"
     val answers = mapOf(
-        "Car.drive" to noAnswer { car.drive(1) },
-        "Car.park" to noAnswer { car.park() },
-        "Car.<get-wheels>" to noAnswer { car.wheels },
-        "Car.<get-driver>" to noAnswer { car.driver },
-        "Car.<set-driver>" to noAnswer { car.driver = "me" },
-        "Car.transport" to noAnswer { car.transport("box") },
-        "Car.label" to noAnswer { with(car) { "x".label() } },
-        "Car.describe" to noAnswer { car.describe() },
-        "Car.compareTo" to noAnswer { car.compareTo(car) },
-        "Car.refuel" to noAnswerSuspend { car.refuel(1.5) },
+        "drive(1, false)" to noAnswer { car.drive(1) },
+        "park()" to noAnswer { car.park() },
+        "getWheels()" to noAnswer { car.wheels },
+        "getDriver()" to noAnswer { car.driver },
+        "setDriver(me)" to noAnswer { car.driver = "me" },
+        "transport(box)" to noAnswer { car.transport("box") },
+        "label(x)" to noAnswer { with(car) { "x".label() } },
+        "describe()" to noAnswer { car.describe() },
+        "compareTo($car)" to noAnswer { car.compareTo(car) },
+        "refuel(1.5)" to noAnswerSuspend { car.refuel(1.5) },
     )
-    for ((member, message) in answers) {
-        if (message != "no answer found for $member") return "Fail $member: $message"
+    for ((call, message) in answers) {
+        if (message != "no answer found for $car.$call among the configured answers: ()") return "Fail $call: $message"
     }
 
-    if (car != car || car == mock<Car>()) return "Fail: equals is not identity"
-    if (car.hashCode() != System.identityHashCode(car)) return "Fail: hashCode is not identity"
-    if (!car.toString().startsWith(mockClass.name)) return "Fail toString: $car"
+    every { car.drive(any()) } returns "driven"
+    every { car.drive(more(5), true) } returns "far"
+    val configured = "$car.drive(any(), eq(false))\n$car.drive(more(5), eq(true))"
+    val unanswered = noAnswer { car.drive(1, true) }
+    if (unanswered != "no answer found for $car.drive(1, true) among the configured answers: ($configured)") {
+        return "Fail configured answers: $unanswered"
+    }
+
+    val state = mockClass.getDeclaredField("lokki\$state")
+    val descriptor = mockClass.getDeclaredField("lokki\$descriptor")
+    val getters = listOf(mockClass, mockClass.interfaces[1]).map { it.getDeclaredMethod("getLokki\$state") }
+    if (!state.isSynthetic || !descriptor.isSynthetic) return "Fail: fields of the mock class are not synthetic"
+    if (!getters.all { it.isSynthetic }) return "Fail: getter of the state is not synthetic"
 
     return "OK"
 }

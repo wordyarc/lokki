@@ -1,7 +1,10 @@
 package io.lokki.internal
 
+import io.lokki.CapturingSlot
+import io.lokki.Matcher
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -110,5 +113,76 @@ class MatchersTest {
         assertTrue(matcher.match(intArrayOf(1, 2, 3)))
         assertFalse(matcher.match(intArrayOf(1, 3, 2)))
         assertTrue(ArrayMatcher(Matchers.spread(arrayOf(intArrayOf(1)))).match(arrayOf(intArrayOf(1))))
+    }
+
+    @Test
+    fun testMatchersDescribeThemselves() {
+        val descriptions = listOf(
+            AnyMatcher,
+            EqMatcher("a"),
+            Matchers.neq(intArrayOf(1, 2)),
+            Matchers.refEq(null),
+            Matchers.nrefEq("a"),
+            Matchers.isNull(),
+            Matchers.isNull(inverse = true),
+            Matchers.cmpEq(5),
+            Matchers.more(5, andEquals = true),
+            Matchers.less(5),
+            Matchers.range(1, 3, toInclusive = false),
+            Matchers.or(Matchers.not(EqMatcher(1)), Matchers.ofType<String>()),
+            Matchers.match { _: Int -> true },
+            Matchers.matchNullable { _: Int? -> true },
+            Matchers.typed<Int>(Matchers.capture(ArrayList<Int>())),
+            Matchers.captureNullable(CapturingSlot<Int?>()),
+            ArrayMatcher(arrayOf(AnyMatcher, EqMatcher { })),
+        ).map { it.toString() }
+
+        assertContentEquals(
+            listOf(
+                "any()",
+                "eq(a)",
+                "nonEq([1, 2])",
+                "refEq(null)",
+                "refNonEq(a)",
+                "null()",
+                "notNull()",
+                "cmpEq(5)",
+                "moreAndEquals(5)",
+                "less(5)",
+                "and(moreAndEquals(1), less(3))",
+                "or(not(eq(1)), ofType(String))",
+                "matcher()",
+                "matcher()",
+                "capture()",
+                "slotCapture()",
+                "[any(), eq(lambda {})]",
+            ),
+            descriptions,
+        )
+    }
+
+    @Test
+    fun testMatcherObjectDescribesItself() {
+        val even = object : Matcher<Int> {
+            override fun match(arg: Int): Boolean = arg % 2 == 0
+
+            override fun toString(): String = "even()"
+        }
+        val matcher = Matchers.match(even)
+
+        assertTrue(matcher.match(2))
+        assertFalse(matcher.match(3))
+        assertFalse(matcher.match("a"))
+        assertFalse(matcher.match(null))
+        assertEquals("even()", matcher.toString())
+    }
+
+    @Test
+    fun testEqualsOfTheSameInstanceIsNotCalled() {
+        val unequal = object {
+            override fun equals(other: Any?): Boolean = false
+        }
+
+        assertTrue(EqMatcher(unequal).match(unequal))
     }
 }

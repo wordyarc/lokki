@@ -77,7 +77,7 @@ fun box(): String {
 
     val other = mock<Counter>()
     val stub = every { other.add(400, any()) }
-    if (failure { other.add(400, "a") } != "LokkiException: no answer found for Counter.add") {
+    if (!failure { other.add(400, "a") }.startsWith("LokkiException: no answer found for Counter(")) {
         return "Fail: stub is published before the first answer"
     }
     stub returns "published"

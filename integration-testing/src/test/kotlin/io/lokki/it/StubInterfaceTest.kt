@@ -26,6 +26,23 @@ class StubInterfaceTest {
         val dashboard = Dashboard(radio)
 
         assertEquals("news", dashboard.news())
-        assertEquals("no answer found for Radio.tune", assertFailsWith<LokkiException> { dashboard.loudNews() }.message)
+        assertEquals(
+            "no answer found for $radio.tune(101, 11) among the configured answers: ($radio.tune(any(), eq(5)))",
+            assertFailsWith<LokkiException> { dashboard.loudNews() }.message,
+        )
+    }
+
+    @Test
+    fun blockOfMockStubsItsMembers() {
+        val car = mock<Car> {
+            every { drive(any()) } returns "left"
+            every { plate } returns "A001"
+        }
+        every { car.toString() } returns "rental"
+        val garage = Garage(car)
+
+        assertEquals("left", garage.leave())
+        assertEquals("A001", garage.plate())
+        assertEquals("Garage(rental)", garage.toString())
     }
 }

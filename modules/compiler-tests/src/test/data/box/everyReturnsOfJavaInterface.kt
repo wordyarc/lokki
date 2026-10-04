@@ -21,7 +21,7 @@ fun box(): String {
         predicate.negate()
         return "Fail: default method is not mocked"
     } catch (e: LokkiException) {
-        if (e.message != "no answer found for IntPredicate.negate") return "Fail message: ${e.message}"
+        if (!e.message!!.startsWith("no answer found for $predicate.negate() ")) return "Fail message: ${e.message}"
     }
 
     return "OK"
