@@ -53,7 +53,7 @@ fun test() {
     mock<Vehicle>()
     mock<Engine>()
     mock<Wheel>()
-    mock<List<String>>()
+    mock<Map<String, Int>>()
     mock<() -> Unit>()
     mock<Runnable>()
     val car: Car = mock()

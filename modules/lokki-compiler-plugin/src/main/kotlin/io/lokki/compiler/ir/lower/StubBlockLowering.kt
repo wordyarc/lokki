@@ -1,5 +1,6 @@
 package io.lokki.compiler.ir.lower
 
+import io.lokki.compiler.ALL_ANY
 import io.lokki.compiler.COMPOSITE_MATCHERS
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.ir.LokkiSymbols
@@ -456,7 +457,6 @@ private val CASTS = setOf(
     IrTypeOperator.IMPLICIT_COERCION_TO_UNIT,
 )
 
-private const val ALL_ANY = "allAny"
 private const val TYPED = "typed"
 private const val SPREAD = "spread"
 private val ANY_MATCHERS = setOf("any", "anyNullable", ALL_ANY)

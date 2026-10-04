@@ -18,6 +18,7 @@ public interface StubScope<T> {
 
     public fun returnsMany(vararg values: T): AdditionalAnswerScope<T>
 
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.ANSWER)
     public infix fun returnsArgument(n: Int): AdditionalAnswerScope<T>
 
     public infix fun throws(ex: Throwable): AdditionalAnswerScope<T>

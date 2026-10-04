@@ -16,6 +16,7 @@ fun test() {
     val matcher: MatcherScope.(Int) -> Int = <!LOKKI_CALLABLE_REFERENCE_TO_INTRINSIC!>MatcherScope::neq<!>
     val regular: (Any) -> Boolean = ::isMock
     val generic: () -> CapturingSlot<Int> = ::slot
+    val answer = StubScope<String>::returnsArgument
 }
 
 fun MatcherScope.helper(): () -> String = <!LOKKI_CALLABLE_REFERENCE_TO_INTRINSIC!>::isNull<!>

@@ -1,0 +1,19 @@
+/returnsArgumentOutOfRange.kt:23:44: error: 'returnsArgument(2)' is out of range: the number of arguments of 'find' is 2.
+
+/returnsArgumentOutOfRange.kt:24:47: error: 'returnsArgument(-1)' is out of range: the number of arguments of 'find' is 2.
+
+/returnsArgumentOutOfRange.kt:25:48: error: 'returnsArgument(2)' is out of range: the number of arguments of 'find' is 2.
+
+/returnsArgumentOutOfRange.kt:26:44: error: 'returnsArgument(0)' is out of range: the number of arguments of 'count' is 0.
+
+/returnsArgumentOutOfRange.kt:27:41: error: 'returnsArgument(0)' is out of range: the number of arguments of 'size' is 0.
+
+/returnsArgumentOutOfRange.kt:28:42: error: 'returnsArgument(0)' is out of range: the number of arguments of 'limit' is 0.
+
+/returnsArgumentOutOfRange.kt:29:46: error: 'returnsArgument(1)' is out of range: the number of arguments of 'limit' is 1.
+
+/returnsArgumentOutOfRange.kt:30:52: error: 'returnsArgument(1)' is out of range: the number of arguments of 'names' is 1.
+
+/returnsArgumentOutOfRange.kt:31:57: error: 'returnsArgument(2)' is out of range: the number of arguments of 'width' is 2.
+
+/returnsArgumentOutOfRange.kt:32:59: error: 'returnsArgument(2)' is out of range: the number of arguments of 'load' is 2.

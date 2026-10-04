@@ -216,6 +216,19 @@ class MockStateTest {
     }
 
     @Test
+    fun testArgumentOutOfRangeFailsAtRegistration() {
+        for (index in listOf(-1, 2)) {
+            val stub = state.stub<Any?>(FIND, arrayOf(AnyMatcher, AnyMatcher))
+
+            assertEquals(
+                "returnsArgument($index) is out of range: the number of arguments of Repo.find is 2",
+                assertFailsWith<LokkiException> { stub returnsArgument index }.message,
+            )
+        }
+        assertFailsWith<LokkiException> { state.answer(FIND_MEMBER, arrayOf(1, true)) }
+    }
+
+    @Test
     fun testArgumentsAreCapturedAfterTheWholeCallMatched() {
         val ids = ArrayList<Int>()
         val flag = CapturingSlot<Boolean>()

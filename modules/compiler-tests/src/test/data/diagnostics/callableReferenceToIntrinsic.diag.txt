@@ -4,4 +4,4 @@
 
 /callableReferenceToIntrinsic.kt:16:46: error: 'neq' must be called directly: a reference to it is not supported.
 
-/callableReferenceToIntrinsic.kt:21:43: error: 'isNull' must be called directly: a reference to it is not supported.
+/callableReferenceToIntrinsic.kt:22:43: error: 'isNull' must be called directly: a reference to it is not supported.

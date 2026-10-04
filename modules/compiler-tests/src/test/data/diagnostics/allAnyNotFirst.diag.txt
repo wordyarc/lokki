@@ -1,0 +1,15 @@
+/allAnyNotFirst.kt:21:26: warning: 'allAny' replaces the other arguments only as the first argument of the stubbed call: here it matches like 'any'.
+
+/allAnyNotFirst.kt:22:30: warning: 'allAny' replaces the other arguments only as the first argument of the stubbed call: here it matches like 'any'.
+
+/allAnyNotFirst.kt:22:40: warning: 'allAny' replaces the other arguments only as the first argument of the stubbed call: here it matches like 'any'.
+
+/allAnyNotFirst.kt:23:31: warning: 'allAny' replaces the other arguments only as the first argument of the stubbed call: here it matches like 'any'.
+
+/allAnyNotFirst.kt:24:27: warning: 'allAny' replaces the other arguments only as the first argument of the stubbed call: here it matches like 'any'.
+
+/allAnyNotFirst.kt:25:29: warning: 'allAny' replaces the other arguments only as the first argument of the stubbed call: here it matches like 'any'.
+
+/allAnyNotFirst.kt:26:36: warning: 'allAny' replaces the other arguments only as the first argument of the stubbed call: here it matches like 'any'.
+
+/allAnyNotFirst.kt:27:38: warning: 'allAny' replaces the other arguments only as the first argument of the stubbed call: here it matches like 'any'.

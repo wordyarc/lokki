@@ -8,6 +8,7 @@ internal enum class IntrinsicKind {
     MOCK,
     STUB_BLOCK,
     MATCHER,
+    ANSWER,
     UNKNOWN;
 
     companion object {
@@ -17,4 +18,5 @@ internal enum class IntrinsicKind {
 
 internal val LOKKI_INTRINSIC = ClassId(FqName("io.lokki.internal"), Name.identifier("LokkiIntrinsic"))
 
+internal const val ALL_ANY = "allAny"
 internal val COMPOSITE_MATCHERS = setOf("and", "or", "not")

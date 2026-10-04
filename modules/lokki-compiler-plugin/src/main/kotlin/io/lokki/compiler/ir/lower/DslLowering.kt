@@ -39,7 +39,7 @@ internal class DslLowering(
             IntrinsicKind.UNKNOWN -> expression.also {
                 unsupported(it, "'${it.symbol.owner.name}' requires a newer version of the lokki compiler plugin")
             }
-            IntrinsicKind.MATCHER, null -> expression
+            IntrinsicKind.MATCHER, IntrinsicKind.ANSWER, null -> expression
         }
     }
 
@@ -75,4 +75,4 @@ internal class DslLowering(
     }
 }
 
-private val REFERABLE = setOf(IntrinsicKind.MATCHER, null)
+private val REFERABLE = setOf(IntrinsicKind.MATCHER, IntrinsicKind.ANSWER, null)

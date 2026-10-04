@@ -1,5 +1,6 @@
 package io.lokki.compiler.fir.checkers
 
+import io.lokki.compiler.ALL_ANY
 import io.lokki.compiler.COMPOSITE_MATCHERS
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiDiagnostics
@@ -42,6 +43,7 @@ import org.jetbrains.kotlin.fir.expressions.FirVarargArgumentsExpression
 import org.jetbrains.kotlin.fir.expressions.FirVariableAssignment
 import org.jetbrains.kotlin.fir.expressions.argument
 import org.jetbrains.kotlin.fir.expressions.arguments
+import org.jetbrains.kotlin.fir.expressions.resolvedArgumentMapping
 import org.jetbrains.kotlin.fir.expressions.unwrapArgument
 import org.jetbrains.kotlin.fir.expressions.unwrapSmartcastExpression
 import org.jetbrains.kotlin.fir.references.toResolvedCallableSymbol
@@ -49,6 +51,7 @@ import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
 import org.jetbrains.kotlin.fir.resolve.toRegularClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirFieldSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirLocalPropertySymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirValueParameterSymbol
@@ -81,10 +84,10 @@ private class StubBlock(
     private val scope = block.receiverParameter?.symbol
 
     fun check() {
-        val statements = block.body?.statements.orEmpty()
-            .filterNot { it.source?.kind is KtFakeSourceElementKind.ImplicitUnit.IndexedAssignmentCoercion }
-        val statement = statements.singleOrNull()?.unwrapped()
-            ?: return notSingleCall(block, if (statements.isEmpty()) "is empty" else "has several statements")
+        val statement = block.stubbedStatement() ?: return notSingleCall(
+            block,
+            if (block.body?.statements.isNullOrEmpty()) "is empty" else "has several statements",
+        )
         when {
             statement.source?.kind is KtFakeSourceElementKind.ImplicitUnit -> notSingleCall(block, "is empty")
             statement.isCompoundAssignment -> notSingleCall(
@@ -148,7 +151,22 @@ private class StubBlock(
             matchers.forEach { report(it, LokkiDiagnostics.LOKKI_CHAINED_CALL_DISABLED) }
         }
         notInterceptableReason(callee, receiver)?.let { notInterceptable(call, callee, it) }
-        (listOfNotNull(call.extensionReceiver) + call.contextArguments + arguments).forEach(::checkArgument)
+        val first = firstArgument(call, callee, arguments)
+        (listOfNotNull(call.extensionReceiver) + call.contextArguments + arguments).forEach { checkArgument(it, first) }
+    }
+
+    private fun firstArgument(
+        call: FirQualifiedAccessExpression,
+        callee: FirCallableSymbol<*>,
+        arguments: List<FirExpression>,
+    ): FirExpression? {
+        val parameter = (callee as? FirFunctionSymbol<*>)?.valueParameterSymbols?.firstOrNull()
+        val regular = when (call) {
+            is FirCall -> call.resolvedArgumentMapping?.entries?.find { it.value.symbol == parameter }?.key
+            else -> arguments.firstOrNull()
+        }
+        val first = (call.contextArguments.firstOrNull() ?: call.extensionReceiver ?: regular)?.unwrapArgument()
+        return (first as? FirVarargArgumentsExpression)?.arguments?.firstOrNull()?.unwrapArgument() ?: first
     }
 
     private fun notInterceptableReason(callee: FirCallableSymbol<*>, receiver: FirExpression): String? {
@@ -163,21 +181,24 @@ private class StubBlock(
         }
     }
 
-    private fun checkArgument(argument: FirExpression) {
+    private fun checkArgument(argument: FirExpression, first: FirExpression?) {
         val expression = argument.unwrapArgument()
         when {
             expression is FirVarargArgumentsExpression -> expression.arguments.forEach { element ->
                 when {
-                    element !is FirSpreadArgumentExpression -> checkArgument(element)
+                    element !is FirSpreadArgumentExpression -> checkArgument(element, first)
                     !element.expression.takesScope() -> misplacedMatchers(element.expression)
                 }
             }
             expression is FirQualifiedAccessExpression && expression.takesScope() -> {
-                val operands = expression.operands().filterNot { it.isScope() }
-                val composite = expression.calleeReference.toResolvedCallableSymbol()
+                val matcher = expression.calleeReference.toResolvedCallableSymbol()
                     ?.takeIf { it.intrinsicKind(session) == IntrinsicKind.MATCHER }
-                    ?.name?.asString() in COMPOSITE_MATCHERS
-                operands.forEach(if (composite) ::checkArgument else ::misplacedMatchers)
+                    ?.name?.asString()
+                if (matcher == ALL_ANY && expression !== first) {
+                    report(expression, LokkiDiagnostics.LOKKI_ALL_ANY_NOT_FIRST)
+                }
+                val operands = expression.operands().filterNot { it.isScope() }
+                operands.forEach { if (matcher in COMPOSITE_MATCHERS) checkArgument(it, first) else misplacedMatchers(it) }
             }
             else -> misplacedMatchers(expression)
         }
@@ -208,20 +229,6 @@ private class StubBlock(
         return scope != null && receiver?.calleeReference?.boundSymbol == scope
     }
 
-    private fun FirStatement.unwrapped(): FirStatement {
-        var statement = this
-        while (true) {
-            statement = when {
-                statement is FirReturnExpression && statement.target.labeledElement.symbol == block.symbol ->
-                    statement.result
-                statement is FirTypeOperatorCall && statement.operation == FirOperation.AS -> statement.argument
-                statement is FirCheckNotNullCall -> statement.argument
-                statement is FirSmartCastExpression -> statement.originalExpression
-                else -> return statement
-            }
-        }
-    }
-
     private fun notSingleCall(element: FirElement, reason: String) {
         val source = element.source ?: block.source
         reporter.reportOn(source, LokkiDiagnostics.LOKKI_STUB_BLOCK_NOT_SINGLE_CALL, function, reason, context)
@@ -234,6 +241,21 @@ private class StubBlock(
 
     private fun report(element: FirElement, factory: KtDiagnosticFactory0) {
         reporter.reportOn(element.source ?: block.source, factory, context)
+    }
+}
+
+internal fun FirAnonymousFunction.stubbedStatement(): FirStatement? {
+    var statement = body?.statements.orEmpty()
+        .singleOrNull { it.source?.kind !is KtFakeSourceElementKind.ImplicitUnit.IndexedAssignmentCoercion }
+        ?: return null
+    while (true) {
+        statement = when {
+            statement is FirReturnExpression && statement.target.labeledElement.symbol == symbol -> statement.result
+            statement is FirTypeOperatorCall && statement.operation == FirOperation.AS -> statement.argument
+            statement is FirCheckNotNullCall -> statement.argument
+            statement is FirSmartCastExpression -> statement.originalExpression
+            else -> return statement
+        }
     }
 }
 

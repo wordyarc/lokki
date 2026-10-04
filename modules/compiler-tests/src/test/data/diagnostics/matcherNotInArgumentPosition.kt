@@ -52,7 +52,7 @@ fun test(repo: Repo) {
     with(repo) { every { <!LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION!>any<String>()<!>.plus("a").width(1) } returns 1 }
 
     val ids = slot<Int>()
-    every { repo.find(any(), allAny()) } returns "a"
+    every { repo.find(allAny(), any()) } returns "a"
     every { repo.find(id = any(), limit = eq(1)) } returns "a"
     every { repo.find(limit = more(1), id = less(2, andEquals = true)) } returns "a"
     every { repo.find(and(more(1), or(small(), not(positive)))) } returns "a"

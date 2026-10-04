@@ -56,6 +56,8 @@ internal class MockState(private val owner: Any, spec: MockSpec, private val des
             defaults
         }
 
+    internal fun memberName(member: Int): String = "${descriptor.name}.${descriptor.memberName(member)}"
+
     internal fun register(member: Int, entry: StubEntry) {
         synchronized(this) {
             val stubs = stubs.copyOf()
@@ -71,8 +73,10 @@ internal class MockState(private val owner: Any, spec: MockSpec, private val des
             call(alternate)
         } catch (_: DefaultsCaptured) {
         } catch (e: Exception) {
-            val name = "${descriptor.name}.${descriptor.memberName(member)}"
-            throw LokkiException("default values of $name cannot be evaluated; pass them explicitly or use any()", e)
+            throw LokkiException(
+                "default values of ${memberName(member)} cannot be evaluated; pass them explicitly or use any()",
+                e,
+            )
         } finally {
             this.capture = null
         }
@@ -168,7 +172,15 @@ private class PendingStub<T>(
 
     override fun returnsMany(vararg values: T): AdditionalAnswerScope<T> = returnsMany(values.asList())
 
-    override fun returnsArgument(n: Int): AdditionalAnswerScope<T> = add(listOf(ArgumentAnswer(n)))
+    override fun returnsArgument(n: Int): AdditionalAnswerScope<T> {
+        if (n !in matchers.indices) {
+            throw LokkiException(
+                "returnsArgument($n) is out of range: " +
+                    "the number of arguments of ${state.memberName(member)} is ${matchers.size}"
+            )
+        }
+        return add(listOf(ArgumentAnswer(n)))
+    }
 
     override fun throws(ex: Throwable): AdditionalAnswerScope<T> = add(listOf(ThrowingAnswer(ex)))
 

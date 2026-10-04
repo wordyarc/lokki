@@ -1,0 +1,29 @@
+/test.kt:36:10: warning: 'sample.Clock' should not be mocked: 'sample.Clock' is annotated with 'DoNotMock': Use FakeClock.
+
+/test.kt:37:10: warning: 'sample.SystemClock' should not be mocked: 'sample.Clock' is annotated with 'DoNotMock': Use FakeClock.
+
+/test.kt:38:10: warning: 'sample.Ledger' should not be mocked: 'sample.Ledger' is annotated with 'DoNotMock'.
+
+/test.kt:39:10: warning: 'sample.Money' should not be mocked: 'sample.Money' is annotated with 'DoNotMock'.
+
+/test.kt:40:10: warning: 'sample.Names' should not be mocked: use a real 'kotlin.collections.Collection' instead.
+
+/test.kt:41:10: warning: 'kotlin.collections.List' should not be mocked: use a real 'kotlin.collections.Collection' instead.
+
+/test.kt:42:10: warning: 'kotlin.collections.MutableSet' should not be mocked: use a real 'kotlin.collections.Collection' instead.
+
+/test.kt:43:10: warning: 'java.util.ArrayList' should not be mocked: use a real 'kotlin.collections.Collection' instead.
+
+/test.kt:44:10: warning: 'java.util.Queue' should not be mocked: use a real 'kotlin.collections.Collection' instead.
+
+/test.kt:45:10: warning: 'java.util.HashMap' should not be mocked: use a real 'java.util.HashMap' instead.
+
+/test.kt:46:10: warning: 'java.util.LinkedHashMap' should not be mocked: use a real 'java.util.HashMap' instead.
+
+/test.kt:47:10: warning: 'java.io.File' should not be mocked: use a real 'java.io.File' instead.
+
+/test.kt:48:10: warning: 'java.nio.file.Path' should not be mocked: use a real 'java.nio.file.Path' instead.
+
+/test.kt:49:10: warning: 'java.nio.file.Path' should not be mocked: use a real 'java.nio.file.Path' instead.
+
+/test.kt:50:22: warning: 'java.nio.file.Path' should not be mocked: use a real 'java.nio.file.Path' instead.

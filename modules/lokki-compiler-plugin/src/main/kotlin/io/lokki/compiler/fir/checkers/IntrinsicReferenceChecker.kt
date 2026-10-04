@@ -1,5 +1,6 @@
 package io.lokki.compiler.fir.checkers
 
+import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.fir.intrinsicKind
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
@@ -14,7 +15,7 @@ internal object IntrinsicReferenceChecker : FirCallableReferenceAccessChecker(Mp
     context(context: CheckerContext, reporter: DiagnosticReporter)
     override fun check(expression: FirCallableReferenceAccess) {
         val function = expression.calleeReference.toResolvedCallableSymbol() ?: return
-        if (function.intrinsicKind(context.session) == null) return
+        if (function.intrinsicKind(context.session) in REFERABLE) return
         reporter.reportOn(
             expression.source,
             LokkiDiagnostics.LOKKI_CALLABLE_REFERENCE_TO_INTRINSIC,
@@ -22,3 +23,5 @@ internal object IntrinsicReferenceChecker : FirCallableReferenceAccessChecker(Mp
         )
     }
 }
+
+private val REFERABLE = setOf(IntrinsicKind.ANSWER, null)

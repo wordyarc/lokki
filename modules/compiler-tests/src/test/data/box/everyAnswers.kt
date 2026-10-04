@@ -55,6 +55,11 @@ fun box(): String {
 
     every { counter.add(100, any()) } returnsArgument 1
     if (counter.add(100, "label") != "label") return "Fail: returnsArgument"
+    val outside = 2
+    val range = failure { every { counter.add(100, any()) } returnsArgument outside }
+    if (range != "LokkiException: returnsArgument(2) is out of range: the number of arguments of Counter.add is 2") {
+        return "Fail: returnsArgument out of range: $range"
+    }
 
     var calls = 0
     every { counter.add(200, any()) } answers Answer { call -> "answer ${call.invocation.args[1]} ${++calls}" }
