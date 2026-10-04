@@ -2,9 +2,12 @@ package io.lokki.compiler.ir
 
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.ir.declarations.IrClass
+import org.jetbrains.kotlin.ir.declarations.IrConstructor
+import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.util.companionObject
+import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.erasedUpperBound
 import org.jetbrains.kotlin.ir.util.functions
 import org.jetbrains.kotlin.ir.util.properties
@@ -28,6 +31,7 @@ internal class LokkiSymbols(context: IrPluginContext) {
     val answer by lazy { mockState.function("answer") }
     val stub by lazy { mockState.function("stub") }
     val captureDefaults by lazy { mockState.function("captureDefaults") }
+    val exclude by lazy { mockState.function("exclude") }
 
     val verification by lazy { findClass(INTERNAL_PACKAGE, "Verification") }
     val expect by lazy { verification.function("expect") }
@@ -46,6 +50,14 @@ internal class LokkiSymbols(context: IrPluginContext) {
     val jvmSynthetic by lazy { finder.findConstructors(ClassId(JVM_PACKAGE, Name.identifier("JvmSynthetic"))).single() }
     val apply by lazy { finder.findFunctions(CallableId(KOTLIN_PACKAGE, Name.identifier("apply"))).single() }
 
+    fun verificationOf(calls: IrClass): IrConstructor =
+        verification.constructors.single { it.firstParameterClass?.symbol == calls.symbol }
+
+    fun expectNoCalls(mocks: IrClass): IrSimpleFunction =
+        verification.functions.single {
+            it.name.asString() == "expectNoCalls" && it.firstParameterClass?.symbol == mocks.symbol
+        }
+
     fun matcherFactory(name: String): IrSimpleFunction = matchers.function(name)
 
     fun matcherFactory(function: IrSimpleFunction): IrSimpleFunction {
@@ -59,7 +71,7 @@ internal class LokkiSymbols(context: IrPluginContext) {
 
 private fun IrClass.function(name: String): IrSimpleFunction = functions.single { it.name.asString() == name }
 
-private val IrSimpleFunction.firstParameterClass: IrClass?
+private val IrFunction.firstParameterClass: IrClass?
     get() = parameters.firstOrNull { it.kind == IrParameterKind.Regular }?.type?.erasedUpperBound
 
 private val KOTLIN_PACKAGE = FqName("kotlin")

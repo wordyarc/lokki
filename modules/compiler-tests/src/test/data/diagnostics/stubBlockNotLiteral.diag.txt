@@ -1,9 +1,15 @@
-/stubBlockNotLiteral.kt:16:11: error: The block of 'every' must be a lambda literal.
-
-/stubBlockNotLiteral.kt:17:23: error: The block of 'every' must be a lambda literal.
-
 /stubBlockNotLiteral.kt:18:11: error: The block of 'every' must be a lambda literal.
 
-/stubBlockNotLiteral.kt:23:26: error: The block of 'verify' must be a lambda literal.
+/stubBlockNotLiteral.kt:19:23: error: The block of 'every' must be a lambda literal.
 
-/stubBlockNotLiteral.kt:24:39: error: The block of 'verify' must be a lambda literal.
+/stubBlockNotLiteral.kt:20:11: error: The block of 'every' must be a lambda literal.
+
+/stubBlockNotLiteral.kt:25:26: error: The block of 'verify' must be a lambda literal.
+
+/stubBlockNotLiteral.kt:26:39: error: The block of 'verify' must be a lambda literal.
+
+/stubBlockNotLiteral.kt:30:35: error: The block of 'excludeRecords' must be a lambda literal.
+
+/stubBlockNotLiteral.kt:31:27: error: The block of 'excludeRecords' must be a lambda literal.
+
+/stubBlockNotLiteral.kt:33:27: error: The block of 'times' must be a lambda literal.

@@ -99,6 +99,12 @@ internal class StubBlockLowering(
 
     fun lowerVerify(verify: IrCall, scope: Scope): IrExpression = verify(verify, scope) ?: verify
 
+    fun lowerExclusion(exclude: IrCall, scope: Scope): IrExpression = exclusion(exclude, scope) ?: exclude
+
+    fun noCallsStatements(verify: IrCall): List<IrCall> =
+        (verify.arguments.last() as? IrFunctionExpression)?.function?.blockStatements().orEmpty()
+            .mapNotNull { it.noCalls()?.call }
+
     private fun stub(every: IrCall, scope: Scope): IrExpression? {
         val block = every.stubBlock() ?: return null
         val stubbed = block.function.stubbedCall()
@@ -124,9 +130,9 @@ internal class StubBlockLowering(
 
     private fun verify(verify: IrCall, scope: Scope): IrExpression? {
         val block = verify.stubBlock() ?: return null
-        val verified = block.function.verifiedCalls()
+        val expected = block.function.verifiedStatements()
             ?: return fail(block.function, "The block of '${verify.name}' must consist of calls of mock members")
-        verified.find { it.call.symbol.owner.isMethodOfAny() }?.let {
+        expected.filterIsInstance<StubbedCall>().find { it.call.symbol.owner.isMethodOfAny() }?.let {
             val reason = "calls of equals, hashCode and toString cannot be verified"
             return fail(it.call, "'${it.call.name}' is not recorded: $reason")
         }
@@ -134,25 +140,76 @@ internal class StubBlockLowering(
         val unit = context.irBuiltIns.unitType
         val check = lambda(verify, unit)
         return DeclarationIrBuilder(context, scope.scopeOwnerSymbol, verify.startOffset, verify.endOffset).irBlock {
-            val verification = irTemporary(
-                irCallConstructor(symbols.verification.primaryConstructor!!.symbol, emptyList()).apply {
-                    for (index in arguments.indices) arguments[index] = verify.arguments[index]
-                }
-            )
+            val verification = irTemporary(irVerification(verify))
             check.body = DeclarationIrBuilder(context, check.symbol, verify.startOffset, verify.endOffset).irBlockBody {
-                for (stubbed in verified) {
-                    val call = irRegistration(verify, block, stubbed, verification) ?: return null
-                    +irCall(symbols.expect).apply {
-                        arguments[0] = irGet(verification)
-                        arguments[1] = irGet(call.state)
-                        arguments[2] = irString(call.key)
-                        arguments[3] = call.matchers
+                for (expectation in expected) {
+                    when (expectation) {
+                        is NoCalls -> {
+                            if (!expectation.mocks.isIndependentOf(block.function)) {
+                                return fail(expectation.mocks, "The receiver of 'wasNot Called' must not use matchers")
+                            }
+                            +irCall(symbols.expectNoCalls(expectation.mocksClass)).apply {
+                                arguments[0] = irGet(verification)
+                                arguments[1] = expectation.mocks
+                            }
+                        }
+                        is StubbedCall -> {
+                            val call = irRegistration(verify, block, expectation, verification) ?: return null
+                            +irCall(symbols.expect).apply {
+                                arguments[0] = irGet(verification)
+                                arguments[1] = irGet(call.state)
+                                arguments[2] = irString(call.key)
+                                arguments[3] = call.matchers
+                            }
+                        }
                     }
                 }
                 +irCall(symbols.check).apply { arguments[0] = irGet(verification) }
             }
             +irWithoutStateChanges(check, unit)
         }.patchDeclarationParents(scope.getLocalDeclarationParent())
+    }
+
+    private fun exclusion(exclude: IrCall, scope: Scope): IrExpression? {
+        val block = exclude.stubBlock() ?: return null
+        val excluded = block.function.excludedCalls()
+            ?: return fail(block.function, "The block of '${exclude.name}' must consist of calls of mock members")
+
+        val unit = context.irBuiltIns.unitType
+        val registration = lambda(exclude, unit)
+        return DeclarationIrBuilder(context, scope.scopeOwnerSymbol, exclude.startOffset, exclude.endOffset).irBlock {
+            val current = exclude.arguments[0]?.let { irTemporary(it) }
+            registration.body = DeclarationIrBuilder(context, registration.symbol, exclude.startOffset, exclude.endOffset)
+                .irBlockBody {
+                    for (stubbed in excluded) {
+                        val call = irRegistration(exclude, block, stubbed) ?: return null
+                        +irCall(symbols.exclude).apply {
+                            arguments[0] = irGet(call.state)
+                            arguments[1] = irString(call.key)
+                            arguments[2] = call.matchers
+                            arguments[3] = current?.let(::irGet)
+                        }
+                    }
+                }
+            +irWithoutStateChanges(registration, unit)
+        }.patchDeclarationParents(scope.getLocalDeclarationParent())
+    }
+
+    private fun IrBuilder.irVerification(verify: IrCall): IrExpression {
+        val function = verify.symbol.owner
+        val calls = function.parameters.find { it.kind == IrParameterKind.ExtensionReceiver }
+        if (calls != null) {
+            return irCallConstructor(symbols.verificationOf(calls.type.erasedUpperBound).symbol, emptyList()).apply {
+                arguments[0] = verify.arguments[calls.indexInParameters]
+            }
+        }
+        val constructor = symbols.verification.primaryConstructor!!
+        return irCallConstructor(constructor.symbol, emptyList()).apply {
+            for (parameter in constructor.parameters) {
+                val argument = function.parameters.find { it.name == parameter.name } ?: continue
+                arguments[parameter.indexInParameters] = verify.arguments[argument.indexInParameters]
+            }
+        }
     }
 
     private fun IrCall.stubBlock(): StubBlock? {
@@ -498,14 +555,26 @@ private class StubBlock(val function: IrSimpleFunction) {
         get() = function.parameters.first { it.kind == IrParameterKind.ExtensionReceiver }.type
 }
 
+private sealed interface Expected
+
 private class StubbedCall(
     val call: IrCall,
     val receiver: IrExpression,
     val arguments: List<IrExpression?>,
     val order: List<Int>,
-) {
+) : Expected {
     val allAny: Boolean
         get() = arguments.firstOrNull().isAllAny
+}
+
+private class NoCalls(val call: IrCall) : Expected {
+    private val receiver = call.symbol.owner.parameters.first { it.kind == IrParameterKind.ExtensionReceiver }
+
+    val mocks: IrExpression
+        get() = call.arguments[receiver.indexInParameters]!!
+
+    val mocksClass: IrClass
+        get() = receiver.type.erasedUpperBound
 }
 
 private class Registration(val state: IrVariable, val key: String, val matchers: IrExpression)
@@ -516,11 +585,20 @@ private val IrCall.name: String
 private fun IrSimpleFunction.stubbedCall(): StubbedCall? =
     (body as? IrBlockBody)?.statements?.singleOrNull()?.stubbedCall()
 
-private fun IrSimpleFunction.verifiedCalls(): List<StubbedCall>? {
-    val statements = (body as? IrBlockBody)?.statements.orEmpty().filterNot { it.isUnit }
+private fun IrSimpleFunction.verifiedStatements(): List<Expected>? {
+    val statements = blockStatements()
+    if (statements.isEmpty()) return null
+    return statements.map { it.noCalls() ?: it.stubbedCall() ?: return null }
+}
+
+private fun IrSimpleFunction.excludedCalls(): List<StubbedCall>? {
+    val statements = blockStatements()
     if (statements.isEmpty()) return null
     return statements.map { it.stubbedCall() ?: return null }
 }
+
+private fun IrSimpleFunction.blockStatements(): List<IrStatement> =
+    (body as? IrBlockBody)?.statements.orEmpty().filterNot { it.isUnit }
 
 private val IrStatement.isUnit: Boolean
     get() {
@@ -528,16 +606,20 @@ private val IrStatement.isUnit: Boolean
         return value is IrGetObjectValue && value.type.isUnit()
     }
 
-private fun IrStatement.stubbedCall(): StubbedCall? {
+private fun IrStatement.stubbedCall(): StubbedCall? = (unwrapped() as? IrExpression)?.memberCall()
+
+private fun IrStatement.noCalls(): NoCalls? =
+    (unwrapped() as? IrCall)?.takeIf { it.intrinsicKind == IntrinsicKind.WAS_NOT_CALLED }?.let(::NoCalls)
+
+private fun IrStatement.unwrapped(): IrStatement? {
     var expression: IrStatement? = if (this is IrReturn) value else this
     while (true) {
         expression = when {
             expression is IrTypeOperatorCall && expression.operator in CASTS -> expression.argument
             expression is IrCall && expression.origin == IrStatementOrigin.EXCLEXCL -> expression.arguments[0]
-            else -> break
+            else -> return expression
         }
     }
-    return (expression as? IrExpression)?.memberCall()
 }
 
 private fun IrExpression.memberCall(): StubbedCall? {

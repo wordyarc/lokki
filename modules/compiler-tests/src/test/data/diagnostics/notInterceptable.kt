@@ -32,6 +32,7 @@ public class Legacy {
 package sample
 
 import io.lokki.every
+import io.lokki.excludeRecords
 import io.lokki.mock
 import io.lokki.verify
 
@@ -124,4 +125,9 @@ fun test(repo: Repo, service: Service, impl: Impl, legacy: Legacy, text: String,
     verify { service.<!LOKKI_NOT_INTERCEPTABLE!>typed<!><String>() }
     verify { <!LOKKI_NOT_INTERCEPTABLE!>top<!>() }
     verify { service.reload() }
+
+    excludeRecords { repo.<!LOKKI_NOT_INTERCEPTABLE!>first<!>() }
+    excludeRecords { service.<!LOKKI_NOT_INTERCEPTABLE!>typed<!><String>() }
+    excludeRecords { impl.<!LOKKI_NOT_INTERCEPTABLE!>load<!>() }
+    excludeRecords { service.reload() }
 }

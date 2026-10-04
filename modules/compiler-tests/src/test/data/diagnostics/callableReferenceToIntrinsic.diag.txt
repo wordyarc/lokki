@@ -1,9 +1,11 @@
-/callableReferenceToIntrinsic.kt:16:71: error: 'every' must be called directly: a reference to it is not supported.
+/callableReferenceToIntrinsic.kt:19:71: error: 'every' must be called directly: a reference to it is not supported.
 
-/callableReferenceToIntrinsic.kt:17:56: error: 'every' must be called directly: a reference to it is not supported.
+/callableReferenceToIntrinsic.kt:20:56: error: 'every' must be called directly: a reference to it is not supported.
 
-/callableReferenceToIntrinsic.kt:19:9: error: 'verify' must be called directly: a reference to it is not supported.
+/callableReferenceToIntrinsic.kt:22:9: error: 'verify' must be called directly: a reference to it is not supported.
 
-/callableReferenceToIntrinsic.kt:20:46: error: 'neq' must be called directly: a reference to it is not supported.
+/callableReferenceToIntrinsic.kt:23:46: error: 'neq' must be called directly: a reference to it is not supported.
 
-/callableReferenceToIntrinsic.kt:26:43: error: 'isNull' must be called directly: a reference to it is not supported.
+/callableReferenceToIntrinsic.kt:24:65: error: 'excludeRecords' must be called directly: a reference to it is not supported.
+
+/callableReferenceToIntrinsic.kt:31:43: error: 'isNull' must be called directly: a reference to it is not supported.

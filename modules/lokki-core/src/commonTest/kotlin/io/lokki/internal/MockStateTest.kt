@@ -272,7 +272,7 @@ class MockStateTest {
             records(),
         )
 
-        state.exclude(FIND, arrayOf(AnyMatcher, EqMatcher(true)), current = true)
+        state.exclude(FIND, arrayOf(AnyMatcher, EqMatcher(true)))
         assertEquals(listOf("$name.find(1, false)", "$name.find(2, false)", "$name.find(3, false)"), records())
         assertEquals("a", state.answer(FIND_MEMBER, arrayOf(4, true)))
         assertEquals(3, records().size)

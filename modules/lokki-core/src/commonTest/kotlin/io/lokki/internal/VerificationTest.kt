@@ -312,6 +312,105 @@ class VerificationTest {
         )
     }
 
+    @Test
+    fun testMocksWithoutCallsPass() {
+        val other = TestMock("other", FIND)
+        val verification = Verification()
+
+        verification.expectNoCalls(mock)
+        verification.expectNoCalls(listOf(other, other))
+        verification.check()
+    }
+
+    @Test
+    fun testCalledMocksAreReported() {
+        val other = TestMock("other", FIND)
+        val otherName = other.`lokki$state`.name
+        find(1, false)
+        assertFailsWith<LokkiException> { other.`lokki$state`.answer(FIND_MEMBER, arrayOf(2, true)) }
+        val verification = Verification()
+
+        verification.expectNoCalls(listOf(mock, other, mock))
+        assertEquals(
+            "Calls without an answer threw LokkiException:\n1) $otherName.find(2, true)\n\n" +
+                "Verification failed: $name, $otherName should not be called:\n" +
+                "1) $name.find(1, false)\n2) $otherName.find(2, true)\n$CALL_SITES",
+            assertFailsWith<AssertionError> { verification.check() }.message,
+        )
+    }
+
+    @Test
+    fun testCallsAreCheckedBeforeMocksWithoutCalls() {
+        find(1, false)
+        val verification = Verification()
+
+        verification.expectNoCalls(mock)
+        verification.expect(state, FIND, arrayOf(EqMatcher(2), AnyMatcher))
+        assertEquals(
+            "Verification failed: call 1 of 1: $name.find(eq(2), any()). " +
+                "Only one matching call to $name/find happened, but arguments are not matching:\n" +
+                "[0]: argument: 1, matcher: eq(2), result: -\n" +
+                "[1]: argument: false, matcher: any(), result: +\n$CALL_SITES",
+            assertFailsWith<AssertionError> { verification.check() }.message,
+        )
+    }
+
+    @Test
+    fun testInverseCoversMocksWithoutCalls() {
+        find(1, false)
+        val called = Verification(inverse = true)
+        val uncalled = Verification(inverse = true)
+
+        called.expectNoCalls(mock)
+        called.check()
+        uncalled.expectNoCalls(TestMock(null, FIND))
+        assertEquals(
+            "Inverse verification failed.\n\nVerified calls:\n",
+            assertFailsWith<AssertionError> { uncalled.check() }.message,
+        )
+    }
+
+    @Test
+    fun testMocksWithoutCallsMustBeMocks() {
+        val verification = Verification()
+
+        assertEquals(
+            "text is not a lokki mock",
+            assertFailsWith<LokkiException> { verification.expectNoCalls("text") }.message,
+        )
+        assertEquals(
+            "text is not a lokki mock",
+            assertFailsWith<LokkiException> { verification.expectNoCalls(listOf(mock, "text")) }.message,
+        )
+    }
+
+    @Test
+    fun testCallCounts() {
+        find(1, false)
+        find(1, true)
+
+        verify(expectation(1), verification = Verification(2))
+        verify(expectation(1), verification = Verification(1..2))
+        verify(expectation(3), verification = Verification(0))
+        assertEquals(
+            "Verification failed: call 1 of 1: $name.find(eq(1), any()). " +
+                "2 matching calls found, but needs exactly 3 calls\n" +
+                "Calls:\n1) $name.find(1, false)\n2) $name.find(1, true)\n$CALL_SITES",
+            failure(Verification(3), expectation(1)),
+        )
+        assertEquals(
+            "Verification failed: call 1 of 1: $name.find(eq(1), any()). " +
+                "2 matching calls found, but needs at least 3 and at most 4 calls\n" +
+                "Calls:\n1) $name.find(1, false)\n2) $name.find(1, true)\n$CALL_SITES",
+            failure(Verification(3..4), expectation(1)),
+        )
+        assertEquals("atLeast should be positive", assertFailsWith<LokkiException> { Verification(-1) }.message)
+        assertEquals(
+            "atLeast should less or equal atMost",
+            assertFailsWith<LokkiException> { Verification(2..1) }.message,
+        )
+    }
+
     private fun verifyLink(verification: Verification) {
         verification.expectLink(mock, FIND) { arrayOf(EqMatcher(1), EqMatcher(false)) }
         verification.expect(state, SAVE, arrayOf(AnyMatcher))

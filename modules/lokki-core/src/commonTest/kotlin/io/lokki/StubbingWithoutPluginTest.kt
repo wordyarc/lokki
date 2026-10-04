@@ -18,4 +18,18 @@ class StubbingWithoutPluginTest {
 
         assertEquals("lokki compiler plugin is not applied to this compilation", exception.message)
     }
+
+    @Test
+    fun testVerifyCountThrowsWithoutCompilerPlugin() {
+        val exception = assertFailsWith<LokkiException> { verifyCount { 1 * { 1 } } }
+
+        assertEquals("lokki compiler plugin is not applied to this compilation", exception.message)
+    }
+
+    @Test
+    fun testExcludeRecordsThrowsWithoutCompilerPlugin() {
+        val exception = assertFailsWith<LokkiException> { excludeRecords { 1 } }
+
+        assertEquals("lokki compiler plugin is not applied to this compilation", exception.message)
+    }
 }

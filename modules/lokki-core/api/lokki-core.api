@@ -26,6 +26,15 @@ public final class io/lokki/Call {
 	public final fun getInvocation ()Lio/lokki/Invocation;
 }
 
+public final class io/lokki/CallCountVerificationScope {
+	public final fun times (ILkotlin/jvm/functions/Function1;)V
+	public final fun times (Lkotlin/ranges/IntRange;Lkotlin/jvm/functions/Function1;)V
+}
+
+public final class io/lokki/Called {
+	public static final field INSTANCE Lio/lokki/Called;
+}
+
 public final class io/lokki/CapturingSlot {
 	public fun <init> ()V
 	public final fun clear ()V
@@ -94,11 +103,16 @@ public final class io/lokki/StubbingKt {
 public final class io/lokki/VerificationKt {
 	public static final fun confirmVerified ([Ljava/lang/Object;Z)V
 	public static synthetic fun confirmVerified$default ([Ljava/lang/Object;ZILjava/lang/Object;)V
+	public static final fun excludeRecords (ZLkotlin/jvm/functions/Function1;)V
+	public static synthetic fun excludeRecords$default (ZLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 	public static final fun verify (ZIIILkotlin/jvm/functions/Function1;)V
 	public static synthetic fun verify$default (ZIIILkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public static final fun verifyCount (Lkotlin/jvm/functions/Function1;)V
 }
 
 public abstract class io/lokki/VerificationScope : io/lokki/MatcherScope {
+	public final fun wasNot (Ljava/lang/Object;Lio/lokki/Called;)V
+	public final fun wasNot (Ljava/util/List;Lio/lokki/Called;)V
 }
 
 public final class io/lokki/internal/AnyMatcher : io/lokki/Matcher {
@@ -136,10 +150,12 @@ public abstract interface annotation class io/lokki/internal/LokkiIntrinsic : ja
 
 public final class io/lokki/internal/LokkiIntrinsic$Kind : java/lang/Enum {
 	public static final field ANSWER Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field EXCLUDE_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field MATCHER Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field MOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field STUB_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field VERIFY_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field WAS_NOT_CALLED Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static fun values ()[Lio/lokki/internal/LokkiIntrinsic$Kind;
@@ -192,6 +208,7 @@ public final class io/lokki/internal/MockState {
 	public final fun answer (I[Ljava/lang/Object;)Ljava/lang/Object;
 	public final fun captureDefaults (Ljava/lang/String;[Ljava/lang/String;Lkotlin/jvm/functions/Function1;)[Ljava/lang/Object;
 	public final fun exclude (Ljava/lang/String;[Lio/lokki/Matcher;Z)V
+	public static synthetic fun exclude$default (Lio/lokki/internal/MockState;Ljava/lang/String;[Lio/lokki/Matcher;ZILjava/lang/Object;)V
 	public final fun stub (Ljava/lang/String;[Lio/lokki/Matcher;)Lio/lokki/StubScope;
 }
 
@@ -208,10 +225,14 @@ public final class io/lokki/internal/RegistrationScope : io/lokki/VerificationSc
 
 public final class io/lokki/internal/Verification {
 	public fun <init> ()V
+	public fun <init> (I)V
+	public fun <init> (Lkotlin/ranges/IntRange;)V
 	public fun <init> (ZIII)V
 	public synthetic fun <init> (ZIIIILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun check ()V
 	public final fun expect (Lio/lokki/internal/MockState;Ljava/lang/String;[Lio/lokki/Matcher;)V
 	public final fun expectLink (Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+	public final fun expectNoCalls (Ljava/lang/Object;)V
+	public final fun expectNoCalls (Ljava/util/List;)V
 }
 

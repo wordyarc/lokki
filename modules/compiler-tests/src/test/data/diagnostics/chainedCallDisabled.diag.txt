@@ -1,9 +1,11 @@
-/chainedCallDisabled.kt:27:22: error: A matcher in the receiver of the stubbed or verified call needs chained mocks, which are disabled: stub or verify the call in the receiver separately.
-
 /chainedCallDisabled.kt:28:22: error: A matcher in the receiver of the stubbed or verified call needs chained mocks, which are disabled: stub or verify the call in the receiver separately.
 
 /chainedCallDisabled.kt:29:22: error: A matcher in the receiver of the stubbed or verified call needs chained mocks, which are disabled: stub or verify the call in the receiver separately.
 
-/chainedCallDisabled.kt:30:23: error: A matcher in the receiver of the stubbed or verified call needs chained mocks, which are disabled: stub or verify the call in the receiver separately.
+/chainedCallDisabled.kt:30:22: error: A matcher in the receiver of the stubbed or verified call needs chained mocks, which are disabled: stub or verify the call in the receiver separately.
 
-/chainedCallDisabled.kt:37:23: error: A matcher in the receiver of the stubbed or verified call needs chained mocks, which are disabled: stub or verify the call in the receiver separately.
+/chainedCallDisabled.kt:31:23: error: A matcher in the receiver of the stubbed or verified call needs chained mocks, which are disabled: stub or verify the call in the receiver separately.
+
+/chainedCallDisabled.kt:38:23: error: A matcher in the receiver of the stubbed or verified call needs chained mocks, which are disabled: stub or verify the call in the receiver separately.
+
+/chainedCallDisabled.kt:41:31: error: A matcher in the receiver of the stubbed or verified call needs chained mocks, which are disabled: stub or verify the call in the receiver separately.

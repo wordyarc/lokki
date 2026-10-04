@@ -5,8 +5,10 @@ package sample
 
 import io.lokki.Runs
 import io.lokki.every
+import io.lokki.excludeRecords
 import io.lokki.just
 import io.lokki.verify
+import io.lokki.verifyCount
 
 class Tenant
 
@@ -92,4 +94,36 @@ fun testVerify(repo: Repo, nullable: Repo?, flag: Boolean) {
     verify { repo[1] = "a" }
     verify { repo += "a" }
     verify { repo.compareTo(repo) }
+}
+
+fun testExclude(repo: Repo, nullable: Repo?, flag: Boolean) {
+    excludeRecords <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>{ }<!>
+    excludeRecords {
+        repo.find(1)
+        <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>val id = 2<!>
+        repo.find(id)
+    }
+    excludeRecords { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>nullable?.find(1)<!> }
+    excludeRecords { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>repo == repo<!> }
+    excludeRecords { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>"$repo"<!> }
+    excludeRecords { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>repo.count += 1<!> }
+    excludeRecords { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>if (flag) repo.find(1) else repo.find(2)<!> }
+    excludeRecords { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>for (id in 1..2) repo.find(id)<!> }
+    verifyCount { 1 * <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>{ }<!> }
+    verifyCount { 1 * { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>for (id in 1..2) repo.find(id)<!> } }
+
+    excludeRecords {
+        repo.find(1)
+        repo.find(2)
+    }
+    excludeRecords { repo.count = 1 }
+    excludeRecords { repo[1] = "a" }
+    excludeRecords { repo += "a" }
+    verifyCount {
+        1 * { repo.find(1) }
+        (1..2) * {
+            repo.find(1)
+            repo.find(2)
+        }
+    }
 }

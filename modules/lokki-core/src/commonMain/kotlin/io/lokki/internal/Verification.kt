@@ -13,6 +13,7 @@ internal class Verification(
     private val min = if (exactly != -1) exactly else atLeast
     private val max = if (exactly != -1) exactly else atMost
     private val expectations = ArrayList<Expectation>()
+    private val uncalled = ArrayList<MockState>()
 
     init {
         val problem = when {
@@ -26,6 +27,10 @@ internal class Verification(
         if (problem != null) throw LokkiException(problem)
     }
 
+    constructor(calls: Int) : this(atLeast = calls, atMost = calls)
+
+    constructor(calls: IntRange) : this(atLeast = calls.first, atMost = calls.last)
+
     fun expect(state: MockState, key: String, matchers: Array<Matcher<Any?>>) {
         expectations += Expectation(state, state.descriptor.member(key), matchers, min, max)
     }
@@ -34,6 +39,14 @@ internal class Verification(
         if (inverse || min == 0) return
         val state = (receiver as? GeneratedMock)?.`lokki$state` ?: return
         expectations += Expectation(state, state.descriptor.member(key), matchers(state), 1, Int.MAX_VALUE)
+    }
+
+    fun expectNoCalls(mock: Any) {
+        uncalled += GeneratedMock.of(mock).`lokki$state`
+    }
+
+    fun expectNoCalls(mocks: List<Any>) {
+        for (mock in mocks) expectNoCalls(mock)
     }
 
     fun check() {
@@ -45,14 +58,23 @@ internal class Verification(
             }
             outcome.matching
         }
+        val called = uncalled.distinct().map { it to it.records() }.filter { (_, calls) -> calls.isNotEmpty() }
+        if (called.isNotEmpty()) {
+            if (inverse) return
+            val calls = called.flatMap { (_, calls) -> calls }
+            fail(
+                "Verification failed: ${called.joinToString { (state, _) -> state.name }} should not be called:\n" +
+                    "${calls.numbered()}\n${calls.callSites()}"
+            )
+        }
         if (inverse) fail("Inverse verification failed.\n\nVerified calls:\n${matched.flatten().distinct().numbered()}")
         expectations.forEachIndexed { index, expectation -> matched[index].forEach(expectation::capture) }
         expectations.forEachIndexed { index, expectation -> expectation.state.markVerified(matched[index]) }
     }
 
     private fun fail(message: String): Nothing {
-        val unanswered = expectations.map { it.state }.distinct().flatMap { it.unansweredRecords() }
-        throw AssertionError(unanswered.unansweredReport() + message)
+        val states = (expectations.map { it.state } + uncalled).distinct()
+        throw AssertionError(states.flatMap { it.unansweredRecords() }.unansweredReport() + message)
     }
 }
 

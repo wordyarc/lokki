@@ -10,6 +10,7 @@ import org.jetbrains.kotlin.diagnostics.error3
 import org.jetbrains.kotlin.diagnostics.rendering.BaseDiagnosticRendererFactory
 import org.jetbrains.kotlin.diagnostics.rendering.CommonRenderers
 import org.jetbrains.kotlin.diagnostics.warning0
+import org.jetbrains.kotlin.diagnostics.warning1
 import org.jetbrains.kotlin.diagnostics.warning2
 import org.jetbrains.kotlin.psi.KtElement
 
@@ -28,6 +29,8 @@ internal object LokkiDiagnostics : KtDiagnosticsContainer() {
     val LOKKI_ALL_ANY_NOT_FIRST by warning0<KtElement>()
     val LOKKI_RESTRICTED_TYPE by warning2<KtElement, String, String>()
     val LOKKI_NOT_RECORDED by error1<KtElement, String>()
+    val LOKKI_USELESS_EXCLUSION by warning1<KtElement, String>()
+    val LOKKI_WAS_NOT_CALLED_ON_CALL_RESULT by warning1<KtElement, String>()
 
     override fun getRendererFactory(): BaseDiagnosticRendererFactory = LokkiDiagnosticRenderers
 }
@@ -107,6 +110,18 @@ private object LokkiDiagnosticRenderers : BaseDiagnosticRendererFactory() {
         map.put(
             LokkiDiagnostics.LOKKI_NOT_RECORDED,
             "''{0}'' is not recorded: calls of equals, hashCode and toString cannot be verified.",
+            CommonRenderers.STRING,
+        )
+        map.put(
+            LokkiDiagnostics.LOKKI_USELESS_EXCLUSION,
+            "''{0}'' is not recorded, so there is nothing to exclude: calls of equals, hashCode and toString " +
+                "are never recorded.",
+            CommonRenderers.STRING,
+        )
+        map.put(
+            LokkiDiagnostics.LOKKI_WAS_NOT_CALLED_ON_CALL_RESULT,
+            "''wasNot Called'' is applied to the result of ''{0}'', not to a mock: " +
+                "to check that ''{0}'' was not called, verify the call with ''exactly = 0''.",
             CommonRenderers.STRING,
         )
     }

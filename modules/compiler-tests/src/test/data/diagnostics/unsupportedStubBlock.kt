@@ -12,12 +12,15 @@
 
 package sample
 
+import io.lokki.Called
 import io.lokki.MatcherScope
 import io.lokki.StubScope
 import io.lokki.VerificationScope
 import io.lokki.every
+import io.lokki.excludeRecords
 import io.lokki.mock
 import io.lokki.verify
+import io.lokki.verifyCount
 
 @JvmInline
 value class Id(val value: Int)
@@ -34,6 +37,11 @@ fun top(): String = ""
 fun Repo.first(): String = find(1)
 
 fun MatcherScope.anyId(): Id = any()
+
+fun VerificationScope.unused(repo: Repo): Int {
+    <!LOKKI_UNSUPPORTED!>repo wasNot Called<!>
+    return any()
+}
 
 fun test(repo: Repo, nullable: Repo?, block: MatcherScope.() -> String, check: VerificationScope.() -> Any?) {
     <!LOKKI_UNSUPPORTED!>every(block)<!> returns "a"
@@ -64,4 +72,17 @@ fun test(repo: Repo, nullable: Repo?, block: MatcherScope.() -> String, check: V
     verify { <!LOKKI_UNSUPPORTED!>any<Repo>()<!>.find(1) }
     verify { repo.find(<!LOKKI_UNSUPPORTED!>any<Int>() + 1<!>) }
     val verification: (Boolean, Int, Int, Int, VerificationScope.() -> Any?) -> Unit = <!LOKKI_UNSUPPORTED!>::verify<!>
+    verify { <!LOKKI_UNSUPPORTED!>listOf(any<Repo>())<!> wasNot Called }
+    verifyCount { 2.<!LOKKI_UNSUPPORTED!>times(check)<!> }
+    verifyCount { 1 * <!LOKKI_UNSUPPORTED!>{ }<!> }
+
+    <!LOKKI_UNSUPPORTED!>excludeRecords(excludeBlock = block)<!>
+    excludeRecords <!LOKKI_UNSUPPORTED!>{ }<!>
+    excludeRecords <!LOKKI_UNSUPPORTED!>{
+        repo.find(1)
+        nullable?.find(1)
+    }<!>
+    excludeRecords { <!LOKKI_UNSUPPORTED!>any<Repo>()<!>.find(1) }
+    excludeRecords { repo.find(<!LOKKI_UNSUPPORTED!>any<Int>() + 1<!>) }
+    val exclusion: (Boolean, MatcherScope.() -> Any?) -> Unit = <!LOKKI_UNSUPPORTED!>::excludeRecords<!>
 }

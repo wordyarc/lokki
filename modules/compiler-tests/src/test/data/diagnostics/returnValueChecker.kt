@@ -3,12 +3,15 @@
 
 package sample
 
+import io.lokki.Called
 import io.lokki.Runs
 import io.lokki.every
+import io.lokki.excludeRecords
 import io.lokki.just
 import io.lokki.mock
 import io.lokki.slot
 import io.lokki.verify
+import io.lokki.verifyCount
 
 interface Repo {
     fun find(id: Int): String
@@ -28,6 +31,13 @@ fun test(): String {
     verify { repo.find(1) }
     verify(exactly = 1) { repo.save("a") }
     verify {
+        repo.<!RETURN_VALUE_NOT_USED!>find<!>(1)
+        repo.find(2)
+    }
+    verify { repo wasNot Called }
+    verifyCount { 1 * { repo.find(1) } }
+    excludeRecords { repo.find(1) }
+    excludeRecords {
         repo.<!RETURN_VALUE_NOT_USED!>find<!>(1)
         repo.find(2)
     }

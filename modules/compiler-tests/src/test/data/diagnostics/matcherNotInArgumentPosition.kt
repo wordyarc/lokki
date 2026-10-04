@@ -3,8 +3,10 @@
 
 package sample
 
+import io.lokki.Called
 import io.lokki.MatcherScope
 import io.lokki.every
+import io.lokki.excludeRecords
 import io.lokki.slot
 import io.lokki.verify
 
@@ -73,4 +75,11 @@ fun test(repo: Repo) {
         repo.find(small())
         repo.label(<!LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION!>any<String>()<!> + "a")
     }
+    verify { <!LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION!>any<Repo>()<!> wasNot Called }
+    verify { listOf(repo, <!LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION!>any<Repo>()<!>) wasNot Called }
+    verify { repo wasNot Called }
+
+    excludeRecords { repo.find(<!LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION!>any<Int>()<!> + 1) }
+    excludeRecords { <!LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION!>small()<!> }
+    excludeRecords { repo.find(small(), any()) }
 }

@@ -1,12 +1,15 @@
 package io.lokki.it
 
+import io.lokki.Called
 import io.lokki.LokkiException
 import io.lokki.checkUnnecessaryStub
 import io.lokki.clearMocks
 import io.lokki.confirmVerified
 import io.lokki.every
+import io.lokki.excludeRecords
 import io.lokki.mock
 import io.lokki.verify
+import io.lokki.verifyCount
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -89,5 +92,26 @@ class VerifyInterfaceTest {
         clearMocks(car)
         assertFailsWith<LokkiException> { garage.leave() }
         checkUnnecessaryStub(car)
+    }
+
+    @Test
+    fun excludedCallsAreNotRecorded() {
+        val car = mock<Car>()
+        val radio = mock<Radio>()
+        every { car.drive(any()) } returns "left"
+        every { car.plate } returns "A001"
+        val garage = Garage(car)
+
+        garage.plate()
+        excludeRecords { car.plate }
+        garage.plate()
+        garage.leave()
+
+        verifyCount {
+            0 * { car.plate }
+            1 * { car.drive(1) }
+        }
+        confirmVerified(car)
+        verify { radio wasNot Called }
     }
 }

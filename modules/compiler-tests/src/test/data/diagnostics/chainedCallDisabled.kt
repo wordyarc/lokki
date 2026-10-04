@@ -5,6 +5,7 @@ package sample
 
 import io.lokki.MatcherScope
 import io.lokki.every
+import io.lokki.excludeRecords
 import io.lokki.verify
 
 interface Door {
@@ -36,4 +37,7 @@ fun test(car: Car, provider: () -> Car) {
 
     verify { car.door(<!LOKKI_CHAINED_CALL_DISABLED!>any()<!>).open() }
     verify { car.door(1).open() }
+
+    excludeRecords { car.door(<!LOKKI_CHAINED_CALL_DISABLED!>any()<!>).open() }
+    excludeRecords { car.door(1).open() }
 }

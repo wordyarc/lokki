@@ -1,0 +1,11 @@
+/wasNotCalledOnCallResult.kt:29:14: warning: 'wasNot Called' is applied to the result of 'find', not to a mock: to check that 'find' was not called, verify the call with 'exactly = 0'.
+
+/wasNotCalledOnCallResult.kt:30:14: warning: 'wasNot Called' is applied to the result of 'child', not to a mock: to check that 'child' was not called, verify the call with 'exactly = 0'.
+
+/wasNotCalledOnCallResult.kt:31:14: warning: 'wasNot Called' is applied to the result of 'nullableChild', not to a mock: to check that 'nullableChild' was not called, verify the call with 'exactly = 0'.
+
+/wasNotCalledOnCallResult.kt:32:14: warning: 'wasNot Called' is applied to the result of 'repo', not to a mock: to check that 'repo' was not called, verify the call with 'exactly = 0'.
+
+/wasNotCalledOnCallResult.kt:35:9: warning: 'wasNot Called' is applied to the result of 'child', not to a mock: to check that 'child' was not called, verify the call with 'exactly = 0'.
+
+/wasNotCalledOnCallResult.kt:37:25: warning: 'wasNot Called' is applied to the result of 'child', not to a mock: to check that 'child' was not called, verify the call with 'exactly = 0'.

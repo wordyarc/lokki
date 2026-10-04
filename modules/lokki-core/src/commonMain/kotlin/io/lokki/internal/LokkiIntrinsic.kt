@@ -12,5 +12,7 @@ public annotation class LokkiIntrinsic(val kind: Kind) {
         MATCHER,
         ANSWER,
         VERIFY_BLOCK,
+        WAS_NOT_CALLED,
+        EXCLUDE_BLOCK,
     }
 }

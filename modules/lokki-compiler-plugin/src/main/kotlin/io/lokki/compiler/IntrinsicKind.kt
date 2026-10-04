@@ -10,6 +10,8 @@ internal enum class IntrinsicKind {
     MATCHER,
     ANSWER,
     VERIFY_BLOCK,
+    WAS_NOT_CALLED,
+    EXCLUDE_BLOCK,
     UNKNOWN;
 
     companion object {

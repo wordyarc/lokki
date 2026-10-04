@@ -1,0 +1,7 @@
+/uselessExclusion.kt:14:27: warning: 'hashCode' is not recorded, so there is nothing to exclude: calls of equals, hashCode and toString are never recorded.
+
+/uselessExclusion.kt:15:27: warning: 'toString' is not recorded, so there is nothing to exclude: calls of equals, hashCode and toString are never recorded.
+
+/uselessExclusion.kt:18:14: warning: 'equals' is not recorded, so there is nothing to exclude: calls of equals, hashCode and toString are never recorded.
+
+/uselessExclusion.kt:20:28: warning: 'hashCode' is not recorded, so there is nothing to exclude: calls of equals, hashCode and toString are never recorded.

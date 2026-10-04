@@ -5,6 +5,7 @@ import io.lokki.every
 import io.lokki.just
 import io.lokki.mock
 import io.lokki.verify
+import io.lokki.verifyCount
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -48,6 +49,20 @@ class VerifyTest {
         verify(inverse = true) {
             mock.op(4)
             mock.op(8)
+        }
+    }
+
+    @Test
+    fun verifyCount() {
+        doCalls()
+
+        verifyCount {
+            0 * { mock.op(4) }
+            1 * { mock.op(5) }
+            (0..Int.MAX_VALUE) * { mock.op(6) }
+            (1..1) * { mock.op(7) }
+            (0..0) * { mock.op(8) }
+            (0..1) * { mock.op(9) }
         }
     }
 

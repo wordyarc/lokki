@@ -6,7 +6,9 @@ package sample
 import io.lokki.MatcherScope
 import io.lokki.VerificationScope
 import io.lokki.every
+import io.lokki.excludeRecords
 import io.lokki.verify
+import io.lokki.verifyCount
 
 interface Repo {
     fun find(id: Int): String
@@ -24,6 +26,12 @@ fun test(repo: Repo, block: MatcherScope.() -> String, check: VerificationScope.
     verify(exactly = 1, verifyBlock = <!LOKKI_STUB_BLOCK_NOT_LITERAL!>check<!>)
     verify { repo.find(any()) }
     verify(verifyBlock = { repo.find(any()) }, exactly = 1)
+
+    excludeRecords(excludeBlock = <!LOKKI_STUB_BLOCK_NOT_LITERAL!>block<!>)
+    excludeRecords(false, <!LOKKI_STUB_BLOCK_NOT_LITERAL!>block<!>)
+    excludeRecords(excludeBlock = { repo.find(any()) }, current = false)
+    verifyCount { 2.times(<!LOKKI_STUB_BLOCK_NOT_LITERAL!>check<!>) }
+    verifyCount { 2.times { repo.find(any()) } }
 }
 
 fun Repo.stub(scope: MatcherScope): String = find(scope.any())

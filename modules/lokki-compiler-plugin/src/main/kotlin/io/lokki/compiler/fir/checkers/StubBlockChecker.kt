@@ -66,9 +66,10 @@ internal object StubBlockChecker : FirFunctionCallChecker(MppCheckerKind.Common)
     context(context: CheckerContext, reporter: DiagnosticReporter)
     override fun check(expression: FirFunctionCall) {
         val function = expression.calleeReference.toResolvedCallableSymbol() as? FirFunctionSymbol<*> ?: return
-        val verify = when (function.intrinsicKind(context.session)) {
-            IntrinsicKind.STUB_BLOCK -> false
-            IntrinsicKind.VERIFY_BLOCK -> true
+        val mode = when (function.intrinsicKind(context.session)) {
+            IntrinsicKind.STUB_BLOCK -> BlockMode.STUB
+            IntrinsicKind.VERIFY_BLOCK -> BlockMode.VERIFY
+            IntrinsicKind.EXCLUDE_BLOCK -> BlockMode.EXCLUDE
             else -> return
         }
         val parameter = function.valueParameterSymbols.lastOrNull() ?: return
@@ -81,24 +82,30 @@ internal object StubBlockChecker : FirFunctionCallChecker(MppCheckerKind.Common)
         if (block == null) {
             reporter.reportOn(argument.source, LokkiDiagnostics.LOKKI_STUB_BLOCK_NOT_LITERAL, name)
         } else {
-            StubBlock(name, verify, block, context, reporter).check()
+            StubBlock(name, mode, block, context, reporter).check()
         }
     }
 }
 
+private enum class BlockMode(val action: String) {
+    STUB("Stub"),
+    VERIFY("Verify"),
+    EXCLUDE("Exclude"),
+}
+
 private class StubBlock(
     private val function: String,
-    private val verify: Boolean,
+    private val mode: BlockMode,
     private val block: FirAnonymousFunction,
     private val context: CheckerContext,
     private val reporter: DiagnosticReporter,
 ) {
     private val session = context.session
     private val scope = block.receiverParameter?.symbol
-    private val action = if (verify) "Verify" else "Stub"
+    private val action = mode.action
 
     fun check() {
-        if (verify) {
+        if (mode != BlockMode.STUB) {
             val statements = block.verifiedStatements()
             if (statements.isEmpty()) notSingleCall(block, "is empty") else statements.forEach(::checkStatement)
             return
@@ -135,11 +142,11 @@ private class StubBlock(
             }
             statement is FirFunctionCall -> checkCall(statement, statement, statement.arguments)
             statement is FirPropertyAccessExpression -> checkCall(statement, statement, emptyList())
-            verify && statement.isLoop -> notSingleCall(
+            mode == BlockMode.VERIFY && statement.isLoop -> notSingleCall(
                 statement,
                 "is a loop. Call 'verify' in the loop or verify one call with matchers and 'exactly'",
             )
-            verify && statement is FirWhenExpression ->
+            mode == BlockMode.VERIFY && statement is FirWhenExpression ->
                 notSingleCall(statement, "is a condition. Call 'verify' in its branches")
             else -> notSingleCall(statement, "is not a call")
         }
@@ -149,6 +156,8 @@ private class StubBlock(
         val callee = call.calleeReference.toResolvedCallableSymbol() ?: return
         val receiver = call.dispatchReceiver?.unwrapSmartcastExpression()
         when {
+            mode == BlockMode.VERIFY && callee.intrinsicKind(session) == IntrinsicKind.WAS_NOT_CALLED &&
+                receiver.isScope() -> checkNoCalls(call)
             call.takesScope() -> when {
                 !receiver.isScope() || callee.intrinsicKind(session) == IntrinsicKind.MATCHER ->
                     report(statement, LokkiDiagnostics.LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION)
@@ -183,11 +192,16 @@ private class StubBlock(
             matchers.forEach { report(it, LokkiDiagnostics.LOKKI_CHAINED_CALL_DISABLED) }
         }
         val reason = notInterceptableReason(callee, receiver)
+        val notRecorded = when (mode) {
+            BlockMode.STUB -> null
+            BlockMode.VERIFY -> LokkiDiagnostics.LOKKI_NOT_RECORDED
+            BlockMode.EXCLUDE -> LokkiDiagnostics.LOKKI_USELESS_EXCLUSION
+        }
         when {
             reason != null -> notInterceptable(call, callee, reason)
-            verify && callee is FirNamedFunctionSymbol && callee.isMethodOfAny -> reporter.reportOn(
+            notRecorded != null && callee is FirNamedFunctionSymbol && callee.isMethodOfAny -> reporter.reportOn(
                 call.calleeReference.source ?: call.source,
-                LokkiDiagnostics.LOKKI_NOT_RECORDED,
+                notRecorded,
                 callee.name.asString(),
                 context,
             )
@@ -208,6 +222,20 @@ private class StubBlock(
         }
         val first = (call.contextArguments.firstOrNull() ?: call.extensionReceiver ?: regular)?.unwrapArgument()
         return (first as? FirVarargArgumentsExpression)?.arguments?.firstOrNull()?.unwrapArgument() ?: first
+    }
+
+    private fun checkNoCalls(call: FirQualifiedAccessExpression) {
+        val mocks = call.extensionReceiver ?: return
+        misplacedMatchers(mocks)
+        val result = mocks.unwrapped(block) as? FirFunctionCall ?: return
+        if (result.explicitReceiver == null || result.dispatchReceiver == null) return
+        val member = result.calleeReference.toResolvedCallableSymbol() ?: return
+        reporter.reportOn(
+            mocks.source,
+            LokkiDiagnostics.LOKKI_WAS_NOT_CALLED_ON_CALL_RESULT,
+            member.name.asString(),
+            context,
+        )
     }
 
     private fun notInterceptableReason(callee: FirCallableSymbol<*>, receiver: FirExpression): String? {
@@ -270,10 +298,12 @@ private class StubBlock(
         return scope != null && receiver?.calleeReference?.boundSymbol == scope
     }
 
-    private fun callExplicitly(member: String): String = if (verify) "" else ". Call '$member' explicitly"
+    private fun callExplicitly(member: String): String =
+        if (mode == BlockMode.STUB) ". Call '$member' explicitly" else ""
 
     private fun notSingleCall(element: FirElement, reason: String) {
-        val requirement = if (verify) "consist of calls of mock members" else "be a single call of a mock member"
+        val requirement =
+            if (mode == BlockMode.STUB) "be a single call of a mock member" else "consist of calls of mock members"
         reporter.reportOn(
             element.source ?: block.source,
             LokkiDiagnostics.LOKKI_STUB_BLOCK_NOT_SINGLE_CALL,

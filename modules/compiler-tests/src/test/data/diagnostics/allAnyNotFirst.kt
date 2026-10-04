@@ -4,6 +4,7 @@
 package sample
 
 import io.lokki.every
+import io.lokki.excludeRecords
 import io.lokki.verify
 
 class Tenant
@@ -36,4 +37,7 @@ fun test(repo: Repo, tenant: Tenant) {
 
     verify { repo.find(1, <!LOKKI_ALL_ANY_NOT_FIRST!>allAny()<!>) }
     verify { repo.find(allAny()) }
+
+    excludeRecords { repo.find(1, <!LOKKI_ALL_ANY_NOT_FIRST!>allAny()<!>) }
+    excludeRecords { repo.find(allAny()) }
 }

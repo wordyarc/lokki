@@ -46,8 +46,10 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
     fun <T> stub(key: String, matchers: Array<Matcher<Any?>>): StubScope<T> =
         PendingStub(this, descriptor.member(key), matchers)
 
-    fun exclude(key: String, matchers: Array<Matcher<Any?>>, current: Boolean) {
-        val exclusion = Exclusion(descriptor.member(key), matchers)
+    fun exclude(key: String, matchers: Array<Matcher<Any?>>, current: Boolean = true) {
+        val member = descriptor.member(key)
+        if (member <= TO_STRING) return
+        val exclusion = Exclusion(member, matchers)
         synchronized(this) { exclusions += exclusion }
         if (current) synchronized(records) { records.removeAll { exclusion.matches(it.member, it.arguments) } }
     }

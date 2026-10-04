@@ -30,13 +30,20 @@ internal class DslLowering(
     private val mocks: Map<MockClassKey, IrClass>,
 ) : IrElementTransformerVoidWithContext() {
     private val stubBlocks = StubBlockLowering(context, symbols, ::unsupported)
+    private val verifiedNoCalls = HashSet<IrCall>()
 
     override fun visitCall(expression: IrCall): IrExpression {
+        val kind = expression.intrinsicKind
+        if (kind == IntrinsicKind.VERIFY_BLOCK) verifiedNoCalls += stubBlocks.noCallsStatements(expression)
         super.visitCall(expression)
-        return when (expression.intrinsicKind) {
+        return when (kind) {
             IntrinsicKind.MOCK -> lowerMock(expression)
             IntrinsicKind.STUB_BLOCK -> stubBlocks.lowerStub(expression, currentScope!!.scope)
             IntrinsicKind.VERIFY_BLOCK -> stubBlocks.lowerVerify(expression, currentScope!!.scope)
+            IntrinsicKind.EXCLUDE_BLOCK -> stubBlocks.lowerExclusion(expression, currentScope!!.scope)
+            IntrinsicKind.WAS_NOT_CALLED -> expression.also {
+                if (it !in verifiedNoCalls) unsupported(it, "'wasNot Called' must be a statement of a verify block")
+            }
             IntrinsicKind.UNKNOWN -> expression.also {
                 unsupported(it, "'${it.symbol.owner.name}' requires a newer version of the lokki compiler plugin")
             }
