@@ -22,7 +22,7 @@ class IncrementalCompilationTest {
         project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
 
         project.build("test")
-        assertEquals(setOf("drive()"), project.declaredMethods("test", "sample.Car\$LokkiMock\$08768170\$CarTestKt"))
+        assertEquals(setOf("drive()"), project.mockedMethods("test", "sample.Car\$LokkiMock\$08768170\$CarTestKt"))
 
         project.write(
             "src/main/kotlin/sample/Car.kt",
@@ -36,7 +36,7 @@ class IncrementalCompilationTest {
         for (filePart in listOf("CarTestKt", "GarageTestKt")) {
             assertEquals(
                 setOf("drive()", "stop()"),
-                project.declaredMethods("test", "sample.Car\$LokkiMock\$08768170\$$filePart"),
+                project.mockedMethods("test", "sample.Car\$LokkiMock\$08768170\$$filePart"),
             )
         }
     }
@@ -58,7 +58,7 @@ class IncrementalCompilationTest {
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
         assertEquals(setOf("CarTest.kt"), project.compiledSources(":compileTestKotlin"))
-        assertEquals(setOf("drive(int)"), project.declaredMethods("test", "sample.Car\$LokkiMock\$08768170\$CarTestKt"))
+        assertEquals(setOf("drive(int)"), project.mockedMethods("test", "sample.Car\$LokkiMock\$08768170\$CarTestKt"))
     }
 
     @ParameterizedTest
@@ -81,7 +81,7 @@ class IncrementalCompilationTest {
         assertEquals(setOf("CarTest.kt"), project.compiledSources(":compileTestKotlin"))
         assertEquals(
             setOf("drive()", "park()", "honk()"),
-            project.declaredMethods("test", "sample.Car\$LokkiMock\$08768170\$CarTestKt"),
+            project.mockedMethods("test", "sample.Car\$LokkiMock\$08768170\$CarTestKt"),
         )
     }
 
@@ -107,7 +107,7 @@ class IncrementalCompilationTest {
         assertEquals(setOf("Boat.kt", "Sailor.kt", "BoatTest.kt"), project.compiledSources(":compileTestKotlin"))
         assertEquals(
             setOf("sail()", "moor()"),
-            project.declaredMethods("test", "sample.Boat\$LokkiMock\$06596b24\$BoatTestKt"),
+            project.mockedMethods("test", "sample.Boat\$LokkiMock\$06596b24\$BoatTestKt"),
         )
     }
 
@@ -204,9 +204,56 @@ class IncrementalCompilationTest {
         assertEquals(setOf("Fixtures.kt"), project.compiledSources(":core:compileTestFixturesKotlin"))
         assertEquals(
             setOf("drive()", "stop()"),
-            project.declaredMethods("testFixtures", "sample.Car\$LokkiMock\$08768170\$FixturesKt", project = "core"),
+            project.mockedMethods("testFixtures", "sample.Car\$LokkiMock\$08768170\$FixturesKt", project = "core"),
         )
     }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testChangedDefaultValueOfStubbedMemberInMain(gradle: GradleUnderTest) {
+        val project = jvmProject(gradle)
+        project.write("src/main/kotlin/sample/Radio.kt", radio(defaultVolume = 5))
+        project.write(
+            "src/test/kotlin/sample/RadioTest.kt",
+            """
+            package sample
+
+            import io.lokki.every
+            import io.lokki.mock
+            import kotlin.test.Test
+            import kotlin.test.assertEquals
+
+            class RadioTest {
+                @Test
+                fun omittedDefaultIsMatchedByItsValue() {
+                    val radio = mock<Radio>()
+                    every { radio.tune(any()) } returns "news"
+
+                    assertEquals("news", news(radio))
+                }
+            }
+            """,
+        )
+
+        project.build("test")
+
+        project.write("src/main/kotlin/sample/Radio.kt", radio(defaultVolume = 7))
+        val result = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
+        assertEquals(emptySet(), project.compiledSources(":compileTestKotlin"))
+    }
+
+    private fun radio(defaultVolume: Int): String =
+        """
+        package sample
+
+        interface Radio {
+            fun tune(station: Int, volume: Int = $defaultVolume): String
+        }
+
+        fun news(radio: Radio): String = radio.tune(101)
+        """
 
     private fun jvmProject(gradle: GradleUnderTest): TestProject =
         TestProject(projectDir, gradle).apply {

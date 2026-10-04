@@ -20,15 +20,19 @@ fun localCar(): Car = mock<Car>()
 
 private inline fun privateBoatFixture(): Boat = mock<Boat>()
 
-fun localBoat(): Boat = privateBoatFixture()
+internal inline fun boatFixture(): Boat = privateBoatFixture()
 
 // FILE: SamePackage.kt
 package fixtures.nested
 
+import fixtures.Boat
 import fixtures.Car
+import fixtures.boatFixture
 import fixtures.carFixture
 
 fun carFromAnotherPackage(): Car = carFixture()
+
+fun boatFromAnotherPackage(): Boat = boatFixture()
 
 // MODULE: main(fixtures)
 // FILE: main.kt
@@ -36,8 +40,8 @@ package app
 
 import fixtures.carFixture
 import fixtures.carFixtureIn
-import fixtures.localBoat
 import fixtures.localCar
+import fixtures.nested.boatFromAnotherPackage
 import fixtures.nested.carFromAnotherPackage
 import io.lokki.LokkiException
 import java.lang.reflect.Modifier
@@ -59,8 +63,8 @@ fun box(): String {
         if (e.message != "no answer found for Car.drive") return "Fail message: ${e.message}"
     }
 
-    val boatClass = localBoat().javaClass
-    if (Modifier.isPublic(boatClass.modifiers)) return "Fail: mock class created in a private inline function is public"
+    val boatClass = boatFromAnotherPackage().javaClass
+    if (!Modifier.isPublic(boatClass.modifiers)) return "Fail: mock class created in a private inline function is not public"
 
     return "OK"
 }

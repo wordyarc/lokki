@@ -48,7 +48,9 @@ fun box(): String {
     if (mockClass.name != "sample.Car\$LokkiMock\$08768170\$MockInterfaceKt") return "Fail name: ${mockClass.name}"
     if (Modifier.isPublic(mockClass.modifiers)) return "Fail: mock class is public"
     if (!Modifier.isFinal(mockClass.modifiers)) return "Fail: mock class is not final"
-    if (mockClass.interfaces.toList() != listOf(Car::class.java)) return "Fail: ${mockClass.interfaces.toList()}"
+    if (mockClass.interfaces.map { it.name } != listOf("sample.Car", "io.lokki.internal.GeneratedMock")) {
+        return "Fail: ${mockClass.interfaces.toList()}"
+    }
     if (mock<Car>().javaClass != mockClass) return "Fail: second mock in the file has another class"
 
     val answers = mapOf(

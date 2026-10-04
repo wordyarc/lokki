@@ -5,8 +5,9 @@ A mock is an ordinary class generated at compile time, so tests need no reflecti
 no JVM instrumentation.
 
 **Status: early development.** The plugin generates a class for every `mock<T>()` of an interface, one class per
-source file, and keeps incremental compilation correct when the mocked type changes. Every member of such a mock
-throws `LokkiException`: stubbing and verification are not implemented yet.
+source file, and keeps incremental compilation correct when the mocked type changes. Stubbing is a skeleton:
+`every { mock.member(...) } returns value` with `any()`, plain values and omitted default arguments. A member without
+a matching stub throws `LokkiException`; other matchers, answers and verification are not implemented yet.
 
 ```kotlin
 plugins {
@@ -17,6 +18,7 @@ plugins {
 
 ```kotlin
 val car = mock<Car>()
+every { car.drive(any()) } returns "done"
 ```
 
 The Gradle plugin applies the compiler plugin to the `test` and `testFixtures` compilations and to the source sets of

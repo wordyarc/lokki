@@ -61,7 +61,7 @@ class CompilationApplicabilityTest {
         assertEquals(TaskOutcome.SUCCESS, result.task(":integrationTest")?.outcome)
         assertEquals(
             setOf("drive()"),
-            project.declaredMethods("testFixtures", "sample.Car\$LokkiMock\$08768170\$FixturesKt"),
+            project.mockedMethods("testFixtures", "sample.Car\$LokkiMock\$08768170\$FixturesKt"),
         )
     }
 

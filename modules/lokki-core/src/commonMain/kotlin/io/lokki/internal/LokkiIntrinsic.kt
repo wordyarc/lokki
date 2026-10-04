@@ -8,5 +8,7 @@ import io.lokki.InternalLokkiApi
 public annotation class LokkiIntrinsic(val kind: Kind) {
     public enum class Kind {
         MOCK,
+        STUB_BLOCK,
+        MATCHER,
     }
 }

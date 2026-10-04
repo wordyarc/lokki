@@ -17,23 +17,22 @@ internal fun IrFile.collectMockClasses(): Map<MockClassKey, MockClassUsage> =
 private class MockCollector(private val file: IrFile) : IrVisitorVoid() {
     val mockClasses = LinkedHashMap<MockClassKey, MockClassUsage>()
 
-    private var enclosingExposedInlineFunctions = 0
+    private var enclosingInlineFunctions = 0
 
     override fun visitElement(element: IrElement) {
         element.acceptChildrenVoid(this)
     }
 
     override fun visitSimpleFunction(declaration: IrSimpleFunction) {
-        val exposed = declaration.isInline && !DescriptorVisibilities.isPrivate(declaration.visibility)
-        if (exposed) enclosingExposedInlineFunctions++
+        if (declaration.isInline) enclosingInlineFunctions++
         super.visitSimpleFunction(declaration)
-        if (exposed) enclosingExposedInlineFunctions--
+        if (declaration.isInline) enclosingInlineFunctions--
     }
 
     override fun visitCall(expression: IrCall) {
         expression.mockClassKey(file)?.let { key ->
             val usage = mockClasses.getOrPut(key) { MockClassUsage(expression, DescriptorVisibilities.PRIVATE) }
-            if (enclosingExposedInlineFunctions > 0) usage.visibility = DescriptorVisibilities.PUBLIC
+            if (enclosingInlineFunctions > 0) usage.visibility = DescriptorVisibilities.PUBLIC
         }
         super.visitCall(expression)
     }

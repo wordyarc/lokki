@@ -6,14 +6,61 @@ public final class io/lokki/LokkiException : java/lang/RuntimeException {
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
+public abstract interface class io/lokki/Matcher {
+	public abstract fun match (Ljava/lang/Object;)Z
+}
+
+public abstract class io/lokki/MatcherScope {
+}
+
+public abstract interface class io/lokki/StubScope {
+	public abstract fun returns (Ljava/lang/Object;)V
+}
+
+public final class io/lokki/StubbingKt {
+	public static final fun every (Lkotlin/jvm/functions/Function1;)Lio/lokki/StubScope;
+}
+
+public final class io/lokki/internal/AnyMatcher : io/lokki/Matcher {
+	public static final field INSTANCE Lio/lokki/internal/AnyMatcher;
+	public fun match (Ljava/lang/Object;)Z
+}
+
+public final class io/lokki/internal/EqMatcher : io/lokki/Matcher {
+	public fun <init> (Ljava/lang/Object;)V
+	public fun match (Ljava/lang/Object;)Z
+}
+
+public abstract interface class io/lokki/internal/GeneratedMock {
+	public static final field Companion Lio/lokki/internal/GeneratedMock$Companion;
+	public abstract fun getLokki$state ()Lio/lokki/internal/MockState;
+}
+
+public final class io/lokki/internal/GeneratedMock$Companion {
+	public final fun of (Ljava/lang/Object;)Lio/lokki/internal/GeneratedMock;
+}
+
 public abstract interface annotation class io/lokki/internal/LokkiIntrinsic : java/lang/annotation/Annotation {
 	public abstract fun kind ()Lio/lokki/internal/LokkiIntrinsic$Kind;
 }
 
 public final class io/lokki/internal/LokkiIntrinsic$Kind : java/lang/Enum {
+	public static final field MATCHER Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field MOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field STUB_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static fun values ()[Lio/lokki/internal/LokkiIntrinsic$Kind;
+}
+
+public final class io/lokki/internal/MockDescriptor {
+	public fun <init> (Ljava/lang/String;[Ljava/lang/String;)V
+}
+
+public final class io/lokki/internal/MockState {
+	public fun <init> (Lio/lokki/internal/MockDescriptor;)V
+	public final fun answer (I[Ljava/lang/Object;)Ljava/lang/Object;
+	public final fun captureDefaults (Ljava/lang/String;Lkotlin/jvm/functions/Function0;)[Ljava/lang/Object;
+	public final fun stub (Ljava/lang/String;[Lio/lokki/Matcher;)Lio/lokki/StubScope;
 }
 
