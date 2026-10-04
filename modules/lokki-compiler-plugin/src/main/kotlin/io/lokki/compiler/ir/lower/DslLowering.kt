@@ -35,7 +35,8 @@ internal class DslLowering(
         super.visitCall(expression)
         return when (expression.intrinsicKind) {
             IntrinsicKind.MOCK -> lowerMock(expression)
-            IntrinsicKind.STUB_BLOCK -> stubBlocks.lower(expression, currentScope!!.scope)
+            IntrinsicKind.STUB_BLOCK -> stubBlocks.lowerStub(expression, currentScope!!.scope)
+            IntrinsicKind.VERIFY_BLOCK -> stubBlocks.lowerVerify(expression, currentScope!!.scope)
             IntrinsicKind.UNKNOWN -> expression.also {
                 unsupported(it, "'${it.symbol.owner.name}' requires a newer version of the lokki compiler plugin")
             }

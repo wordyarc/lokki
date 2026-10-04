@@ -18,6 +18,7 @@ import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.analysis.checkers.expression.FirFunctionCallChecker
 import org.jetbrains.kotlin.fir.declarations.FirAnonymousFunction
 import org.jetbrains.kotlin.fir.declarations.utils.isInline
+import org.jetbrains.kotlin.fir.declarations.utils.isMethodOfAny
 import org.jetbrains.kotlin.fir.declarations.utils.isStatic
 import org.jetbrains.kotlin.fir.declarations.utils.modality
 import org.jetbrains.kotlin.fir.expressions.FirAnonymousFunctionExpression
@@ -28,6 +29,7 @@ import org.jetbrains.kotlin.fir.expressions.FirComparisonExpression
 import org.jetbrains.kotlin.fir.expressions.FirEqualityOperatorCall
 import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
+import org.jetbrains.kotlin.fir.expressions.FirLoop
 import org.jetbrains.kotlin.fir.expressions.FirOperation
 import org.jetbrains.kotlin.fir.expressions.FirPropertyAccessExpression
 import org.jetbrains.kotlin.fir.expressions.FirQualifiedAccessExpression
@@ -41,6 +43,7 @@ import org.jetbrains.kotlin.fir.expressions.FirThisReceiverExpression
 import org.jetbrains.kotlin.fir.expressions.FirTypeOperatorCall
 import org.jetbrains.kotlin.fir.expressions.FirVarargArgumentsExpression
 import org.jetbrains.kotlin.fir.expressions.FirVariableAssignment
+import org.jetbrains.kotlin.fir.expressions.FirWhenExpression
 import org.jetbrains.kotlin.fir.expressions.argument
 import org.jetbrains.kotlin.fir.expressions.arguments
 import org.jetbrains.kotlin.fir.expressions.resolvedArgumentMapping
@@ -53,6 +56,7 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirFieldSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirLocalPropertySymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirValueParameterSymbol
 import org.jetbrains.kotlin.fir.types.resolvedType
@@ -61,54 +65,82 @@ import org.jetbrains.kotlin.fir.visitors.FirVisitorVoid
 internal object StubBlockChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
     context(context: CheckerContext, reporter: DiagnosticReporter)
     override fun check(expression: FirFunctionCall) {
-        val function = expression.calleeReference.toResolvedCallableSymbol() ?: return
-        if (function.intrinsicKind(context.session) != IntrinsicKind.STUB_BLOCK) return
-        val argument = expression.arguments.firstOrNull()?.unwrapArgument() ?: return
+        val function = expression.calleeReference.toResolvedCallableSymbol() as? FirFunctionSymbol<*> ?: return
+        val verify = when (function.intrinsicKind(context.session)) {
+            IntrinsicKind.STUB_BLOCK -> false
+            IntrinsicKind.VERIFY_BLOCK -> true
+            else -> return
+        }
+        val parameter = function.valueParameterSymbols.lastOrNull() ?: return
+        val argument = expression.resolvedArgumentMapping?.entries
+            ?.find { it.value.symbol == parameter }
+            ?.key?.unwrapArgument()
+            ?: return
         val name = function.name.asString()
         val block = (argument as? FirAnonymousFunctionExpression)?.anonymousFunction
         if (block == null) {
             reporter.reportOn(argument.source, LokkiDiagnostics.LOKKI_STUB_BLOCK_NOT_LITERAL, name)
         } else {
-            StubBlock(name, block, context, reporter).check()
+            StubBlock(name, verify, block, context, reporter).check()
         }
     }
 }
 
 private class StubBlock(
     private val function: String,
+    private val verify: Boolean,
     private val block: FirAnonymousFunction,
     private val context: CheckerContext,
     private val reporter: DiagnosticReporter,
 ) {
     private val session = context.session
     private val scope = block.receiverParameter?.symbol
+    private val action = if (verify) "Verify" else "Stub"
 
     fun check() {
+        if (verify) {
+            val statements = block.verifiedStatements()
+            if (statements.isEmpty()) notSingleCall(block, "is empty") else statements.forEach(::checkStatement)
+            return
+        }
         val statement = block.stubbedStatement() ?: return notSingleCall(
             block,
             if (block.body?.statements.isNullOrEmpty()) "is empty" else "has several statements",
         )
+        if (statement.source?.kind is KtFakeSourceElementKind.ImplicitUnit) {
+            notSingleCall(block, "is empty")
+        } else {
+            checkStatement(statement)
+        }
+    }
+
+    private fun checkStatement(statement: FirStatement) {
         when {
-            statement.source?.kind is KtFakeSourceElementKind.ImplicitUnit -> notSingleCall(block, "is empty")
             statement.isCompoundAssignment -> notSingleCall(
                 statement,
                 "is a compound assignment, which reads and writes the property. " +
-                    "Stub the setter with a plain assignment of a matcher",
+                    "$action the setter with a plain assignment of a matcher",
             )
             statement is FirSafeCallExpression ->
                 notSingleCall(statement, "is a safe call. Use '!!' on the receiver instead of '?.'")
             statement is FirEqualityOperatorCall ->
-                notSingleCall(statement, "compares values with an operator. Call 'equals' explicitly")
+                notSingleCall(statement, "compares values with an operator${callExplicitly("equals")}")
             statement is FirComparisonExpression ->
                 notSingleCall(statement, "compares values with an operator. Call 'compareTo' explicitly")
             statement is FirStringConcatenationCall ->
-                notSingleCall(statement, "is a string template. Call 'toString' explicitly")
+                notSingleCall(statement, "is a string template${callExplicitly("toString")}")
             statement is FirVariableAssignment -> when (val property = statement.lValue) {
                 is FirQualifiedAccessExpression -> checkCall(statement, property, listOf(statement.rValue))
                 else -> notSingleCall(statement, "is not a call")
             }
             statement is FirFunctionCall -> checkCall(statement, statement, statement.arguments)
             statement is FirPropertyAccessExpression -> checkCall(statement, statement, emptyList())
+            verify && statement.isLoop -> notSingleCall(
+                statement,
+                "is a loop. Call 'verify' in the loop or verify one call with matchers and 'exactly'",
+            )
+            verify && statement is FirWhenExpression ->
+                notSingleCall(statement, "is a condition. Call 'verify' in its branches")
             else -> notSingleCall(statement, "is not a call")
         }
     }
@@ -133,7 +165,7 @@ private class StubBlock(
             arguments.any { it.unwrapArgument() is FirAnonymousFunctionExpression } ->
                 notSingleCall(statement, "wraps the call into a lambda. Move the wrapping call outside the block")
             call.extensionReceiver != null ->
-                notInterceptable(call, callee, "it is an extension, not a member. Stub the member it calls")
+                notInterceptable(call, callee, "it is an extension, not a member. $action the member it calls")
             else -> notInterceptable(call, callee, "it is not a member")
         }
     }
@@ -150,7 +182,16 @@ private class StubBlock(
         } else {
             matchers.forEach { report(it, LokkiDiagnostics.LOKKI_CHAINED_CALL_DISABLED) }
         }
-        notInterceptableReason(callee, receiver)?.let { notInterceptable(call, callee, it) }
+        val reason = notInterceptableReason(callee, receiver)
+        when {
+            reason != null -> notInterceptable(call, callee, reason)
+            verify && callee is FirNamedFunctionSymbol && callee.isMethodOfAny -> reporter.reportOn(
+                call.calleeReference.source ?: call.source,
+                LokkiDiagnostics.LOKKI_NOT_RECORDED,
+                callee.name.asString(),
+                context,
+            )
+        }
         val first = firstArgument(call, callee, arguments)
         (listOfNotNull(call.extensionReceiver) + call.contextArguments + arguments).forEach { checkArgument(it, first) }
     }
@@ -173,7 +214,7 @@ private class StubBlock(
         val inline = if (callee is FirPropertySymbol) callee.getterSymbol?.isInline == true else callee.isInline
         return when {
             callee is FirFieldSymbol -> "it is a field"
-            inline -> "it is inline. Stub the member it calls"
+            inline -> "it is inline. $action the member it calls"
             callee.modality == Modality.FINAL -> "it is final"
             else -> receiver.resolvedType.fullyExpandedType(session).toRegularClassSymbol(session)
                 ?.takeIf { it.isFinalType }
@@ -229,9 +270,18 @@ private class StubBlock(
         return scope != null && receiver?.calleeReference?.boundSymbol == scope
     }
 
+    private fun callExplicitly(member: String): String = if (verify) "" else ". Call '$member' explicitly"
+
     private fun notSingleCall(element: FirElement, reason: String) {
-        val source = element.source ?: block.source
-        reporter.reportOn(source, LokkiDiagnostics.LOKKI_STUB_BLOCK_NOT_SINGLE_CALL, function, reason, context)
+        val requirement = if (verify) "consist of calls of mock members" else "be a single call of a mock member"
+        reporter.reportOn(
+            element.source ?: block.source,
+            LokkiDiagnostics.LOKKI_STUB_BLOCK_NOT_SINGLE_CALL,
+            function,
+            requirement,
+            reason,
+            context,
+        )
     }
 
     private fun notInterceptable(call: FirQualifiedAccessExpression, callee: FirCallableSymbol<*>, reason: String) {
@@ -244,13 +294,22 @@ private class StubBlock(
     }
 }
 
-internal fun FirAnonymousFunction.stubbedStatement(): FirStatement? {
-    var statement = body?.statements.orEmpty()
+internal fun FirAnonymousFunction.stubbedStatement(): FirStatement? =
+    body?.statements.orEmpty()
         .singleOrNull { it.source?.kind !is KtFakeSourceElementKind.ImplicitUnit.IndexedAssignmentCoercion }
-        ?: return null
+        ?.unwrapped(this)
+
+private fun FirAnonymousFunction.verifiedStatements(): List<FirStatement> =
+    body?.statements.orEmpty()
+        .map { it.unwrapped(this) }
+        .filter { it.source?.kind !is KtFakeSourceElementKind.ImplicitUnit }
+
+private fun FirStatement.unwrapped(block: FirAnonymousFunction): FirStatement {
+    var statement = this
     while (true) {
         statement = when {
-            statement is FirReturnExpression && statement.target.labeledElement.symbol == symbol -> statement.result
+            statement is FirReturnExpression && statement.target.labeledElement.symbol == block.symbol ->
+                statement.result
             statement is FirTypeOperatorCall && statement.operation == FirOperation.AS -> statement.argument
             statement is FirCheckNotNullCall -> statement.argument
             statement is FirSmartCastExpression -> statement.originalExpression
@@ -258,6 +317,9 @@ internal fun FirAnonymousFunction.stubbedStatement(): FirStatement? {
         }
     }
 }
+
+private val FirStatement.isLoop: Boolean
+    get() = this is FirLoop || this is FirBlock && statements.lastOrNull() is FirLoop
 
 private val FirStatement.isCompoundAssignment: Boolean
     get() = when (this) {

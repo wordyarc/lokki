@@ -17,7 +17,7 @@ internal object LokkiDiagnostics : KtDiagnosticsContainer() {
     val LOKKI_UNSUPPORTED by error1<KtElement, String>()
     val LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION by error0<KtElement>()
     val LOKKI_STUB_BLOCK_NOT_LITERAL by error1<KtElement, String>()
-    val LOKKI_STUB_BLOCK_NOT_SINGLE_CALL by error2<KtElement, String, String>()
+    val LOKKI_STUB_BLOCK_NOT_SINGLE_CALL by error3<KtElement, String, String, String>()
     val LOKKI_NOT_INTERCEPTABLE by error2<KtElement, String, String>()
     val LOKKI_TYPE_NOT_MOCKABLE by error2<KtElement, String, String>()
     val LOKKI_TYPE_ARGUMENT_NOT_CONCRETE by error2<KtElement, String, String>()
@@ -27,6 +27,7 @@ internal object LokkiDiagnostics : KtDiagnosticsContainer() {
     val LOKKI_RETURNS_ARGUMENT_OUT_OF_RANGE by error3<KtElement, Int, String, Int>()
     val LOKKI_ALL_ANY_NOT_FIRST by warning0<KtElement>()
     val LOKKI_RESTRICTED_TYPE by warning2<KtElement, String, String>()
+    val LOKKI_NOT_RECORDED by error1<KtElement, String>()
 
     override fun getRendererFactory(): BaseDiagnosticRendererFactory = LokkiDiagnosticRenderers
 }
@@ -36,7 +37,8 @@ private object LokkiDiagnosticRenderers : BaseDiagnosticRendererFactory() {
         map.put(LokkiDiagnostics.LOKKI_UNSUPPORTED, "{0}.", CommonRenderers.STRING)
         map.put(
             LokkiDiagnostics.LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION,
-            "A matcher must be a whole argument of the stubbed call or an operand of 'and', 'or', 'not'.",
+            "A matcher must be a whole argument of the stubbed or verified call " +
+                "or an operand of 'and', 'or', 'not'.",
         )
         map.put(
             LokkiDiagnostics.LOKKI_STUB_BLOCK_NOT_LITERAL,
@@ -45,7 +47,8 @@ private object LokkiDiagnosticRenderers : BaseDiagnosticRendererFactory() {
         )
         map.put(
             LokkiDiagnostics.LOKKI_STUB_BLOCK_NOT_SINGLE_CALL,
-            "The block of ''{0}'' must be a single call of a mock member, but it {1}.",
+            "The block of ''{0}'' must {1}, but it {2}.",
+            CommonRenderers.STRING,
             CommonRenderers.STRING,
             CommonRenderers.STRING,
         )
@@ -69,8 +72,8 @@ private object LokkiDiagnosticRenderers : BaseDiagnosticRendererFactory() {
         )
         map.put(
             LokkiDiagnostics.LOKKI_CHAINED_CALL_DISABLED,
-            "A matcher in the receiver of the stubbed call needs chained mocks, which are disabled: " +
-                "stub the call in the receiver separately.",
+            "A matcher in the receiver of the stubbed or verified call needs chained mocks, which are disabled: " +
+                "stub or verify the call in the receiver separately.",
         )
         map.put(
             LokkiDiagnostics.LOKKI_CALLABLE_REFERENCE_TO_INTRINSIC,
@@ -92,13 +95,18 @@ private object LokkiDiagnosticRenderers : BaseDiagnosticRendererFactory() {
         )
         map.put(
             LokkiDiagnostics.LOKKI_ALL_ANY_NOT_FIRST,
-            "'allAny' replaces the other arguments only as the first argument of the stubbed call: " +
+            "'allAny' replaces the other arguments only as the first argument of the stubbed or verified call: " +
                 "here it matches like 'any'.",
         )
         map.put(
             LokkiDiagnostics.LOKKI_RESTRICTED_TYPE,
             "''{0}'' should not be mocked: {1}.",
             CommonRenderers.STRING,
+            CommonRenderers.STRING,
+        )
+        map.put(
+            LokkiDiagnostics.LOKKI_NOT_RECORDED,
+            "''{0}'' is not recorded: calls of equals, hashCode and toString cannot be verified.",
             CommonRenderers.STRING,
         )
     }

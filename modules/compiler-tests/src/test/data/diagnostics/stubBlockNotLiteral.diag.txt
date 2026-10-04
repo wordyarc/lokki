@@ -1,5 +1,9 @@
-/stubBlockNotLiteral.kt:14:11: error: The block of 'every' must be a lambda literal.
-
-/stubBlockNotLiteral.kt:15:23: error: The block of 'every' must be a lambda literal.
-
 /stubBlockNotLiteral.kt:16:11: error: The block of 'every' must be a lambda literal.
+
+/stubBlockNotLiteral.kt:17:23: error: The block of 'every' must be a lambda literal.
+
+/stubBlockNotLiteral.kt:18:11: error: The block of 'every' must be a lambda literal.
+
+/stubBlockNotLiteral.kt:23:26: error: The block of 'verify' must be a lambda literal.
+
+/stubBlockNotLiteral.kt:24:39: error: The block of 'verify' must be a lambda literal.

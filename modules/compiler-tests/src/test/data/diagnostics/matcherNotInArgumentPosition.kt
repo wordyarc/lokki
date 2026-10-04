@@ -6,6 +6,7 @@ package sample
 import io.lokki.MatcherScope
 import io.lokki.every
 import io.lokki.slot
+import io.lokki.verify
 
 interface Repo {
     var limit: Int
@@ -66,4 +67,10 @@ fun test(repo: Repo) {
     every { repo.limit = any() } returns Unit
     every { repo.names("a", any(), *arrayOf("b")) } returns 1
     with(repo) { every { any<String>().width(more(1)) } returns 1 }
+
+    verify { repo.find(<!LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION!>any<Int>()<!> + 1) }
+    verify {
+        repo.find(small())
+        repo.label(<!LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION!>any<String>()<!> + "a")
+    }
 }

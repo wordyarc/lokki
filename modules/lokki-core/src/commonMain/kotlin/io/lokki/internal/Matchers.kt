@@ -85,19 +85,19 @@ internal object Matchers {
 
     @Suppress("UNCHECKED_CAST")
     fun capture(lst: MutableList<*>): Matcher<Any?> =
-        CaptureMatcher("capture()") { if (it != null) (lst as MutableList<Any?>).add(it) }
+        CaptureMatcher(slot = false) { if (it != null) (lst as MutableList<Any?>).add(it) }
 
     @Suppress("UNCHECKED_CAST")
     fun capture(lst: CapturingSlot<*>): Matcher<Any?> =
-        CaptureMatcher("slotCapture()") { if (it != null) (lst as CapturingSlot<Any?>).captured = it }
+        CaptureMatcher(slot = true) { if (it != null) (lst as CapturingSlot<Any?>).captured = it }
 
     @Suppress("UNCHECKED_CAST")
     fun captureNullable(lst: MutableList<*>): Matcher<Any?> =
-        CaptureMatcher("capture()") { (lst as MutableList<Any?>).add(it) }
+        CaptureMatcher(slot = false) { (lst as MutableList<Any?>).add(it) }
 
     @Suppress("UNCHECKED_CAST")
     fun captureNullable(lst: CapturingSlot<*>): Matcher<Any?> =
-        CaptureMatcher("slotCapture()") { (lst as CapturingSlot<Any?>).captured = it }
+        CaptureMatcher(slot = true) { (lst as CapturingSlot<Any?>).captured = it }
 
     inline fun <reified T> ofType(): Matcher<Any?> = named("ofType(${T::class.simpleName})") { it is T }
 
@@ -117,6 +117,26 @@ internal interface CapturingMatcher {
     fun capture(arg: Any?)
 }
 
+internal fun Array<Matcher<Any?>>.match(arguments: Array<Any?>): Boolean {
+    for (index in indices) {
+        if (!this[index].match(arguments[index])) return false
+    }
+    return true
+}
+
+internal fun Array<Matcher<Any?>>.capture(arguments: Array<Any?>) {
+    for (index in indices) {
+        (this[index] as? CapturingMatcher)?.capture(arguments[index])
+    }
+}
+
+internal val Matcher<Any?>.capturesIntoSlot: Boolean
+    get() = when (this) {
+        is CaptureMatcher -> slot
+        is FilteredMatcher -> matcher.capturesIntoSlot
+        else -> false
+    }
+
 private class NamedMatcher(private val name: String, private val matches: (Any?) -> Boolean) : Matcher<Any?> {
     override fun match(arg: Any?): Boolean = matches(arg)
 
@@ -133,18 +153,17 @@ private class ValueMatcher(
     override fun toString(): String = "$name(${value.toStr()})"
 }
 
-private class CaptureMatcher(private val name: String, private val capture: (Any?) -> Unit) :
-    Matcher<Any?>, CapturingMatcher {
+private class CaptureMatcher(val slot: Boolean, private val capture: (Any?) -> Unit) : Matcher<Any?>, CapturingMatcher {
     override fun match(arg: Any?): Boolean = true
 
     override fun capture(arg: Any?) {
         capture.invoke(arg)
     }
 
-    override fun toString(): String = name
+    override fun toString(): String = if (slot) "slotCapture()" else "capture()"
 }
 
-private class FilteredMatcher(private val matcher: Matcher<Any?>, private val accepts: (Any?) -> Boolean) :
+private class FilteredMatcher(val matcher: Matcher<Any?>, private val accepts: (Any?) -> Boolean) :
     Matcher<Any?>, CapturingMatcher {
     override fun match(arg: Any?): Boolean = accepts(arg) && matcher.match(arg)
 

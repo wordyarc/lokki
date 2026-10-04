@@ -5,6 +5,7 @@ package sample
 
 import io.lokki.MatcherScope
 import io.lokki.every
+import io.lokki.verify
 
 interface Door {
     val window: Window
@@ -32,4 +33,7 @@ fun test(car: Car, provider: () -> Car) {
     every { car.door(1).window.state() } returns "up"
     every { car.doors[0].open() } returns true
     every { provider().door(1).open() } returns true
+
+    verify { car.door(<!LOKKI_CHAINED_CALL_DISABLED!>any()<!>).open() }
+    verify { car.door(1).open() }
 }

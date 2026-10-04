@@ -4,6 +4,7 @@
 package sample
 
 import io.lokki.every
+import io.lokki.verify
 
 class Tenant
 
@@ -32,4 +33,7 @@ fun test(repo: Repo, tenant: Tenant) {
     every { repo.names(allAny(), "b") } returns 1
     every { repo.limit = allAny() } returns Unit
     with(repo) { every { allAny<String>().width(1) } returns 1 }
+
+    verify { repo.find(1, <!LOKKI_ALL_ANY_NOT_FIRST!>allAny()<!>) }
+    verify { repo.find(allAny()) }
 }

@@ -6,6 +6,7 @@ package sample
 import io.lokki.Runs
 import io.lokki.every
 import io.lokki.just
+import io.lokki.verify
 
 class Tenant
 
@@ -64,4 +65,31 @@ fun test(repo: Repo, nullable: Repo?, tenant: Tenant, flag: Boolean) {
     every { repo.equals(repo) } returns true
     every { repo.toString() } returns "a"
     with(tenant) { every { repo.load(1) } returns "a" }
+}
+
+fun testVerify(repo: Repo, nullable: Repo?, flag: Boolean) {
+    verify <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>{ }<!>
+    verify {
+        repo.find(1)
+        <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>val id = 2<!>
+        repo.find(id)
+    }
+    verify { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>nullable?.find(1)<!> }
+    verify { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>repo == repo<!> }
+    verify { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>repo < repo<!> }
+    verify { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>"$repo"<!> }
+    verify { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>repo.count += 1<!> }
+    verify { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>with(repo) { find(1) }<!> }
+    verify { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>if (flag) repo.find(1) else repo.find(2)<!> }
+    verify { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>for (id in 1..2) repo.find(id)<!> }
+
+    verify {
+        repo.find(1)
+        repo.find(2)
+    }
+    verify { repo.find(1) as CharSequence }
+    verify { repo.count = 1 }
+    verify { repo[1] = "a" }
+    verify { repo += "a" }
+    verify { repo.compareTo(repo) }
 }

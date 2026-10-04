@@ -11,11 +11,13 @@ import io.lokki.StubScope
 import kotlin.concurrent.Volatile
 
 @PublishedApi
-internal class MockState(private val owner: Any, spec: MockSpec, private val descriptor: MockDescriptor) {
-    private val name = "${descriptor.name}(${spec.name.orEmpty()}#${MockIds.next()})"
+internal class MockState(private val owner: Any, spec: MockSpec, internal val descriptor: MockDescriptor) {
+    internal val name = "${descriptor.name}(${spec.name.orEmpty()}#${MockIds.next()})"
 
     @Volatile
     private var stubs = arrayOfNulls<Array<StubEntry>>(descriptor.memberCount)
+
+    private val records = ArrayList<CallRecord>()
 
     @Volatile
     private var capture: DefaultsCapture? = null
@@ -26,8 +28,9 @@ internal class MockState(private val owner: Any, spec: MockSpec, private val des
             capture.arguments = arguments
             throw DefaultsCaptured()
         }
-        val stub = findStub(member, arguments) ?: return defaultAnswer(member, arguments)
         val changesState = !Registration.isActive
+        if (changesState && member > TO_STRING) record(member, arguments)
+        val stub = findStub(member, arguments) ?: return defaultAnswer(member, arguments)
         if (changesState) stub.capture(arguments)
         return when (val answer = stub.answer(advance = changesState)) {
             is ConstantAnswer -> answer.value
@@ -66,6 +69,14 @@ internal class MockState(private val owner: Any, spec: MockSpec, private val des
         }
     }
 
+    internal fun records(): List<CallRecord> = synchronized(records) { records.toList() }
+
+    internal fun call(member: Int, arguments: String): String = "$name.${descriptor.memberName(member)}($arguments)"
+
+    private fun record(member: Int, arguments: Array<Any?>) {
+        synchronized(records) { records += CallRecord(this, member, arguments, nextSequenceNumber()) }
+    }
+
     private fun captureArguments(member: Int, call: (Boolean) -> Unit, alternate: Boolean): Array<Any?> {
         val capture = DefaultsCapture(member, currentThread())
         this.capture = capture
@@ -101,8 +112,6 @@ internal class MockState(private val owner: Any, spec: MockSpec, private val des
             .joinToString("\n")
     }
 
-    private fun call(member: Int, arguments: String): String = "$name.${descriptor.memberName(member)}($arguments)"
-
     private fun findStub(member: Int, arguments: Array<Any?>): StubEntry? {
         val entries = stubs[member] ?: return null
         for (index in entries.lastIndex downTo 0) {
@@ -111,6 +120,15 @@ internal class MockState(private val owner: Any, spec: MockSpec, private val des
         }
         return null
     }
+}
+
+internal class CallRecord(
+    private val state: MockState,
+    val member: Int,
+    val arguments: Array<Any?>,
+    val sequenceNumber: Long,
+) {
+    override fun toString(): String = state.call(member, arguments.joinToString { it.toStr() })
 }
 
 internal class StubEntry(private val matchers: Array<Matcher<Any?>>, answers: List<Answer<Any?>>) {
@@ -124,18 +142,10 @@ internal class StubEntry(private val matchers: Array<Matcher<Any?>>, answers: Li
     val arguments: String
         get() = matchers.joinToString()
 
-    fun matches(arguments: Array<Any?>): Boolean {
-        for (index in matchers.indices) {
-            if (!matchers[index].match(arguments[index])) return false
-        }
-        return true
-    }
+    fun matches(arguments: Array<Any?>): Boolean = matchers.match(arguments)
 
     fun capture(arguments: Array<Any?>) {
-        if (!captures) return
-        for (index in matchers.indices) {
-            (matchers[index] as? CapturingMatcher)?.capture(arguments[index])
-        }
+        if (captures) matchers.capture(arguments)
     }
 
     fun add(answers: List<Answer<Any?>>) {

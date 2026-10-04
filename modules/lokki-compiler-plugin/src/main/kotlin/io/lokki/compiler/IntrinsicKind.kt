@@ -9,6 +9,7 @@ internal enum class IntrinsicKind {
     STUB_BLOCK,
     MATCHER,
     ANSWER,
+    VERIFY_BLOCK,
     UNKNOWN;
 
     companion object {

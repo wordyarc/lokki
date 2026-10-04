@@ -33,6 +33,7 @@ package sample
 
 import io.lokki.every
 import io.lokki.mock
+import io.lokki.verify
 
 interface Repo {
     val size: Int
@@ -118,4 +119,9 @@ fun test(repo: Repo, service: Service, impl: Impl, legacy: Legacy, text: String,
     with(repo) { every { "a".label() } returns "a" }
     mock<Repo> { every { this@mock.toString() } returns "a" }
     mock<Repo> { every { find(1) } returns "a" }
+
+    verify { repo.<!LOKKI_NOT_INTERCEPTABLE!>first<!>() }
+    verify { service.<!LOKKI_NOT_INTERCEPTABLE!>typed<!><String>() }
+    verify { <!LOKKI_NOT_INTERCEPTABLE!>top<!>() }
+    verify { service.reload() }
 }

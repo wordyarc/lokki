@@ -1,6 +1,6 @@
 package io.lokki.internal
 
-import io.lokki.MatcherScope
+import io.lokki.VerificationScope
 
 @PublishedApi
-internal class RegistrationScope : MatcherScope()
+internal class RegistrationScope : VerificationScope()
