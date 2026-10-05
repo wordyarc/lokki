@@ -8,3 +8,6 @@ package io.lokki
         "No compatibility guarantees are provided.",
 )
 public annotation class InternalLokkiApi
+
+@DslMarker
+internal annotation class LokkiDslMarker

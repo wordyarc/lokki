@@ -6,6 +6,7 @@ import io.lokki.internal.LokkiIntrinsic
 import io.lokki.internal.Matchers
 import kotlin.reflect.KClass
 
+@LokkiDslMarker
 public abstract class MatcherScope internal constructor() {
     private val frame = ArrayList<Matcher<Any?>>()
 

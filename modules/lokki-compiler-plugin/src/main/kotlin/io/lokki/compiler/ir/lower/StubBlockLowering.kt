@@ -697,6 +697,7 @@ private val ANY_MATCHERS = setOf("any", "anyNullable", ALL_ANY)
 private val CAPTURE_MATCHERS = setOf("capture", "captureNullable")
 private val COMPARISON_MATCHERS = setOf("cmpEq", "more", "less", "range")
 private val TYPED_MATCHERS =
-    setOf("any", "anyNullable", "match", "matchNullable") + COMPARISON_MATCHERS + CAPTURE_MATCHERS
+    setOf("any", "anyNullable", "match", "matchNullable", "withArg", "withNullableArg") +
+        COMPARISON_MATCHERS + CAPTURE_MATCHERS
 private val BUILTIN_MATCHERS =
     TYPED_MATCHERS + COMPOSITE_MATCHERS + setOf(ALL_ANY, "eq", "neq", "refEq", "nrefEq", "isNull", "ofType")

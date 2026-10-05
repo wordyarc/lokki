@@ -5,7 +5,9 @@ import io.lokki.Matcher
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class MatchersTest {
@@ -76,6 +78,76 @@ class MatchersTest {
     }
 
     @Test
+    fun testWithArgMatchesWhenTheBlockDoesNotFail() {
+        val received = ArrayList<Any?>()
+        val withArg = Matchers.withArg { value: Int ->
+            received += actual
+            checkEquals(1)
+            received += value
+        }
+        val withNullableArg = Matchers.withNullableArg { value: Int? -> received += value }
+
+        assertTrue(withArg.match(1))
+        assertFalse(withArg.match(2))
+        assertFalse(withArg.match(null))
+        assertTrue(withNullableArg.match(null))
+        assertContentEquals(listOf(1, 1, 2, null), received)
+    }
+
+    @Test
+    fun testAssertionErrorOfFunctionMatcherIsReported() {
+        val failure = AssertionError("not positive")
+        val matchers = listOf(
+            Matchers.withArg { value: Int -> if (value <= 0) throw failure },
+            Matchers.withNullableArg { value: Int? -> if (value == null || value <= 0) throw failure },
+            Matchers.match { value: Int -> if (value <= 0) throw failure else true },
+            Matchers.matchNullable { value: Int? -> if (value == null || value <= 0) throw failure else true },
+        )
+
+        for (matcher in matchers) {
+            val errors = ArrayList<AssertionError>()
+            assertTrue(matcher.match(1, errors))
+            assertFalse(matcher.match(-1, errors))
+            assertFalse(matcher.match(-1))
+            assertEquals(listOf(failure), errors)
+        }
+    }
+
+    @Test
+    fun testCompositesReportAssertionErrorsOfOperands() {
+        val failure = AssertionError("not positive")
+        val positive = Matchers.withArg { value: Int -> if (value <= 0) throw failure }
+        val errors = ArrayList<AssertionError>()
+
+        assertTrue(Matchers.not(positive).match(-1, errors))
+        assertFalse(Matchers.and(Matchers.typed<Int>(positive), AnyMatcher).match(-2, errors))
+        assertTrue(Matchers.or(positive, EqMatcher(-3)).match(-3, errors))
+        assertFalse(Matchers.typed<Int>(positive).match(-1L, errors))
+        assertFalse(ArrayMatcher(arrayOf(AnyMatcher, positive)).match(arrayOf(1, -4), errors))
+        assertEquals(List(4) { failure }, errors)
+    }
+
+    @Test
+    fun testOtherExceptionsOfFunctionMatcherAreThrown() {
+        val failure = IllegalStateException("broken")
+        val errors = ArrayList<AssertionError>()
+        val withArg = Matchers.withArg { _: Int -> throw failure }
+        val match = Matchers.match { _: Int -> throw failure }
+
+        assertSame(failure, assertFailsWith<IllegalStateException> { withArg.match(1, errors) })
+        assertSame(failure, assertFailsWith<IllegalStateException> { match.match(1) })
+        assertEquals(emptyList(), errors)
+    }
+
+    @Test
+    fun testAssertionErrorOfMatcherObjectIsThrown() {
+        val failure = AssertionError("not positive")
+        val matcher = Matchers.match(Matcher<Int> { throw failure })
+
+        assertSame(failure, assertFailsWith<AssertionError> { matcher.match(1, ArrayList()) })
+    }
+
+    @Test
     fun testOfTypeRejectsNull() {
         assertTrue(Matchers.ofType<String>().match("a"))
         assertFalse(Matchers.ofType<String>().match(1))
@@ -132,6 +204,8 @@ class MatchersTest {
             Matchers.or(Matchers.not(EqMatcher(1)), Matchers.ofType<String>()),
             Matchers.match { _: Int -> true },
             Matchers.matchNullable { _: Int? -> true },
+            Matchers.withArg { _: Int -> },
+            Matchers.withNullableArg { _: Int? -> },
             Matchers.typed<Int>(Matchers.capture(ArrayList<Int>())),
             Matchers.captureNullable(CapturingSlot<Int?>()),
             ArrayMatcher(arrayOf(AnyMatcher, EqMatcher { })),
@@ -151,6 +225,8 @@ class MatchersTest {
                 "less(5)",
                 "and(moreAndEquals(1), less(3))",
                 "or(not(eq(1)), ofType(String))",
+                "matcher()",
+                "matcher()",
                 "matcher()",
                 "matcher()",
                 "capture()",

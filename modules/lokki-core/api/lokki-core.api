@@ -22,6 +22,12 @@ public final class io/lokki/AnswerScope {
 	public final fun getSelf ()Ljava/lang/Object;
 }
 
+public final class io/lokki/AssertScope {
+	public final fun checkEquals (Ljava/lang/Object;)V
+	public final fun checkEquals (Ljava/lang/String;Ljava/lang/Object;)V
+	public final fun getActual ()Ljava/lang/Object;
+}
+
 public final class io/lokki/Call {
 	public final fun getInvocation ()Lio/lokki/Invocation;
 }
@@ -121,10 +127,11 @@ public final class io/lokki/internal/AnyMatcher : io/lokki/Matcher {
 	public fun toString ()Ljava/lang/String;
 }
 
-public final class io/lokki/internal/ArrayMatcher : io/lokki/Matcher, io/lokki/internal/CapturingMatcher {
+public final class io/lokki/internal/ArrayMatcher : io/lokki/Matcher, io/lokki/internal/CapturingMatcher, io/lokki/internal/ReportingMatcher {
 	public fun <init> ([Lio/lokki/Matcher;)V
 	public fun capture (Ljava/lang/Object;)V
 	public fun match (Ljava/lang/Object;)Z
+	public fun match (Ljava/lang/Object;Ljava/util/List;)Z
 	public fun toString ()Ljava/lang/String;
 }
 
@@ -190,6 +197,8 @@ public final class io/lokki/internal/Matchers {
 	public final fun refEq (Ljava/lang/Object;Z)Lio/lokki/Matcher;
 	public static synthetic fun refEq$default (Lio/lokki/internal/Matchers;Ljava/lang/Object;ZILjava/lang/Object;)Lio/lokki/Matcher;
 	public final fun spread (Ljava/lang/Object;)[Lio/lokki/Matcher;
+	public final fun withArg (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
+	public final fun withNullableArg (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
 }
 
 public final class io/lokki/internal/MockDescriptor {

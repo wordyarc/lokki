@@ -54,7 +54,7 @@ internal class Verification(
             val outcome = expectation.verify("call ${index + 1} of ${expectations.size}: $expectation")
             if (outcome.failure != null) {
                 if (inverse) return
-                fail("Verification failed: ${outcome.failure}")
+                fail("Verification failed: ${outcome.failure}", outcome.assertions)
             }
             outcome.matching
         }
@@ -72,9 +72,12 @@ internal class Verification(
         expectations.forEachIndexed { index, expectation -> expectation.state.markVerified(matched[index]) }
     }
 
-    private fun fail(message: String): Nothing {
+    private fun fail(message: String, assertions: List<FailedAssertion> = emptyList()): Nothing {
         val states = (expectations.map { it.state } + uncalled).distinct()
-        throw AssertionError(states.flatMap { it.unansweredRecords() }.unansweredReport() + message)
+        val unanswered = states.flatMap { it.unansweredRecords() }.unansweredReport()
+        val error = AssertionError(unanswered + message + assertions.report())
+        assertions.forEach { error.addSuppressed(it.error) }
+        throw error
     }
 }
 
@@ -88,11 +91,12 @@ private class Expectation(
     fun verify(description: String): Outcome {
         val calls = state.records()
         val callsOfMember = calls.filter { it.member == member }
+        val assertions = ArrayList<FailedAssertion>()
         val only = callsOfMember.singleOrNull()?.let { call ->
-            call to BooleanArray(matchers.size) { matchers[it].match(call.arguments[it]) }
+            call to BooleanArray(matchers.size) { matches(call, it, assertions) }
         }
         val matching = when {
-            only == null -> callsOfMember.filter { matchers.match(it.arguments) }
+            only == null -> callsOfMember.filter { call -> matchers.indices.all { matches(call, it, assertions) } }
             only.second.all { it } -> callsOfMember
             else -> emptyList()
         }
@@ -134,11 +138,18 @@ private class Expectation(
             else -> "$description. ${matching.size} matching calls found, but needs ${bounds()}\n" +
                 "Calls:\n${calls.numbered()}\n${calls.callSites()}"
         }
-        return Outcome(matching, failure)
+        return Outcome(matching, failure, assertions)
     }
 
     fun capture(record: CallRecord) {
         matchers.capture(record.arguments)
+    }
+
+    private fun matches(call: CallRecord, index: Int, assertions: MutableList<FailedAssertion>): Boolean {
+        val errors = ArrayList<AssertionError>()
+        val matched = matchers[index].match(call.arguments[index], errors)
+        errors.mapTo(assertions) { FailedAssertion(call, index, it) }
+        return matched
     }
 
     private fun difference(record: CallRecord, results: BooleanArray): String =
@@ -157,4 +168,13 @@ private class Expectation(
     override fun toString(): String = state.call(member, matchers.joinToString())
 }
 
-private class Outcome(val matching: List<CallRecord>, val failure: String?)
+private class Outcome(val matching: List<CallRecord>, val failure: String?, val assertions: List<FailedAssertion>)
+
+private class FailedAssertion(val call: CallRecord, val argument: Int, val error: AssertionError)
+
+private fun List<FailedAssertion>.report(): String {
+    if (isEmpty()) return ""
+    return withIndex().joinToString("\n", prefix = "\n\nAssertion errors in matchers:\n") { (index, assertion) ->
+        "${index + 1}) ${assertion.call}, argument [${assertion.argument}]: ${assertion.error}"
+    }
+}

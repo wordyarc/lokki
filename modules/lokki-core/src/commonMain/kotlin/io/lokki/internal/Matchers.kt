@@ -1,5 +1,6 @@
 package io.lokki.internal
 
+import io.lokki.AssertScope
 import io.lokki.CapturingSlot
 import io.lokki.Matcher
 import kotlin.reflect.KClass
@@ -19,10 +20,13 @@ internal class EqMatcher(private val value: Any?) : Matcher<Any?> {
 }
 
 @PublishedApi
-internal class ArrayMatcher(private val elements: Array<Matcher<Any?>>) : Matcher<Any?>, CapturingMatcher {
-    override fun match(arg: Any?): Boolean {
+internal class ArrayMatcher(private val elements: Array<Matcher<Any?>>) :
+    Matcher<Any?>, ReportingMatcher, CapturingMatcher {
+    override fun match(arg: Any?): Boolean = match(arg, null)
+
+    override fun match(arg: Any?, errors: MutableList<AssertionError>?): Boolean {
         val actual = arg.arrayElements() ?: return false
-        return actual.size == elements.size && elements.indices.all { elements[it].match(actual[it]) }
+        return actual.size == elements.size && elements.indices.all { elements[it].match(actual[it], errors) }
     }
 
     override fun capture(arg: Any?) {
@@ -64,24 +68,37 @@ internal object Matchers {
     ): Matcher<Any?> = and(more(from, fromInclusive), less(to, toInclusive))
 
     fun and(left: Matcher<Any?>, right: Matcher<Any?>): Matcher<Any?> =
-        CompositeMatcher("and", arrayOf(left, right)) { left.match(it) && right.match(it) }
+        CompositeMatcher("and", arrayOf(left, right)) { arg, errors ->
+            left.match(arg, errors) && right.match(arg, errors)
+        }
 
     fun or(left: Matcher<Any?>, right: Matcher<Any?>): Matcher<Any?> =
-        CompositeMatcher("or", arrayOf(left, right)) { left.match(it) || right.match(it) }
+        CompositeMatcher("or", arrayOf(left, right)) { arg, errors ->
+            left.match(arg, errors) || right.match(arg, errors)
+        }
 
-    fun not(value: Matcher<Any?>): Matcher<Any?> = CompositeMatcher("not", arrayOf(value)) { !value.match(it) }
+    fun not(value: Matcher<Any?>): Matcher<Any?> =
+        CompositeMatcher("not", arrayOf(value)) { arg, errors -> !value.match(arg, errors) }
 
     @Suppress("UNCHECKED_CAST")
     fun match(matcher: (Nothing) -> Boolean): Matcher<Any?> {
         val predicate = matcher as (Any?) -> Boolean
-        return named("matcher()") { it != null && predicate(it) }
+        return FunctionMatcher { it != null && predicate(it) }
     }
 
     @Suppress("UNCHECKED_CAST")
     inline fun <reified T> match(matcher: Matcher<T>): Matcher<Any?> = filtered(matcher as Matcher<Any?>) { it is T }
 
     @Suppress("UNCHECKED_CAST")
-    fun matchNullable(matcher: (Nothing?) -> Boolean): Matcher<Any?> = named("matcher()", matcher as (Any?) -> Boolean)
+    fun matchNullable(matcher: (Nothing?) -> Boolean): Matcher<Any?> = FunctionMatcher(matcher as (Any?) -> Boolean)
+
+    @Suppress("UNCHECKED_CAST")
+    fun withArg(captureBlock: AssertScope.(Nothing) -> Unit): Matcher<Any?> =
+        match(asserting(captureBlock as AssertScope.(Any?) -> Unit))
+
+    @Suppress("UNCHECKED_CAST")
+    fun withNullableArg(captureBlock: AssertScope.(Nothing?) -> Unit): Matcher<Any?> =
+        matchNullable(asserting(captureBlock as AssertScope.(Any?) -> Unit))
 
     @Suppress("UNCHECKED_CAST")
     fun capture(lst: MutableList<*>): Matcher<Any?> =
@@ -117,6 +134,13 @@ internal interface CapturingMatcher {
     fun capture(arg: Any?)
 }
 
+internal interface ReportingMatcher {
+    fun match(arg: Any?, errors: MutableList<AssertionError>?): Boolean
+}
+
+internal fun Matcher<Any?>.match(arg: Any?, errors: MutableList<AssertionError>?): Boolean =
+    if (this is ReportingMatcher) match(arg, errors) else match(arg)
+
 internal fun Array<Matcher<Any?>>.match(arguments: Array<Any?>): Boolean {
     for (index in indices) {
         if (!this[index].match(arguments[index])) return false
@@ -143,6 +167,20 @@ private class NamedMatcher(private val name: String, private val matches: (Any?)
     override fun toString(): String = name
 }
 
+private class FunctionMatcher(private val predicate: (Any?) -> Boolean) : Matcher<Any?>, ReportingMatcher {
+    override fun match(arg: Any?): Boolean = match(arg, null)
+
+    override fun match(arg: Any?, errors: MutableList<AssertionError>?): Boolean =
+        try {
+            predicate(arg)
+        } catch (e: AssertionError) {
+            errors?.add(e)
+            false
+        }
+
+    override fun toString(): String = "matcher()"
+}
+
 private class ValueMatcher(
     private val name: String,
     private val value: Any?,
@@ -164,8 +202,11 @@ private class CaptureMatcher(val slot: Boolean, private val capture: (Any?) -> U
 }
 
 private class FilteredMatcher(val matcher: Matcher<Any?>, private val accepts: (Any?) -> Boolean) :
-    Matcher<Any?>, CapturingMatcher {
-    override fun match(arg: Any?): Boolean = accepts(arg) && matcher.match(arg)
+    Matcher<Any?>, ReportingMatcher, CapturingMatcher {
+    override fun match(arg: Any?): Boolean = match(arg, null)
+
+    override fun match(arg: Any?, errors: MutableList<AssertionError>?): Boolean =
+        accepts(arg) && matcher.match(arg, errors)
 
     override fun capture(arg: Any?) {
         (matcher as? CapturingMatcher)?.capture(arg)
@@ -177,15 +218,22 @@ private class FilteredMatcher(val matcher: Matcher<Any?>, private val accepts: (
 private class CompositeMatcher(
     private val name: String,
     private val operands: Array<Matcher<Any?>>,
-    private val matches: (Any?) -> Boolean,
-) : Matcher<Any?>, CapturingMatcher {
-    override fun match(arg: Any?): Boolean = matches(arg)
+    private val matches: (Any?, MutableList<AssertionError>?) -> Boolean,
+) : Matcher<Any?>, ReportingMatcher, CapturingMatcher {
+    override fun match(arg: Any?): Boolean = matches(arg, null)
+
+    override fun match(arg: Any?, errors: MutableList<AssertionError>?): Boolean = matches(arg, errors)
 
     override fun capture(arg: Any?) {
         operands.forEach { (it as? CapturingMatcher)?.capture(arg) }
     }
 
     override fun toString(): String = operands.joinToString(prefix = "$name(", postfix = ")")
+}
+
+private fun asserting(block: AssertScope.(Any?) -> Unit): (Any?) -> Boolean = { arg ->
+    AssertScope(arg).block(arg)
+    true
 }
 
 @Suppress("UNCHECKED_CAST")

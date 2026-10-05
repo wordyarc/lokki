@@ -45,6 +45,26 @@ class VerifyInterfaceTest {
     }
 
     @Test
+    fun assertionErrorsOfWithArgAreReported() {
+        val car = mock<Car>()
+        every { car.drive(any()) } returns "left"
+
+        Garage(car).leave()
+
+        verify { car.drive(withArg { assertEquals(1, it) }) }
+        val error = assertFailsWith<AssertionError> { verify { car.drive(withArg { assertEquals(2, it) }) } }
+        val assertion = error.suppressedExceptions.single()
+        assertEquals("expected: <2> but was: <1>", assertion.message)
+        assertEquals(
+            "Verification failed: call 1 of 1: $car.drive(matcher()). Only one matching call to $car/drive happened, " +
+                "but arguments are not matching:\n[0]: argument: 1, matcher: matcher(), result: -\n\n" +
+                "Call sites are not recorded; rerun with -Dlokki.recordStackTraces=true\n\n" +
+                "Assertion errors in matchers:\n1) $car.drive(1), argument [0]: $assertion",
+            error.message,
+        )
+    }
+
+    @Test
     fun omittedDefaultOfMemberFromMainIsVerifiedByItsValue() {
         val radio = mock<Radio>()
         every { radio.tune(any(), any()) } returns "news"

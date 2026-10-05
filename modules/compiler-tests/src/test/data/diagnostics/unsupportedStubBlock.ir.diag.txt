@@ -46,22 +46,24 @@
 
 /unsupportedStubBlock.kt:73:24: error: A matcher inside an expression is not supported: pass the matcher as a whole argument.
 
-/unsupportedStubBlock.kt:74:88: error: 'verify' must be called directly: a reference to it is not supported.
+/unsupportedStubBlock.kt:74:32: error: An argument of the matcher 'withArg' must not use matchers.
 
-/unsupportedStubBlock.kt:75:14: error: The receiver of 'wasNot Called' must not use matchers.
+/unsupportedStubBlock.kt:75:88: error: 'verify' must be called directly: a reference to it is not supported.
 
-/unsupportedStubBlock.kt:76:21: error: The block of 'times' must be a lambda literal.
+/unsupportedStubBlock.kt:76:14: error: The receiver of 'wasNot Called' must not use matchers.
 
-/unsupportedStubBlock.kt:77:23: error: The block of 'times' must consist of calls of mock members.
+/unsupportedStubBlock.kt:77:21: error: The block of 'times' must be a lambda literal.
 
-/unsupportedStubBlock.kt:79:5: error: The block of 'excludeRecords' must be a lambda literal.
+/unsupportedStubBlock.kt:78:23: error: The block of 'times' must consist of calls of mock members.
 
-/unsupportedStubBlock.kt:80:20: error: The block of 'excludeRecords' must consist of calls of mock members.
+/unsupportedStubBlock.kt:80:5: error: The block of 'excludeRecords' must be a lambda literal.
 
 /unsupportedStubBlock.kt:81:20: error: The block of 'excludeRecords' must consist of calls of mock members.
 
-/unsupportedStubBlock.kt:85:22: error: The receiver of the stubbed or verified call must not use matchers.
+/unsupportedStubBlock.kt:82:20: error: The block of 'excludeRecords' must consist of calls of mock members.
 
-/unsupportedStubBlock.kt:86:32: error: A matcher inside an expression is not supported: pass the matcher as a whole argument.
+/unsupportedStubBlock.kt:86:22: error: The receiver of the stubbed or verified call must not use matchers.
 
-/unsupportedStubBlock.kt:87:65: error: 'excludeRecords' must be called directly: a reference to it is not supported.
+/unsupportedStubBlock.kt:87:32: error: A matcher inside an expression is not supported: pass the matcher as a whole argument.
+
+/unsupportedStubBlock.kt:88:65: error: 'excludeRecords' must be called directly: a reference to it is not supported.

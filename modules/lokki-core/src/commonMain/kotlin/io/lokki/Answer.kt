@@ -8,6 +8,7 @@ public class Call internal constructor(public val invocation: Invocation)
 
 public class Invocation internal constructor(public val self: Any, public val args: List<Any?>)
 
+@LokkiDslMarker
 public class AnswerScope<T> internal constructor(public val call: Call) {
     public val invocation: Invocation
         get() = call.invocation

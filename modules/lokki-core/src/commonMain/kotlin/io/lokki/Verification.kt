@@ -1,7 +1,10 @@
 package io.lokki
 
 import io.lokki.internal.LokkiIntrinsic
+import io.lokki.internal.Matchers
+import io.lokki.internal.deepEquals
 import io.lokki.internal.states
+import io.lokki.internal.toStr
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_BLOCK)
 public fun verify(
@@ -21,6 +24,14 @@ public fun excludeRecords(current: Boolean = true, excludeBlock: MatcherScope.()
     throw LokkiException("lokki compiler plugin is not applied to this compilation")
 
 public abstract class VerificationScope internal constructor() : MatcherScope() {
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <reified T : Any> withArg(noinline captureBlock: AssertScope.(T) -> Unit): T =
+        push(Matchers.typed<T>(Matchers.withArg(captureBlock)), T::class)
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <reified T : Any> withNullableArg(noinline captureBlock: AssertScope.(T?) -> Unit): T =
+        push(Matchers.typed<T>(Matchers.withNullableArg(captureBlock)), T::class)
+
     @LokkiIntrinsic(LokkiIntrinsic.Kind.WAS_NOT_CALLED)
     public infix fun Any.wasNot(called: Called): Unit =
         throw LokkiException("'wasNot Called' must be a statement of a verify block")
@@ -30,8 +41,22 @@ public abstract class VerificationScope internal constructor() : MatcherScope() 
         throw LokkiException("'wasNot Called' must be a statement of a verify block")
 }
 
+@LokkiDslMarker
+public class AssertScope internal constructor(public val actual: Any?) {
+    public fun checkEquals(expected: Any?) {
+        if (!deepEquals(expected, actual)) throw AssertionError(difference(expected))
+    }
+
+    public fun checkEquals(msg: String, expected: Any?) {
+        if (!deepEquals(expected, actual)) throw AssertionError("$msg ${difference(expected)}")
+    }
+
+    private fun difference(expected: Any?): String = "expected [${expected.toStr()}] but found [${actual.toStr()}]"
+}
+
 public object Called
 
+@LokkiDslMarker
 public class CallCountVerificationScope internal constructor() {
     @LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_BLOCK)
     public operator fun Int.times(verifyBlock: VerificationScope.() -> Any?): Unit =

@@ -80,6 +80,20 @@ class MatcherScopeTest {
     }
 
     @Test
+    fun testWithArgOfHelperIsTyped() {
+        val received = ArrayList<Any?>()
+        val withArg = scope.matcherOf(scope.withArg<Int> { received += it })
+        val withNullableArg = scope.matcherOf(scope.withNullableArg<Int> { received += it })
+
+        assertTrue(withArg.match(1))
+        assertFalse(withArg.match("a"))
+        assertFalse(withArg.match(null))
+        assertTrue(withNullableArg.match(null))
+        assertFalse(withNullableArg.match("a"))
+        assertEquals(listOf<Any?>(1, null), received)
+    }
+
+    @Test
     fun testCaptureOfHelperIsTyped() {
         val slot = slot<Int>()
         val matcher = scope.matcherOf(scope.capture(slot))

@@ -237,6 +237,72 @@ class VerificationTest {
     }
 
     @Test
+    fun testAssertionErrorsOfMatchersAreReported() {
+        var runs = 0
+        val one = Matchers.withArg { _: Int ->
+            runs++
+            checkEquals(1)
+        }
+        find(2, true)
+
+        val error = assertFailsWith<AssertionError> { verify(FIND to arrayOf(one, AnyMatcher)) }
+        val assertion = error.suppressedExceptions.single()
+        assertEquals(1, runs)
+        assertEquals("expected [1] but found [2]", assertion.message)
+        assertEquals(
+            "Verification failed: call 1 of 1: $name.find(matcher(), any()). " +
+                "Only one matching call to $name/find happened, but arguments are not matching:\n" +
+                "[0]: argument: 2, matcher: matcher(), result: -\n" +
+                "[1]: argument: true, matcher: any(), result: +\n$CALL_SITES\n\n" +
+                "Assertion errors in matchers:\n1) $name.find(2, true), argument [0]: $assertion",
+            error.message,
+        )
+    }
+
+    @Test
+    fun testAssertionErrorsOfEveryCallAreReported() {
+        val id = Matchers.withArg { _: Int -> checkEquals(1) }
+        val includeDeleted = Matchers.withArg { _: Boolean -> checkEquals("deleted", false) }
+        find(2, false)
+        find(1, true)
+
+        val error = assertFailsWith<AssertionError> { verify(FIND to arrayOf(id, includeDeleted)) }
+        val (first, second) = error.suppressedExceptions
+        assertEquals("expected [1] but found [2]", first.message)
+        assertEquals("deleted expected [false] but found [true]", second.message)
+        assertEquals(
+            "Verification failed: call 1 of 1: $name.find(matcher(), matcher()). No matching calls found.\n\n" +
+                "Calls to same method:\n1) $name.find(2, false)\n2) $name.find(1, true)\n$CALL_SITES\n\n" +
+                "Assertion errors in matchers:\n" +
+                "1) $name.find(2, false), argument [0]: $first\n" +
+                "2) $name.find(1, true), argument [1]: $second",
+            error.message,
+        )
+    }
+
+    @Test
+    fun testAssertionErrorsOfPassedExpectationsAreDropped() {
+        val one = Matchers.withArg { _: Int -> checkEquals(1) }
+        find(1, false)
+        find(2, true)
+
+        verify(FIND to arrayOf(one, AnyMatcher))
+        val error = assertFailsWith<AssertionError> {
+            verify(FIND to arrayOf(one, AnyMatcher), SAVE to arrayOf(AnyMatcher))
+        }
+        assertEquals(emptyList(), error.suppressedExceptions)
+        assertEquals(
+            "Verification failed: call 2 of 2: $name.save(any()) was not called.\n\n" +
+                "Calls to same mock:\n1) $name.find(1, false)\n2) $name.find(2, true)\n$CALL_SITES",
+            error.message,
+        )
+        assertEquals(
+            "Inverse verification failed.\n\nVerified calls:\n1) $name.find(1, false)",
+            failure(Verification(inverse = true), FIND to arrayOf(one, AnyMatcher)),
+        )
+    }
+
+    @Test
     fun testLinkIsExpectedAtLeastOnce() {
         save("x")
 

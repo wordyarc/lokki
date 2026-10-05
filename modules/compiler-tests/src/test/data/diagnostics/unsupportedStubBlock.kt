@@ -71,6 +71,7 @@ fun test(repo: Repo, nullable: Repo?, block: MatcherScope.() -> String, check: V
     verify { repo.<!LOKKI_UNSUPPORTED!>toString()<!> }
     verify { <!LOKKI_UNSUPPORTED!>any<Repo>()<!>.find(1) }
     verify { repo.find(<!LOKKI_UNSUPPORTED!>any<Int>() + 1<!>) }
+    verify { repo.find(withArg <!LOKKI_UNSUPPORTED!>{ this@verify.any<Int>() }<!>) }
     val verification: (Boolean, Int, Int, Int, VerificationScope.() -> Any?) -> Unit = <!LOKKI_UNSUPPORTED!>::verify<!>
     verify { <!LOKKI_UNSUPPORTED!>listOf(any<Repo>())<!> wasNot Called }
     verifyCount { 2.<!LOKKI_UNSUPPORTED!>times(check)<!> }
