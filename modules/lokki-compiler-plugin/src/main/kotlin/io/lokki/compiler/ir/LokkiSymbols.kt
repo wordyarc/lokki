@@ -27,6 +27,9 @@ internal class LokkiSymbols(context: IrPluginContext) {
     val mockDescriptor by lazy { findClass(INTERNAL_PACKAGE, "MockDescriptor") }
     val mockSpec by lazy { findClass(INTERNAL_PACKAGE, "MockSpec") }
 
+    val instanceAllocator by lazy { findClass(INTERNAL_PACKAGE, "InstanceAllocator") }
+    val allocate by lazy { instanceAllocator.function("allocate") }
+
     val mockState by lazy { findClass(INTERNAL_PACKAGE, "MockState") }
     val answer by lazy { mockState.function("answer") }
     val stub by lazy { mockState.function("stub") }
@@ -49,6 +52,9 @@ internal class LokkiSymbols(context: IrPluginContext) {
 
     val jvmSynthetic by lazy { finder.findConstructors(ClassId(JVM_PACKAGE, Name.identifier("JvmSynthetic"))).single() }
     val apply by lazy { finder.findFunctions(CallableId(KOTLIN_PACKAGE, Name.identifier("apply"))).single() }
+    val javaClass by lazy {
+        finder.findProperties(CallableId(JVM_PACKAGE, Name.identifier("java"))).single().owner.getter!!
+    }
 
     fun verificationOf(calls: IrClass): IrConstructor =
         verification.constructors.single { it.firstParameterClass?.symbol == calls.symbol }

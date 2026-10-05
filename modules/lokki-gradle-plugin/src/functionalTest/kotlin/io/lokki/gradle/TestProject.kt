@@ -80,9 +80,9 @@ class TestProject(
             val generated = listOf(loader.loadClass("io.lokki.internal.GeneratedMock"), Any::class.java)
                 .flatMap { it.declaredMethods.asList() }
                 .map { it.name }
-            loader.loadClass(className).declaredMethods.filterNot { it.name in generated }.mapTo(HashSet()) { method ->
-                "${method.name}(${method.parameterTypes.joinToString { it.name }})"
-            }
+            loader.loadClass(className).declaredMethods
+                .filterNot { it.name in generated || it.isSynthetic }
+                .mapTo(HashSet()) { method -> "${method.name}(${method.parameterTypes.joinToString { it.name }})" }
         }
     }
 }

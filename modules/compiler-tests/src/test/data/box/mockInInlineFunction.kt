@@ -12,7 +12,13 @@ interface Boat {
     fun sail(): String
 }
 
+abstract class Truck {
+    abstract fun load(): Int
+}
+
 inline fun carFixture(): Car = mock<Car>()
+
+inline fun truckFixture(): Truck = mock<Truck>()
 
 inline fun <T> carFixtureIn(block: (Car) -> T): T = run { block(mock<Car>()) }
 
@@ -41,9 +47,11 @@ package app
 import fixtures.carFixture
 import fixtures.carFixtureIn
 import fixtures.localCar
+import fixtures.truckFixture
 import fixtures.nested.boatFromAnotherPackage
 import fixtures.nested.carFromAnotherPackage
 import io.lokki.LokkiException
+import io.lokki.every
 import java.lang.reflect.Modifier
 
 fun box(): String {
@@ -62,6 +70,11 @@ fun box(): String {
     } catch (e: LokkiException) {
         if (!e.message!!.startsWith("no answer found for $car.drive() ")) return "Fail message: ${e.message}"
     }
+
+    val truck = truckFixture()
+    if (!Modifier.isPublic(truck.javaClass.modifiers)) return "Fail: mock class of an abstract class is not public"
+    every { truck.load() } returns 3
+    if (truck.load() != 3) return "Fail: mock of an abstract class from an inline function"
 
     val boatClass = boatFromAnotherPackage().javaClass
     if (!Modifier.isPublic(boatClass.modifiers)) return "Fail: mock class created in a private inline function is not public"

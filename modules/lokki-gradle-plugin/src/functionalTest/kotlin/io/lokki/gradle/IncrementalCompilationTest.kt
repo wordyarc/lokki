@@ -87,6 +87,69 @@ class IncrementalCompilationTest {
 
     @ParameterizedTest
     @EnumSource(GradleUnderTest::class)
+    fun testNewAbstractMemberOfClassInMain(gradle: GradleUnderTest) {
+        val project = jvmProject(gradle)
+        project.write(
+            "src/main/kotlin/sample/Engine.kt",
+            declaration("abstract class Engine", "abstract fun start(): String"),
+        )
+        project.write("src/main/kotlin/sample/Mechanic.kt", exercise("Engine", "start()"))
+        project.write("src/test/kotlin/sample/EngineTest.kt", mockTest("EngineTest", "Engine"))
+        project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
+
+        project.build("test")
+        assertEquals(
+            setOf("start()"),
+            project.mockedMethods("test", "sample.Engine\$LokkiMock\$dabe4326\$EngineTestKt"),
+        )
+
+        project.write(
+            "src/main/kotlin/sample/Engine.kt",
+            declaration("abstract class Engine", "abstract fun start(): String", "abstract fun stop()"),
+        )
+        project.write("src/main/kotlin/sample/Mechanic.kt", exercise("Engine", "stop()"))
+        val result = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
+        assertEquals(setOf("EngineTest.kt"), project.compiledSources(":compileTestKotlin"))
+        assertEquals(
+            setOf("start()", "stop()"),
+            project.mockedMethods("test", "sample.Engine\$LokkiMock\$dabe4326\$EngineTestKt"),
+        )
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testNewOpenMemberOfSuperclassInMain(gradle: GradleUnderTest) {
+        val project = jvmProject(gradle)
+        project.write("src/main/kotlin/sample/Vehicle.kt", declaration("open class Vehicle", "open fun park() {}"))
+        project.write(
+            "src/main/kotlin/sample/Car.kt",
+            declaration("open class Car : Vehicle()", "open fun drive(): String = \"driven\""),
+        )
+        project.write("src/main/kotlin/sample/Driver.kt", exercise("Car", "park()"))
+        project.write("src/test/kotlin/sample/CarTest.kt", mockTest("CarTest", "Car"))
+        project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
+
+        project.build("test")
+
+        project.write(
+            "src/main/kotlin/sample/Vehicle.kt",
+            declaration("open class Vehicle", "open fun park() {}", "open fun honk() {}"),
+        )
+        project.write("src/main/kotlin/sample/Driver.kt", exercise("Car", "honk()"))
+        val result = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
+        assertEquals(setOf("CarTest.kt"), project.compiledSources(":compileTestKotlin"))
+        assertEquals(
+            setOf("drive()", "park()", "honk()"),
+            project.mockedMethods("test", "sample.Car\$LokkiMock\$08768170\$CarTestKt"),
+        )
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
     fun testNewMemberOfInterfaceInSameCompilation(gradle: GradleUnderTest) {
         val project = jvmProject(gradle)
         project.write("src/test/kotlin/sample/Boat.kt", declaration("interface Boat", "fun sail(): String"))

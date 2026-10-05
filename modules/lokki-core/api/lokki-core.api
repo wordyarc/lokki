@@ -151,6 +151,11 @@ public final class io/lokki/internal/GeneratedMock$Companion {
 	public final fun withoutStateChanges (Lkotlin/jvm/functions/Function0;)Ljava/lang/Object;
 }
 
+public final class io/lokki/internal/InstanceAllocator {
+	public static final field INSTANCE Lio/lokki/internal/InstanceAllocator;
+	public final fun allocate (Ljava/lang/Class;)Ljava/lang/Object;
+}
+
 public abstract interface annotation class io/lokki/internal/LokkiIntrinsic : java/lang/annotation/Annotation {
 	public abstract fun kind ()Lio/lokki/internal/LokkiIntrinsic$Kind;
 }

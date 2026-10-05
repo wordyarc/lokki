@@ -36,7 +36,7 @@ fun test() {
     mock<<!LOKKI_RESTRICTED_TYPE!>Clock<!>>()
     mock<<!LOKKI_RESTRICTED_TYPE!>SystemClock<!>>()
     mock<<!LOKKI_RESTRICTED_TYPE!>Ledger<!>>()
-    <!LOKKI_UNSUPPORTED!>mock<<!LOKKI_RESTRICTED_TYPE!>Money<!>>()<!>
+    mock<<!LOKKI_RESTRICTED_TYPE!>Money<!>>()
     mock<<!LOKKI_RESTRICTED_TYPE!>Names<!>>()
     <!LOKKI_UNSUPPORTED!>mock<<!LOKKI_RESTRICTED_TYPE!>List<String><!>>()<!>
     <!LOKKI_UNSUPPORTED!>mock<<!LOKKI_RESTRICTED_TYPE!>MutableSet<Int><!>>()<!>
@@ -44,7 +44,7 @@ fun test() {
     <!LOKKI_UNSUPPORTED!>mock<<!LOKKI_RESTRICTED_TYPE!>java.util.Queue<String><!>>()<!>
     <!LOKKI_UNSUPPORTED!>mock<<!LOKKI_RESTRICTED_TYPE!>HashMap<String, Int><!>>()<!>
     <!LOKKI_UNSUPPORTED!>mock<<!LOKKI_RESTRICTED_TYPE!>java.util.LinkedHashMap<String, Int><!>>()<!>
-    <!LOKKI_UNSUPPORTED!>mock<<!LOKKI_RESTRICTED_TYPE!>File<!>>()<!>
+    mock<<!LOKKI_RESTRICTED_TYPE!>File<!>>()
     mock<<!LOKKI_RESTRICTED_TYPE!>Path<!>>()
     mock<<!LOKKI_RESTRICTED_TYPE!>Location<!>>()
     val path: Path = <!LOKKI_RESTRICTED_TYPE!>mock()<!>

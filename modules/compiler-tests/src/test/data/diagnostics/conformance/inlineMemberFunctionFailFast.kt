@@ -22,6 +22,6 @@ fun stubOfNonInlineWrapperReturnsConfiguredValue() {
 }
 
 fun stubOfInlineFunctionFromKotlinThrowsDescriptiveError() {
-    val inlineMock = mock<HasInline>()
+    val inlineMock = mock<<!LOKKI_FINAL_MEMBERS_NOT_MOCKED!>HasInline<!>>()
     every { inlineMock.<!LOKKI_NOT_INTERCEPTABLE!>addOne<!>(any()) } returns 42
 }

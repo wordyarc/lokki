@@ -1,0 +1,9 @@
+/main.kt:74:10: error: 'lib.Plugin' cannot be mocked: a mock cannot implement its abstract members that are not visible from this file: 'load'.
+
+/main.kt:75:10: error: 'other.Base' cannot be mocked: a mock cannot implement its abstract members that are not visible from this file: 'hidden'.
+
+/main.kt:76:10: error: 'other.Hidden' cannot be mocked: none of its constructors is visible from this file.
+
+/main.kt:77:10: error: 'lib.Singleton' cannot be mocked: none of its constructors is visible from this file.
+
+/main.kt:78:10: error: 'lib.Factory' cannot be mocked: none of its constructors is visible from this file.
