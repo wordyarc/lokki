@@ -7,6 +7,9 @@ internal interface GeneratedMock {
     @get:JvmSynthetic
     val `lokki$state`: MockState
 
+    @JvmSynthetic
+    fun `lokki$original`(member: Int, args: Array<Any?>): Any?
+
     companion object {
         fun of(instance: Any?): GeneratedMock =
             instance as? GeneratedMock ?: throw LokkiException("$instance is not a lokki mock")

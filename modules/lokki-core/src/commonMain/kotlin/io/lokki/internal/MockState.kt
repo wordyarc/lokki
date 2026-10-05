@@ -39,9 +39,12 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
             is ConstantAnswer -> answer.value
             is ThrowingAnswer -> throw answer.exception
             is ArgumentAnswer -> arguments[answer.index]
-            else -> answer.answer(Call(Invocation(owner, ArgumentList(arguments))))
+            else -> answer.answer(Call(Invocation(owner, member, arguments)))
         }
     }
+
+    fun noOriginal(member: Int, arguments: Array<Any?>): Nothing =
+        throw LokkiException("no original implementation for ${call(member, arguments.joinToString { it.toStr() })}")
 
     fun <T> stub(key: String, matchers: Array<Matcher<Any?>>): StubScope<T> =
         PendingStub(this, descriptor.member(key), matchers)
@@ -290,13 +293,6 @@ private class PendingStub<T>(
 
 private class Exclusion(private val member: Int, private val matchers: Array<Matcher<Any?>>) {
     fun matches(member: Int, arguments: Array<Any?>): Boolean = member == this.member && matchers.match(arguments)
-}
-
-private class ArgumentList(private val arguments: Array<Any?>) : AbstractList<Any?>() {
-    override val size: Int
-        get() = arguments.size
-
-    override fun get(index: Int): Any? = arguments[index]
 }
 
 private class DefaultsCapture(val member: Int, val thread: Any) {

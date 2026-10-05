@@ -15,12 +15,14 @@ import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.util.OperatorNameConventions
 
-internal class LokkiSymbols(context: IrPluginContext) {
+internal class LokkiSymbols(private val context: IrPluginContext) {
     private val finder = context.finderForBuiltins()
 
     val generatedMock by lazy { findClass(INTERNAL_PACKAGE, "GeneratedMock") }
     val state by lazy { generatedMock.properties.single { it.name.asString() == "lokki\$state" } }
+    val original by lazy { generatedMock.function("lokki\$original") }
     val of by lazy { generatedMock.companionObject()!!.function("of") }
     val withoutStateChanges by lazy { generatedMock.companionObject()!!.function("withoutStateChanges") }
 
@@ -32,6 +34,7 @@ internal class LokkiSymbols(context: IrPluginContext) {
 
     val mockState by lazy { findClass(INTERNAL_PACKAGE, "MockState") }
     val answer by lazy { mockState.function("answer") }
+    val noOriginal by lazy { mockState.function("noOriginal") }
     val stub by lazy { mockState.function("stub") }
     val captureDefaults by lazy { mockState.function("captureDefaults") }
     val exclude by lazy { mockState.function("exclude") }
@@ -49,6 +52,13 @@ internal class LokkiSymbols(context: IrPluginContext) {
     val eqMatcher by lazy { findClass(INTERNAL_PACKAGE, "EqMatcher") }
     val arrayMatcher by lazy { findClass(INTERNAL_PACKAGE, "ArrayMatcher") }
     val matchers by lazy { findClass(INTERNAL_PACKAGE, "Matchers") }
+
+    val arrayGet by lazy { context.irBuiltIns.arrayClass.owner.function("get") }
+    val intDiv by lazy {
+        context.irBuiltIns.intClass.owner.functions.single {
+            it.name == OperatorNameConventions.DIV && it.firstParameterClass == context.irBuiltIns.intClass.owner
+        }
+    }
 
     val jvmSynthetic by lazy { finder.findConstructors(ClassId(JVM_PACKAGE, Name.identifier("JvmSynthetic"))).single() }
     val apply by lazy { finder.findFunctions(CallableId(KOTLIN_PACKAGE, Name.identifier("apply"))).single() }

@@ -1,0 +1,11 @@
+/main.kt:74:10: error: 'lib.Service' cannot be mocked: it or its supertypes declare members that refer to classes missing from the classpath: 'load' (dep.Missing). Add the dependency with these classes to the test compilation and runtime, e.g. with 'testImplementation'.
+
+/main.kt:75:10: error: 'lib.Plugin' cannot be mocked: it or its supertypes declare members that refer to classes missing from the classpath: 'optional' (dep.Missing). Add the dependency with these classes to the test compilation and runtime, e.g. with 'testImplementation'.
+
+/main.kt:76:10: error: 'lib.ExtendedPlugin' cannot be mocked: it or its supertypes declare members that refer to classes missing from the classpath: 'optional' (dep.Missing). Add the dependency with these classes to the test compilation and runtime, e.g. with 'testImplementation'.
+
+/main.kt:77:10: error: 'lib.Repository' cannot be mocked: it or its supertypes declare members that refer to classes missing from the classpath: 'optional' (dep.Missing). Add the dependency with these classes to the test compilation and runtime, e.g. with 'testImplementation'.
+
+/main.kt:78:10: error: 'lib.Derived' cannot be mocked: it or its supertypes declare members that refer to classes missing from the classpath: 'helper' (dep.Missing). Add the dependency with these classes to the test compilation and runtime, e.g. with 'testImplementation'.
+
+/main.kt:79:10: error: 'lib.Store' cannot be mocked: it or its supertypes declare members that refer to classes missing from the classpath: 'current' (dep.Missing), 'save' (dep.Missing), 'saveAll' (dep.Missing). Add the dependency with these classes to the test compilation and runtime, e.g. with 'testImplementation'.

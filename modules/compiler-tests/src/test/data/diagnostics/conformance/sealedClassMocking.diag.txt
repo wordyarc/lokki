@@ -1,0 +1,1 @@
+/sealedClassMocking.kt:19:14: error: 'sample.Base' cannot be mocked: it is sealed.

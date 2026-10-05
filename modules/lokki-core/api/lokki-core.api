@@ -13,6 +13,7 @@ public abstract interface class io/lokki/Answer {
 }
 
 public final class io/lokki/AnswerScope {
+	public final fun callOriginal ()Ljava/lang/Object;
 	public final fun captured (Ljava/util/List;)Ljava/lang/Object;
 	public final fun getArgs ()Ljava/util/List;
 	public final fun getCall ()Lio/lokki/Call;
@@ -144,6 +145,7 @@ public final class io/lokki/internal/EqMatcher : io/lokki/Matcher {
 public abstract interface class io/lokki/internal/GeneratedMock {
 	public static final field Companion Lio/lokki/internal/GeneratedMock$Companion;
 	public abstract synthetic fun getLokki$state ()Lio/lokki/internal/MockState;
+	public abstract synthetic fun lokki$original (I[Ljava/lang/Object;)Ljava/lang/Object;
 }
 
 public final class io/lokki/internal/GeneratedMock$Companion {
@@ -223,6 +225,7 @@ public final class io/lokki/internal/MockState {
 	public final fun captureDefaults (Ljava/lang/String;[Ljava/lang/String;Lkotlin/jvm/functions/Function1;)[Ljava/lang/Object;
 	public final fun exclude (Ljava/lang/String;[Lio/lokki/Matcher;Z)V
 	public static synthetic fun exclude$default (Lio/lokki/internal/MockState;Ljava/lang/String;[Lio/lokki/Matcher;ZILjava/lang/Object;)V
+	public final fun noOriginal (I[Ljava/lang/Object;)Ljava/lang/Void;
 	public final fun stub (Ljava/lang/String;[Lio/lokki/Matcher;)Lio/lokki/StubScope;
 }
 

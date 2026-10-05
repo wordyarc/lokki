@@ -43,14 +43,18 @@ class TestProject(
         dir.resolve(path).apply { parentFile.mkdirs() }.writeText(content.trimIndent())
     }
 
-    fun build(vararg arguments: String): BuildResult {
+    fun build(vararg arguments: String): BuildResult = runner(arguments).build()
+
+    fun buildAndFail(vararg arguments: String): BuildResult = runner(arguments).buildAndFail()
+
+    private fun runner(arguments: Array<out String>): GradleRunner {
         buildReports.deleteRecursively()
         val runner = GradleRunner.create()
             .withProjectDir(dir)
             .withArguments(*arguments, "--stacktrace")
             .forwardOutput()
         gradle.version?.let(runner::withGradleVersion)
-        return runner.build()
+        return runner
     }
 
     fun compiledSources(task: String): Set<String> {

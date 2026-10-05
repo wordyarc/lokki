@@ -31,12 +31,19 @@ import org.jetbrains.kotlin.fir.references.toResolvedCallableSymbol
 import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
 import org.jetbrains.kotlin.fir.resolve.lookupSuperTypes
 import org.jetbrains.kotlin.fir.resolve.toRegularClassSymbol
+import org.jetbrains.kotlin.fir.resolve.toSymbol
 import org.jetbrains.kotlin.fir.scopes.getDeclaredConstructors
 import org.jetbrains.kotlin.fir.scopes.processAllCallables
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
+import org.jetbrains.kotlin.fir.types.ConeClassLikeType
+import org.jetbrains.kotlin.fir.types.ConeDefinitelyNotNullType
+import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.fir.types.ConeTypeParameterType
+import org.jetbrains.kotlin.fir.types.coneType
+import org.jetbrains.kotlin.fir.types.isNonPrimitiveArray
 import org.jetbrains.kotlin.fir.types.isNothing
 import org.jetbrains.kotlin.fir.types.lowerBoundIfFlexible
 import org.jetbrains.kotlin.fir.types.toConeTypeProjection
@@ -93,12 +100,15 @@ private fun FirRegularClassSymbol.notMockableReason(): String? =
         classKind == ClassKind.ANNOTATION_CLASS -> "it is an annotation class"
         modality == Modality.SEALED -> "it is sealed"
         isFinalType -> "it is a final class. Extract an interface or make the class and its members open"
-        classKind != ClassKind.CLASS -> null
-        declaredMemberScope().getDeclaredConstructors().none { it.isVisibleToMock() } ->
+        classKind == ClassKind.CLASS && declaredMemberScope().getDeclaredConstructors().none { it.isVisibleToMock() } ->
             "none of its constructors is visible from this file"
         else -> hiddenAbstractMembers().takeIf { it.isNotEmpty() }?.let { members ->
             "a mock cannot implement its abstract members that are not visible from this file: " +
                 members.joinToString { "'$it'" }
+        } ?: membersWithMissingClasses().takeIf { it.isNotEmpty() }?.let { members ->
+            "it or its supertypes declare members that refer to classes missing from the classpath: " +
+                "${members.joinToString()}. Add the dependency with these classes to the test compilation and " +
+                "runtime, e.g. with 'testImplementation'"
         }
     }
 
@@ -110,6 +120,39 @@ private fun FirRegularClassSymbol.hiddenAbstractMembers(): List<String> {
     }
     return members.toList()
 }
+
+context(context: CheckerContext)
+private fun FirRegularClassSymbol.membersWithMissingClasses(): List<String> {
+    val members = sortedSetOf<String>()
+    val supertypes = lookupSuperTypes(this, lookupInterfaces = true, deep = true, context.session)
+        .mapNotNull { it.toRegularClassSymbol(context.session) }
+    for (type in listOf(this) + supertypes) {
+        type.unsubstitutedScope().processAllCallables { member ->
+            val missing = member.signatureTypes().flatMap { it.erasedMissingClasses() }.distinct()
+            if (missing.isNotEmpty()) members += "'${member.name}' (${missing.joinToString { it.asFqNameString() }})"
+        }
+    }
+    return members.toList()
+}
+
+private fun FirCallableSymbol<*>.signatureTypes(): List<ConeKotlinType> =
+    listOfNotNull(resolvedReturnType, resolvedReceiverType) +
+        contextParameterSymbols.map { it.resolvedReturnType } +
+        (this as? FirFunctionSymbol<*>)?.valueParameterSymbols.orEmpty().map { it.resolvedReturnType }
+
+context(context: CheckerContext)
+private fun ConeKotlinType.erasedMissingClasses(): List<ClassId> =
+    when (val type = lowerBoundIfFlexible()) {
+        is ConeClassLikeType -> when {
+            type.lookupTag.toSymbol(context.session) == null -> listOf(type.lookupTag.classId)
+            type.isNonPrimitiveArray -> type.typeArguments.single().type?.erasedMissingClasses().orEmpty()
+            else -> emptyList()
+        }
+        is ConeTypeParameterType ->
+            type.lookupTag.typeParameterSymbol.resolvedBounds.flatMap { it.coneType.erasedMissingClasses() }
+        is ConeDefinitelyNotNullType -> type.original.erasedMissingClasses()
+        else -> emptyList()
+    }
 
 context(context: CheckerContext)
 private fun FirRegularClassSymbol.finalMembers(): List<String> {

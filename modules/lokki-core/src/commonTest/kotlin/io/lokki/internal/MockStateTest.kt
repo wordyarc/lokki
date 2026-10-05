@@ -210,6 +210,31 @@ class MockStateTest {
     }
 
     @Test
+    fun testOriginalReceivesTheMemberAndTheArgumentsOfTheCall() {
+        val mock = TestMock("repo", FIND)
+        val calls = ArrayList<Pair<Int, Array<Any?>>>()
+        mock.original = { member, arguments -> calls += member to arguments; "original ${arguments[0]}" }
+        mock.`lokki$state`.stub<String>(FIND, arrayOf(AnyMatcher, AnyMatcher)) answers { callOriginal() + "!" }
+        val arguments = arrayOf<Any?>(7, true)
+
+        assertEquals("original 7!", mock.`lokki$state`.answer(FIND_MEMBER, arguments))
+        assertEquals(FIND_MEMBER, calls.single().first)
+        assertSame(arguments, calls.single().second)
+    }
+
+    @Test
+    fun testMemberWithoutOriginal() {
+        val mock = TestMock("repo", FIND)
+        mock.`lokki$state`.stub<String>(FIND, arrayOf(AnyMatcher, AnyMatcher)) answers { callOriginal() }
+        val name = mock.`lokki$state`.answer(TO_STRING, emptyArray())
+
+        assertEquals(
+            "no original implementation for $name.find(7, true)",
+            assertFailsWith<LokkiException> { mock.`lokki$state`.answer(FIND_MEMBER, arrayOf(7, true)) }.message,
+        )
+    }
+
+    @Test
     fun testArgumentIsReturned() {
         state.stub<Any?>(FIND, arrayOf(AnyMatcher, AnyMatcher)) returnsArgument 1
 

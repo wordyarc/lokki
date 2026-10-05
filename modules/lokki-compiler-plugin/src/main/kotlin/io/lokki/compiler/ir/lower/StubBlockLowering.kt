@@ -76,7 +76,6 @@ import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.deepCopyWithSymbols
 import org.jetbrains.kotlin.ir.util.defaultValueForType
 import org.jetbrains.kotlin.ir.util.erasedUpperBound
-import org.jetbrains.kotlin.ir.util.functions
 import org.jetbrains.kotlin.ir.util.isMethodOfAny
 import org.jetbrains.kotlin.ir.util.isNullable
 import org.jetbrains.kotlin.ir.util.isSubclassOf
@@ -515,13 +514,11 @@ internal class StubBlockLowering(
     private fun IrBuilder.irEq(value: IrExpression): IrExpression =
         irCallConstructor(symbols.eqMatcher.primaryConstructor!!.symbol, emptyList()).apply { arguments[0] = value }
 
-    private fun IrBuilder.irArrayGet(array: IrVariable, index: Int): IrExpression {
-        val get = context.irBuiltIns.arrayClass.owner.functions.single { it.name.asString() == "get" }
-        return irCall(get.symbol, context.irBuiltIns.anyNType).apply {
+    private fun IrBuilder.irArrayGet(array: IrVariable, index: Int): IrExpression =
+        irCall(symbols.arrayGet.symbol, context.irBuiltIns.anyNType).apply {
             arguments[0] = irGet(array)
             arguments[1] = irInt(index)
         }
-    }
 
     private fun IrBuilder.irPlaceholder(argument: IrExpression, alternate: IrValueParameter): IrExpression {
         val type = argument.type

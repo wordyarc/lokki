@@ -3,16 +3,21 @@ package io.lokki.compiler.ir.collect
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.ir.intrinsicKind
 import io.lokki.compiler.ir.isVisibleFrom
+import io.lokki.compiler.ir.missingClasses
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrOverridableMember
+import org.jetbrains.kotlin.ir.declarations.IrProperty
+import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.util.constructors
+import org.jetbrains.kotlin.ir.util.getAllSuperclasses
+import org.jetbrains.kotlin.ir.util.isFakeOverride
 import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.util.render
 
@@ -43,6 +48,9 @@ internal fun IrType.notMockableReason(file: IrFile): String? {
             "'$name' has no constructor visible to the mock"
         else -> type.hiddenAbstractMembers(file).takeIf { it.isNotEmpty() }
             ?.joinToString(prefix = "'$name' has abstract members that the mock cannot implement: ")
+            ?: type.membersWithMissingClasses().takeIf { it.isNotEmpty() }?.joinToString(
+                prefix = "'$name' or its supertypes declare members that refer to classes missing from the classpath: ",
+            )
     }
 }
 
@@ -50,3 +58,16 @@ private fun IrClass.hiddenAbstractMembers(file: IrFile): List<String> =
     declarations.filterIsInstance<IrOverridableMember>()
         .filter { it.modality == Modality.ABSTRACT && !it.isVisibleFrom(file) }
         .map { it.name.asString() }
+
+private fun IrClass.membersWithMissingClasses(): List<String> =
+    (listOf(this) + getAllSuperclasses()).flatMap { it.declarations }.flatMap { member ->
+        when (member) {
+            is IrSimpleFunction -> listOf(member)
+            is IrProperty -> listOfNotNull(member.getter, member.setter)
+            else -> emptyList()
+        }
+    }.filterNot { it.isFakeOverride }.mapNotNull { member ->
+        val missing = member.missingClasses.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+        val name = member.correspondingPropertySymbol?.owner?.name ?: member.name
+        missing.joinToString(prefix = "$name (", postfix = ")") { it.kotlinFqName.asString() }
+    }.distinct()

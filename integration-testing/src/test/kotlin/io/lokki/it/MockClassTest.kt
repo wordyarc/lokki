@@ -32,6 +32,16 @@ class MockClassTest {
     }
 
     @Test
+    fun answerCallsTheOriginalOfOpenMember() {
+        val car = mock<Car>()
+        val mechanic = mock<Mechanic>()
+        every { car.plate } returns "A-1"
+        every { mechanic.repair(car) } answers { callOriginal().uppercase() }
+
+        assertEquals("REPAIRED A-1", mechanic.repair(car))
+    }
+
+    @Test
     fun finalMemberRunsTheOriginalWithoutConstructor() {
         assertEquals("serviced by null", mock<Mechanic>().signature())
     }

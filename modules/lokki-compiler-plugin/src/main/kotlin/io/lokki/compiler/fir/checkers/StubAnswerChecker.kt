@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.fir.analysis.checkers.expression.FirFunctionCallChec
 import org.jetbrains.kotlin.fir.declarations.FirAnonymousFunction
 import org.jetbrains.kotlin.fir.declarations.FirAnonymousInitializer
 import org.jetbrains.kotlin.fir.declarations.FirFunction
+import org.jetbrains.kotlin.fir.declarations.utils.isAbstract
 import org.jetbrains.kotlin.fir.expressions.FirAnonymousFunctionExpression
 import org.jetbrains.kotlin.fir.expressions.FirArgumentList
 import org.jetbrains.kotlin.fir.expressions.FirBlock
@@ -22,6 +23,7 @@ import org.jetbrains.kotlin.fir.expressions.FirLoop
 import org.jetbrains.kotlin.fir.expressions.FirQualifiedAccessExpression
 import org.jetbrains.kotlin.fir.expressions.FirReturnExpression
 import org.jetbrains.kotlin.fir.expressions.FirSafeCallExpression
+import org.jetbrains.kotlin.fir.expressions.FirThisReceiverExpression
 import org.jetbrains.kotlin.fir.expressions.FirTryExpression
 import org.jetbrains.kotlin.fir.expressions.FirVariableAssignment
 import org.jetbrains.kotlin.fir.expressions.FirWhenBranch
@@ -33,11 +35,13 @@ import org.jetbrains.kotlin.fir.expressions.resolvedArgumentMapping
 import org.jetbrains.kotlin.fir.expressions.unwrapArgument
 import org.jetbrains.kotlin.fir.expressions.unwrapSmartcastExpression
 import org.jetbrains.kotlin.fir.references.toResolvedCallableSymbol
+import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirFunctionSymbol
 import org.jetbrains.kotlin.fir.types.ConeTypeParameterType
 import org.jetbrains.kotlin.fir.types.coneType
 import org.jetbrains.kotlin.fir.types.type
+import org.jetbrains.kotlin.fir.visitors.FirVisitorVoid
 
 internal object StubAnswerChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
     context(context: CheckerContext, reporter: DiagnosticReporter)
@@ -51,7 +55,10 @@ internal object StubAnswerChecker : FirFunctionCallChecker(MppCheckerKind.Common
                     function.name.asString(),
                 )
             }
-            IntrinsicKind.ANSWER -> if (function.name.asString() == RETURNS_ARGUMENT) checkReturnsArgument(expression)
+            IntrinsicKind.ANSWER -> when (function.name.asString()) {
+                RETURNS_ARGUMENT -> checkReturnsArgument(expression)
+                in ANSWER_BLOCKS -> checkOriginalCalls(expression)
+            }
             else -> {}
         }
     }
@@ -60,10 +67,7 @@ internal object StubAnswerChecker : FirFunctionCallChecker(MppCheckerKind.Common
     private fun checkReturnsArgument(answer: FirFunctionCall) {
         val argument = answer.arguments.singleOrNull()?.unwrapArgument() as? FirLiteralExpression ?: return
         val index = (argument.value as? Number)?.toInt() ?: return
-        val stub = answer.explicitReceiver?.unwrapSmartcastExpression() as? FirFunctionCall ?: return
-        if (stub.calleeReference.toResolvedCallableSymbol()?.intrinsicKind(context.session) != IntrinsicKind.STUB_BLOCK) return
-        val block = stub.arguments.firstOrNull()?.unwrapArgument() as? FirAnonymousFunctionExpression ?: return
-        val (member, count) = block.anonymousFunction.stubbedMember() ?: return
+        val (member, count) = answer.stubBlock()?.stubbedMember() ?: return
         if (index in 0..<count) return
         reporter.reportOn(
             argument.source,
@@ -73,6 +77,51 @@ internal object StubAnswerChecker : FirFunctionCallChecker(MppCheckerKind.Common
             count,
         )
     }
+
+    context(context: CheckerContext, reporter: DiagnosticReporter)
+    private fun checkOriginalCalls(answer: FirFunctionCall) {
+        val lambda = answer.arguments.singleOrNull()?.unwrapArgument() as? FirAnonymousFunctionExpression
+        val block = lambda?.anonymousFunction
+        val scope = block?.receiverParameter?.symbol ?: return
+        val (member, _) = answer.stubBlock()?.stubbedMember() ?: return
+        if (!member.isAbstract) return
+        block.accept(object : FirVisitorVoid() {
+            override fun visitElement(element: FirElement) {
+                if (element is FirFunctionCall && element.isOriginalCallIn(scope)) {
+                    reporter.reportOn(
+                        element.calleeReference.source ?: element.source,
+                        LokkiDiagnostics.LOKKI_ABSTRACT_ORIGINAL_CALL,
+                        member.name.asString(),
+                    )
+                }
+                element.acceptChildren(this)
+            }
+        })
+    }
+}
+
+context(context: CheckerContext)
+private fun FirFunctionCall.stubBlock(): FirAnonymousFunction? {
+    var receiver = explicitReceiver?.unwrapSmartcastExpression() as? FirFunctionCall
+    while (receiver != null) {
+        receiver = when (receiver.calleeReference.toResolvedCallableSymbol()?.intrinsicKind(context.session)) {
+            IntrinsicKind.STUB_BLOCK ->
+                return (receiver.arguments.firstOrNull()?.unwrapArgument() as? FirAnonymousFunctionExpression)
+                    ?.anonymousFunction
+            IntrinsicKind.ANSWER -> receiver.explicitReceiver?.unwrapSmartcastExpression() as? FirFunctionCall
+            else -> null
+        }
+    }
+    return null
+}
+
+context(context: CheckerContext)
+private fun FirFunctionCall.isOriginalCallIn(scope: FirBasedSymbol<*>): Boolean {
+    val function = calleeReference.toResolvedCallableSymbol() ?: return false
+    val receiver = dispatchReceiver?.unwrapSmartcastExpression() as? FirThisReceiverExpression ?: return false
+    return function.name.asString() == CALL_ORIGINAL &&
+        function.intrinsicKind(context.session) == IntrinsicKind.ANSWER &&
+        receiver.calleeReference.boundSymbol == scope
 }
 
 private fun FirAnonymousFunction.stubbedMember(): Pair<FirCallableSymbol<*>, Int>? {
@@ -129,3 +178,5 @@ private fun FirFunctionCall.returnsResultOf(lambda: FirAnonymousFunction): Boole
 }
 
 private const val RETURNS_ARGUMENT = "returnsArgument"
+private const val CALL_ORIGINAL = "callOriginal"
+private val ANSWER_BLOCKS = setOf("answers", "andThenAnswer")

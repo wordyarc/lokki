@@ -35,6 +35,7 @@ internal object LokkiDiagnostics : KtDiagnosticsContainer() {
     val LOKKI_SLOT_READ_BEFORE_CAPTURE by error2<KtElement, String, String>()
     val LOKKI_CONFLICTING_VERIFY_ARGUMENTS by error2<KtElement, String, String>()
     val LOKKI_FINAL_MEMBERS_NOT_MOCKED by warning2<KtElement, String, String>()
+    val LOKKI_ABSTRACT_ORIGINAL_CALL by error1<KtElement, String>()
 
     override fun getRendererFactory(): BaseDiagnosticRendererFactory = LokkiDiagnosticRenderers
 }
@@ -152,6 +153,11 @@ private object LokkiDiagnosticRenderers : BaseDiagnosticRendererFactory() {
             "The mock of ''{0}'' does not intercept its final members {1}: they run the original code on an " +
                 "instance created without a constructor. Make them open.",
             CommonRenderers.STRING,
+            CommonRenderers.STRING,
+        )
+        map.put(
+            LokkiDiagnostics.LOKKI_ABSTRACT_ORIGINAL_CALL,
+            "''{0}'' is abstract, so ''callOriginal()'' has no implementation to call.",
             CommonRenderers.STRING,
         )
     }

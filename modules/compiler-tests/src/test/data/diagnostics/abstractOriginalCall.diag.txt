@@ -1,0 +1,11 @@
+/abstractOriginalCall.kt:34:41: error: 'pressure' is abstract, so 'callOriginal()' has no implementation to call.
+
+/abstractOriginalCall.kt:35:57: error: 'pressure' is abstract, so 'callOriginal()' has no implementation to call.
+
+/abstractOriginalCall.kt:36:54: error: 'reset' is abstract, so 'callOriginal()' has no implementation to call.
+
+/abstractOriginalCall.kt:37:54: error: 'level' is abstract, so 'callOriginal()' has no implementation to call.
+
+/abstractOriginalCall.kt:38:44: error: 'level' is abstract, so 'callOriginal()' has no implementation to call.
+
+/abstractOriginalCall.kt:45:43: error: 'start' is abstract, so 'callOriginal()' has no implementation to call.
