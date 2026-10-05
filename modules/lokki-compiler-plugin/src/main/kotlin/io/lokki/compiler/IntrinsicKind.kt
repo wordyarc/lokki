@@ -23,3 +23,5 @@ internal val LOKKI_INTRINSIC = ClassId(FqName("io.lokki.internal"), Name.identif
 
 internal const val ALL_ANY = "allAny"
 internal val COMPOSITE_MATCHERS = setOf("and", "or", "not")
+internal val CAPTURE_MATCHERS = setOf("capture", "captureNullable")
+internal val WITH_ARG_MATCHERS = setOf("withArg", "withNullableArg")

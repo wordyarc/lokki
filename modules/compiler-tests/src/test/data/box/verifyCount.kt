@@ -74,7 +74,8 @@ fun box(): String {
     }
     if (evaluations != 1) return "Fail: count evaluated $evaluations times"
 
-    val negative = runCatching { verifyCount { -1 * { repo.find(1) } } }.exceptionOrNull()
+    val calls = -1
+    val negative = runCatching { verifyCount { calls * { repo.find(1) } } }.exceptionOrNull()
     if (negative !is LokkiException || negative.message != "atLeast should be positive") return "Fail: $negative"
     val empty = runCatching { verifyCount { (2..1) * { repo.find(1) } } }.exceptionOrNull()
     if (empty !is LokkiException || empty.message != "atLeast should less or equal atMost") return "Fail: $empty"

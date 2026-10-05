@@ -1,0 +1,17 @@
+/conflictingVerifyArguments.kt:14:22: error: Invalid call counts in 'verify': 'exactly' cannot be combined with 'atLeast' or 'atMost'.
+
+/conflictingVerifyArguments.kt:15:34: error: Invalid call counts in 'verify': 'exactly' cannot be combined with 'atLeast' or 'atMost'.
+
+/conflictingVerifyArguments.kt:16:22: error: Invalid call counts in 'verify': 'exactly' is negative.
+
+/conflictingVerifyArguments.kt:17:22: error: Invalid call counts in 'verify': 'atLeast' is negative.
+
+/conflictingVerifyArguments.kt:18:34: error: Invalid call counts in 'verify': 'atMost' is negative.
+
+/conflictingVerifyArguments.kt:19:21: error: Invalid call counts in 'verify': 'atMost' is 0, but 'atLeast' is 1 by default. Use 'exactly = 0' to verify that there were no calls.
+
+/conflictingVerifyArguments.kt:20:34: error: Invalid call counts in 'verify': 'atLeast' (3) is greater than 'atMost' (2).
+
+/conflictingVerifyArguments.kt:21:22: error: Invalid call counts in 'verify': 'atLeast' (3) is greater than 'atMost' (2).
+
+/conflictingVerifyArguments.kt:22:19: error: Invalid call counts in 'times': the count is negative.

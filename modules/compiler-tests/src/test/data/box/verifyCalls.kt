@@ -65,8 +65,9 @@ fun box(): String {
     failure("Inverse verification failed.\n\nVerified calls:\n1) $name.find(1, false)") {
         verify(inverse = true) { repo.find(1) }
     }?.let { return it }
+    val calls = 2
     val count = try {
-        verify(atLeast = 2, exactly = 2) { repo.find(1) }
+        verify(atLeast = calls, exactly = calls) { repo.find(1) }
         null
     } catch (e: LokkiException) {
         e.message

@@ -4,6 +4,7 @@ import io.lokki.compiler.fir.checkers.IntrinsicReferenceChecker
 import io.lokki.compiler.fir.checkers.MockChecker
 import io.lokki.compiler.fir.checkers.StubAnswerChecker
 import io.lokki.compiler.fir.checkers.StubBlockChecker
+import io.lokki.compiler.fir.checkers.VerificationChecker
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.analysis.checkers.expression.ExpressionCheckers
 import org.jetbrains.kotlin.fir.analysis.checkers.expression.FirCallableReferenceAccessChecker
@@ -13,7 +14,7 @@ import org.jetbrains.kotlin.fir.analysis.extensions.FirAdditionalCheckersExtensi
 class LokkiFirCheckersExtension(session: FirSession) : FirAdditionalCheckersExtension(session) {
     override val expressionCheckers: ExpressionCheckers = object : ExpressionCheckers() {
         override val functionCallCheckers: Set<FirFunctionCallChecker> =
-            setOf(MockChecker, StubBlockChecker, StubAnswerChecker)
+            setOf(MockChecker, StubBlockChecker, StubAnswerChecker, VerificationChecker)
         override val callableReferenceAccessCheckers: Set<FirCallableReferenceAccessChecker> =
             setOf(IntrinsicReferenceChecker)
     }

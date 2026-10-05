@@ -1,0 +1,29 @@
+/withArgPredicateNotUsed.kt:16:46: warning: 'withArg' ignores the result of its lambda, so this predicate does not filter calls: use 'match' instead or make it an assertion.
+
+/withArgPredicateNotUsed.kt:19:34: warning: 'withArg' ignores the result of its lambda, so this predicate does not filter calls: use 'match' instead or make it an assertion.
+
+/withArgPredicateNotUsed.kt:20:40: warning: 'withArg' ignores the result of its lambda, so this predicate does not filter calls: use 'match' instead or make it an assertion.
+
+/withArgPredicateNotUsed.kt:21:34: warning: 'withArg' ignores the result of its lambda, so this predicate does not filter calls: use 'match' instead or make it an assertion.
+
+/withArgPredicateNotUsed.kt:22:34: warning: 'withArg' ignores the result of its lambda, so this predicate does not filter calls: use 'match' instead or make it an assertion.
+
+/withArgPredicateNotUsed.kt:23:34: warning: 'withArg' ignores the result of its lambda, so this predicate does not filter calls: use 'match' instead or make it an assertion.
+
+/withArgPredicateNotUsed.kt:24:34: warning: 'withArg' ignores the result of its lambda, so this predicate does not filter calls: use 'match' instead or make it an assertion.
+
+/withArgPredicateNotUsed.kt:25:34: warning: 'withArg' ignores the result of its lambda, so this predicate does not filter calls: use 'match' instead or make it an assertion.
+
+/withArgPredicateNotUsed.kt:26:34: warning: 'withArg' ignores the result of its lambda, so this predicate does not filter calls: use 'match' instead or make it an assertion.
+
+/withArgPredicateNotUsed.kt:27:34: warning: 'withArg' ignores the result of its lambda, so this predicate does not filter calls: use 'match' instead or make it an assertion.
+
+/withArgPredicateNotUsed.kt:28:34: warning: 'withArg' ignores the result of its lambda, so this predicate does not filter calls: use 'match' instead or make it an assertion.
+
+/withArgPredicateNotUsed.kt:28:34: warning: Expression is unused.
+
+/withArgPredicateNotUsed.kt:33:17: warning: 'withArg' ignores the result of its lambda, so this predicate does not filter calls: use 'match' instead or make it an assertion.
+
+/withArgPredicateNotUsed.kt:37:42: warning: 'withNullableArg' ignores the result of its lambda, so this predicate does not filter calls: use 'match' instead or make it an assertion.
+
+/withArgPredicateNotUsed.kt:38:45: warning: 'withArg' ignores the result of its lambda, so this predicate does not filter calls: use 'match' instead or make it an assertion.

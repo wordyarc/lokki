@@ -1,6 +1,7 @@
 package io.lokki.compiler.fir.checkers
 
 import io.lokki.compiler.ALL_ANY
+import io.lokki.compiler.CAPTURE_MATCHERS
 import io.lokki.compiler.COMPOSITE_MATCHERS
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiDiagnostics
@@ -33,6 +34,7 @@ import org.jetbrains.kotlin.fir.expressions.FirLoop
 import org.jetbrains.kotlin.fir.expressions.FirOperation
 import org.jetbrains.kotlin.fir.expressions.FirPropertyAccessExpression
 import org.jetbrains.kotlin.fir.expressions.FirQualifiedAccessExpression
+import org.jetbrains.kotlin.fir.expressions.FirResolvedQualifier
 import org.jetbrains.kotlin.fir.expressions.FirReturnExpression
 import org.jetbrains.kotlin.fir.expressions.FirSafeCallExpression
 import org.jetbrains.kotlin.fir.expressions.FirSmartCastExpression
@@ -52,6 +54,7 @@ import org.jetbrains.kotlin.fir.expressions.unwrapSmartcastExpression
 import org.jetbrains.kotlin.fir.references.toResolvedCallableSymbol
 import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
 import org.jetbrains.kotlin.fir.resolve.toRegularClassSymbol
+import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirFieldSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirFunctionSymbol
@@ -61,6 +64,9 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirValueParameterSymbol
 import org.jetbrains.kotlin.fir.types.resolvedType
 import org.jetbrains.kotlin.fir.visitors.FirVisitorVoid
+import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.name.Name
 
 internal object StubBlockChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
     context(context: CheckerContext, reporter: DiagnosticReporter)
@@ -105,6 +111,7 @@ private class StubBlock(
     private val action = mode.action
 
     fun check() {
+        if (mode != BlockMode.EXCLUDE) checkSlotReads()
         if (mode != BlockMode.STUB) {
             val statements = block.verifiedStatements()
             if (statements.isEmpty()) notSingleCall(block, "is empty") else statements.forEach(::checkStatement)
@@ -238,6 +245,34 @@ private class StubBlock(
         )
     }
 
+    private fun checkSlotReads() {
+        val captured = HashSet<List<FirBasedSymbol<*>>>()
+        val reads = ArrayList<Pair<FirQualifiedAccessExpression, List<FirBasedSymbol<*>>>>()
+        block.accept(object : FirVisitorVoid() {
+            override fun visitElement(element: FirElement) {
+                if (element is FirQualifiedAccessExpression) {
+                    val callee = element.calleeReference.toResolvedCallableSymbol()
+                    val name = callee?.name?.asString()
+                    when {
+                        callee?.callableId?.classId == CAPTURING_SLOT && name in SLOT_READS ->
+                            element.dispatchReceiver?.slotPath()?.let { reads += element to it }
+                        name in CAPTURE_MATCHERS && callee?.intrinsicKind(session) == IntrinsicKind.MATCHER ->
+                            (element as? FirFunctionCall)?.arguments?.singleOrNull()?.slotPath()?.let(captured::add)
+                    }
+                }
+                element.acceptChildren(this)
+            }
+        })
+        val hint = when (mode) {
+            BlockMode.STUB -> "Read the slot in the answer or after the call"
+            else -> "Capture in one verification and read the slot in the next one"
+        }
+        for ((read, path) in reads) {
+            if (path !in captured) continue
+            reporter.reportOn(read.source, LokkiDiagnostics.LOKKI_SLOT_READ_BEFORE_CAPTURE, function, hint, context)
+        }
+    }
+
     private fun notInterceptableReason(callee: FirCallableSymbol<*>, receiver: FirExpression): String? {
         val inline = if (callee is FirPropertySymbol) callee.getterSymbol?.isInline == true else callee.isInline
         return when {
@@ -348,6 +383,18 @@ private fun FirStatement.unwrapped(block: FirAnonymousFunction): FirStatement {
     }
 }
 
+private fun FirExpression.slotPath(): List<FirBasedSymbol<*>>? =
+    when (val expression = unwrapArgument().unwrapSmartcastExpression()) {
+        is FirThisReceiverExpression -> expression.calleeReference.boundSymbol?.let(::listOf)
+        is FirResolvedQualifier -> expression.accessedObjectSymbol?.let(::listOf)
+        is FirPropertyAccessExpression -> {
+            val symbol = expression.calleeReference.toResolvedCallableSymbol() ?: return null
+            val receivers = listOfNotNull(expression.dispatchReceiver, expression.extensionReceiver)
+            receivers.flatMap { it.slotPath() ?: return null } + symbol
+        }
+        else -> null
+    }
+
 private val FirStatement.isLoop: Boolean
     get() = this is FirLoop || this is FirBlock && statements.lastOrNull() is FirLoop
 
@@ -357,3 +404,6 @@ private val FirStatement.isCompoundAssignment: Boolean
         is FirBlock -> statements.any { it is FirVariableAssignment }
         else -> false
     }
+
+private val CAPTURING_SLOT = ClassId(FqName("io.lokki"), Name.identifier("CapturingSlot"))
+private val SLOT_READS = setOf("captured", "isCaptured", "isNull")

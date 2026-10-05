@@ -1,0 +1,23 @@
+/slotReadBeforeCapture.kt:30:28: error: The slot is read before 'capture' fills it: the block of 'verify' is evaluated before calls are matched against it. Capture in one verification and read the slot in the next one.
+
+/slotReadBeforeCapture.kt:46:24: error: The slot is read before 'capture' fills it: the block of 'verify' is evaluated before calls are matched against it. Capture in one verification and read the slot in the next one.
+
+/slotReadBeforeCapture.kt:49:24: error: The slot is read before 'capture' fills it: the block of 'verify' is evaluated before calls are matched against it. Capture in one verification and read the slot in the next one.
+
+/slotReadBeforeCapture.kt:52:39: error: The slot is read before 'capture' fills it: the block of 'verify' is evaluated before calls are matched against it. Capture in one verification and read the slot in the next one.
+
+/slotReadBeforeCapture.kt:53:23: error: The slot is read before 'capture' fills it: the block of 'verify' is evaluated before calls are matched against it. Capture in one verification and read the slot in the next one.
+
+/slotReadBeforeCapture.kt:54:23: error: The slot is read before 'capture' fills it: the block of 'verify' is evaluated before calls are matched against it. Capture in one verification and read the slot in the next one.
+
+/slotReadBeforeCapture.kt:55:61: error: The slot is read before 'capture' fills it: the block of 'verify' is evaluated before calls are matched against it. Capture in one verification and read the slot in the next one.
+
+/slotReadBeforeCapture.kt:58:24: error: The slot is read before 'capture' fills it: the block of 'verify' is evaluated before calls are matched against it. Capture in one verification and read the slot in the next one.
+
+/slotReadBeforeCapture.kt:62:24: error: The slot is read before 'capture' fills it: the block of 'verify' is evaluated before calls are matched against it. Capture in one verification and read the slot in the next one.
+
+/slotReadBeforeCapture.kt:67:28: error: The slot is read before 'capture' fills it: the block of 'times' is evaluated before calls are matched against it. Capture in one verification and read the slot in the next one.
+
+/slotReadBeforeCapture.kt:70:38: error: The slot is read before 'capture' fills it: the block of 'every' is evaluated before calls are matched against it. Read the slot in the answer or after the call.
+
+/slotReadBeforeCapture.kt:71:51: error: The slot is read before 'capture' fills it: the block of 'every' is evaluated before calls are matched against it. Read the slot in the answer or after the call.

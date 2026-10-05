@@ -31,6 +31,9 @@ internal object LokkiDiagnostics : KtDiagnosticsContainer() {
     val LOKKI_NOT_RECORDED by error1<KtElement, String>()
     val LOKKI_USELESS_EXCLUSION by warning1<KtElement, String>()
     val LOKKI_WAS_NOT_CALLED_ON_CALL_RESULT by warning1<KtElement, String>()
+    val LOKKI_WITH_ARG_PREDICATE_NOT_USED by warning1<KtElement, String>()
+    val LOKKI_SLOT_READ_BEFORE_CAPTURE by error2<KtElement, String, String>()
+    val LOKKI_CONFLICTING_VERIFY_ARGUMENTS by error2<KtElement, String, String>()
 
     override fun getRendererFactory(): BaseDiagnosticRendererFactory = LokkiDiagnosticRenderers
 }
@@ -122,6 +125,25 @@ private object LokkiDiagnosticRenderers : BaseDiagnosticRendererFactory() {
             LokkiDiagnostics.LOKKI_WAS_NOT_CALLED_ON_CALL_RESULT,
             "''wasNot Called'' is applied to the result of ''{0}'', not to a mock: " +
                 "to check that ''{0}'' was not called, verify the call with ''exactly = 0''.",
+            CommonRenderers.STRING,
+        )
+        map.put(
+            LokkiDiagnostics.LOKKI_WITH_ARG_PREDICATE_NOT_USED,
+            "''{0}'' ignores the result of its lambda, so this predicate does not filter calls: " +
+                "use ''match'' instead or make it an assertion.",
+            CommonRenderers.STRING,
+        )
+        map.put(
+            LokkiDiagnostics.LOKKI_SLOT_READ_BEFORE_CAPTURE,
+            "The slot is read before ''capture'' fills it: the block of ''{0}'' is evaluated before calls are " +
+                "matched against it. {1}.",
+            CommonRenderers.STRING,
+            CommonRenderers.STRING,
+        )
+        map.put(
+            LokkiDiagnostics.LOKKI_CONFLICTING_VERIFY_ARGUMENTS,
+            "Invalid call counts in ''{0}'': {1}.",
+            CommonRenderers.STRING,
             CommonRenderers.STRING,
         )
     }
