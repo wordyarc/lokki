@@ -5,7 +5,10 @@ import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.ir.LokkiSymbols
 import io.lokki.compiler.ir.collect.MockClassKey
 import io.lokki.compiler.ir.collect.mockClassKey
+import io.lokki.compiler.ir.collect.mockableType
+import io.lokki.compiler.ir.collect.mockedClass
 import io.lokki.compiler.ir.collect.mockedType
+import io.lokki.compiler.ir.collect.referencedTypeParameters
 import io.lokki.compiler.ir.collect.notMockableReason
 import io.lokki.compiler.ir.generate.INIT
 import io.lokki.compiler.ir.intrinsicKind
@@ -28,7 +31,9 @@ import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrFunctionReference
 import org.jetbrains.kotlin.ir.expressions.impl.IrClassReferenceImpl
+import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.classOrFail
+import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.types.typeWith
 import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.functions
@@ -72,18 +77,24 @@ internal class DslLowering(
     }
 
     private fun lowerMock(call: IrCall): IrExpression {
-        val key = call.mockClassKey(file)
-        val mock = key?.let(mocks::get) ?: return call.also { unsupported(it, it.mockedType.notMockableReason(file)!!) }
+        val type = call.mockableType(file)
+        val mock = type?.let { mocks[it.mockClassKey(file)] }
+            ?: return call.also { unsupported(it, it.mockedType.notMockableReason(file)!!) }
         val scope = currentScope!!.scope.scopeOwnerSymbol
         return DeclarationIrBuilder(context, scope, call.startOffset, call.endOffset).run {
             val spec = irCallConstructor(symbols.mockSpec.primaryConstructor!!.symbol, emptyList()).apply {
                 arguments[0] = call.arguments[0] ?: irNull()
                 arguments[1] = irInt(0)
             }
-            val instance = if (key.mockedClass.isInterface) {
-                irCallConstructor(mock.primaryConstructor!!.symbol, emptyList()).apply { arguments[0] = spec }
+            val typeArguments = type.referencedTypeParameters.map { it.defaultType }
+            val mockType = mock.typeWith(typeArguments)
+            val instance = if (type.mockedClass.isInterface) {
+                irCallConstructor(mock.primaryConstructor!!.symbol, typeArguments).apply {
+                    this.type = mockType
+                    arguments[0] = spec
+                }
             } else {
-                irAllocate(mock, spec)
+                irAllocate(mockType, spec)
             }
             val block = call.arguments[1] ?: return instance
             irCall(symbols.apply, call.type, listOf(call.type)).apply {
@@ -93,8 +104,8 @@ internal class DslLowering(
         }
     }
 
-    private fun IrBuilderWithScope.irAllocate(mock: IrClass, spec: IrExpression): IrExpression = irBlock {
-        val type = mock.defaultType
+    private fun IrBuilderWithScope.irAllocate(type: IrSimpleType, spec: IrExpression): IrExpression = irBlock {
+        val mock = type.classOrFail.owner
         val instance = irTemporary(
             irCall(symbols.allocate.symbol, type, listOf(type)).apply {
                 arguments[0] = irGetObjectValue(symbols.instanceAllocator.defaultType, symbols.instanceAllocator.symbol)

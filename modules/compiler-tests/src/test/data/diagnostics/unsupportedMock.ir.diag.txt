@@ -1,15 +1,15 @@
-/test.kt:29:44: error: The mocked type must be known at compile time, but 'T of sample.create' is not a class.
+/test.kt:36:44: error: The mocked type must be known at compile time, but 'T of sample.create' is not a class.
 
-/test.kt:32:5: error: 'sample.Bolt' is final and cannot be mocked.
+/test.kt:39:5: error: 'sample.Bolt' is final and cannot be mocked.
 
-/test.kt:33:5: error: 'sample.Garage' is an object and cannot be mocked.
+/test.kt:40:5: error: 'sample.Garage' is an object and cannot be mocked.
 
-/test.kt:34:5: error: 'sample.Singleton' has no constructor visible to the mock.
+/test.kt:41:5: error: 'sample.Singleton' has no constructor visible to the mock.
 
-/test.kt:35:5: error: 'lib.Base' has abstract members that the mock cannot implement: hidden.
+/test.kt:42:5: error: 'lib.Base' has abstract members that the mock cannot implement: hidden.
 
-/test.kt:36:5: error: 'sample.Shape' is sealed and cannot be mocked.
+/test.kt:43:5: error: 'sample.Shape' is sealed and cannot be mocked.
 
-/test.kt:37:5: error: 'sample.Box' has type parameters: lokki cannot mock generic types yet.
+/test.kt:44:5: error: 'middle.Middle' has abstract members that the mock cannot implement: hidden.
 
-/test.kt:38:5: error: 'kotlin.Function0' has type parameters: lokki cannot mock generic types yet.
+/test.kt:45:5: error: 'sample.Node<*>' has a star projection that cannot be replaced with the upper bound of its type parameter.

@@ -29,5 +29,5 @@ private fun IrType.erasedMissingClasses(): List<IrClass> =
         else -> emptyList()
     }
 
-private val IrClass.isMissing: Boolean
+internal val IrClass.isMissing: Boolean
     get() = origin == IrDeclarationOrigin.IR_EXTERNAL_DECLARATION_STUB && this !is IrLazyDeclarationBase

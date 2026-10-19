@@ -87,6 +87,32 @@ class IncrementalCompilationTest {
 
     @ParameterizedTest
     @EnumSource(GradleUnderTest::class)
+    fun testNewMemberOfGenericInterfaceInMain(gradle: GradleUnderTest) {
+        val project = jvmProject(gradle)
+        project.write("src/main/kotlin/sample/Repo.kt", declaration("interface Repo<T>", "fun find(): T"))
+        project.write("src/main/kotlin/sample/Driver.kt", exercise("Repo<String>", "find()"))
+        project.write("src/test/kotlin/sample/RepoTest.kt", mockTest("RepoTest", "Repo<String>"))
+        project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
+
+        project.build("test")
+
+        project.write(
+            "src/main/kotlin/sample/Repo.kt",
+            declaration("interface Repo<T>", "fun find(): T", "fun save(value: T)"),
+        )
+        project.write("src/main/kotlin/sample/Driver.kt", exercise("Repo<String>", "save(\"x\")"))
+        val result = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
+        assertEquals(setOf("RepoTest.kt"), project.compiledSources(":compileTestKotlin"))
+        assertEquals(
+            setOf("find()", "save(java.lang.String)"),
+            project.mockedMethods("test", "sample.Repo\$LokkiMock\$3fcb1566\$RepoTestKt"),
+        )
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
     fun testNewAbstractMemberOfClassInMain(gradle: GradleUnderTest) {
         val project = jvmProject(gradle)
         project.write(

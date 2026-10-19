@@ -8,6 +8,12 @@ public abstract class Base {
     abstract void hidden();
 }
 
+// FILE: middle/Middle.java
+package middle;
+
+public abstract class Middle extends lib.Base {
+}
+
 // FILE: test.kt
 @file:Suppress("LOKKI_TYPE_ARGUMENT_NOT_CONCRETE", "LOKKI_TYPE_NOT_MOCKABLE")
 
@@ -15,6 +21,7 @@ package sample
 
 import io.lokki.mock
 import lib.Base
+import middle.Middle
 
 class Bolt
 
@@ -24,7 +31,7 @@ abstract class Singleton private constructor()
 
 sealed interface Shape
 
-interface Box<T>
+interface Node<T : Node<T>>
 
 inline fun <reified T : Any> create(): T = <!LOKKI_UNSUPPORTED!>mock<T>()<!>
 
@@ -34,6 +41,6 @@ fun test() {
     <!LOKKI_UNSUPPORTED!>mock<Singleton>()<!>
     <!LOKKI_UNSUPPORTED!>mock<Base>()<!>
     <!LOKKI_UNSUPPORTED!>mock<Shape>()<!>
-    <!LOKKI_UNSUPPORTED!>mock<Box<String>>()<!>
-    <!LOKKI_UNSUPPORTED!>mock<() -> Unit>()<!>
+    <!LOKKI_UNSUPPORTED!>mock<Middle>()<!>
+    <!LOKKI_UNSUPPORTED!>mock<Node<*>>()<!>
 }

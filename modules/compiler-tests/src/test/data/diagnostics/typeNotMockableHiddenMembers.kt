@@ -49,6 +49,18 @@ public abstract class Hidden {
     public abstract void run();
 }
 
+// FILE: middle/Middle.java
+package middle;
+
+public abstract class Middle extends other.Base {
+}
+
+// FILE: other/Leaf.java
+package other;
+
+public abstract class Leaf extends middle.Middle {
+}
+
 // FILE: other/samePackage.kt
 package other
 
@@ -57,6 +69,8 @@ import io.lokki.mock
 fun test() {
     mock<Base>()
     mock<Hidden>()
+    mock<<!LOKKI_TYPE_NOT_MOCKABLE!>middle.Middle<!>>()
+    mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Leaf<!>>()
 }
 
 // FILE: main.kt

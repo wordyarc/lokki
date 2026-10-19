@@ -1,31 +1,39 @@
-/typeNotMockable.kt:36:10: error: 'sample.Bolt' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
-
-/typeNotMockable.kt:37:10: error: 'sample.Plate' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
-
-/typeNotMockable.kt:38:10: error: 'sample.Vin' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
-
-/typeNotMockable.kt:39:10: error: 'sample.Garage' cannot be mocked: it is an object.
-
-/typeNotMockable.kt:40:10: error: 'sample.Color' cannot be mocked: it is an enum class.
-
-/typeNotMockable.kt:41:10: error: 'sample.Marker' cannot be mocked: it is an annotation class.
-
-/typeNotMockable.kt:42:10: error: 'sample.Shape' cannot be mocked: it is sealed.
-
-/typeNotMockable.kt:43:10: error: 'sample.Part' cannot be mocked: it is sealed.
-
 /typeNotMockable.kt:44:10: error: 'sample.Bolt' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
 
-/typeNotMockable.kt:45:10: error: 'kotlin.String' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+/typeNotMockable.kt:45:10: error: 'sample.Plate' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
 
-/typeNotMockable.kt:46:10: error: 'kotlin.Int' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+/typeNotMockable.kt:46:10: error: 'sample.Vin' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
 
-/typeNotMockable.kt:47:10: error: 'kotlin.Array' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+/typeNotMockable.kt:47:10: error: 'sample.Garage' cannot be mocked: it is an object.
 
-/typeNotMockable.kt:48:10: error: Cannot use 'Nothing' as reified type parameter.
+/typeNotMockable.kt:48:10: error: 'sample.Color' cannot be mocked: it is an enum class.
 
-/typeNotMockable.kt:49:22: error: 'sample.Bolt' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+/typeNotMockable.kt:49:10: error: 'sample.Marker' cannot be mocked: it is an annotation class.
 
-/typeNotMockable.kt:50:22: error: 'sample.Bolt' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+/typeNotMockable.kt:50:10: error: 'sample.Shape' cannot be mocked: it is sealed.
 
-/typeNotMockable.kt:63:10: error: 'Local' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+/typeNotMockable.kt:51:10: error: 'sample.Part' cannot be mocked: it is sealed.
+
+/typeNotMockable.kt:52:10: error: 'sample.Bolt' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+
+/typeNotMockable.kt:53:10: error: 'kotlin.String' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+
+/typeNotMockable.kt:54:10: error: 'kotlin.Int' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+
+/typeNotMockable.kt:55:10: error: 'kotlin.Array' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+
+/typeNotMockable.kt:56:10: error: Cannot use 'Nothing' as reified type parameter.
+
+/typeNotMockable.kt:57:22: error: 'sample.Bolt' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+
+/typeNotMockable.kt:58:22: error: 'sample.Bolt' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+
+/typeNotMockable.kt:59:10: error: 'sample.Node' cannot be mocked: the star projection for 'T' cannot be replaced with the upper bound of 'T'. Specify the type argument.
+
+/typeNotMockable.kt:60:10: error: 'sample.Both' cannot be mocked: the star projection for 'T' cannot be replaced with the upper bound of 'T'. Specify the type argument.
+
+/typeNotMockable.kt:61:10: error: 'sample.Pairs' cannot be mocked: the star projection for 'B' cannot be replaced with the upper bound of 'B'. Specify the type argument.
+
+/typeNotMockable.kt:69:10: warning: 'kotlin.collections.List' should not be mocked: use a real 'kotlin.collections.Collection' instead.
+
+/typeNotMockable.kt:77:10: error: 'Local' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.

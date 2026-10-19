@@ -5,6 +5,9 @@ import io.lokki.compiler.ir.FriendAwareFakeOverrides
 import io.lokki.compiler.ir.LokkiSymbols
 import io.lokki.compiler.ir.collect.MockClassKey
 import io.lokki.compiler.ir.collect.MockClassUsage
+import io.lokki.compiler.ir.collect.mockedClass
+import io.lokki.compiler.ir.collect.mockedClassTypeParameters
+import io.lokki.compiler.ir.collect.referencedTypeParameters
 import io.lokki.compiler.ir.irArrayOf
 import io.lokki.compiler.ir.isVisibleFrom
 import io.lokki.compiler.ir.memberKeys
@@ -20,6 +23,7 @@ import org.jetbrains.kotlin.ir.builders.declarations.addBackingField
 import org.jetbrains.kotlin.ir.builders.declarations.addConstructor
 import org.jetbrains.kotlin.ir.builders.declarations.addField
 import org.jetbrains.kotlin.ir.builders.declarations.addFunction
+import org.jetbrains.kotlin.ir.builders.declarations.addTypeParameter
 import org.jetbrains.kotlin.ir.builders.declarations.addValueParameter
 import org.jetbrains.kotlin.ir.builders.declarations.buildClass
 import org.jetbrains.kotlin.ir.builders.irAnnotation
@@ -48,6 +52,7 @@ import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOriginImpl
 import org.jetbrains.kotlin.ir.declarations.IrField
 import org.jetbrains.kotlin.ir.declarations.IrFile
+import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrOverridableDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrProperty
@@ -63,13 +68,16 @@ import org.jetbrains.kotlin.ir.expressions.impl.IrCallImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrInstanceInitializerCallImpl
 import org.jetbrains.kotlin.ir.overrides.IrFakeOverrideBuilder
+import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.IrTypeSystemContextImpl
+import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.types.isMarkedNullable
 import org.jetbrains.kotlin.ir.types.isPrimitiveType
 import org.jetbrains.kotlin.ir.types.isUnit
 import org.jetbrains.kotlin.ir.types.makeNullable
 import org.jetbrains.kotlin.ir.types.starProjectedType
+import org.jetbrains.kotlin.ir.types.typeOrFail
 import org.jetbrains.kotlin.ir.util.addChild
 import org.jetbrains.kotlin.ir.util.addSimpleDelegatingConstructor
 import org.jetbrains.kotlin.ir.util.constructors
@@ -82,7 +90,6 @@ import org.jetbrains.kotlin.ir.util.functions
 import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.ir.util.isLocal
 import org.jetbrains.kotlin.ir.util.isMethodOfAny
-import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.util.nonDispatchParameters
 import org.jetbrains.kotlin.ir.util.parentAsClass
 import org.jetbrains.kotlin.ir.util.primaryConstructor
@@ -104,21 +111,25 @@ internal class MockClassGenerator(
     private val anyConstructor = context.irBuiltIns.anyClass.owner.constructors.single()
 
     fun generate(key: MockClassKey, usage: MockClassUsage): IrClass {
-        val mocked = key.mockedClass
+        val mocked = usage.mockedType.mockedClass
         val mock = context.irFactory.buildClass {
             startOffset = usage.firstCall.startOffset
             endOffset = usage.firstCall.endOffset
-            name = key.mockClassName
+            name = key.mockClassName(mocked)
             origin = this@MockClassGenerator.origin
             visibility = if (mocked.isLocal) DescriptorVisibilities.LOCAL else usage.visibility
         }
-        mock.superTypes = listOf(mocked.defaultType, symbols.generatedMock.defaultType)
+        val parameters = usage.mockedType.referencedTypeParameters
+        val ownParameters = parameters.indices.map { mock.addTypeParameter("T$it", context.irBuiltIns.anyNType) }
+        val mockedType = usage.mockedType.substitute(parameters.zip(ownParameters.map { it.defaultType }).toMap())
+            as IrSimpleType
+        mock.superTypes = listOf(mockedType, symbols.generatedMock.defaultType)
         mock.createThisReceiverParameter()
         if (mocked.isLocal) key.file.addAfter(mocked, mock) else key.file.addChild(mock)
         val spec = if (mocked.isInterface) {
             mock.addSpecConstructor()
         } else {
-            mock.addUncalledConstructor(key)
+            mock.addUncalledConstructor(mockedType, key.file)
             null
         }
         IrFakeOverrideBuilder(typeSystem, FriendAwareFakeOverrides, emptyList())
@@ -154,7 +165,7 @@ internal class MockClassGenerator(
             if (member.modality != Modality.FINAL) member.implement(mock, state, index)
         }
         dispatcher.implementOriginal(mock, mocked, state, originals)
-        lookupTracker?.recordMockedTypeLookups(key)
+        lookupTracker?.recordMockedTypeLookups(mocked, key.file)
         return mock
     }
 
@@ -162,10 +173,13 @@ internal class MockClassGenerator(
         addSimpleDelegatingConstructor(anyConstructor, context.irBuiltIns, isPrimary = true)
             .addValueParameter("spec", symbols.mockSpec.defaultType, MOCK_PARAMETER)
 
-    private fun IrClass.addUncalledConstructor(key: MockClassKey) {
-        val superConstructor = key.mockedClass.constructors
-            .filter { it.isVisibleFrom(key.file) }
+    private fun IrClass.addUncalledConstructor(mockedType: IrSimpleType, file: IrFile) {
+        val mocked = mockedType.mockedClass
+        val superConstructor = mocked.constructors
+            .filter { it.isVisibleFrom(file) }
             .minBy { it.parameters.size }
+        val superTypeArguments = mockedType.arguments.map { it.typeOrFail }
+        val substitution = mockedType.mockedClassTypeParameters.map { it.symbol }.zip(superTypeArguments).toMap()
         val constructor = addConstructor {
             startOffset = this@addUncalledConstructor.startOffset
             endOffset = this@addUncalledConstructor.endOffset
@@ -175,8 +189,9 @@ internal class MockClassGenerator(
         }
         constructor.body = DeclarationIrBuilder(context, constructor.symbol).irBlockBody {
             +irDelegatingConstructorCall(superConstructor).apply {
+                typeArguments.indices.forEach { index -> typeArguments[index] = superTypeArguments[index] }
                 for (parameter in superConstructor.parameters) {
-                    val type = parameter.type
+                    val type = parameter.type.substitute(substitution)
                     arguments[parameter.indexInParameters] = when {
                         type.isPrimitiveType() || type.isMarkedNullable() ->
                             IrConstImpl.defaultValueForType(startOffset, endOffset, type)
@@ -230,7 +245,7 @@ internal class MockClassGenerator(
         getter!!.run {
             materialize()
             markSynthetic()
-            parameters = listOf(mock.thisReceiver!!.copyTo(this))
+            parameters = listOf(mock.dispatchReceiverFor(this))
             body = DeclarationIrBuilder(context, symbol).irBlockBody {
                 +irReturn(irGetField(irGet(dispatchReceiverParameter!!), state))
             }
@@ -385,7 +400,7 @@ internal class MockClassGenerator(
     private fun IrSimpleFunction.adoptParameters(mock: IrClass) {
         parameters = parameters.map { parameter ->
             if (parameter.kind == IrParameterKind.DispatchReceiver) {
-                mock.thisReceiver!!.copyTo(this)
+                mock.dispatchReceiverFor(this)
             } else {
                 parameter.apply { origin = MOCK_PARAMETER }
             }
@@ -403,6 +418,9 @@ internal class MockClassGenerator(
     }
 }
 
+private fun IrClass.dispatchReceiverFor(function: IrFunction): IrValueParameter =
+    thisReceiver!!.let { it.copyTo(function, type = it.type) }
+
 private fun IrFile.addAfter(local: IrClass, mock: IrClass) {
     mock.parent = local.parent
     acceptVoid(object : IrVisitorVoid() {
@@ -414,12 +432,11 @@ private fun IrFile.addAfter(local: IrClass, mock: IrClass) {
     })
 }
 
-private val MockClassKey.mockClassName: Name
-    get() {
-        val hash = mockedClass.kotlinFqName.asString().hashCode().toHexString()
-        val filePart = PackagePartClassUtils.getFilePartShortName(file.name)
-        return Name.identifier("${mockedClass.name}\$LokkiMock\$$hash\$$filePart")
-    }
+private fun MockClassKey.mockClassName(mocked: IrClass): Name {
+    val hash = typeKey.hashCode().toHexString()
+    val filePart = PackagePartClassUtils.getFilePartShortName(file.name)
+    return Name.identifier("${mocked.name}\$LokkiMock\$$hash\$$filePart")
+}
 
 private val IrTypeParameter.erasure: IrType
     get() = erasedUpperBound.symbol.starProjectedType.makeNullable()

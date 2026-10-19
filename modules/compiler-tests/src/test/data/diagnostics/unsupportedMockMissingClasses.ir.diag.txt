@@ -1,3 +1,5 @@
-/main.kt:37:5: error: 'lib.Plugin' or its supertypes declare members that refer to classes missing from the classpath: optional (dep.Missing).
+/main.kt:43:5: error: 'lib.Plugin' or its supertypes declare members that refer to classes missing from the classpath: optional (dep.Missing).
 
-/main.kt:38:5: error: 'lib.Store' or its supertypes declare members that refer to classes missing from the classpath: current (dep.Missing).
+/main.kt:44:5: error: 'lib.Store' or its supertypes declare members that refer to classes missing from the classpath: current (dep.Missing).
+
+/main.kt:45:5: error: 'lib.Subclass' has supertypes missing from the classpath: dep.MissingBase.

@@ -7,6 +7,8 @@ import io.lokki.mock
 
 interface Car
 
+interface Box<T>
+
 inline fun <reified T : Any> create(): T = mock<<!LOKKI_TYPE_ARGUMENT_NOT_CONCRETE!>T<!>>()
 
 inline fun <reified T : Any> inferred(): T = <!LOKKI_TYPE_ARGUMENT_NOT_CONCRETE!>mock()<!>
@@ -17,7 +19,11 @@ inline fun <reified T> definitelyNotNull(): T & Any = mock<<!DEFINITELY_NON_NULL
 
 class Factory<T : Any> {
     inline fun <reified R : T> create(): R = mock<<!LOKKI_TYPE_ARGUMENT_NOT_CONCRETE!>R<!>>()
+
+    fun box(): Box<T> = mock<Box<T>>()
 }
+
+inline fun <reified T> box(): Box<T> = mock<Box<T>>()
 
 fun test() {
     create<Car>()

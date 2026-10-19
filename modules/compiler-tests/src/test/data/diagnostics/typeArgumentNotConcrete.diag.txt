@@ -1,9 +1,9 @@
-/typeArgumentNotConcrete.kt:10:49: error: The type argument of 'mock' must be known at compile time, but 'T' is a type parameter.
+/typeArgumentNotConcrete.kt:12:49: error: The type argument of 'mock' must be known at compile time, but 'T' is a type parameter.
 
-/typeArgumentNotConcrete.kt:12:46: error: The type argument of 'mock' must be known at compile time, but 'T' is a type parameter.
+/typeArgumentNotConcrete.kt:14:46: error: The type argument of 'mock' must be known at compile time, but 'T' is a type parameter.
 
-/typeArgumentNotConcrete.kt:14:60: error: The type argument of 'mock' must be known at compile time, but 'T' is a type parameter.
+/typeArgumentNotConcrete.kt:16:60: error: The type argument of 'mock' must be known at compile time, but 'T' is a type parameter.
 
-/typeArgumentNotConcrete.kt:16:60: error: Cannot use definitely-non-nullable type as a reified type argument.
+/typeArgumentNotConcrete.kt:18:60: error: Cannot use definitely-non-nullable type as a reified type argument.
 
-/typeArgumentNotConcrete.kt:19:51: error: The type argument of 'mock' must be known at compile time, but 'R' is a type parameter.
+/typeArgumentNotConcrete.kt:21:51: error: The type argument of 'mock' must be known at compile time, but 'R' is a type parameter.

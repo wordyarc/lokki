@@ -79,7 +79,14 @@ tasks.test {
             componentFilter { it is ModuleComponentIdentifier && it.module == library.name }
         }.files
         jvmArgumentProviders.add(ClasspathSystemProperty("org.jetbrains.kotlin.test.${library.name}", artifact))
+        JAVAC_LIBRARY_PROPERTIES[library.name]?.let { jvmArgumentProviders.add(ClasspathSystemProperty(it, artifact)) }
     }
 
     jvmArgumentProviders.add(ClasspathSystemProperty("lokki.runtime.classpath", files(lokkiRuntimeClasspath)))
 }
+
+val JAVAC_LIBRARY_PROPERTIES = mapOf(
+    "kotlin-stdlib-jdk8" to "kotlin.full.stdlib.path",
+    "kotlin-reflect" to "kotlin.reflect.jar.path",
+    "kotlin-annotations-jvm" to "kotlin.mockJDK.annotations.path",
+)

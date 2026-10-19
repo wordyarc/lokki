@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.KtRealSourceElementKind
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Visibilities
+import org.jetbrains.kotlin.descriptors.java.JavaVisibilities
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.FirSession
@@ -41,8 +42,10 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.types.ConeClassLikeType
 import org.jetbrains.kotlin.fir.types.ConeDefinitelyNotNullType
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
+import org.jetbrains.kotlin.fir.types.ConeStarProjection
 import org.jetbrains.kotlin.fir.types.ConeTypeParameterType
 import org.jetbrains.kotlin.fir.types.coneType
+import org.jetbrains.kotlin.fir.types.contains
 import org.jetbrains.kotlin.fir.types.isNonPrimitiveArray
 import org.jetbrains.kotlin.fir.types.isNothing
 import org.jetbrains.kotlin.fir.types.lowerBoundIfFlexible
@@ -72,7 +75,7 @@ internal object MockChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
             return
         }
         val mocked = type.takeUnless { it.isNothing }?.toRegularClassSymbol(context.session) ?: return
-        val reason = mocked.notMockableReason()
+        val reason = mocked.notMockableReason() ?: (type as? ConeClassLikeType)?.irreplaceableStarProjection(mocked)
         if (reason != null) {
             reporter.reportOn(source, LokkiDiagnostics.LOKKI_TYPE_NOT_MOCKABLE, mocked.displayName, reason)
             return
@@ -102,9 +105,15 @@ private fun FirRegularClassSymbol.notMockableReason(): String? =
         isFinalType -> "it is a final class. Extract an interface or make the class and its members open"
         classKind == ClassKind.CLASS && declaredMemberScope().getDeclaredConstructors().none { it.isVisibleToMock() } ->
             "none of its constructors is visible from this file"
-        else -> hiddenAbstractMembers().takeIf { it.isNotEmpty() }?.let { members ->
+        else -> missingSupertypes().takeIf { it.isNotEmpty() }?.let { supertypes ->
+            "its supertypes are missing from the classpath: ${supertypes.joinToString()}. Add the dependency with " +
+                "these classes to the test compilation and runtime, e.g. with 'testImplementation'"
+        } ?: hiddenAbstractMembers().takeIf { it.isNotEmpty() }?.let { members ->
             "a mock cannot implement its abstract members that are not visible from this file: " +
                 members.joinToString { "'$it'" }
+        } ?: uninheritedAbstractMembers().takeIf { it.isNotEmpty() }?.let { members ->
+            "a mock cannot implement its package-private abstract members that it inherits through a class of " +
+                "another package: ${members.joinToString { "'$it'" }}"
         } ?: membersWithMissingClasses().takeIf { it.isNotEmpty() }?.let { members ->
             "it or its supertypes declare members that refer to classes missing from the classpath: " +
                 "${members.joinToString()}. Add the dependency with these classes to the test compilation and " +
@@ -112,11 +121,49 @@ private fun FirRegularClassSymbol.notMockableReason(): String? =
         }
     }
 
+private fun ConeClassLikeType.irreplaceableStarProjection(mocked: FirRegularClassSymbol): String? {
+    val stars = mocked.typeParameterSymbols.filterIndexed { index, _ -> typeArguments.getOrNull(index) is ConeStarProjection }
+    val parameter = stars.firstOrNull { star ->
+        val bounds = star.resolvedBounds
+        bounds.size > 1 ||
+            bounds.single().coneType.contains { it is ConeTypeParameterType && it.lookupTag.typeParameterSymbol in stars }
+    } ?: return null
+    return "the star projection for '${parameter.name}' cannot be replaced with the upper bound of '${parameter.name}'. " +
+        "Specify the type argument"
+}
+
 context(context: CheckerContext)
 private fun FirRegularClassSymbol.hiddenAbstractMembers(): List<String> {
     val members = sortedSetOf<String>()
     unsubstitutedScope().processAllCallables { member ->
         if (member.isAbstract && !member.isVisibleToMock()) members += member.name.asString()
+    }
+    return members.toList()
+}
+
+context(context: CheckerContext)
+private fun FirRegularClassSymbol.missingSupertypes(): List<String> =
+    lookupSuperTypes(this, lookupInterfaces = true, deep = true, context.session)
+        .filter { it.lookupTag.toSymbol(context.session) == null }
+        .map { it.lookupTag.classId.asFqNameString() }
+        .distinct()
+
+context(context: CheckerContext)
+private fun FirRegularClassSymbol.uninheritedAbstractMembers(): List<String> {
+    val superclasses = generateSequence(this) { type ->
+        type.resolvedSuperTypes.firstNotNullOfOrNull { supertype ->
+            supertype.toRegularClassSymbol(context.session)?.takeIf { it.classKind == ClassKind.CLASS }
+        }
+    }.toList()
+    val members = sortedSetOf<String>()
+    unsubstitutedScope().processAllCallables { member ->
+        val declaration = member.unwrapFakeOverrides()
+        val owner = declaration.callableId?.classId ?: return@processAllCallables
+        if (member.isAbstract && declaration.visibility == JavaVisibilities.PackageVisibility &&
+            superclasses.takeWhile { it.classId != owner }.any { it.classId.packageFqName != owner.packageFqName }
+        ) {
+            members += member.name.asString()
+        }
     }
     return members.toList()
 }

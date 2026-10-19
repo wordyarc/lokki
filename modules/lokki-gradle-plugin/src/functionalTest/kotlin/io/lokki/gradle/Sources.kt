@@ -9,7 +9,7 @@ fun exercise(type: String, call: String): String =
 
     fun exercise(mock: $type): Any? = mock.$call
 
-    fun exercisedMember(): String = "$type.${call.substringBefore('(')}"
+    fun exercisedMember(): String = "${type.substringBefore('<')}.${call.substringBefore('(')}"
     """
 
 fun mockTest(name: String, type: String, mock: String = "mock<$type>()"): String =

@@ -44,21 +44,24 @@ private val IrSimpleFunction.memberKey: String
         parameters.filter { it.kind == IrParameterKind.Regular }.joinTo(this, ",", "(", ")") { it.key(nullability) }
     }
 
+internal fun IrType.typeKey(typeParameters: List<IrTypeParameterSymbol>): String =
+    key(nullability = true) { typeParameters.indexOf(it.symbol) }
+
 private fun IrValueParameter.key(nullability: Boolean): String =
     varargElementType?.let { "vararg ${it.key(nullability)}" } ?: type.key(nullability)
 
-private fun IrType.key(nullability: Boolean): String =
+private fun IrType.key(nullability: Boolean, position: (IrTypeParameter) -> Int = { it.position }): String =
     if (this !is IrSimpleType) render() else buildString {
         when (val classifier = classifier) {
             is IrClassSymbol -> append(classifier.owner.kotlinFqName.asString())
-            is IrTypeParameterSymbol -> append('#').append(classifier.owner.position)
+            is IrTypeParameterSymbol -> append('#').append(position(classifier.owner))
             else -> append(render())
         }
         if (arguments.isNotEmpty()) {
             arguments.joinTo(this, ",", "<", ">") { argument ->
                 when (argument) {
                     is IrStarProjection -> "*"
-                    is IrTypeProjection -> argument.variance.prefix + argument.type.key(nullability)
+                    is IrTypeProjection -> argument.variance.prefix + argument.type.key(nullability, position)
                 }
             }
         }

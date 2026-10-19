@@ -1,11 +1,17 @@
-/main.kt:74:10: error: 'lib.Service' cannot be mocked: it or its supertypes declare members that refer to classes missing from the classpath: 'load' (dep.Missing). Add the dependency with these classes to the test compilation and runtime, e.g. with 'testImplementation'.
+/main.kt:86:10: error: 'lib.Service' cannot be mocked: it or its supertypes declare members that refer to classes missing from the classpath: 'load' (dep.Missing). Add the dependency with these classes to the test compilation and runtime, e.g. with 'testImplementation'.
 
-/main.kt:75:10: error: 'lib.Plugin' cannot be mocked: it or its supertypes declare members that refer to classes missing from the classpath: 'optional' (dep.Missing). Add the dependency with these classes to the test compilation and runtime, e.g. with 'testImplementation'.
+/main.kt:87:10: error: 'lib.Plugin' cannot be mocked: it or its supertypes declare members that refer to classes missing from the classpath: 'optional' (dep.Missing). Add the dependency with these classes to the test compilation and runtime, e.g. with 'testImplementation'.
 
-/main.kt:76:10: error: 'lib.ExtendedPlugin' cannot be mocked: it or its supertypes declare members that refer to classes missing from the classpath: 'optional' (dep.Missing). Add the dependency with these classes to the test compilation and runtime, e.g. with 'testImplementation'.
+/main.kt:88:10: error: 'lib.ExtendedPlugin' cannot be mocked: it or its supertypes declare members that refer to classes missing from the classpath: 'optional' (dep.Missing). Add the dependency with these classes to the test compilation and runtime, e.g. with 'testImplementation'.
 
-/main.kt:77:10: error: 'lib.Repository' cannot be mocked: it or its supertypes declare members that refer to classes missing from the classpath: 'optional' (dep.Missing). Add the dependency with these classes to the test compilation and runtime, e.g. with 'testImplementation'.
+/main.kt:89:10: error: 'lib.Repository' cannot be mocked: it or its supertypes declare members that refer to classes missing from the classpath: 'optional' (dep.Missing). Add the dependency with these classes to the test compilation and runtime, e.g. with 'testImplementation'.
 
-/main.kt:78:10: error: 'lib.Derived' cannot be mocked: it or its supertypes declare members that refer to classes missing from the classpath: 'helper' (dep.Missing). Add the dependency with these classes to the test compilation and runtime, e.g. with 'testImplementation'.
+/main.kt:90:10: error: 'lib.Derived' cannot be mocked: it or its supertypes declare members that refer to classes missing from the classpath: 'helper' (dep.Missing). Add the dependency with these classes to the test compilation and runtime, e.g. with 'testImplementation'.
 
-/main.kt:79:10: error: 'lib.Store' cannot be mocked: it or its supertypes declare members that refer to classes missing from the classpath: 'current' (dep.Missing), 'save' (dep.Missing), 'saveAll' (dep.Missing). Add the dependency with these classes to the test compilation and runtime, e.g. with 'testImplementation'.
+/main.kt:91:10: error: 'lib.Store' cannot be mocked: it or its supertypes declare members that refer to classes missing from the classpath: 'current' (dep.Missing), 'save' (dep.Missing), 'saveAll' (dep.Missing). Add the dependency with these classes to the test compilation and runtime, e.g. with 'testImplementation'.
+
+/main.kt:92:10: error: 'lib.Subclass' cannot be mocked: its supertypes are missing from the classpath: dep.Missing. Add the dependency with these classes to the test compilation and runtime, e.g. with 'testImplementation'.
+
+/main.kt:93:10: error: 'lib.Handler' cannot be mocked: its supertypes are missing from the classpath: dep.MissingApi. Add the dependency with these classes to the test compilation and runtime, e.g. with 'testImplementation'.
+
+/main.kt:94:10: error: 'lib.Grandchild' cannot be mocked: its supertypes are missing from the classpath: dep.Missing. Add the dependency with these classes to the test compilation and runtime, e.g. with 'testImplementation'.
