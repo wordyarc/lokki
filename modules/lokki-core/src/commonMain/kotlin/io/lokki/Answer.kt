@@ -1,8 +1,11 @@
 package io.lokki
 
+import io.lokki.internal.Abandoned
 import io.lokki.internal.GeneratedMock
 import io.lokki.internal.LokkiIntrinsic
 import io.lokki.internal.toStr
+import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
+import kotlin.coroutines.intrinsics.startCoroutineUninterceptedOrReturn
 import kotlin.reflect.KClass
 
 public fun interface Answer<out T> {
@@ -26,7 +29,24 @@ public class Invocation internal constructor(
 
     public val args: List<Any?> = ArgumentList(arguments)
 
-    internal fun callOriginal(): Any? = (self as GeneratedMock).`lokki$original`(member, arguments)
+    internal fun callOriginal(): Any? {
+        val mock = self as GeneratedMock
+        if (!method.isSuspend) return mock.`lokki$original`(member, arguments)
+        val result = suspend { mock.`lokki$coOriginal`(member, arguments) }.startCoroutineUninterceptedOrReturn(Abandoned)
+        if (result === COROUTINE_SUSPENDED) {
+            throw LokkiException("callOriginal() of suspend ${describe()} suspended; use coCallOriginal()")
+        }
+        return result
+    }
+
+    internal suspend fun coCallOriginal(): Any? {
+        val mock = self as GeneratedMock
+        return if (method.isSuspend) {
+            mock.`lokki$coOriginal`(member, arguments)
+        } else {
+            mock.`lokki$original`(member, arguments)
+        }
+    }
 
     internal fun describe(): String =
         (self as GeneratedMock).`lokki$state`.call(member, arguments.joinToString { it.toStr() })
@@ -67,6 +87,10 @@ public class AnswerScope<T> internal constructor(public val call: Call) {
     @Suppress("UNCHECKED_CAST")
     @LokkiIntrinsic(LokkiIntrinsic.Kind.ANSWER)
     public fun callOriginal(): T = invocation.callOriginal() as T
+
+    @Suppress("UNCHECKED_CAST")
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.ANSWER)
+    public suspend fun coCallOriginal(): T = invocation.coCallOriginal() as T
 }
 
 private class ArgumentList(private val arguments: Array<Any?>) : AbstractList<Any?>() {

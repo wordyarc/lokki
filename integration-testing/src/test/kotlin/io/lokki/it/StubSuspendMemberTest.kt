@@ -2,6 +2,7 @@ package io.lokki.it
 
 import io.lokki.coEvery
 import io.lokki.coJustRun
+import io.lokki.every
 import io.lokki.mock
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.EmptyCoroutineContext
@@ -24,6 +25,21 @@ class StubSuspendMemberTest {
         }
 
         assertEquals(Result.success("home -> work"), complete { Trip(navigator).plan("work") })
+    }
+
+    @Test
+    fun originalOfSuspendMemberSuspendsInMain() {
+        val mechanic = mock<Mechanic>()
+        val car = mock<Car>()
+        val navigator = mock<Navigator>()
+        every { car.plate } returns "A-1"
+        coEvery { navigator.route(any()) } coAnswers {
+            suspendCoroutine { waiting += it }
+            listOf("home", firstArg())
+        }
+        coEvery { mechanic.testDrive(car, navigator) } coAnswers { coCallOriginal().uppercase() }
+
+        assertEquals(Result.success("A-1: HOME -> GARAGE"), complete { mechanic.testDrive(car, navigator) })
     }
 
     private fun <T> complete(block: suspend () -> T): Result<T> {

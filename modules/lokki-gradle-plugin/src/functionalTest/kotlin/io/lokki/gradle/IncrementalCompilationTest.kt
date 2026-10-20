@@ -270,6 +270,66 @@ class IncrementalCompilationTest {
 
     @ParameterizedTest
     @EnumSource(GradleUnderTest::class)
+    fun testImplementedSuspendMemberOfSuperclassInMain(gradle: GradleUnderTest) {
+        val project = jvmProject(gradle)
+        project.write(
+            "src/main/kotlin/sample/Vehicle.kt",
+            declaration("abstract class Vehicle", "abstract suspend fun park(): String"),
+        )
+        project.write("src/main/kotlin/sample/Car.kt", declaration("abstract class Car : Vehicle()"))
+        project.write("src/main/kotlin/sample/Driver.kt", parking("no original implementation"))
+        project.write(
+            "src/test/kotlin/sample/Stubs.kt",
+            """
+            package sample
+
+            import io.lokki.AnswerScope
+            import io.lokki.coEvery
+
+            fun stubOriginalParking(car: Car) {
+                coEvery { car.park() } coAnswers { original() }
+            }
+
+            private suspend fun AnswerScope<String>.original(): String = coCallOriginal()
+            """,
+        )
+        project.write(
+            "src/test/kotlin/sample/CarTest.kt",
+            """
+            package sample
+
+            import io.lokki.mock
+            import kotlin.test.Test
+            import kotlin.test.assertEquals
+
+            class CarTest {
+                @Test
+                fun answerCallsTheOriginal() {
+                    val car = mock<Car>()
+                    stubOriginalParking(car)
+
+                    assertEquals(expectedParking(), parkingOf(car))
+                }
+            }
+            """,
+        )
+        project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
+
+        project.build("test")
+
+        project.write(
+            "src/main/kotlin/sample/Vehicle.kt",
+            declaration("abstract class Vehicle", "open suspend fun park(): String = \"parked\""),
+        )
+        project.write("src/main/kotlin/sample/Driver.kt", parking("parked"))
+        val result = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
+        assertEquals(setOf("Stubs.kt", "CarTest.kt"), project.compiledSources(":compileTestKotlin"))
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
     fun testNewMemberOfInterfaceInSameCompilation(gradle: GradleUnderTest) {
         val project = jvmProject(gradle)
         project.write("src/test/kotlin/sample/Boat.kt", declaration("interface Boat", "fun sail(): String"))
@@ -435,6 +495,23 @@ class IncrementalCompilationTest {
         fun exercise(mock: Car): Any? = mock.plate()
 
         fun relaxedPlate(): String? = $value
+        """
+
+    private fun parking(expected: String): String =
+        """
+        package sample
+
+        import kotlin.coroutines.Continuation
+        import kotlin.coroutines.EmptyCoroutineContext
+        import kotlin.coroutines.startCoroutine
+
+        fun parkingOf(car: Car): String? {
+            var outcome: Result<String>? = null
+            suspend { car.park() }.startCoroutine(Continuation(EmptyCoroutineContext) { outcome = it })
+            return outcome!!.fold({ it }, { it.message?.substringBefore(" for") })
+        }
+
+        fun expectedParking(): String = "$expected"
         """
 
     private fun radio(defaultVolume: Int): String =

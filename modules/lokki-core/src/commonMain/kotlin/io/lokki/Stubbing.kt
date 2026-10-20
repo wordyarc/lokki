@@ -62,6 +62,9 @@ public interface AdditionalAnswerScope<T> {
     public infix fun andThenAnswer(answer: AnswerScope<T>.(Call) -> T): AdditionalAnswerScope<T>
 
     @LokkiIntrinsic(LokkiIntrinsic.Kind.ANSWER)
+    public infix fun coAndThen(answer: suspend AnswerScope<T>.(Call) -> T): AdditionalAnswerScope<T>
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.ANSWER)
     public infix fun andThen(returnValue: T): AdditionalAnswerScope<T>
 
     @LokkiIntrinsic(LokkiIntrinsic.Kind.ANSWER)

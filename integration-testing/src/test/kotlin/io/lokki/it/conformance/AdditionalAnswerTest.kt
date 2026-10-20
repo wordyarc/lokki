@@ -61,6 +61,25 @@ class AdditionalAnswerTest {
     }
 
     @Test
+    fun andReturnsCoLambdaAnswer() {
+        every { mock.op(any()) } returns 3 coAndThen { 5 }
+
+        assertEquals(3, mock.op(1))
+        assertEquals(5, mock.op(2))
+        assertEquals(5, mock.op(3))
+    }
+
+    @Test
+    fun andReturnsTwoCoLambdasAnswer() {
+        every { mock.op(any()) } returns 3 coAndThen { 4 } coAndThen { 5 }
+
+        assertEquals(3, mock.op(1))
+        assertEquals(4, mock.op(2))
+        assertEquals(5, mock.op(3))
+        assertEquals(5, mock.op(4))
+    }
+
+    @Test
     fun andReturnsAnswerClassAnswer() {
         every { mock.op(any()) } returns 3 andThenAnswer Answer { 5 }
 
@@ -165,6 +184,7 @@ class AdditionalAnswerTest {
             .andThenAnswer(Answer { 8 })
             .andThenThrows(IllegalArgumentException())
             .andThenAnswer { 9 }
+            .coAndThen { 10 }
             .andThenThrows(IllegalStateException())
             .andThen(11)
 
@@ -178,6 +198,7 @@ class AdditionalAnswerTest {
             mock.op(7)
         }
         assertEquals(9, mock.op(8))
+        assertEquals(10, mock.op(9))
         assertFailsWith(IllegalStateException::class) {
             mock.op(10)
         }

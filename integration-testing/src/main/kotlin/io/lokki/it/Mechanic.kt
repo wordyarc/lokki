@@ -5,6 +5,9 @@ abstract class Mechanic(private val name: String) {
 
     open fun repair(car: Car): String = "repaired ${car.plate}"
 
+    open suspend fun testDrive(car: Car, navigator: Navigator): String =
+        "${car.plate}: ${navigator.route("garage").joinToString(" -> ")}"
+
     fun service(car: Car): String = "${diagnose(car)}, ${repair(car)}"
 
     fun signature(): String = "serviced by $name"

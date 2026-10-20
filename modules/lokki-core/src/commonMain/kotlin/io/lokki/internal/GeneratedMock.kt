@@ -14,6 +14,9 @@ internal interface GeneratedMock {
     fun `lokki$original`(member: Int, args: Array<Any?>): Any?
 
     @JvmSynthetic
+    suspend fun `lokki$coOriginal`(member: Int, args: Array<Any?>): Any?
+
+    @JvmSynthetic
     fun `lokki$relaxed`(member: Int): Any?
 
     @JvmSynthetic

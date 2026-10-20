@@ -302,6 +302,8 @@ private class PendingStub<T>(
 
     override fun andThenAnswer(answer: AnswerScope<T>.(Call) -> T): AdditionalAnswerScope<T> = answers(answer)
 
+    override fun coAndThen(answer: suspend AnswerScope<T>.(Call) -> T): AdditionalAnswerScope<T> = coAnswers(answer)
+
     override fun andThen(returnValue: T): AdditionalAnswerScope<T> = returns(returnValue)
 
     override fun andThenMany(values: List<T>): AdditionalAnswerScope<T> = returnsMany(values)

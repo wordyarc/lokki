@@ -93,6 +93,7 @@ internal object StubAnswerChecker : FirFunctionCallChecker(MppCheckerKind.Common
                         element.calleeReference.source ?: element.source,
                         LokkiDiagnostics.LOKKI_ABSTRACT_ORIGINAL_CALL,
                         member.name.asString(),
+                        element.calleeReference.name.asString(),
                     )
                 }
                 element.acceptChildren(this)
@@ -120,7 +121,7 @@ context(context: CheckerContext)
 private fun FirFunctionCall.isOriginalCallIn(scope: FirBasedSymbol<*>): Boolean {
     val function = calleeReference.toResolvedCallableSymbol() ?: return false
     val receiver = dispatchReceiver?.unwrapSmartcastExpression() as? FirThisReceiverExpression ?: return false
-    return function.name.asString() == CALL_ORIGINAL &&
+    return function.name.asString() in ORIGINAL_CALLS &&
         function.intrinsicKind(context.session) == IntrinsicKind.ANSWER &&
         receiver.calleeReference.boundSymbol == scope
 }
@@ -179,5 +180,5 @@ private fun FirFunctionCall.returnsResultOf(lambda: FirAnonymousFunction): Boole
 }
 
 private const val RETURNS_ARGUMENT = "returnsArgument"
-private const val CALL_ORIGINAL = "callOriginal"
-private val ANSWER_BLOCKS = setOf("answers", "coAnswers", "andThenAnswer")
+private val ORIGINAL_CALLS = setOf("callOriginal", "coCallOriginal")
+private val ANSWER_BLOCKS = setOf("answers", "coAnswers", "andThenAnswer", "coAndThen")

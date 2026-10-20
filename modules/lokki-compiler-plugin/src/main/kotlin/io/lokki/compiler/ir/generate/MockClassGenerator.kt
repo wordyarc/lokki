@@ -151,11 +151,12 @@ internal class MockClassGenerator(
             .single { symbols.state.symbol in it.overriddenSymbols }
         val functions = mock.declarations.filterIsInstance<IrSimpleFunction>()
         val original = functions.single { symbols.original.symbol in it.overriddenSymbols }
+        val coOriginal = functions.single { symbols.coOriginal.symbol in it.overriddenSymbols }
         val relaxed = functions.single { symbols.relaxed.symbol in it.overriddenSymbols }
         val describe = functions.single { symbols.describe.symbol in it.overriddenSymbols }
         val (methodsOfAny, declared) = mock.declarations.flatMap { member ->
             when (member) {
-                original, relaxed, describe -> emptyList()
+                original, coOriginal, relaxed, describe -> emptyList()
                 is IrSimpleFunction -> listOf(member)
                 is IrProperty -> if (member == stateProperty) emptyList() else listOfNotNull(member.getter, member.setter)
                 else -> emptyList()
@@ -163,8 +164,9 @@ internal class MockClassGenerator(
         }.partition { it.isMethodOfAny() }
         val members = METHODS_OF_ANY.map { name -> methodsOfAny.single { it.name == name } } +
             declared.filter { it.modality != Modality.FINAL }
-        val originals = members.withIndex()
-            .filter { (_, member) -> member.modality != Modality.ABSTRACT && !member.isSuspend }
+        val (coOriginals, originals) = members.withIndex()
+            .filter { (_, member) -> member.modality != Modality.ABSTRACT }
+            .partition { (_, member) -> member.isSuspend }
         val descriptor = mock.addDescriptor(mocked, members)
         val state = stateProperty.implementState(mock, isFinal = spec != null)
         if (spec != null) {
@@ -177,7 +179,8 @@ internal class MockClassGenerator(
         members.forEachIndexed { index, member ->
             if (member.modality != Modality.FINAL) member.implement(mock, state, index)
         }
-        original.implementOriginal(mock, mocked, state, originals)
+        original.implementOriginal(mock, mocked, state, originals, ORIGINAL_BRANCH_BYTES)
+        coOriginal.implementOriginal(mock, mocked, state, coOriginals, CO_ORIGINAL_BRANCH_BYTES)
         val names = ownParameters.zip(parameters).associate { (own, parameter) -> own.symbol to parameter.owner.name }
         relaxed.implementRelaxed(mock, members) { (names[it.symbol] ?: it.name).asString() }
         describe.implementDescribe(mock, members, key.file)
@@ -315,9 +318,10 @@ internal class MockClassGenerator(
         mocked: IrClass,
         state: IrField,
         originals: List<IndexedValue<IrSimpleFunction>>,
+        branchBytes: Int,
     ) {
         val widest = originals.maxOfOrNull { it.value.nonDispatchParameters.size } ?: 0
-        val partSize = maxOf(1, PART_BYTES / (ORIGINAL_BRANCH_BYTES + ORIGINAL_ARGUMENT_BYTES * widest))
+        val partSize = maxOf(1, PART_BYTES / (branchBytes + ORIGINAL_ARGUMENT_BYTES * widest))
         implementDispatcher(
             mock,
             originals,
@@ -385,8 +389,13 @@ internal class MockClassGenerator(
         if (parts.size <= 1) return dispatch(otherwise) { branches(it, entries) }
 
         val functions = parts.mapValues { (part, members) ->
-            mock.addFunction("$name\$$part", returnType, origin = origin).apply {
-                visibility = DescriptorVisibilities.PRIVATE
+            mock.addFunction(
+                "$name\$$part",
+                returnType,
+                visibility = DescriptorVisibilities.PRIVATE,
+                isSuspend = isSuspend,
+                origin = origin,
+            ).apply {
                 markSynthetic()
                 for (parameter in this@implementDispatcher.nonDispatchParameters) {
                     addValueParameter(parameter.name.asString(), parameter.type, MOCK_PARAMETER)
@@ -514,6 +523,7 @@ private val METHODS_OF_ANY =
     listOf(OperatorNameConventions.EQUALS, OperatorNameConventions.HASH_CODE, OperatorNameConventions.TO_STRING)
 private const val PART_BYTES = 32_000
 private const val ORIGINAL_BRANCH_BYTES = 24
+private const val CO_ORIGINAL_BRANCH_BYTES = 96
 private const val ORIGINAL_ARGUMENT_BYTES = 16
 private const val RELAXED_BRANCH_BYTES = 24
 private const val DESCRIBE_BRANCH_BYTES = 32

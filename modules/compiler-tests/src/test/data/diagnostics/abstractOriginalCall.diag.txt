@@ -12,4 +12,12 @@
 
 /abstractOriginalCall.kt:44:43: error: 'pressure' is abstract, so 'callOriginal()' has no implementation to call.
 
-/abstractOriginalCall.kt:51:43: error: 'start' is abstract, so 'callOriginal()' has no implementation to call.
+/abstractOriginalCall.kt:46:42: error: 'fetch' is abstract, so 'coCallOriginal()' has no implementation to call.
+
+/abstractOriginalCall.kt:47:52: error: 'fetch' is abstract, so 'coCallOriginal()' has no implementation to call.
+
+/abstractOriginalCall.kt:48:52: error: 'fetch' is abstract, so 'callOriginal()' has no implementation to call.
+
+/abstractOriginalCall.kt:49:43: error: 'pressure' is abstract, so 'coCallOriginal()' has no implementation to call.
+
+/abstractOriginalCall.kt:56:43: error: 'start' is abstract, so 'callOriginal()' has no implementation to call.

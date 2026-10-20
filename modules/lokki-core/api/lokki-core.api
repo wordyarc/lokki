@@ -6,6 +6,7 @@ public abstract interface class io/lokki/AdditionalAnswerScope {
 	public abstract fun andThenMany ([Ljava/lang/Object;)Lio/lokki/AdditionalAnswerScope;
 	public abstract fun andThenThrows (Ljava/lang/Throwable;)Lio/lokki/AdditionalAnswerScope;
 	public abstract fun andThenThrowsMany (Ljava/util/List;)Lio/lokki/AdditionalAnswerScope;
+	public abstract fun coAndThen (Lkotlin/jvm/functions/Function3;)Lio/lokki/AdditionalAnswerScope;
 }
 
 public abstract interface class io/lokki/Answer {
@@ -20,6 +21,7 @@ public final class io/lokki/Answer$DefaultImpls {
 public final class io/lokki/AnswerScope {
 	public final fun callOriginal ()Ljava/lang/Object;
 	public final fun captured (Ljava/util/List;)Ljava/lang/Object;
+	public final fun coCallOriginal (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun getArgs ()Ljava/util/List;
 	public final fun getCall ()Lio/lokki/Call;
 	public final fun getInvocation ()Lio/lokki/Invocation;
@@ -219,6 +221,7 @@ public final class io/lokki/internal/EqMatcher : io/lokki/Matcher {
 public abstract interface class io/lokki/internal/GeneratedMock {
 	public static final field Companion Lio/lokki/internal/GeneratedMock$Companion;
 	public abstract synthetic fun getLokki$state ()Lio/lokki/internal/MockState;
+	public abstract synthetic fun lokki$coOriginal (I[Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract synthetic fun lokki$describe (I)Lio/lokki/MethodDescription;
 	public abstract synthetic fun lokki$original (I[Ljava/lang/Object;)Ljava/lang/Object;
 	public abstract synthetic fun lokki$relaxed (I)Ljava/lang/Object;

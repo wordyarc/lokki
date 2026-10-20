@@ -319,6 +319,71 @@ class MockStateTest {
     }
 
     @Test
+    fun testCoCallOriginalReceivesTheMemberAndTheArgumentsOfTheCall() {
+        val mock = TestMock("repo", FIND, suspending = setOf(FIND))
+        val calls = ArrayList<Pair<Int, Array<Any?>>>()
+        var pending: Continuation<Unit>? = null
+        mock.coOriginal = { member, arguments ->
+            calls += member to arguments
+            suspendCoroutine { pending = it }
+            "original ${arguments[0]}"
+        }
+        mock.`lokki$state`.stub<String>(FIND, arrayOf(AnyMatcher, AnyMatcher)) coAnswers { coCallOriginal() + "!" }
+        val arguments = arrayOf<Any?>(7, true)
+
+        val outcome = start { mock.`lokki$state`.coAnswer<String>(FIND_MEMBER, arguments) }
+        assertNull(outcome())
+        pending!!.resume(Unit)
+
+        assertEquals(Result.success("original 7!"), outcome())
+        assertEquals(FIND_MEMBER, calls.single().first)
+        assertSame(arguments, calls.single().second)
+    }
+
+    @Test
+    fun testCallOriginalOfSuspendMemberMustNotSuspend() {
+        val mock = TestMock("repo", FIND, suspending = setOf(FIND))
+        mock.original = { _, _ -> throw AssertionError("a suspend member has no original in lokki\$original") }
+        mock.coOriginal = { _, arguments ->
+            if (arguments[0] == 2) suspendCoroutine<Unit> { }
+            "original ${arguments[0]}"
+        }
+        val state = mock.`lokki$state`
+        val name = state.answer(TO_STRING, emptyArray())
+        state.stub<String>(FIND, arrayOf(AnyMatcher, AnyMatcher)) answers { callOriginal() + "!" }
+
+        assertEquals(Result.success("original 1!"), start { state.coAnswer<String>(FIND_MEMBER, arrayOf(1, true)) }())
+        assertEquals(
+            "callOriginal() of suspend $name.find(2, true) suspended; use coCallOriginal()",
+            start { state.coAnswer<String>(FIND_MEMBER, arrayOf(2, true)) }()?.exceptionOrNull()?.message,
+        )
+    }
+
+    @Test
+    fun testCoCallOriginalOfNonSuspendMember() {
+        val mock = TestMock("repo", FIND)
+        mock.original = { _, arguments -> "original ${arguments[0]}" }
+        mock.`lokki$state`.stub<String>(FIND, arrayOf(AnyMatcher, AnyMatcher)) coAnswers { coCallOriginal() + "!" }
+
+        assertEquals("original 7!", mock.`lokki$state`.answer(FIND_MEMBER, arrayOf(7, true)))
+    }
+
+    @Test
+    fun testCoAndThenAddsSuspendingAnswer() {
+        var pending: Continuation<Unit>? = null
+        state.stub<String>(FIND, arrayOf(AnyMatcher, AnyMatcher)) returns "first" coAndThen {
+            suspendCoroutine { pending = it }
+            "then ${firstArg<Int>()}"
+        }
+
+        assertEquals(Result.success("first"), start { state.coAnswer<String>(FIND_MEMBER, arrayOf(1, true)) }())
+        val outcome = start { state.coAnswer<String>(FIND_MEMBER, arrayOf(2, true)) }
+        assertNull(outcome())
+        pending!!.resume(Unit)
+        assertEquals(Result.success("then 2"), outcome())
+    }
+
+    @Test
     fun testRelaxedMockAnswersWithTheDefaultOfTheMember() {
         val mock = TestMock("repo", FIND, SAVE, flags = RELAXED)
         val defaults = mapOf<Int, Any?>(FIND_MEMBER to null, SAVE_MEMBER to Unit)

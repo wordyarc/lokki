@@ -43,6 +43,11 @@ fun test() {
     coEvery { pump.fetch() } coAnswers { <!LOKKI_ABSTRACT_ORIGINAL_CALL!>callOriginal<!>() }
     every { pump.pressure() } coAnswers { <!LOKKI_ABSTRACT_ORIGINAL_CALL!>callOriginal<!>() }
     every { pump.name() } coAnswers { callOriginal() }
+    coEvery { pump.fetch() } coAnswers { <!LOKKI_ABSTRACT_ORIGINAL_CALL!>coCallOriginal<!>() }
+    coEvery { pump.fetch() } returns 1 coAndThen { <!LOKKI_ABSTRACT_ORIGINAL_CALL!>coCallOriginal<!>() }
+    coEvery { pump.fetch() } returns 1 coAndThen { <!LOKKI_ABSTRACT_ORIGINAL_CALL!>callOriginal<!>() }
+    every { pump.pressure() } coAnswers { <!LOKKI_ABSTRACT_ORIGINAL_CALL!>coCallOriginal<!>() }
+    every { pump.name() } coAnswers { coCallOriginal() }
     every { pump.pressure() } answers { original() }
     val stub = every { pump.pressure() }
     stub answers { callOriginal() }
