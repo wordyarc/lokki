@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.incremental.components.LookupTracker
 import org.jetbrains.kotlin.ir.IrElement
+import org.jetbrains.kotlin.ir.builders.IrBlockBodyBuilder
 import org.jetbrains.kotlin.ir.builders.IrBuilder
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
 import org.jetbrains.kotlin.ir.builders.declarations.addBackingField
@@ -109,6 +110,7 @@ internal class MockClassGenerator(
     private val origin = IrDeclarationOrigin.GeneratedByPlugin(LokkiPluginKey)
     private val typeSystem = IrTypeSystemContextImpl(context.irBuiltIns)
     private val anyConstructor = context.irBuiltIns.anyClass.owner.constructors.single()
+    private val relaxedDefaults = RelaxedDefaults(context, symbols)
 
     fun generate(key: MockClassKey, usage: MockClassUsage): IrClass {
         val mocked = usage.mockedType.mockedClass
@@ -138,11 +140,12 @@ internal class MockClassGenerator(
 
         val stateProperty = mock.declarations.filterIsInstance<IrProperty>()
             .single { symbols.state.symbol in it.overriddenSymbols }
-        val dispatcher = mock.declarations.filterIsInstance<IrSimpleFunction>()
-            .single { symbols.original.symbol in it.overriddenSymbols }
+        val functions = mock.declarations.filterIsInstance<IrSimpleFunction>()
+        val original = functions.single { symbols.original.symbol in it.overriddenSymbols }
+        val relaxed = functions.single { symbols.relaxed.symbol in it.overriddenSymbols }
         val (methodsOfAny, declared) = mock.declarations.flatMap { member ->
             when (member) {
-                dispatcher -> emptyList()
+                original, relaxed -> emptyList()
                 is IrSimpleFunction -> listOf(member)
                 is IrProperty -> if (member == stateProperty) emptyList() else listOfNotNull(member.getter, member.setter)
                 else -> emptyList()
@@ -164,7 +167,9 @@ internal class MockClassGenerator(
         members.forEachIndexed { index, member ->
             if (member.modality != Modality.FINAL) member.implement(mock, state, index)
         }
-        dispatcher.implementOriginal(mock, mocked, state, originals)
+        original.implementOriginal(mock, mocked, state, originals)
+        val names = ownParameters.zip(parameters).associate { (own, parameter) -> own.symbol to parameter.owner.name }
+        relaxed.implementRelaxed(mock, members) { (names[it.symbol] ?: it.name).asString() }
         lookupTracker?.recordMockedTypeLookups(mocked, key.file)
         return mock
     }
@@ -294,58 +299,104 @@ internal class MockClassGenerator(
         state: IrField,
         originals: List<IndexedValue<IrSimpleFunction>>,
     ) {
+        val widest = originals.maxOfOrNull { it.value.nonDispatchParameters.size } ?: 0
+        val partSize = maxOf(1, PART_BYTES / (ORIGINAL_BRANCH_BYTES + ORIGINAL_ARGUMENT_BYTES * widest))
+        implementDispatcher(
+            mock,
+            originals,
+            partSize,
+            otherwise = { function ->
+                val (member, arguments) = function.nonDispatchParameters
+                irCall(symbols.noOriginal).apply {
+                    this.arguments[0] = irGetField(irGet(function.dispatchReceiverParameter!!), state)
+                    this.arguments[1] = irGet(member)
+                    this.arguments[2] = irGet(arguments)
+                }
+            },
+        ) { function, entries ->
+            val (member, arguments) = function.nonDispatchParameters
+            entries.map { (index, original) ->
+                irBranch(
+                    irEquals(irGet(member), irInt(index)),
+                    irOriginalCall(mocked, original, function.dispatchReceiverParameter!!, arguments),
+                )
+            }
+        }
+    }
+
+    private fun IrSimpleFunction.implementRelaxed(
+        mock: IrClass,
+        members: List<IrSimpleFunction>,
+        parameterName: (IrTypeParameter) -> String,
+    ) {
+        val defaults = members.withIndex().drop(METHODS_OF_ANY.size).mapNotNull { (index, member) ->
+            relaxedDefaults.of(member.returnType, parameterName)?.let { IndexedValue(index, it) }
+        }
+        val partSize = PART_BYTES / RELAXED_BRANCH_BYTES
+        implementDispatcher(mock, defaults, partSize, otherwise = { irNull() }) { function, entries ->
+            val member = function.nonDispatchParameters.single()
+            entries.groupBy { it.value.key }.values.map { group ->
+                val conditions = group.map { irEquals(irGet(member), irInt(it.index)) }
+                irBranch(irAnyOf(conditions), group.first().value.expression(this))
+            }
+        }
+    }
+
+    private fun <T> IrSimpleFunction.implementDispatcher(
+        mock: IrClass,
+        entries: List<IndexedValue<T>>,
+        partSize: Int,
+        otherwise: IrBuilderWithScope.(IrSimpleFunction) -> IrExpression,
+        branches: IrBuilderWithScope.(IrSimpleFunction, List<IndexedValue<T>>) -> List<IrBranch>,
+    ) {
         materialize()
         markSynthetic()
         adoptParameters(mock)
-        val widest = originals.maxOfOrNull { it.value.nonDispatchParameters.size } ?: 0
-        val partSize = maxOf(1, ORIGINAL_PART_BYTES / (ORIGINAL_BRANCH_BYTES + ORIGINAL_ARGUMENT_BYTES * widest))
-        val parts = originals.groupBy { it.index / partSize }
-        if (parts.size <= 1) return dispatchOriginals(mocked, state, originals)
+        val parts = entries.groupBy { it.index / partSize }
+        if (parts.size <= 1) return dispatch(otherwise) { branches(it, entries) }
 
         val functions = parts.mapValues { (part, members) ->
-            mock.addFunction("lokki\$original\$$part", context.irBuiltIns.anyNType, origin = origin).apply {
+            mock.addFunction("$name\$$part", returnType, origin = origin).apply {
                 visibility = DescriptorVisibilities.PRIVATE
                 markSynthetic()
-                for (parameter in this@implementOriginal.nonDispatchParameters) {
+                for (parameter in this@implementDispatcher.nonDispatchParameters) {
                     addValueParameter(parameter.name.asString(), parameter.type, MOCK_PARAMETER)
                 }
-                dispatchOriginals(mocked, state, members)
+                dispatch(otherwise) { branches(it, members) }
             }
         }
-        val (member, arguments) = nonDispatchParameters
-        body = DeclarationIrBuilder(context, symbol).irBlockBody {
-            val self = dispatchReceiverParameter!!
+        val parameters = nonDispatchParameters
+        dispatch(otherwise) { dispatcher ->
             val part = irTemporary(
-                irCallOp(symbols.intDiv.symbol, context.irBuiltIns.intType, irGet(member), irInt(partSize))
+                irCallOp(symbols.intDiv.symbol, context.irBuiltIns.intType, irGet(parameters.first()), irInt(partSize))
             )
-            val branches = functions.map { (index, function) ->
+            functions.map { (index, function) ->
                 irBranch(
                     irEquals(irGet(part), irInt(index)),
                     irCall(function).apply {
-                        this.arguments[0] = irGet(self)
-                        this.arguments[1] = irGet(member)
-                        this.arguments[2] = irGet(arguments)
+                        arguments[0] = irGet(dispatcher.dispatchReceiverParameter!!)
+                        parameters.forEachIndexed { position, parameter -> arguments[position + 1] = irGet(parameter) }
                     },
                 )
             }
-            +irDispatch(branches, state, self, member, arguments)
         }
     }
 
-    private fun IrSimpleFunction.dispatchOriginals(
-        mocked: IrClass,
-        state: IrField,
-        originals: List<IndexedValue<IrSimpleFunction>>,
+    private fun IrSimpleFunction.dispatch(
+        otherwise: IrBuilderWithScope.(IrSimpleFunction) -> IrExpression,
+        branches: IrBlockBodyBuilder.(IrSimpleFunction) -> List<IrBranch>,
     ) {
-        val (member, arguments) = nonDispatchParameters
         body = DeclarationIrBuilder(context, symbol).irBlockBody {
-            val self = dispatchReceiverParameter!!
-            val branches = originals.map { (index, original) ->
-                irBranch(irEquals(irGet(member), irInt(index)), irOriginalCall(mocked, original, self, arguments))
-            }
-            +irDispatch(branches, state, self, member, arguments)
+            val dispatch = branches(this@dispatch) + irElseBranch(otherwise(this@dispatch))
+            +irReturn(irWhen(returnType, dispatch))
         }
     }
+
+    private fun IrBuilder.irAnyOf(conditions: List<IrExpression>): IrExpression =
+        conditions.singleOrNull() ?: irCall(context.irBuiltIns.ororSymbol, context.irBuiltIns.booleanType).apply {
+            arguments[0] = irAnyOf(conditions.subList(0, conditions.size / 2))
+            arguments[1] = irAnyOf(conditions.subList(conditions.size / 2, conditions.size))
+        }
 
     private fun IrBuilder.irOriginalCall(
         mocked: IrClass,
@@ -374,21 +425,6 @@ internal class MockClassGenerator(
                     irAs(irArrayGet(arguments, index), parameter.type.substitute(erasure))
             }
         }
-    }
-
-    private fun IrBuilderWithScope.irDispatch(
-        branches: List<IrBranch>,
-        state: IrField,
-        self: IrValueParameter,
-        member: IrValueParameter,
-        arguments: IrValueParameter,
-    ): IrExpression {
-        val noOriginal = irCall(symbols.noOriginal).apply {
-            this.arguments[0] = irGetField(irGet(self), state)
-            this.arguments[1] = irGet(member)
-            this.arguments[2] = irGet(arguments)
-        }
-        return irReturn(irWhen(context.irBuiltIns.anyNType, branches + irElseBranch(noOriginal)))
     }
 
     private fun IrBuilder.irArrayGet(array: IrValueParameter, index: Int): IrExpression =
@@ -446,6 +482,7 @@ internal val INIT = Name.identifier("lokki\$init")
 private val MOCK_PARAMETER = IrDeclarationOriginImpl("LOKKI_MOCK_PARAMETER", isSynthetic = true)
 private val METHODS_OF_ANY =
     listOf(OperatorNameConventions.EQUALS, OperatorNameConventions.HASH_CODE, OperatorNameConventions.TO_STRING)
-private const val ORIGINAL_PART_BYTES = 32_000
+private const val PART_BYTES = 32_000
 private const val ORIGINAL_BRANCH_BYTES = 24
 private const val ORIGINAL_ARGUMENT_BYTES = 16
+private const val RELAXED_BRANCH_BYTES = 24

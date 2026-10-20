@@ -146,6 +146,7 @@ public abstract interface class io/lokki/internal/GeneratedMock {
 	public static final field Companion Lio/lokki/internal/GeneratedMock$Companion;
 	public abstract synthetic fun getLokki$state ()Lio/lokki/internal/MockState;
 	public abstract synthetic fun lokki$original (I[Ljava/lang/Object;)Ljava/lang/Object;
+	public abstract synthetic fun lokki$relaxed (I)Ljava/lang/Object;
 }
 
 public final class io/lokki/internal/GeneratedMock$Companion {
@@ -227,6 +228,10 @@ public final class io/lokki/internal/MockState {
 	public static synthetic fun exclude$default (Lio/lokki/internal/MockState;Ljava/lang/String;[Lio/lokki/Matcher;ZILjava/lang/Object;)V
 	public final fun noOriginal (I[Ljava/lang/Object;)Ljava/lang/Void;
 	public final fun stub (Ljava/lang/String;[Lio/lokki/Matcher;)Lio/lokki/StubScope;
+}
+
+public final class io/lokki/internal/NoRelaxedDefault {
+	public fun <init> (Ljava/lang/String;)V
 }
 
 public final class io/lokki/internal/Registration {

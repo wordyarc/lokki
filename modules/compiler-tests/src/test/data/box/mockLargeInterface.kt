@@ -1520,5 +1520,15 @@ fun box(): String {
         if (!e.message!!.startsWith("no answer found for $large.member750(1, a) ")) return "Fail message: ${e.message}"
     }
 
+    val relaxed = mock<Large>(relaxed = true)
+    every { relaxed.member750(any(), any()) } returns 3
+    if (relaxed.member0(1, "a") != 0 || relaxed.member750(1, "a") != 3 || relaxed.member1499(1, "a") != 0) {
+        return "Fail: relaxed"
+    }
+    val parts = relaxed.javaClass.declaredMethods.filter { it.name.startsWith("lokki\$relaxed\$") }
+    if (parts.size < 2 || !parts.all { it.isSynthetic }) {
+        return "Fail: the relaxed defaults are not split: ${parts.map { it.name }}"
+    }
+
     return "OK"
 }

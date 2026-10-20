@@ -31,6 +31,19 @@ class MockInterfaceTest {
     }
 
     @Test
+    fun relaxedMockAnswersMembersCalledFromMainWithDefaults() {
+        val car = mock<Car>(relaxed = true)
+        val garage = Garage(car)
+
+        assertEquals("", garage.leave())
+        assertEquals("", garage.plate())
+        assertEquals(
+            "relaxed mock has no default for Radio returned by $car.getRadio(); stub the call",
+            assertFailsWith<LokkiException> { garage.news() }.message,
+        )
+    }
+
+    @Test
     fun strictMockHasNoAnswerForMemberOfNestedInterface() {
         val engine: Engine = mock()
 

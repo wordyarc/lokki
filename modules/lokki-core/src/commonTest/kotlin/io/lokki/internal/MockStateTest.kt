@@ -235,6 +235,62 @@ class MockStateTest {
     }
 
     @Test
+    fun testRelaxedMockAnswersWithTheDefaultOfTheMember() {
+        val mock = TestMock("repo", FIND, SAVE, flags = RELAXED)
+        val defaults = mapOf<Int, Any?>(FIND_MEMBER to null, SAVE_MEMBER to Unit)
+        mock.relaxed = defaults::getValue
+        val state = mock.`lokki$state`
+        state.stub<String>(FIND, arrayOf(EqMatcher(1), AnyMatcher)) returns "one"
+
+        assertEquals("one", state.answer(FIND_MEMBER, arrayOf(1, true)))
+        assertEquals(null, state.answer(FIND_MEMBER, arrayOf(2, true)))
+        assertEquals(Unit, state.answer(SAVE_MEMBER, emptyArray()))
+        assertEquals(3, state.records().size)
+        assertEquals(emptyList(), state.unansweredRecords())
+    }
+
+    @Test
+    fun testRelaxedMockWithoutDefaultFails() {
+        val mock = TestMock("repo", FIND, flags = RELAXED)
+        mock.relaxed = { NoRelaxedDefault("Engine") }
+        val state = mock.`lokki$state`
+        val name = state.answer(TO_STRING, emptyArray())
+
+        assertEquals(
+            "relaxed mock has no default for Engine returned by $name.find(7, true); stub the call",
+            assertFailsWith<LokkiException> { state.answer(FIND_MEMBER, arrayOf(7, true)) }.message,
+        )
+        assertEquals(listOf("$name.find(7, true)"), state.unansweredRecords().map { it.toString() })
+    }
+
+    @Test
+    fun testRelaxedUnitFunAnswersOnlyUnitMembers() {
+        val mock = TestMock("repo", FIND, SAVE, flags = RELAX_UNIT_FUN)
+        val defaults = mapOf(FIND_MEMBER to "", SAVE_MEMBER to Unit)
+        mock.relaxed = defaults::getValue
+        val state = mock.`lokki$state`
+        val name = state.answer(TO_STRING, emptyArray())
+
+        assertEquals(Unit, state.answer(SAVE_MEMBER, emptyArray()))
+        assertEquals(
+            "no answer found for $name.find(7, true) among the configured answers: ()",
+            assertFailsWith<LokkiException> { state.answer(FIND_MEMBER, arrayOf(7, true)) }.message,
+        )
+        assertEquals(listOf("$name.find(7, true)"), state.unansweredRecords().map { it.toString() })
+    }
+
+    @Test
+    fun testStrictMockDoesNotAskForDefaults() {
+        val mock = TestMock("repo", FIND)
+        mock.relaxed = { throw AssertionError("a strict mock asked for the default of member $it") }
+
+        assertTrue(
+            assertFailsWith<LokkiException> { mock.`lokki$state`.answer(FIND_MEMBER, arrayOf(7, true)) }
+                .message!!.startsWith("no answer found for "),
+        )
+    }
+
+    @Test
     fun testArgumentIsReturned() {
         state.stub<Any?>(FIND, arrayOf(AnyMatcher, AnyMatcher)) returnsArgument 1
 
@@ -361,11 +417,13 @@ class MockStateTest {
 
     private companion object {
         const val FIND = "sample.Repo#find(kotlin.Int,kotlin.Boolean)"
+        const val SAVE = "sample.Repo#save()"
         const val EQUALS = 0
         const val HASH_CODE = 1
         const val TO_STRING = 2
         const val FIND_MEMBER = 3
         const val LABEL_MEMBER = 4
         const val OPEN_MEMBER = 5
+        const val SAVE_MEMBER = 4
     }
 }

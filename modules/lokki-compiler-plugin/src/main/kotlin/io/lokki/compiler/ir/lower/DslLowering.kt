@@ -20,14 +20,17 @@ import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
 import org.jetbrains.kotlin.ir.builders.irBlock
 import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irCallConstructor
+import org.jetbrains.kotlin.ir.builders.irCallOp
 import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.builders.irGetObjectValue
+import org.jetbrains.kotlin.ir.builders.irIfThenElse
 import org.jetbrains.kotlin.ir.builders.irInt
 import org.jetbrains.kotlin.ir.builders.irNull
 import org.jetbrains.kotlin.ir.builders.irTemporary
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.expressions.IrCall
+import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrFunctionReference
 import org.jetbrains.kotlin.ir.expressions.impl.IrClassReferenceImpl
@@ -83,8 +86,8 @@ internal class DslLowering(
         val scope = currentScope!!.scope.scopeOwnerSymbol
         return DeclarationIrBuilder(context, scope, call.startOffset, call.endOffset).run {
             val spec = irCallConstructor(symbols.mockSpec.primaryConstructor!!.symbol, emptyList()).apply {
-                arguments[0] = call.arguments[0] ?: irNull()
-                arguments[1] = irInt(0)
+                arguments[0] = call.argument("name") ?: irNull()
+                arguments[1] = irFlags(call)
             }
             val typeArguments = type.referencedTypeParameters.map { it.defaultType }
             val mockType = mock.typeWith(typeArguments)
@@ -96,13 +99,31 @@ internal class DslLowering(
             } else {
                 irAllocate(mockType, spec)
             }
-            val block = call.arguments[1] ?: return instance
+            val block = call.argument("block") ?: return instance
             irCall(symbols.apply, call.type, listOf(call.type)).apply {
                 arguments[0] = instance
                 arguments[1] = block
             }
         }
     }
+
+    private fun IrBuilderWithScope.irFlags(call: IrCall): IrExpression {
+        var constant = 0
+        val conditional = ArrayList<IrExpression>()
+        for ((name, flag) in MOCK_FLAGS) {
+            val argument = call.argument(name) ?: continue
+            when ((argument as? IrConst)?.value) {
+                true -> constant = constant or flag
+                false -> {}
+                else -> conditional += irIfThenElse(context.irBuiltIns.intType, argument, irInt(flag), irInt(0))
+            }
+        }
+        val flags = listOfNotNull(irInt(constant).takeIf { constant != 0 || conditional.isEmpty() }) + conditional
+        return flags.reduce { left, right -> irCallOp(symbols.intOr.symbol, context.irBuiltIns.intType, left, right) }
+    }
+
+    private fun IrCall.argument(name: String): IrExpression? =
+        arguments[symbol.owner.parameters.single { it.name.asString() == name }.indexInParameters]
 
     private fun IrBuilderWithScope.irAllocate(type: IrSimpleType, spec: IrExpression): IrExpression = irBlock {
         val mock = type.classOrFail.owner
@@ -134,3 +155,4 @@ internal class DslLowering(
 }
 
 private val REFERABLE = setOf(IntrinsicKind.MATCHER, IntrinsicKind.ANSWER, null)
+private val MOCK_FLAGS = listOf("relaxed" to 1, "relaxUnitFun" to 2)

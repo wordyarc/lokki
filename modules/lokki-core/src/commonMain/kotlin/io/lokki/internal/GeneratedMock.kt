@@ -10,6 +10,9 @@ internal interface GeneratedMock {
     @JvmSynthetic
     fun `lokki$original`(member: Int, args: Array<Any?>): Any?
 
+    @JvmSynthetic
+    fun `lokki$relaxed`(member: Int): Any?
+
     companion object {
         fun of(instance: Any?): GeneratedMock =
             instance as? GeneratedMock ?: throw LokkiException("$instance is not a lokki mock")
@@ -24,6 +27,9 @@ internal interface GeneratedMock {
         }
     }
 }
+
+@PublishedApi
+internal class NoRelaxedDefault(internal val type: String)
 
 internal fun states(function: String, mocks: Array<out Any>): List<MockState> {
     if (mocks.isEmpty()) {

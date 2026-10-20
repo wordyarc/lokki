@@ -1,0 +1,1 @@
+/voidReturn.kt:19:49: error: 'java.lang.Void' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.

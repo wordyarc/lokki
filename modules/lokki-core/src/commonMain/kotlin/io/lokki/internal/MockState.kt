@@ -14,6 +14,8 @@ import kotlin.concurrent.Volatile
 internal class MockState(private val owner: Any, spec: MockSpec, internal val descriptor: MockDescriptor) {
     internal val name = "${descriptor.name}(${spec.name.orEmpty()}#${MockIds.next()})"
 
+    private val flags = spec.flags
+
     @Volatile
     private var stubs = arrayOfNulls<Array<StubEntry>>(descriptor.memberCount)
 
@@ -151,19 +153,27 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         return checkNotNull(capture.arguments) { "default arguments of member $member were not captured" }
     }
 
-    private fun defaultAnswer(member: Int, arguments: Array<Any?>, record: CallRecord?): Any? =
+    private fun defaultAnswer(member: Int, arguments: Array<Any?>, record: CallRecord?): Any? {
         when (member) {
-            EQUALS -> owner === arguments[0]
-            HASH_CODE -> identityHashCode(owner)
-            TO_STRING -> name
-            else -> {
-                if (record != null) synchronized(records) { record.unanswered = true }
-                throw LokkiException(
-                    "no answer found for ${call(member, arguments.joinToString { it.toStr() })} " +
-                        "among the configured answers: (${describeStubs { true }.joinToString("\n")})"
-                )
-            }
+            EQUALS -> return owner === arguments[0]
+            HASH_CODE -> return identityHashCode(owner)
+            TO_STRING -> return name
         }
+        val message = if (flags and RELAXED != 0) {
+            val value = relaxedAnswer(member)
+            if (value !is NoRelaxedDefault) return value
+            "relaxed mock has no default for ${value.type} returned by " +
+                "${call(member, arguments.joinToString { it.toStr() })}; stub the call"
+        } else {
+            if (flags and RELAX_UNIT_FUN != 0 && relaxedAnswer(member) === Unit) return Unit
+            "no answer found for ${call(member, arguments.joinToString { it.toStr() })} " +
+                "among the configured answers: (${describeStubs { true }.joinToString("\n")})"
+        }
+        if (record != null) synchronized(records) { record.unanswered = true }
+        throw LokkiException(message)
+    }
+
+    private fun relaxedAnswer(member: Int): Any? = (owner as GeneratedMock).`lokki$relaxed`(member)
 
     private inline fun describeStubs(predicate: (StubEntry) -> Boolean): List<String> {
         val stubs = stubs

@@ -63,6 +63,41 @@ class IncrementalCompilationTest {
 
     @ParameterizedTest
     @EnumSource(GradleUnderTest::class)
+    fun testChangedReturnTypeOfRelaxedMemberInMain(gradle: GradleUnderTest) {
+        val project = jvmProject(gradle)
+        project.write("src/main/kotlin/sample/Car.kt", declaration("interface Car", "fun plate(): String"))
+        project.write("src/main/kotlin/sample/Driver.kt", relaxedPlate("\"\""))
+        project.write(
+            "src/test/kotlin/sample/CarTest.kt",
+            """
+            package sample
+
+            import io.lokki.mock
+            import kotlin.test.Test
+            import kotlin.test.assertEquals
+
+            class CarTest {
+                @Test
+                fun relaxedMockAnswersWithTheDefaultOfTheReturnType() {
+                    assertEquals(relaxedPlate(), exercise(mock<Car>(relaxed = true)))
+                }
+            }
+            """,
+        )
+        project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
+
+        project.build("test")
+
+        project.write("src/main/kotlin/sample/Car.kt", declaration("interface Car", "fun plate(): String?"))
+        project.write("src/main/kotlin/sample/Driver.kt", relaxedPlate("null"))
+        val result = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
+        assertEquals(setOf("CarTest.kt"), project.compiledSources(":compileTestKotlin"))
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
     fun testNewMemberOfSupertypeInMain(gradle: GradleUnderTest) {
         val project = jvmProject(gradle)
         project.write("src/main/kotlin/sample/Vehicle.kt", declaration("interface Vehicle", "fun park()"))
@@ -333,6 +368,15 @@ class IncrementalCompilationTest {
         assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
         assertEquals(emptySet(), project.compiledSources(":compileTestKotlin"))
     }
+
+    private fun relaxedPlate(value: String): String =
+        """
+        package sample
+
+        fun exercise(mock: Car): Any? = mock.plate()
+
+        fun relaxedPlate(): String? = $value
+        """
 
     private fun radio(defaultVolume: Int): String =
         """

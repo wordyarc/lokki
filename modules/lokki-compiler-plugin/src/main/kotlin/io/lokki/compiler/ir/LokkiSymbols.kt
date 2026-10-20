@@ -23,6 +23,8 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
     val generatedMock by lazy { findClass(INTERNAL_PACKAGE, "GeneratedMock") }
     val state by lazy { generatedMock.properties.single { it.name.asString() == "lokki\$state" } }
     val original by lazy { generatedMock.function("lokki\$original") }
+    val relaxed by lazy { generatedMock.function("lokki\$relaxed") }
+    val noRelaxedDefault by lazy { findClass(INTERNAL_PACKAGE, "NoRelaxedDefault") }
     val of by lazy { generatedMock.companionObject()!!.function("of") }
     val withoutStateChanges by lazy { generatedMock.companionObject()!!.function("withoutStateChanges") }
 
@@ -59,6 +61,13 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
             it.name == OperatorNameConventions.DIV && it.firstParameterClass == context.irBuiltIns.intClass.owner
         }
     }
+    val intOr by lazy { context.irBuiltIns.intClass.owner.function("or") }
+
+    val emptyList by lazy { findFunction(COLLECTIONS_PACKAGE, "emptyList") }
+    val emptySet by lazy { findFunction(COLLECTIONS_PACKAGE, "emptySet") }
+    val emptyMap by lazy { findFunction(COLLECTIONS_PACKAGE, "emptyMap") }
+    val emptySequence by lazy { findFunction(SEQUENCES_PACKAGE, "emptySequence") }
+    val optionalEmpty by lazy { findClass(JAVA_UTIL_PACKAGE, "Optional").function("empty") }
 
     val jvmSynthetic by lazy { finder.findConstructors(ClassId(JVM_PACKAGE, Name.identifier("JvmSynthetic"))).single() }
     val apply by lazy { finder.findFunctions(CallableId(KOTLIN_PACKAGE, Name.identifier("apply"))).single() }
@@ -81,8 +90,13 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
         return factories.singleOrNull() ?: factories.single { it.firstParameterClass == function.firstParameterClass }
     }
 
+    fun javaUtilClass(name: String): IrClass = findClass(JAVA_UTIL_PACKAGE, name)
+
     private fun findClass(packageName: FqName, name: String): IrClass =
         finder.findClass(ClassId(packageName, Name.identifier(name)))!!.owner
+
+    private fun findFunction(packageName: FqName, name: String): IrSimpleFunction =
+        finder.findFunctions(CallableId(packageName, Name.identifier(name))).single().owner
 }
 
 private fun IrClass.function(name: String): IrSimpleFunction = functions.single { it.name.asString() == name }
@@ -91,6 +105,9 @@ private val IrFunction.firstParameterClass: IrClass?
     get() = parameters.firstOrNull { it.kind == IrParameterKind.Regular }?.type?.erasedUpperBound
 
 private val KOTLIN_PACKAGE = FqName("kotlin")
+private val COLLECTIONS_PACKAGE = FqName("kotlin.collections")
+private val SEQUENCES_PACKAGE = FqName("kotlin.sequences")
+private val JAVA_UTIL_PACKAGE = FqName("java.util")
 private val JVM_PACKAGE = FqName("kotlin.jvm")
 private val PACKAGE = FqName("io.lokki")
 private val INTERNAL_PACKAGE = FqName("io.lokki.internal")

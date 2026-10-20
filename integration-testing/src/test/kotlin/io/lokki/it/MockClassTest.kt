@@ -42,6 +42,14 @@ class MockClassTest {
     }
 
     @Test
+    fun relaxedMockOfClassAnswersInternalMemberOfMain() {
+        val car = mock<Car>()
+        val mechanic = mock<Mechanic>(relaxed = true)
+
+        assertEquals(", ", mechanic.service(car))
+    }
+
+    @Test
     fun finalMemberRunsTheOriginalWithoutConstructor() {
         assertEquals("serviced by null", mock<Mechanic>().signature())
     }

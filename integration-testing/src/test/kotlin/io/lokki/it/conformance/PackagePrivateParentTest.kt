@@ -8,6 +8,6 @@ internal open class InternalCls : PackagePrivateCls()
 class PackagePrivateParentTest {
     @Test
     fun mockClassWithPackagePrivateParent() {
-        mock<InternalCls>()
+        mock<InternalCls>(relaxed = true)
     }
 }

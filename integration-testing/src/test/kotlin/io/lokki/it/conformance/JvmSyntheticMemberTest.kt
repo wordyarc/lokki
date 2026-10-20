@@ -10,6 +10,10 @@ class JvmSyntheticMemberTest {
     interface SyntheticPropertyInterface {
         @get:JvmSynthetic
         val value: String
+
+        @get:JvmSynthetic
+        @set:JvmSynthetic
+        var mutableValue: Int
     }
 
     interface SyntheticFunctionInterface {
@@ -30,6 +34,19 @@ class JvmSyntheticMemberTest {
 
         assertEquals("stubbed", mock.value)
         verify { mock.value }
+    }
+
+    @Test
+    fun syntheticInterfacePropertySetterIsStubbed() {
+        val mock = mock<SyntheticPropertyInterface>(relaxUnitFun = true)
+
+        every { mock.mutableValue } returns 42
+
+        assertEquals(42, mock.mutableValue)
+
+        mock.mutableValue = 7
+
+        verify { mock.mutableValue = 7 }
     }
 
     @Test
