@@ -16,7 +16,6 @@ import io.lokki.Called
 import io.lokki.MatcherScope
 import io.lokki.StubScope
 import io.lokki.VerificationScope
-import io.lokki.coEvery
 import io.lokki.every
 import io.lokki.excludeRecords
 import io.lokki.mock
@@ -31,14 +30,6 @@ interface Repo {
     fun load(id: Id, limit: Int = 10): String
     fun String.label(width: Int = 2): String
     fun names(vararg names: String): Int
-    suspend fun fetch(id: Int, limit: Int = 10): String
-    suspend fun current(): Int
-}
-
-suspend fun nextRepo(): Repo = TODO()
-
-suspend fun stubInSuspendFunction(repo: Repo) {
-    coEvery { repo.fetch(repo.<!LOKKI_UNSUPPORTED!>current()<!>, 1) } returns "a"
 }
 
 fun top(): String = ""
@@ -69,12 +60,6 @@ fun test(repo: Repo, nullable: Repo?, block: MatcherScope.() -> String, check: V
     every { repo.names(*<!LOKKI_UNSUPPORTED!>any()<!>) } returns 1
     every { repo.names(*anyVararg(), "a", *<!LOKKI_UNSUPPORTED!>varargAny { it.isEmpty() }<!>) } returns 1
     mock<Repo> { every { <!LOKKI_UNSUPPORTED!>toString()<!> } returns "a" }
-    coEvery { repo.fetch(repo.<!LOKKI_UNSUPPORTED!>current()<!>, 1) } returns "a"
-    coEvery { <!LOKKI_UNSUPPORTED!>nextRepo()<!>.fetch(1, 1) } returns "a"
-    coEvery { repo.<!LOKKI_UNSUPPORTED!>fetch(1)<!> } returns "a"
-    coEvery { repo.fetch(1, 1) } returns "a"
-    coEvery { repo.fetch(allAny()) } returns "a"
-    coEvery { repo.fetch(1, listOf(suspend { 1 }).size) } returns "a"
     val reference: (MatcherScope.() -> String) -> StubScope<String> = <!LOKKI_UNSUPPORTED!>::every<!>
     val adapted: (MatcherScope.() -> String) -> Unit = <!LOKKI_UNSUPPORTED!>::every<!>
 

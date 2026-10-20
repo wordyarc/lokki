@@ -37,7 +37,7 @@ internal class SuspendingAnswer<T>(private val block: suspend (Call) -> T) : Ans
     override suspend fun coAnswer(call: Call): T = block(call)
 }
 
-private object Abandoned : Continuation<Any?> {
+internal object Abandoned : Continuation<Any?> {
     override val context: CoroutineContext
         get() = EmptyCoroutineContext
 

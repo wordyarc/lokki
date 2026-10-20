@@ -11,6 +11,11 @@ testing {
     suites {
         named<JvmTestSuite>("test") {
             useKotlinTest(libs.versions.kotlin)
+
+            dependencies {
+                implementation(libs.kotlinx.coroutines.core)
+                implementation(libs.kotlinx.coroutines.test)
+            }
         }
     }
 }

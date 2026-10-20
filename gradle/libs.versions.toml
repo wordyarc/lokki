@@ -12,6 +12,7 @@ gradle-min-kotlin = "2.0"
 kotlin = "2.4.20"
 junit = "4.13.2"
 junit-jupiter = "5.14.4"
+kotlinx-coroutines = "1.11.0"
 buildconfig = "5.6.5"
 
 [libraries]
@@ -23,6 +24,8 @@ kotlin-gradle-plugin-api = { group = "org.jetbrains.kotlin", name = "kotlin-grad
 kotlin-test-junit5 = { group = "org.jetbrains.kotlin", name = "kotlin-test-junit5", version.ref = "kotlin" }
 kotlin-test-framework = { group = "org.jetbrains.kotlin", name = "kotlin-compiler-internal-test-framework", version.ref = "kotlin" }
 junit = { module = "junit:junit", version.ref = "junit" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 
 # -- Compiler test libraries --------------------------------------------------
 kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", version.ref = "kotlin" }

@@ -8,6 +8,8 @@ import io.lokki.CapturingSlot
 import io.lokki.MatcherScope
 import io.lokki.StubScope
 import io.lokki.VerificationScope
+import io.lokki.coExcludeRecords
+import io.lokki.coVerify
 import io.lokki.every
 import io.lokki.excludeRecords
 import io.lokki.isMock
@@ -23,6 +25,10 @@ fun test() {
     val matcher: MatcherScope.(Int) -> Int = <!LOKKI_CALLABLE_REFERENCE_TO_INTRINSIC!>MatcherScope::neq<!>
     val exclusion: (Boolean, MatcherScope.() -> Any?) -> Unit = <!LOKKI_CALLABLE_REFERENCE_TO_INTRINSIC!>::excludeRecords<!>
     val count: (CallCountVerificationScope.() -> Unit) -> Unit = ::verifyCount
+    val coVerification: (Boolean, Int, Int, Int, suspend VerificationScope.() -> Any?) -> Unit =
+        <!LOKKI_CALLABLE_REFERENCE_TO_INTRINSIC!>::coVerify<!>
+    val coExclusion: (Boolean, suspend MatcherScope.() -> Any?) -> Unit =
+        <!LOKKI_CALLABLE_REFERENCE_TO_INTRINSIC!>::coExcludeRecords<!>
     val regular: (Any) -> Boolean = ::isMock
     val generic: () -> CapturingSlot<Int> = ::slot
     val answer = StubScope<String>::returnsArgument

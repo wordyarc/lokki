@@ -15,12 +15,29 @@ public fun verify(
     verifyBlock: VerificationScope.() -> Any?,
 ): Unit = throw LokkiException("lokki compiler plugin is not applied to this compilation")
 
+@LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_BLOCK)
+public fun coVerify(
+    inverse: Boolean = false,
+    atLeast: Int = 1,
+    atMost: Int = Int.MAX_VALUE,
+    exactly: Int = -1,
+    verifyBlock: suspend VerificationScope.() -> Any?,
+): Unit = throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
 public fun verifyCount(verifyBlock: CallCountVerificationScope.() -> Unit) {
     CallCountVerificationScope().verifyBlock()
 }
 
+public fun coVerifyCount(verifyBlock: CallCountCoVerificationScope.() -> Unit) {
+    CallCountCoVerificationScope().verifyBlock()
+}
+
 @LokkiIntrinsic(LokkiIntrinsic.Kind.EXCLUDE_BLOCK)
 public fun excludeRecords(current: Boolean = true, excludeBlock: MatcherScope.() -> Any?): Unit =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.EXCLUDE_BLOCK)
+public fun coExcludeRecords(current: Boolean = true, excludeBlock: suspend MatcherScope.() -> Any?): Unit =
     throw LokkiException("lokki compiler plugin is not applied to this compilation")
 
 public abstract class VerificationScope internal constructor() : MatcherScope() {
@@ -64,6 +81,17 @@ public class CallCountVerificationScope internal constructor() {
 
     @LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_BLOCK)
     public operator fun IntRange.times(verifyBlock: VerificationScope.() -> Any?): Unit =
+        throw LokkiException("lokki compiler plugin is not applied to this compilation")
+}
+
+@LokkiDslMarker
+public class CallCountCoVerificationScope internal constructor() {
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_BLOCK)
+    public operator fun Int.times(verifyBlock: suspend VerificationScope.() -> Any?): Unit =
+        throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_BLOCK)
+    public operator fun IntRange.times(verifyBlock: suspend VerificationScope.() -> Any?): Unit =
         throw LokkiException("lokki compiler plugin is not applied to this compilation")
 }
 

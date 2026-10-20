@@ -147,6 +147,8 @@ fun box(): String {
         if (self !== api || args != listOf<Any?>(6)) "another call" else "${method.name}:${firstArg<Int>()}"
     }
     if (complete { api.load(6) }.getOrNull() != "load:6") return "Fail answer scope"
+    coEvery { api.load(7) } answers { "$nArgs ${lastArg<Int>()} ${args.size}" }
+    if (complete { api.load(7) }.getOrNull() != "1 7 1") return "Fail: the continuation is an argument"
 
     if (complete { stubInside(api); api.load(2) }.getOrNull() != "two") return "Fail coEvery in a suspend function"
 

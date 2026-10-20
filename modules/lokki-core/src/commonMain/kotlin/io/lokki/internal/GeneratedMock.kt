@@ -2,6 +2,8 @@ package io.lokki.internal
 
 import io.lokki.LokkiException
 import io.lokki.MethodDescription
+import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
+import kotlin.coroutines.intrinsics.startCoroutineUninterceptedOrReturn
 
 @PublishedApi
 internal interface GeneratedMock {
@@ -28,6 +30,15 @@ internal interface GeneratedMock {
             } finally {
                 Registration.exit()
             }
+        }
+
+        fun <T> evaluate(dsl: String, block: suspend () -> T): T {
+            val result = block.startCoroutineUninterceptedOrReturn(Abandoned)
+            if (result === COROUTINE_SUSPENDED) {
+                throw LokkiException("a receiver or an argument of $dsl suspended; evaluate it outside the block")
+            }
+            @Suppress("UNCHECKED_CAST")
+            return result as T
         }
     }
 }

@@ -40,6 +40,11 @@ public final class io/lokki/Call {
 	public final fun getRetType ()Lkotlin/reflect/KClass;
 }
 
+public final class io/lokki/CallCountCoVerificationScope {
+	public final fun times (ILkotlin/jvm/functions/Function2;)V
+	public final fun times (Lkotlin/ranges/IntRange;Lkotlin/jvm/functions/Function2;)V
+}
+
 public final class io/lokki/CallCountVerificationScope {
 	public final fun times (ILkotlin/jvm/functions/Function1;)V
 	public final fun times (Lkotlin/ranges/IntRange;Lkotlin/jvm/functions/Function1;)V
@@ -172,6 +177,11 @@ public final class io/lokki/VarargScope {
 }
 
 public final class io/lokki/VerificationKt {
+	public static final fun coExcludeRecords (ZLkotlin/jvm/functions/Function2;)V
+	public static synthetic fun coExcludeRecords$default (ZLkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
+	public static final fun coVerify (ZIIILkotlin/jvm/functions/Function2;)V
+	public static synthetic fun coVerify$default (ZIIILkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
+	public static final fun coVerifyCount (Lkotlin/jvm/functions/Function1;)V
 	public static final fun confirmVerified ([Ljava/lang/Object;Z)V
 	public static synthetic fun confirmVerified$default ([Ljava/lang/Object;ZILjava/lang/Object;)V
 	public static final fun excludeRecords (ZLkotlin/jvm/functions/Function1;)V
@@ -215,6 +225,7 @@ public abstract interface class io/lokki/internal/GeneratedMock {
 }
 
 public final class io/lokki/internal/GeneratedMock$Companion {
+	public final fun evaluate (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
 	public final fun of (Ljava/lang/Object;)Lio/lokki/internal/GeneratedMock;
 	public final fun withoutStateChanges (Lkotlin/jvm/functions/Function0;)Ljava/lang/Object;
 }
@@ -321,6 +332,7 @@ public final class io/lokki/internal/MockState {
 	public final fun answer (I[Ljava/lang/Object;)Ljava/lang/Object;
 	public final fun captureDefaults (Ljava/lang/String;[Ljava/lang/String;Lkotlin/jvm/functions/Function1;)[Ljava/lang/Object;
 	public final fun coAnswer (I[Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun coCaptureDefaults (Ljava/lang/String;[Ljava/lang/String;Lkotlin/jvm/functions/Function2;)[Ljava/lang/Object;
 	public final fun exclude (Ljava/lang/String;[Lio/lokki/Matcher;Z)V
 	public static synthetic fun exclude$default (Lio/lokki/internal/MockState;Ljava/lang/String;[Lio/lokki/Matcher;ZILjava/lang/Object;)V
 	public final fun noOriginal (I[Ljava/lang/Object;)Ljava/lang/Void;

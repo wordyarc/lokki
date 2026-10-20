@@ -4,6 +4,9 @@
 package sample
 
 import io.lokki.Runs
+import io.lokki.coExcludeRecords
+import io.lokki.coVerify
+import io.lokki.coVerifyCount
 import io.lokki.every
 import io.lokki.excludeRecords
 import io.lokki.just
@@ -111,6 +114,10 @@ fun testExclude(repo: Repo, nullable: Repo?, flag: Boolean) {
     excludeRecords { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>for (id in 1..2) repo.find(id)<!> }
     verifyCount { 1 * <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>{ }<!> }
     verifyCount { 1 * { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>for (id in 1..2) repo.find(id)<!> } }
+    coVerify <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>{ }<!>
+    coVerify { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>repo == repo<!> }
+    coExcludeRecords { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>if (flag) repo.find(1) else repo.find(2)<!> }
+    coVerifyCount { 1 * { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>for (id in 1..2) repo.find(id)<!> } }
 
     excludeRecords {
         repo.find(1)
@@ -126,4 +133,10 @@ fun testExclude(repo: Repo, nullable: Repo?, flag: Boolean) {
             repo.find(2)
         }
     }
+    coVerify {
+        repo.find(1)
+        repo.count = 1
+    }
+    coExcludeRecords { repo[1] = "a" }
+    coVerifyCount { (1..2) * { repo.find(1) } }
 }

@@ -176,6 +176,31 @@ class MockStateTest {
     }
 
     @Test
+    fun testSuspendDefaultsAreCapturedFromTheCallOfTheMember() {
+        val arguments = state.coCaptureDefaults(FIND, arrayOf(null, "includeDeleted")) {
+            state.coAnswer<String>(FIND_MEMBER, arrayOf(0, false))
+        }
+
+        assertContentEquals(arrayOf<Any?>(0, false), arguments)
+        assertEquals(emptyList(), records())
+    }
+
+    @Test
+    fun testFailureOfSuspendDefaultValueIsReported() {
+        val failure = IllegalStateException("no clock")
+
+        val exception = assertFailsWith<LokkiException> {
+            state.coCaptureDefaults(FIND, arrayOf(null, "includeDeleted")) { throw failure }
+        }
+
+        assertEquals(
+            "default values of Repo.find cannot be evaluated; pass them explicitly or use any()",
+            exception.message,
+        )
+        assertSame(failure, exception.cause)
+    }
+
+    @Test
     fun testAnswersFollowOneAnotherAndTheLastRepeats() {
         state.stub<String>(FIND, arrayOf(AnyMatcher, AnyMatcher)) returns "a" andThen "b" andThenMany listOf("c", "d")
 
@@ -395,6 +420,47 @@ class MockStateTest {
         assertEquals(emptyList(), ids)
         assertEquals(listOf<Any?>("a", "b"), List(2) { state.answer(FIND_MEMBER, arrayOf(2, true)) })
         assertEquals(listOf(2, 2), ids)
+    }
+
+    @Test
+    fun testEvaluationCompletesWithoutSuspension() {
+        state.stub<String>(FIND, arrayOf(AnyMatcher, AnyMatcher)).returnsMany("a", "b")
+
+        val answers = GeneratedMock.withoutStateChanges {
+            GeneratedMock.evaluate("coEvery") { List(2) { state.coAnswer<String>(FIND_MEMBER, arrayOf(1, true)) } }
+        }
+
+        assertEquals(listOf("a", "a"), answers)
+        assertEquals(emptyList(), records())
+    }
+
+    @Test
+    fun testEvaluationMustNotSuspend() {
+        var pending: Continuation<Unit>? = null
+        var evaluated = false
+
+        val exception = assertFailsWith<LokkiException> {
+            GeneratedMock.evaluate("coVerify") {
+                suspendCoroutine { pending = it }
+                evaluated = true
+            }
+        }
+
+        assertEquals(
+            "a receiver or an argument of coVerify suspended; evaluate it outside the block",
+            exception.message,
+        )
+        pending!!.resume(Unit)
+        assertTrue(evaluated)
+    }
+
+    @Test
+    fun testEvaluationRethrowsFailures() {
+        val failure = IllegalStateException("offline")
+
+        val exception = assertFailsWith<IllegalStateException> { GeneratedMock.evaluate("coEvery") { throw failure } }
+
+        assertSame(failure, exception)
     }
 
     @Test

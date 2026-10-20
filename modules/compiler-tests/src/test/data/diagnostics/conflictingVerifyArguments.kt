@@ -3,6 +3,8 @@
 
 package sample
 
+import io.lokki.coVerify
+import io.lokki.coVerifyCount
 import io.lokki.verify
 import io.lokki.verifyCount
 
@@ -20,6 +22,8 @@ fun test(repo: Repo, calls: Int) {
     verify(atLeast = 3, atMost = <!LOKKI_CONFLICTING_VERIFY_ARGUMENTS!>2<!>) { repo.find(1) }
     verify(false, 3, <!LOKKI_CONFLICTING_VERIFY_ARGUMENTS!>2<!>) { repo.find(1) }
     verifyCount { <!LOKKI_CONFLICTING_VERIFY_ARGUMENTS!>-1<!> * { repo.find(1) } }
+    coVerify(exactly = <!LOKKI_CONFLICTING_VERIFY_ARGUMENTS!>1<!>, atLeast = 2) { repo.find(1) }
+    coVerifyCount { <!LOKKI_CONFLICTING_VERIFY_ARGUMENTS!>-1<!> * { repo.find(1) } }
 
     verify(exactly = 0) { repo.find(1) }
     verify(exactly = -1) { repo.find(1) }
@@ -32,4 +36,6 @@ fun test(repo: Repo, calls: Int) {
     verifyCount { 0 * { repo.find(1) } }
     verifyCount { calls * { repo.find(1) } }
     verifyCount { (2..1) * { repo.find(1) } }
+    coVerify(atLeast = 2, atMost = 2) { repo.find(1) }
+    coVerifyCount { calls * { repo.find(1) } }
 }

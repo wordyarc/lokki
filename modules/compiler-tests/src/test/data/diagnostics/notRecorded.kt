@@ -3,6 +3,7 @@
 
 package sample
 
+import io.lokki.coVerify
 import io.lokki.every
 import io.lokki.verify
 
@@ -26,4 +27,6 @@ fun test(repo: Repo, other: Any, any: Any) {
     verify { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>repo == other<!> }
     verify { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>"$repo"<!> }
     verify { repo.find(1) }
+    coVerify { repo.<!LOKKI_NOT_RECORDED!>toString<!>() }
+    coVerify { repo.find(1) }
 }

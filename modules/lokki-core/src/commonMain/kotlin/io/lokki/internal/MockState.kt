@@ -10,6 +10,7 @@ import io.lokki.Matcher
 import io.lokki.MethodDescription
 import io.lokki.StubScope
 import kotlin.concurrent.Volatile
+import kotlin.coroutines.intrinsics.startCoroutineUninterceptedOrReturn
 
 @PublishedApi
 internal class MockState(private val owner: Any, spec: MockSpec, internal val descriptor: MockDescriptor) {
@@ -64,6 +65,9 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
             }
             defaults
         }
+
+    fun coCaptureDefaults(key: String, names: Array<String?>, call: suspend (Boolean) -> Unit): Array<Any?> =
+        captureDefaults(key, names) { alternate -> call.startCoroutineUninterceptedOrReturn(alternate, Abandoned) }
 
     internal fun memberName(member: Int): String = "${descriptor.name}.${description(member).name}"
 

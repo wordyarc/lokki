@@ -1,11 +1,13 @@
-/notRecorded.kt:19:19: error: 'toString' is not recorded: calls of equals, hashCode and toString cannot be verified.
+/notRecorded.kt:20:19: error: 'toString' is not recorded: calls of equals, hashCode and toString cannot be verified.
 
-/notRecorded.kt:20:19: error: 'hashCode' is not recorded: calls of equals, hashCode and toString cannot be verified.
+/notRecorded.kt:21:19: error: 'hashCode' is not recorded: calls of equals, hashCode and toString cannot be verified.
 
-/notRecorded.kt:21:18: error: 'hashCode' is not recorded: calls of equals, hashCode and toString cannot be verified.
+/notRecorded.kt:22:18: error: 'hashCode' is not recorded: calls of equals, hashCode and toString cannot be verified.
 
-/notRecorded.kt:24:14: error: 'equals' is not recorded: calls of equals, hashCode and toString cannot be verified.
+/notRecorded.kt:25:14: error: 'equals' is not recorded: calls of equals, hashCode and toString cannot be verified.
 
-/notRecorded.kt:26:14: error: The block of 'verify' must consist of calls of mock members, but it compares values with an operator.
+/notRecorded.kt:27:14: error: The block of 'verify' must consist of calls of mock members, but it compares values with an operator.
 
-/notRecorded.kt:27:14: error: The block of 'verify' must consist of calls of mock members, but it is a string template.
+/notRecorded.kt:28:14: error: The block of 'verify' must consist of calls of mock members, but it is a string template.
+
+/notRecorded.kt:30:21: error: 'toString' is not recorded: calls of equals, hashCode and toString cannot be verified.

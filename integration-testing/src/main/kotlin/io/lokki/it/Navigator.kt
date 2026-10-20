@@ -1,7 +1,7 @@
 package io.lokki.it
 
 interface Navigator {
-    suspend fun route(to: String): List<String>
+    suspend fun route(to: String, avoidTolls: Boolean = false): List<String>
     suspend fun reset()
 }
 

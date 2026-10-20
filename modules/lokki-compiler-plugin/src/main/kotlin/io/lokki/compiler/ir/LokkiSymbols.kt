@@ -30,6 +30,7 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
     val noRelaxedDefault by lazy { findClass(INTERNAL_PACKAGE, "NoRelaxedDefault") }
     val of by lazy { generatedMock.companionObject()!!.function("of") }
     val withoutStateChanges by lazy { generatedMock.companionObject()!!.function("withoutStateChanges") }
+    val evaluate by lazy { generatedMock.companionObject()!!.function("evaluate") }
 
     val mockDescriptor by lazy { findClass(INTERNAL_PACKAGE, "MockDescriptor") }
     val mockSpec by lazy { findClass(INTERNAL_PACKAGE, "MockSpec") }
@@ -43,6 +44,7 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
     val noOriginal by lazy { mockState.function("noOriginal") }
     val stub by lazy { mockState.function("stub") }
     val captureDefaults by lazy { mockState.function("captureDefaults") }
+    val coCaptureDefaults by lazy { mockState.function("coCaptureDefaults") }
     val exclude by lazy { mockState.function("exclude") }
 
     val stubScope by lazy { findClass(PACKAGE, "StubScope") }

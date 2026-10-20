@@ -19,9 +19,11 @@ import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.IrBlockBodyBuilder
 import org.jetbrains.kotlin.ir.builders.IrBuilder
+import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
 import org.jetbrains.kotlin.ir.builders.Scope
 import org.jetbrains.kotlin.ir.builders.declarations.addValueParameter
 import org.jetbrains.kotlin.ir.builders.declarations.buildFun
+import org.jetbrains.kotlin.ir.builders.irAs
 import org.jetbrains.kotlin.ir.builders.irBlock
 import org.jetbrains.kotlin.ir.builders.irBlockBody
 import org.jetbrains.kotlin.ir.builders.irCall
@@ -156,12 +158,17 @@ internal class StubBlockLowering(
                 for (expectation in expected) {
                     when (expectation) {
                         is NoCalls -> {
-                            if (!expectation.mocks.isIndependentOf(block.function)) {
-                                return fail(expectation.mocks, "The receiver of 'wasNot Called' must not use matchers")
+                            val mocks = expectation.mocks
+                            if (!mocks.isIndependentOf(block.function)) {
+                                return fail(mocks, "The receiver of 'wasNot Called' must not use matchers")
+                            }
+                            val evaluated = when {
+                                mocks.callsSuspend() -> irEvaluate(verify, block, mocks.type) { mocks }
+                                else -> mocks
                             }
                             +irCall(symbols.expectNoCalls(expectation.mocksClass)).apply {
                                 arguments[0] = irGet(verification)
-                                arguments[1] = expectation.mocks
+                                arguments[1] = evaluated
                             }
                         }
                         is StubbedCall -> {
@@ -238,25 +245,32 @@ internal class StubBlockLowering(
         if (!stubbed.receiver.isIndependentOf(block.function)) {
             return fail(stubbed.receiver, "The receiver of the stubbed or verified call must not use matchers")
         }
-        (listOf(stubbed.receiver) + stubbed.arguments.filterNotNull()).find { it.callsSuspend() }?.let {
-            return fail(
-                it,
-                "'${dsl.name}' cannot evaluate suspend calls in the receiver or arguments yet: " +
-                    "evaluate them outside the block",
-            )
-        }
+        if (!stubbed.callsSuspend) return irEvaluatedRegistration(dsl, block, stubbed, verification)
+        val anyN = context.irBuiltIns.anyNType
+        val evaluated = irTemporary(
+            irEvaluate(dsl, block, context.irBuiltIns.arrayClass.typeWith(anyN)) {
+                val registration = irEvaluatedRegistration(dsl, block, stubbed, verification) ?: return null
+                irArrayOf(anyN, listOf(irGet(registration.state), registration.matchers))
+            }
+        )
+        return Registration(
+            irTemporary(irAs(irArrayGet(evaluated, 0), symbols.mockState.defaultType)),
+            stubbed.call.symbol.owner.memberKeys.first(),
+            irAs(irArrayGet(evaluated, 1), context.irBuiltIns.arrayClass.typeWith(matcherType)),
+        )
+    }
+
+    private fun IrBlockBodyBuilder.irEvaluatedRegistration(
+        dsl: IrCall,
+        block: StubBlock,
+        stubbed: StubbedCall,
+        verification: IrVariable?,
+    ): Registration? {
         val call = stubbed.call
         val member = call.symbol.owner
         val parameters = member.nonDispatchParameters
         val declared = member.root.parameters
         val capturesDefaults = !stubbed.allAny && null in stubbed.arguments
-        if (capturesDefaults && member.isSuspend) {
-            return fail(
-                call,
-                "Omitted arguments of the suspend member '${member.name}' are not supported yet: " +
-                    "pass all arguments explicitly or use allAny()",
-            )
-        }
 
         val receiver = irTemporary(verification?.let { irLinks(dsl, stubbed.receiver, it) } ?: stubbed.receiver)
         val state = irTemporary(irStateOf(irGet(receiver)))
@@ -270,7 +284,7 @@ internal class StubBlockLowering(
                 values[index] = irTemporary(argument)
                 continue
             }
-            if (capturesDefaults) placeholderProblem(parameter, argument)?.let { return fail(argument, it) }
+            if (capturesDefaults) placeholderProblem(member, parameter, argument)?.let { return fail(argument, it) }
             val matcher = irArgumentMatcher(argument, declared[parameter.indexInParameters], block, stubbed.allAny)
                 ?: return null
             matchers[index] = irTemporary(matcher)
@@ -351,6 +365,26 @@ internal class StubBlockLowering(
         return matchers.expression(stateType, arrayType)
     }
 
+    private inline fun IrBuilderWithScope.irEvaluate(
+        dsl: IrCall,
+        block: StubBlock,
+        type: IrType,
+        value: IrBlockBodyBuilder.() -> IrExpression,
+    ): IrExpression {
+        val evaluation = lambda(dsl, type, suspend = true)
+        val scope = block.scope
+        block.scope = null
+        evaluation.body = DeclarationIrBuilder(context, evaluation.symbol, dsl.startOffset, dsl.endOffset)
+            .irBlockBody { +irReturn(value()) }
+        block.scope = scope
+        return irCall(symbols.evaluate.symbol, type, listOf(type)).apply {
+            val companion = symbols.evaluate.parentAsClass
+            arguments[0] = irGetObjectValue(companion.defaultType, companion.symbol)
+            arguments[1] = irString(dsl.name)
+            arguments[2] = evaluation.expression(type)
+        }
+    }
+
     private fun IrBuilder.irWithoutStateChanges(registration: IrSimpleFunction, type: IrType): IrExpression =
         irCall(symbols.withoutStateChanges.symbol, type, listOf(type)).apply {
             val companion = symbols.withoutStateChanges.parentAsClass
@@ -366,8 +400,9 @@ internal class StubBlockLowering(
         values: Array<IrVariable?>,
     ): IrExpression {
         val call = stubbed.call
-        val parameters = call.symbol.owner.nonDispatchParameters
-        val capture = lambda(dsl, context.irBuiltIns.unitType)
+        val member = call.symbol.owner
+        val parameters = member.nonDispatchParameters
+        val capture = lambda(dsl, context.irBuiltIns.unitType, suspend = member.isSuspend)
         val alternate = capture.addValueParameter("alternate", context.irBuiltIns.booleanType)
         parameters.forEachIndexed { index, parameter ->
             call.arguments[parameter.indexInParameters] = stubbed.arguments[index]?.let { argument ->
@@ -375,7 +410,7 @@ internal class StubBlockLowering(
             }
         }
         capture.body = DeclarationIrBuilder(context, capture.symbol, startOffset, endOffset).irBlockBody { +call }
-        return irCall(symbols.captureDefaults).apply {
+        return irCall(if (member.isSuspend) symbols.coCaptureDefaults else symbols.captureDefaults).apply {
             arguments[0] = irGet(state)
             arguments[1] = irString(key)
             arguments[2] = irArrayOf(
@@ -393,7 +428,7 @@ internal class StubBlockLowering(
         return null
     }
 
-    private fun lambda(dsl: IrCall, type: IrType): IrSimpleFunction =
+    private fun lambda(dsl: IrCall, type: IrType, suspend: Boolean = false): IrSimpleFunction =
         context.irFactory.buildFun {
             startOffset = dsl.startOffset
             endOffset = dsl.endOffset
@@ -401,22 +436,24 @@ internal class StubBlockLowering(
             name = SpecialNames.ANONYMOUS
             visibility = DescriptorVisibilities.LOCAL
             returnType = type
+            isSuspend = suspend
         }
 
-    private fun IrSimpleFunction.expression(vararg types: IrType): IrExpression =
-        IrFunctionExpressionImpl(
-            startOffset,
-            endOffset,
-            context.irBuiltIns.functionN(types.size - 1).typeWith(*types),
-            this,
-            IrStatementOrigin.LAMBDA,
-        )
+    private fun IrSimpleFunction.expression(vararg types: IrType): IrExpression {
+        val arity = types.size - 1
+        val type = if (isSuspend) context.irBuiltIns.suspendFunctionN(arity) else context.irBuiltIns.functionN(arity)
+        return IrFunctionExpressionImpl(startOffset, endOffset, type.typeWith(*types), this, IrStatementOrigin.LAMBDA)
+    }
 
-    private fun placeholderProblem(parameter: IrValueParameter, argument: IrExpression): String? =
+    private fun placeholderProblem(
+        member: IrSimpleFunction,
+        parameter: IrValueParameter,
+        argument: IrExpression,
+    ): String? =
         when {
             argument.type.classOrNull?.owner?.isValue == true ->
                 "A matcher of a value class cannot be combined with omitted arguments: pass all arguments explicitly"
-            parameter.kind == IrParameterKind.ExtensionReceiver &&
+            parameter.kind == IrParameterKind.ExtensionReceiver && !member.isSuspend &&
                 !parameter.type.isNullable() && !argument.type.isPrimitiveType() ->
                 "A matcher of the extension receiver cannot be combined with omitted arguments: " +
                     "pass all arguments explicitly"
@@ -618,6 +655,9 @@ private class StubbedCall(
 ) : Expected {
     val allAny: Boolean
         get() = arguments.firstOrNull().isAllAny
+
+    val callsSuspend: Boolean
+        get() = receiver.callsSuspend() || arguments.any { it?.callsSuspend() == true }
 }
 
 private class NoCalls(val call: IrCall) : Expected {
