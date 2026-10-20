@@ -42,7 +42,7 @@ class VerificationTest {
 
     @Test
     fun testCallsAreRecordedInOrderEvenWithoutAnswer() {
-        val other = MockState(Any(), MockSpec(null, 0), state.descriptor)
+        val other = TestMock(null, FIND, SAVE, COUNT).`lokki$state`
         find(1, false)
         assertFailsWith<LokkiException> { other.answer(SAVE_MEMBER, arrayOf("x")) }
         find(2, true)

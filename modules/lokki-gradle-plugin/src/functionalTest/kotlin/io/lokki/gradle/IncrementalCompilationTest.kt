@@ -339,7 +339,7 @@ class IncrementalCompilationTest {
                 @Test
                 fun strictMockHasNoAnswer() {
                     val exception = assertFailsWith<LokkiException> { exercise(carFixture()) }
-                    val member = exception.message?.replace(Regex("\\(#\\d+\\)\\.(\\w+)\\(.*"), ".${'$'}1")
+                    val member = exception.message?.replace(Regex("(?s)\\(#\\d+\\)\\.(\\w+)\\(.*"), ".${'$'}1")
                     assertEquals("no answer found for ${'$'}{exercisedMember()}", member)
                 }
             }

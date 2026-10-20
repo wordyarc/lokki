@@ -55,27 +55,29 @@ fun box(): String {
     if (mock<Car>().javaClass != mockClass) return "Fail: second mock in the file has another class"
 
     if (!Regex("""Car\(#\d+\)""").matches(car.toString())) return "Fail toString: $car"
-    val answers = mapOf(
-        "drive(1, false)" to noAnswer { car.drive(1) },
-        "park()" to noAnswer { car.park() },
-        "getWheels()" to noAnswer { car.wheels },
-        "getDriver()" to noAnswer { car.driver },
-        "setDriver(me)" to noAnswer { car.driver = "me" },
-        "transport(box)" to noAnswer { car.transport("box") },
-        "label(x)" to noAnswer { with(car) { "x".label() } },
-        "describe()" to noAnswer { car.describe() },
-        "compareTo($car)" to noAnswer { car.compareTo(car) },
-        "refuel(1.5)" to noAnswerSuspend { car.refuel(1.5) },
+    val answers = listOf(
+        Triple("drive(1, false)", "Car.drive(Int, Boolean): String", noAnswer { car.drive(1) }),
+        Triple("park()", "Vehicle.park(): Unit", noAnswer { car.park() }),
+        Triple("getWheels()", "Vehicle.getWheels(): Int", noAnswer { car.wheels }),
+        Triple("getDriver()", "Car.getDriver(): String", noAnswer { car.driver }),
+        Triple("setDriver(me)", "Car.setDriver(String): Unit", noAnswer { car.driver = "me" }),
+        Triple("transport(box)", "Car.transport(Any): List", noAnswer { car.transport("box") }),
+        Triple("label(x)", "Car.label(String): String", noAnswer { with(car) { "x".label() } }),
+        Triple("describe()", "Car.describe(): String", noAnswer { car.describe() }),
+        Triple("compareTo($car)", "Comparable.compareTo(Car): Int", noAnswer { car.compareTo(car) }),
+        Triple("refuel(1.5)", "Car.refuel(Double): Unit", noAnswerSuspend { car.refuel(1.5) }),
     )
-    for ((call, message) in answers) {
-        if (message != "no answer found for $car.$call among the configured answers: ()") return "Fail $call: $message"
+    for ((call, member, message) in answers) {
+        val expected = "no answer found for $car.$call among the configured answers: ()\nCalled member: $member"
+        if (message != expected) return "Fail $call: $message"
     }
 
     every { car.drive(any()) } returns "driven"
     every { car.drive(more(5), true) } returns "far"
     val configured = "$car.drive(any(), eq(false))\n$car.drive(more(5), eq(true))"
     val unanswered = noAnswer { car.drive(1, true) }
-    if (unanswered != "no answer found for $car.drive(1, true) among the configured answers: ($configured)") {
+    val drive = "Called member: Car.drive(Int, Boolean): String"
+    if (unanswered != "no answer found for $car.drive(1, true) among the configured answers: ($configured)\n$drive") {
         return "Fail configured answers: $unanswered"
     }
 

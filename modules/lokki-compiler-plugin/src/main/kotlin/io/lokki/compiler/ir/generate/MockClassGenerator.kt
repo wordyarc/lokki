@@ -112,6 +112,7 @@ internal class MockClassGenerator(
     private val typeSystem = IrTypeSystemContextImpl(context.irBuiltIns)
     private val anyConstructor = context.irBuiltIns.anyClass.owner.constructors.single()
     private val relaxedDefaults = RelaxedDefaults(context, symbols)
+    private val memberDescriptions = MemberDescriptions(context, symbols)
 
     fun generate(key: MockClassKey, usage: MockClassUsage): IrClass {
         val mocked = usage.mockedTypes.type.mockedClass
@@ -151,9 +152,10 @@ internal class MockClassGenerator(
         val functions = mock.declarations.filterIsInstance<IrSimpleFunction>()
         val original = functions.single { symbols.original.symbol in it.overriddenSymbols }
         val relaxed = functions.single { symbols.relaxed.symbol in it.overriddenSymbols }
+        val describe = functions.single { symbols.describe.symbol in it.overriddenSymbols }
         val (methodsOfAny, declared) = mock.declarations.flatMap { member ->
             when (member) {
-                original, relaxed -> emptyList()
+                original, relaxed, describe -> emptyList()
                 is IrSimpleFunction -> listOf(member)
                 is IrProperty -> if (member == stateProperty) emptyList() else listOfNotNull(member.getter, member.setter)
                 else -> emptyList()
@@ -178,6 +180,7 @@ internal class MockClassGenerator(
         original.implementOriginal(mock, mocked, state, originals)
         val names = ownParameters.zip(parameters).associate { (own, parameter) -> own.symbol to parameter.owner.name }
         relaxed.implementRelaxed(mock, members) { (names[it.symbol] ?: it.name).asString() }
+        describe.implementDescribe(mock, members, key.file)
         usage.mockedTypes.classes.forEach { lookupTracker?.recordMockedTypeLookups(it, key.file) }
         return mock
     }
@@ -350,6 +353,18 @@ internal class MockClassGenerator(
         }
     }
 
+    private fun IrSimpleFunction.implementDescribe(mock: IrClass, members: List<IrSimpleFunction>, file: IrFile) {
+        val widest = members.maxOf { it.nonDispatchParameters.size }
+        val partSize = maxOf(1, PART_BYTES / (DESCRIBE_BRANCH_BYTES + DESCRIBE_PARAMETER_BYTES * widest))
+        implementDispatcher(mock, members.withIndex().toList(), partSize, otherwise = { irNull() }) { function, entries ->
+            val member = function.nonDispatchParameters.single()
+            entries.map { (index, described) ->
+                val description = with(memberDescriptions) { irDescription(described, file) }
+                irBranch(irEquals(irGet(member), irInt(index)), description)
+            }
+        }
+    }
+
     private fun <T> IrSimpleFunction.implementDispatcher(
         mock: IrClass,
         entries: List<IndexedValue<T>>,
@@ -495,3 +510,5 @@ private const val PART_BYTES = 32_000
 private const val ORIGINAL_BRANCH_BYTES = 24
 private const val ORIGINAL_ARGUMENT_BYTES = 16
 private const val RELAXED_BRANCH_BYTES = 24
+private const val DESCRIBE_BRANCH_BYTES = 32
+private const val DESCRIBE_PARAMETER_BYTES = 8

@@ -2,9 +2,11 @@ package io.lokki.compiler.ir.collect
 
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.ir.intrinsicKind
+import io.lokki.compiler.ir.inaccessibleClasses
 import io.lokki.compiler.ir.isMissing
 import io.lokki.compiler.ir.isVisibleFrom
 import io.lokki.compiler.ir.missingClasses
+import io.lokki.compiler.ir.packageFqName
 import io.lokki.compiler.ir.typeKey
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
@@ -35,11 +37,11 @@ import org.jetbrains.kotlin.ir.types.typeOrNull
 import org.jetbrains.kotlin.ir.types.typeWith
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.getAllSuperclasses
-import org.jetbrains.kotlin.ir.util.getPackageFragment
 import org.jetbrains.kotlin.ir.util.isFakeOverride
 import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.util.render
+import org.jetbrains.kotlin.ir.util.resolveFakeOverrideMaybeAbstractOrFail
 import org.jetbrains.kotlin.ir.util.substitute
 import org.jetbrains.kotlin.load.java.JavaDescriptorVisibilities
 import org.jetbrains.kotlin.name.FqName
@@ -150,6 +152,9 @@ internal fun IrType.notMockableReason(file: IrFile): String? {
             ?: type.membersWithMissingClasses().takeIf { it.isNotEmpty() }?.joinToString(
                 prefix = "'$name' or its supertypes declare members that refer to classes missing from the classpath: ",
             )
+            ?: type.membersWithInaccessibleClasses(file).takeIf { it.isNotEmpty() }?.joinToString(
+                prefix = "'$name' has members that refer to package-private classes of another package: ",
+            )
     }
 }
 
@@ -196,18 +201,29 @@ private fun IrClass.uninheritedAbstractMembers(): List<IrOverridableMember> {
         .filter { it.modality == Modality.ABSTRACT && it.visibility == JavaDescriptorVisibilities.PACKAGE_VISIBILITY }
 }
 
-private val IrClass.packageFqName: FqName
-    get() = getPackageFragment().packageFqName
-
 private fun IrClass.membersWithMissingClasses(): List<String> =
-    (listOf(this) + getAllSuperclasses()).flatMap { it.declarations }.flatMap { member ->
+    (listOf(this) + getAllSuperclasses()).flatMap { it.memberFunctions }
+        .filterNot { it.isFakeOverride }
+        .mapNotNull { member -> member.withClasses(member.missingClasses) }
+        .distinct()
+
+private fun IrClass.membersWithInaccessibleClasses(file: IrFile): List<String> =
+    memberFunctions
+        .filter { it.modality != Modality.FINAL && it.resolveFakeOverrideMaybeAbstractOrFail().isVisibleFrom(file) }
+        .mapNotNull { member -> member.withClasses(member.inaccessibleClasses(file)) }
+        .distinct()
+
+private val IrClass.memberFunctions: List<IrSimpleFunction>
+    get() = declarations.flatMap { member ->
         when (member) {
             is IrSimpleFunction -> listOf(member)
             is IrProperty -> listOfNotNull(member.getter, member.setter)
             else -> emptyList()
         }
-    }.filterNot { it.isFakeOverride }.mapNotNull { member ->
-        val missing = member.missingClasses.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
-        val name = member.correspondingPropertySymbol?.owner?.name ?: member.name
-        missing.joinToString(prefix = "$name (", postfix = ")") { it.kotlinFqName.asString() }
-    }.distinct()
+    }
+
+private fun IrSimpleFunction.withClasses(classes: List<IrClass>): String? {
+    if (classes.isEmpty()) return null
+    val name = correspondingPropertySymbol?.owner?.name ?: name
+    return classes.joinToString(prefix = "$name (", postfix = ")") { it.kotlinFqName.asString() }
+}

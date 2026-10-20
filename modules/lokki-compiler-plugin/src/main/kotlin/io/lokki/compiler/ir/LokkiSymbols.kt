@@ -24,6 +24,9 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
     val state by lazy { generatedMock.properties.single { it.name.asString() == "lokki\$state" } }
     val original by lazy { generatedMock.function("lokki\$original") }
     val relaxed by lazy { generatedMock.function("lokki\$relaxed") }
+    val describe by lazy { generatedMock.function("lokki\$describe") }
+    val methodDescriptions by lazy { findClass(INTERNAL_PACKAGE, "MethodDescriptions") }
+    val methodDescription by lazy { methodDescriptions.function("of") }
     val noRelaxedDefault by lazy { findClass(INTERNAL_PACKAGE, "NoRelaxedDefault") }
     val of by lazy { generatedMock.companionObject()!!.function("of") }
     val withoutStateChanges by lazy { generatedMock.companionObject()!!.function("withoutStateChanges") }

@@ -2,18 +2,25 @@ package io.lokki
 
 import io.lokki.internal.GeneratedMock
 import io.lokki.internal.LokkiIntrinsic
+import kotlin.reflect.KClass
 
 public fun interface Answer<out T> {
     public fun answer(call: Call): T
 }
 
-public class Call internal constructor(public val invocation: Invocation)
+public class Call internal constructor(public val invocation: Invocation) {
+    public val retType: KClass<*>
+        get() = invocation.method.returnType
+}
 
 public class Invocation internal constructor(
     public val self: Any,
     private val member: Int,
     private val arguments: Array<Any?>,
 ) {
+    public val method: MethodDescription
+        get() = (self as GeneratedMock).`lokki$state`.description(member)
+
     public val args: List<Any?> = ArgumentList(arguments)
 
     internal fun callOriginal(): Any? = (self as GeneratedMock).`lokki$original`(member, arguments)
@@ -26,6 +33,9 @@ public class AnswerScope<T> internal constructor(public val call: Call) {
 
     public val self: Any
         get() = invocation.self
+
+    public val method: MethodDescription
+        get() = invocation.method
 
     public val args: List<Any?>
         get() = invocation.args

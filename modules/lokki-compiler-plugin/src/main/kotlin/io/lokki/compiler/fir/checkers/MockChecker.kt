@@ -152,7 +152,7 @@ private fun FirRegularClassSymbol.notMockableReason(): String? =
             "it or its supertypes declare members that refer to classes missing from the classpath: " +
                 "${members.joinToString()}. Add the dependency with these classes to the test compilation and " +
                 "runtime, e.g. with 'testImplementation'"
-        }
+        } ?: membersWithInaccessibleClasses()
     }
 
 private fun ConeClassLikeType.irreplaceableStarProjection(mocked: FirRegularClassSymbol): String? {
@@ -209,12 +209,41 @@ private fun FirRegularClassSymbol.membersWithMissingClasses(): List<String> {
         .mapNotNull { it.toRegularClassSymbol(context.session) }
     for (type in listOf(this) + supertypes) {
         type.unsubstitutedScope().processAllCallables { member ->
-            val missing = member.signatureTypes().flatMap { it.erasedMissingClasses() }.distinct()
-            if (missing.isNotEmpty()) members += "'${member.name}' (${missing.joinToString { it.asFqNameString() }})"
+            val missing = member.erasedClasses().filter { it.lookupTag.toSymbol(context.session) == null }
+            if (missing.isNotEmpty()) members += member.withClasses(missing)
         }
     }
     return members.toList()
 }
+
+context(context: CheckerContext)
+private fun FirRegularClassSymbol.membersWithInaccessibleClasses(): String? {
+    val filePackage = context.filePackage ?: return null
+    val members = sortedSetOf<String>()
+    val packages = sortedSetOf<String>()
+    unsubstitutedScope().processAllCallables { member ->
+        if (member.isFinal || !member.isVisibleToMock()) return@processAllCallables
+        val inaccessible = member.erasedClasses().filter { type ->
+            val symbol = type.toRegularClassSymbol(context.session) ?: return@filter false
+            symbol.visibility in PACKAGE_PRIVATE_CLASSES && symbol.classId.packageFqName != filePackage
+        }
+        if (inaccessible.isNotEmpty()) {
+            members += member.withClasses(inaccessible)
+            inaccessible.mapTo(packages) { it.lookupTag.classId.packageFqName.asString() }
+        }
+    }
+    if (members.isEmpty()) return null
+    val advice = packages.singleOrNull()?.let { ". Create the mock in a file of package '$it'" }.orEmpty()
+    return "a mock cannot override its members that refer to package-private classes of another package: " +
+        members.joinToString() + advice
+}
+
+private fun FirCallableSymbol<*>.withClasses(classes: List<ConeClassLikeType>): String =
+    "'$name' (${classes.joinToString { it.lookupTag.classId.asFqNameString() }})"
+
+context(context: CheckerContext)
+private fun FirCallableSymbol<*>.erasedClasses(): List<ConeClassLikeType> =
+    signatureTypes().flatMap { it.erasedClasses() }.distinctBy { it.lookupTag }
 
 private fun FirCallableSymbol<*>.signatureTypes(): List<ConeKotlinType> =
     listOfNotNull(resolvedReturnType, resolvedReceiverType) +
@@ -222,16 +251,16 @@ private fun FirCallableSymbol<*>.signatureTypes(): List<ConeKotlinType> =
         (this as? FirFunctionSymbol<*>)?.valueParameterSymbols.orEmpty().map { it.resolvedReturnType }
 
 context(context: CheckerContext)
-private fun ConeKotlinType.erasedMissingClasses(): List<ClassId> =
+private fun ConeKotlinType.erasedClasses(): List<ConeClassLikeType> =
     when (val type = lowerBoundIfFlexible()) {
         is ConeClassLikeType -> when {
-            type.lookupTag.toSymbol(context.session) == null -> listOf(type.lookupTag.classId)
-            type.isNonPrimitiveArray -> type.typeArguments.single().type?.erasedMissingClasses().orEmpty()
-            else -> emptyList()
+            type.lookupTag.toSymbol(context.session) != null && type.isNonPrimitiveArray ->
+                type.typeArguments.single().type?.erasedClasses().orEmpty()
+            else -> listOf(type)
         }
         is ConeTypeParameterType ->
-            type.lookupTag.typeParameterSymbol.resolvedBounds.flatMap { it.coneType.erasedMissingClasses() }
-        is ConeDefinitelyNotNullType -> type.original.erasedMissingClasses()
+            type.lookupTag.typeParameterSymbol.resolvedBounds.flatMap { it.coneType.erasedClasses() }
+        is ConeDefinitelyNotNullType -> type.original.erasedClasses()
         else -> emptyList()
     }
 
@@ -457,6 +486,7 @@ private fun FirCallableSymbol<*>.isMoreSpecific(
     }
 }
 
+private val PACKAGE_PRIVATE_CLASSES = setOf(Visibilities.Private, JavaVisibilities.PackageVisibility)
 private val MORE_INTERFACES = Name.identifier("moreInterfaces")
 private val ARRAY_OF = CallableId(StandardClassIds.BASE_KOTLIN_PACKAGE, Name.identifier("arrayOf"))
 private val DO_NOT_MOCK = Name.identifier("DoNotMock")

@@ -18,6 +18,7 @@ public final class io/lokki/AnswerScope {
 	public final fun getArgs ()Ljava/util/List;
 	public final fun getCall ()Lio/lokki/Call;
 	public final fun getInvocation ()Lio/lokki/Invocation;
+	public final fun getMethod ()Lio/lokki/MethodDescription;
 	public final fun getNArgs ()I
 	public final fun getNothing ()Ljava/lang/Void;
 	public final fun getSelf ()Ljava/lang/Object;
@@ -31,6 +32,7 @@ public final class io/lokki/AssertScope {
 
 public final class io/lokki/Call {
 	public final fun getInvocation ()Lio/lokki/Invocation;
+	public final fun getRetType ()Lkotlin/reflect/KClass;
 }
 
 public final class io/lokki/CallCountVerificationScope {
@@ -61,6 +63,7 @@ public abstract interface annotation class io/lokki/InternalLokkiApi : java/lang
 
 public final class io/lokki/Invocation {
 	public final fun getArgs ()Ljava/util/List;
+	public final fun getMethod ()Lio/lokki/MethodDescription;
 	public final fun getSelf ()Ljava/lang/Object;
 }
 
@@ -102,6 +105,28 @@ public abstract class io/lokki/MatcherScope {
 	public final fun varargAnyInt (Lkotlin/jvm/functions/Function2;)[I
 	public final fun varargAnyLong (Lkotlin/jvm/functions/Function2;)[J
 	public final fun varargAnyShort (Lkotlin/jvm/functions/Function2;)[S
+}
+
+public final class io/lokki/MethodDescription {
+	public final fun argToStr (Lkotlin/reflect/KClass;)Ljava/lang/String;
+	public final fun argsToStr ()Ljava/lang/String;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDeclaringClass ()Lkotlin/reflect/KClass;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getParamTypes ()Ljava/util/List;
+	public final fun getPrivateCall ()Z
+	public final fun getReturnType ()Lkotlin/reflect/KClass;
+	public final fun getReturnTypeNullable ()Z
+	public final fun getReturnsNothing ()Z
+	public final fun getReturnsUnit ()Z
+	public final fun getVarArgsArg ()I
+	public fun hashCode ()I
+	public final fun isEquals ()Z
+	public final fun isFnCall ()Z
+	public final fun isHashCode ()Z
+	public final fun isSuspend ()Z
+	public final fun isToString ()Z
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class io/lokki/MockKt {
@@ -175,6 +200,7 @@ public final class io/lokki/internal/EqMatcher : io/lokki/Matcher {
 public abstract interface class io/lokki/internal/GeneratedMock {
 	public static final field Companion Lio/lokki/internal/GeneratedMock$Companion;
 	public abstract synthetic fun getLokki$state ()Lio/lokki/internal/MockState;
+	public abstract synthetic fun lokki$describe (I)Lio/lokki/MethodDescription;
 	public abstract synthetic fun lokki$original (I[Ljava/lang/Object;)Ljava/lang/Object;
 	public abstract synthetic fun lokki$relaxed (I)Ljava/lang/Object;
 }
@@ -263,6 +289,11 @@ public final class io/lokki/internal/Matchers {
 	public final fun varargOf ([Lio/lokki/Matcher;Lio/lokki/Matcher;[Lio/lokki/Matcher;)Lio/lokki/Matcher;
 	public final fun withArg (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
 	public final fun withNullableArg (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
+}
+
+public final class io/lokki/internal/MethodDescriptions {
+	public static final field INSTANCE Lio/lokki/internal/MethodDescriptions;
+	public static final fun of (Ljava/lang/String;Ljava/lang/Class;ILjava/lang/Class;[Ljava/lang/Class;I)Lio/lokki/MethodDescription;
 }
 
 public final class io/lokki/internal/MockDescriptor {

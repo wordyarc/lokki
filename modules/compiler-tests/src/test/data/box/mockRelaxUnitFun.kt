@@ -35,9 +35,9 @@ fun box(): String {
     sink.level = 3
     val strict = listOf(answer { sink.size() }, answer { sink.level }, answer { sink.flush() })
     val expected = listOf(
-        "no answer found for Sink.size() among the configured answers: ()",
-        "no answer found for Sink.getLevel() among the configured answers: ()",
-        "no answer found for Sink.flush() among the configured answers: ()",
+        "no answer found for Sink.size() among the configured answers: ()\nCalled member: Sink.size(): Int",
+        "no answer found for Sink.getLevel() among the configured answers: ()\nCalled member: Sink.getLevel(): Int",
+        "no answer found for Sink.flush() among the configured answers: ()\nCalled member: Sink.flush(): Unit?",
     )
     if (strict != expected) return "Fail strict members: $strict"
     verify {
@@ -69,7 +69,7 @@ fun box(): String {
     if (order != listOf("relaxUnitFun", "name", "relaxed")) return "Fail evaluation order: $order"
     dynamic.write("c")
     val dynamicAnswer = answer { dynamic.size() }
-    if (dynamicAnswer != "no answer found for Sink.size() among the configured answers: ()") {
+    if (dynamicAnswer != expected.first()) {
         return "Fail dynamic flags: $dynamicAnswer"
     }
     val relaxed = mock<Sink>(relaxed = flag("relaxed", true))

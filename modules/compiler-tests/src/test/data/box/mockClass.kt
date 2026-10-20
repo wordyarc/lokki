@@ -87,7 +87,9 @@ fun box(): String {
 
     if (engine.power != 0 || (engine.serial as String?) != null) return "Fail: the constructor of Engine ran"
     val strict = noAnswer { engine.start() }.orEmpty()
-    if (!Regex("""no answer found for Engine\(#\d+\)\.start\(\) among the configured answers: \(\)""").matches(strict)) {
+    val expected = """no answer found for Engine\(#\d+\)\.start\(\) among the configured answers: \(\)\n""" +
+        """Called member: Engine\.start\(\): String"""
+    if (!Regex(expected).matches(strict)) {
         return "Fail strict: $strict"
     }
     every { engine.start() } returns "stubbed"

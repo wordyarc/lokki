@@ -1,6 +1,7 @@
 package io.lokki.internal
 
 import io.lokki.LokkiException
+import io.lokki.MethodDescription
 
 @PublishedApi
 internal class MockDescriptor(
@@ -17,33 +18,18 @@ internal class MockDescriptor(
         members
     }
 
+    private val descriptions = arrayOfNulls<MethodDescription>(keys.size)
+
     internal val memberCount: Int
         get() = keys.size
 
     internal fun member(key: String): Int = members[key] ?: throw LokkiException("$name has no member $key")
 
-    internal fun memberName(member: Int): String {
-        val key = keys[member]
-        val parameters = key.lastIndexOf('(')
-        if (key[parameters - 1] != '>') {
-            return key.substring(key.lastIndexOfAny(NAME_DELIMITERS, parameters) + 1, parameters)
-        }
-        val accessor = key.lastIndexOf('<', parameters)
-        val property = key.substring(accessor + ACCESSOR_PREFIX_LENGTH, parameters - 1)
-        val boolean = property.length > 2 && property.startsWith("is") && property[2] !in 'a'..'z'
-        return when {
-            !key.startsWith("<get-", accessor) -> "set" + if (boolean) property.substring(2) else property.capitalized()
-            boolean -> property
-            else -> "get" + property.capitalized()
-        }
-    }
+    internal fun description(mock: GeneratedMock, member: Int): MethodDescription =
+        descriptions[member] ?: checkNotNull(mock.`lokki$describe`(member)) { "$name has no member $member" }
+            .also { descriptions[member] = it }
 
     private fun HashMap<String, Int>.add(key: String, member: Int) {
         if (put(key, member) != null) throw LokkiException("$name has two members with the key $key")
     }
 }
-
-private val NAME_DELIMITERS = charArrayOf('.', '#', ')', '>')
-private const val ACCESSOR_PREFIX_LENGTH = "<get-".length
-
-private fun String.capitalized(): String = if (first() in 'a'..'z') first().uppercaseChar() + substring(1) else this

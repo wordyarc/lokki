@@ -128,7 +128,7 @@ private class Expectation(
                     }
                     0 in min..max -> null
                     else -> "$description. Only one matching call to ${state.name}/" +
-                        "${state.descriptor.memberName(member)} happened, but arguments are not matching:\n" +
+                        "${state.description(member).name} happened, but arguments are not matching:\n" +
                         "${difference(call, results)}${call.callSite()}"
                 }
             }

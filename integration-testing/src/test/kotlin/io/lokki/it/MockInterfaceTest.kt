@@ -23,11 +23,13 @@ class MockInterfaceTest {
 
         assertTrue(car.toString().startsWith("Car(rental#"))
         assertEquals(
-            "no answer found for $car.drive(1) among the configured answers: ()",
+            "no answer found for $car.drive(1) among the configured answers: ()\n" +
+                "Called member: Car.drive(Int): String",
             assertFailsWith<LokkiException> { garage.leave() }.message,
         )
         assertEquals(
-            "no answer found for $car.getPlate() among the configured answers: ()",
+            "no answer found for $car.getPlate() among the configured answers: ()\n" +
+                "Called member: Car.getPlate(): String",
             assertFailsWith<LokkiException> { garage.plate() }.message,
         )
     }
@@ -59,7 +61,8 @@ class MockInterfaceTest {
         val engine: Engine = mock()
 
         assertEquals(
-            "no answer found for $engine.start() among the configured answers: ()",
+            "no answer found for $engine.start() among the configured answers: ()\n" +
+                "Called member: Engine.start(): Boolean",
             assertFailsWith<LokkiException> { engine.start() }.message,
         )
     }

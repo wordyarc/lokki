@@ -7,6 +7,7 @@ import io.lokki.Call
 import io.lokki.Invocation
 import io.lokki.LokkiException
 import io.lokki.Matcher
+import io.lokki.MethodDescription
 import io.lokki.StubScope
 import kotlin.concurrent.Volatile
 
@@ -75,7 +76,9 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
             defaults
         }
 
-    internal fun memberName(member: Int): String = "${descriptor.name}.${descriptor.memberName(member)}"
+    internal fun memberName(member: Int): String = "${descriptor.name}.${description(member).name}"
+
+    internal fun description(member: Int): MethodDescription = descriptor.description(owner as GeneratedMock, member)
 
     internal fun register(member: Int, entry: StubEntry) {
         synchronized(this) {
@@ -125,7 +128,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         }
     }
 
-    internal fun call(member: Int, arguments: String): String = "$name.${descriptor.memberName(member)}($arguments)"
+    internal fun call(member: Int, arguments: String): String = "$name.${description(member).name}($arguments)"
 
     private fun record(member: Int, arguments: Array<Any?>): CallRecord? {
         val exclusions = exclusions
@@ -167,7 +170,8 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         } else {
             if (flags and RELAX_UNIT_FUN != 0 && relaxedAnswer(member) === Unit) return Unit
             "no answer found for ${call(member, arguments.joinToString { it.toStr() })} " +
-                "among the configured answers: (${describeStubs { true }.joinToString("\n")})"
+                "among the configured answers: (${describeStubs { true }.joinToString("\n")})\n" +
+                "Called member: ${description(member).signature()}"
         }
         if (record != null) synchronized(records) { record.unanswered = true }
         throw LokkiException(message)

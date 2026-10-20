@@ -27,7 +27,8 @@ class StubInterfaceTest {
 
         assertEquals("news", dashboard.news())
         assertEquals(
-            "no answer found for $radio.tune(101, 11) among the configured answers: ($radio.tune(any(), eq(5)))",
+            "no answer found for $radio.tune(101, 11) among the configured answers: ($radio.tune(any(), eq(5)))\n" +
+                "Called member: Radio.tune(Int, Int): String",
             assertFailsWith<LokkiException> { dashboard.loudNews() }.message,
         )
     }

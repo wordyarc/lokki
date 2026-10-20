@@ -1,6 +1,7 @@
 package io.lokki.internal
 
 import io.lokki.LokkiException
+import io.lokki.MethodDescription
 
 @PublishedApi
 internal interface GeneratedMock {
@@ -12,6 +13,9 @@ internal interface GeneratedMock {
 
     @JvmSynthetic
     fun `lokki$relaxed`(member: Int): Any?
+
+    @JvmSynthetic
+    fun `lokki$describe`(member: Int): MethodDescription?
 
     companion object {
         fun of(instance: Any?): GeneratedMock =

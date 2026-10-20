@@ -11,13 +11,13 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class MockStateTest {
-    private val descriptor = MockDescriptor(
-        "Repo",
-        ANY_KEYS + arrayOf(FIND, "sample.Repo#kotlin.String.label()", "sample.Repo#<get-isOpen>()"),
-        arrayOf("sample.Named#kotlin.String.label()", "sample.Repo#kotlin.String.label()"),
+    private val owner = TestMock(
+        null,
+        FIND,
+        "sample.Repo#kotlin.String.label()",
+        aliases = arrayOf("sample.Named#kotlin.String.label()", "sample.Repo#kotlin.String.label()"),
     )
-    private val owner = Any()
-    private val state = MockState(owner, MockSpec(null, 0), descriptor)
+    private val state = owner.`lokki$state`
     private val name = state.answer(TO_STRING, emptyArray())
 
     @Test
@@ -39,16 +39,23 @@ class MockStateTest {
 
         assertEquals(
             "no answer found for $name.find(1, true) among the configured answers: " +
-                "($name.find(any(), eq(false))\n$name.label(more(5)))",
+                "($name.find(any(), eq(false))\n$name.label(more(5)))" + CALLED_FIND,
             exception.message,
         )
     }
 
     @Test
-    fun testNoAnswerOfAccessorIsReportedByItsJvmName() {
-        val exception = assertFailsWith<LokkiException> { state.answer(OPEN_MEMBER, emptyArray()) }
+    fun testMemberIsDescribedOnce() {
+        val mock = TestMock(null, FIND)
+        val descriptions = ArrayList<Int>()
+        val describe = mock::`lokki$describe`
+        val counting = object : GeneratedMock by mock {
+            override fun `lokki$describe`(member: Int) = describe(member).also { descriptions += member }
+        }
+        val descriptor = mock.`lokki$state`.descriptor
 
-        assertEquals("no answer found for $name.isOpen() among the configured answers: ()", exception.message)
+        assertSame(descriptor.description(counting, FIND_MEMBER), descriptor.description(counting, FIND_MEMBER))
+        assertEquals(listOf(FIND_MEMBER), descriptions)
     }
 
     @Test
@@ -74,7 +81,7 @@ class MockStateTest {
 
     @Test
     fun testNameOfMockPrecedesItsNumber() {
-        val named = MockState(owner, MockSpec("repo", 0), descriptor)
+        val named = TestMock("repo", FIND).`lokki$state`
 
         assertTrue(Regex("""Repo\(repo#\d+\)""").matches(named.answer(TO_STRING, emptyArray()) as String))
     }
@@ -88,7 +95,7 @@ class MockStateTest {
 
     @Test
     fun testKeyOfTwoMembersIsRejected() {
-        val state = MockState(owner, MockSpec(null, 0), MockDescriptor("Repo", ANY_KEYS + arrayOf(FIND, FIND)))
+        val state = TestMock(null, FIND, FIND).`lokki$state`
 
         val exception = assertFailsWith<LokkiException> { state.stub<String>(FIND, arrayOf(AnyMatcher, AnyMatcher)) }
 
@@ -273,7 +280,7 @@ class MockStateTest {
 
         assertEquals(Unit, state.answer(SAVE_MEMBER, emptyArray()))
         assertEquals(
-            "no answer found for $name.find(7, true) among the configured answers: ()",
+            "no answer found for $name.find(7, true) among the configured answers: ()" + CALLED_FIND,
             assertFailsWith<LokkiException> { state.answer(FIND_MEMBER, arrayOf(7, true)) }.message,
         )
         assertEquals(listOf("$name.find(7, true)"), state.unansweredRecords().map { it.toString() })
@@ -403,7 +410,7 @@ class MockStateTest {
 
         state.clear(answers = true, recordedCalls = false, verificationMarks = false, exclusionRules = false)
         assertEquals(
-            "no answer found for $name.find(4, true) among the configured answers: ()",
+            "no answer found for $name.find(4, true) among the configured answers: ()" + CALLED_FIND,
             assertFailsWith<LokkiException> { state.answer(FIND_MEMBER, arrayOf(4, true)) }.message,
         )
         assertEquals(listOf("$name.find(3, true)", "$name.find(4, true)"), records())
@@ -423,7 +430,7 @@ class MockStateTest {
         const val TO_STRING = 2
         const val FIND_MEMBER = 3
         const val LABEL_MEMBER = 4
-        const val OPEN_MEMBER = 5
+        const val CALLED_FIND = "\nCalled member: TestMock.find(Int, Boolean): String"
         const val SAVE_MEMBER = 4
     }
 }
