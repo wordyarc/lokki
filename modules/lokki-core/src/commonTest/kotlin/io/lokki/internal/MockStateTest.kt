@@ -2,11 +2,17 @@ package io.lokki.internal
 
 import io.lokki.CapturingSlot
 import io.lokki.LokkiException
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.coroutines.resume
+import kotlin.coroutines.startCoroutine
+import kotlin.coroutines.suspendCoroutine
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -217,6 +223,52 @@ class MockStateTest {
     }
 
     @Test
+    fun testSuspendCallIsAnsweredLikeOtherCalls() {
+        state.stub<String>(FIND, arrayOf(EqMatcher(1), AnyMatcher)) returns "a"
+        state.stub<String>(FIND, arrayOf(EqMatcher(2), AnyMatcher)) answers { "answered ${firstArg<Int>()}" }
+
+        assertEquals(Result.success("a"), start { state.coAnswer<String>(FIND_MEMBER, arrayOf(1, true)) }())
+        assertEquals(Result.success("answered 2"), start { state.coAnswer<String>(FIND_MEMBER, arrayOf(2, true)) }())
+        assertEquals(
+            "no answer found for $name.find(3, true)",
+            start { state.coAnswer<String>(FIND_MEMBER, arrayOf(3, true)) }()?.exceptionOrNull()?.message
+                ?.substringBefore(" among"),
+        )
+        assertEquals(listOf("$name.find(1, true)", "$name.find(2, true)", "$name.find(3, true)"), records())
+    }
+
+    @Test
+    fun testSuspendingAnswerSuspendsTheCall() {
+        var pending: Continuation<Unit>? = null
+        state.stub<String>(FIND, arrayOf(AnyMatcher, AnyMatcher)) coAnswers {
+            suspendCoroutine { pending = it }
+            "late ${firstArg<Int>()}"
+        }
+
+        val outcome = start { state.coAnswer<String>(FIND_MEMBER, arrayOf(7, true)) }
+        assertNull(outcome())
+        pending!!.resume(Unit)
+
+        assertEquals(Result.success("late 7"), outcome())
+    }
+
+    @Test
+    fun testSuspendingAnswerOfNonSuspendCallMustNotSuspend() {
+        state.stub<String>(FIND, arrayOf(EqMatcher(1), AnyMatcher)) coAnswers { "at once" }
+        state.stub<String>(FIND, arrayOf(EqMatcher(2), AnyMatcher)) coAnswers {
+            suspendCoroutine<Unit> { }
+            "never"
+        }
+
+        assertEquals("at once", state.answer(FIND_MEMBER, arrayOf(1, true)))
+        assertEquals(
+            "coAnswers suspended in non-suspend $name.find(2, true); " +
+                "an answer of a non-suspend member must complete without suspension",
+            assertFailsWith<LokkiException> { state.answer(FIND_MEMBER, arrayOf(2, true)) }.message,
+        )
+    }
+
+    @Test
     fun testOriginalReceivesTheMemberAndTheArgumentsOfTheCall() {
         val mock = TestMock("repo", FIND)
         val calls = ArrayList<Pair<Int, Array<Any?>>>()
@@ -421,6 +473,12 @@ class MockStateTest {
     }
 
     private fun records(): List<String> = state.records().map { it.toString() }
+
+    private fun <T> start(block: suspend () -> T): () -> Result<T>? {
+        var outcome: Result<T>? = null
+        block.startCoroutine(Continuation(EmptyCoroutineContext) { outcome = it })
+        return { outcome }
+    }
 
     private companion object {
         const val FIND = "sample.Repo#find(kotlin.Int,kotlin.Boolean)"

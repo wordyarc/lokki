@@ -5,13 +5,18 @@ package sample
 
 import io.lokki.Runs
 import io.lokki.StubScope
+import io.lokki.coEvery
+import io.lokki.coJustRun
 import io.lokki.every
 import io.lokki.just
+import io.lokki.justRun
 import io.lokki.mock
 
 interface Repo {
     fun find(id: Int): String
     fun save(name: String)
+    suspend fun load(id: Int): String
+    suspend fun store(name: String)
 }
 
 fun <R> twice(block: () -> R): R {
@@ -95,5 +100,10 @@ fun test(repo: Repo, nullable: Repo?, flag: Boolean, ids: List<Int>) {
     collect { every { repo.find(1) } }
     ids.map { every { repo.find(it) } }
     listOf(every { repo.find(1) })
+    <!LOKKI_STUB_WITHOUT_ANSWER!>coEvery<!> { repo.load(1) }
+    coEvery { repo.load(1) } returns "a"
+    justRun { repo.save("a") }
+    coJustRun { repo.store("a") }
+    justRun { repo.save("a") } andThenThrows IllegalStateException()
     <!LOKKI_STUB_WITHOUT_ANSWER!>every<!> { repo.find(1) }
 }

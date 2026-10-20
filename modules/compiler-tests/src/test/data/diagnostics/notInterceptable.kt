@@ -31,6 +31,7 @@ public class Legacy {
 // FILE: test.kt
 package sample
 
+import io.lokki.coEvery
 import io.lokki.every
 import io.lokki.excludeRecords
 import io.lokki.mock
@@ -45,6 +46,8 @@ interface Repo {
 abstract class Service {
     abstract fun load(): String
     open fun reload(): String = load()
+    open suspend fun fetch(): String = load()
+    suspend fun refresh(): String = load()
     fun cached(): String = load()
     inline fun <reified T> typed(): T = load() as T
     val state: String = ""
@@ -105,6 +108,8 @@ fun test(repo: Repo, service: Service, impl: Impl, legacy: Legacy, text: String,
     every { <!LOKKI_NOT_INTERCEPTABLE!>toString<!>() } returns "a"
     every { this.<!LOKKI_NOT_INTERCEPTABLE!>hashCode<!>() } returns 1
     mock<Repo> { every { <!LOKKI_NOT_INTERCEPTABLE!>toString<!>() } returns "a" }
+    coEvery { service.<!LOKKI_NOT_INTERCEPTABLE!>refresh<!>() } returns "a"
+    coEvery { repo.<!LOKKI_NOT_INTERCEPTABLE!>first<!>() } returns "a"
 
     every { repo.find(1) } returns "a"
     every { repo.size } returns 1
@@ -120,6 +125,8 @@ fun test(repo: Repo, service: Service, impl: Impl, legacy: Legacy, text: String,
     with(repo) { every { "a".label() } returns "a" }
     mock<Repo> { every { this@mock.toString() } returns "a" }
     mock<Repo> { every { find(1) } returns "a" }
+    coEvery { service.fetch() } returns "a"
+    coEvery { repo.find(1) } returns "a"
 
     verify { repo.<!LOKKI_NOT_INTERCEPTABLE!>first<!>() }
     verify { service.<!LOKKI_NOT_INTERCEPTABLE!>typed<!><String>() }

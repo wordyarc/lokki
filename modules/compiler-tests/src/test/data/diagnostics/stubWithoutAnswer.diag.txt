@@ -1,55 +1,57 @@
-/stubWithoutAnswer.kt:38:9: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:43:9: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubWithoutAnswer.kt:43:5: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:48:5: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubWithoutAnswer.kt:44:18: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:49:18: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubWithoutAnswer.kt:45:37: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:50:37: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubWithoutAnswer.kt:46:16: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:51:16: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubWithoutAnswer.kt:47:16: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:52:16: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubWithoutAnswer.kt:48:18: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:53:18: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubWithoutAnswer.kt:49:17: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:54:17: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubWithoutAnswer.kt:50:21: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:55:21: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubWithoutAnswer.kt:51:22: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:56:22: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubWithoutAnswer.kt:53:9: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:58:9: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubWithoutAnswer.kt:56:26: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:61:26: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubWithoutAnswer.kt:57:13: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:62:13: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubWithoutAnswer.kt:58:18: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:63:18: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubWithoutAnswer.kt:59:19: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:64:19: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubWithoutAnswer.kt:60:21: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:65:21: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubWithoutAnswer.kt:62:9: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:67:9: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubWithoutAnswer.kt:64:15: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:69:15: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubWithoutAnswer.kt:65:15: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:70:15: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubWithoutAnswer.kt:65:43: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:70:43: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubWithoutAnswer.kt:67:17: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:72:17: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubWithoutAnswer.kt:68:17: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:73:17: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubWithoutAnswer.kt:71:9: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:76:9: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubWithoutAnswer.kt:73:9: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:78:9: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubWithoutAnswer.kt:75:9: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:80:9: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubWithoutAnswer.kt:77:30: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:82:30: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubWithoutAnswer.kt:81:9: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:86:9: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubWithoutAnswer.kt:98:5: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+/stubWithoutAnswer.kt:103:5: error: 'coEvery' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+
+/stubWithoutAnswer.kt:108:5: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.

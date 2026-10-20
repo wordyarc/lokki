@@ -10,6 +10,11 @@ public abstract interface class io/lokki/AdditionalAnswerScope {
 
 public abstract interface class io/lokki/Answer {
 	public abstract fun answer (Lio/lokki/Call;)Ljava/lang/Object;
+	public fun coAnswer (Lio/lokki/Call;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class io/lokki/Answer$DefaultImpls {
+	public static fun coAnswer (Lio/lokki/Answer;Lio/lokki/Call;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class io/lokki/AnswerScope {
@@ -142,6 +147,7 @@ public final class io/lokki/Runs {
 public abstract interface class io/lokki/StubScope {
 	public abstract fun answers (Lio/lokki/Answer;)Lio/lokki/AdditionalAnswerScope;
 	public abstract fun answers (Lkotlin/jvm/functions/Function2;)Lio/lokki/AdditionalAnswerScope;
+	public abstract fun coAnswers (Lkotlin/jvm/functions/Function3;)Lio/lokki/AdditionalAnswerScope;
 	public abstract fun returns (Ljava/lang/Object;)Lio/lokki/AdditionalAnswerScope;
 	public abstract fun returnsArgument (I)Lio/lokki/AdditionalAnswerScope;
 	public abstract fun returnsMany (Ljava/util/List;)Lio/lokki/AdditionalAnswerScope;
@@ -153,8 +159,11 @@ public abstract interface class io/lokki/StubScope {
 public final class io/lokki/StubbingKt {
 	public static final fun andThenJust (Lio/lokki/AdditionalAnswerScope;Lio/lokki/Runs;)Lio/lokki/AdditionalAnswerScope;
 	public static final fun checkUnnecessaryStub ([Ljava/lang/Object;)V
+	public static final fun coEvery (Lkotlin/jvm/functions/Function2;)Lio/lokki/StubScope;
+	public static final fun coJustRun (Lkotlin/jvm/functions/Function2;)Lio/lokki/AdditionalAnswerScope;
 	public static final fun every (Lkotlin/jvm/functions/Function1;)Lio/lokki/StubScope;
 	public static final fun just (Lio/lokki/StubScope;Lio/lokki/Runs;)Lio/lokki/AdditionalAnswerScope;
+	public static final fun justRun (Lkotlin/jvm/functions/Function1;)Lio/lokki/AdditionalAnswerScope;
 }
 
 public final class io/lokki/VarargScope {
@@ -311,6 +320,7 @@ public final class io/lokki/internal/MockState {
 	public fun <init> (Ljava/lang/Object;Lio/lokki/internal/MockSpec;Lio/lokki/internal/MockDescriptor;)V
 	public final fun answer (I[Ljava/lang/Object;)Ljava/lang/Object;
 	public final fun captureDefaults (Ljava/lang/String;[Ljava/lang/String;Lkotlin/jvm/functions/Function1;)[Ljava/lang/Object;
+	public final fun coAnswer (I[Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun exclude (Ljava/lang/String;[Lio/lokki/Matcher;Z)V
 	public static synthetic fun exclude$default (Lio/lokki/internal/MockState;Ljava/lang/String;[Lio/lokki/Matcher;ZILjava/lang/Object;)V
 	public final fun noOriginal (I[Ljava/lang/Object;)Ljava/lang/Void;

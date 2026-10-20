@@ -5,12 +5,15 @@ package sample
 
 import io.lokki.AnswerScope
 import io.lokki.Runs
+import io.lokki.coEvery
 import io.lokki.every
 import io.lokki.just
 import io.lokki.mock
 
 interface Pump {
     fun pressure(): Int
+
+    suspend fun fetch(): Int
 
     fun reset()
 
@@ -37,6 +40,9 @@ fun test() {
     every { pump.level } answers { listOf(1).sumOf { <!LOKKI_ABSTRACT_ORIGINAL_CALL!>callOriginal<!>() + it } }
     every { pump.level = any() } answers { <!LOKKI_ABSTRACT_ORIGINAL_CALL!>callOriginal<!>() }
     every { pump.name() } answers { callOriginal() }
+    coEvery { pump.fetch() } coAnswers { <!LOKKI_ABSTRACT_ORIGINAL_CALL!>callOriginal<!>() }
+    every { pump.pressure() } coAnswers { <!LOKKI_ABSTRACT_ORIGINAL_CALL!>callOriginal<!>() }
+    every { pump.name() } coAnswers { callOriginal() }
     every { pump.pressure() } answers { original() }
     val stub = every { pump.pressure() }
     stub answers { callOriginal() }

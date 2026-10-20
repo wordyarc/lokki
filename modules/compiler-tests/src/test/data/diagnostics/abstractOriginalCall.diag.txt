@@ -1,11 +1,15 @@
-/abstractOriginalCall.kt:34:41: error: 'pressure' is abstract, so 'callOriginal()' has no implementation to call.
+/abstractOriginalCall.kt:37:41: error: 'pressure' is abstract, so 'callOriginal()' has no implementation to call.
 
-/abstractOriginalCall.kt:35:57: error: 'pressure' is abstract, so 'callOriginal()' has no implementation to call.
+/abstractOriginalCall.kt:38:57: error: 'pressure' is abstract, so 'callOriginal()' has no implementation to call.
 
-/abstractOriginalCall.kt:36:54: error: 'reset' is abstract, so 'callOriginal()' has no implementation to call.
+/abstractOriginalCall.kt:39:54: error: 'reset' is abstract, so 'callOriginal()' has no implementation to call.
 
-/abstractOriginalCall.kt:37:54: error: 'level' is abstract, so 'callOriginal()' has no implementation to call.
+/abstractOriginalCall.kt:40:54: error: 'level' is abstract, so 'callOriginal()' has no implementation to call.
 
-/abstractOriginalCall.kt:38:44: error: 'level' is abstract, so 'callOriginal()' has no implementation to call.
+/abstractOriginalCall.kt:41:44: error: 'level' is abstract, so 'callOriginal()' has no implementation to call.
 
-/abstractOriginalCall.kt:45:43: error: 'start' is abstract, so 'callOriginal()' has no implementation to call.
+/abstractOriginalCall.kt:43:42: error: 'fetch' is abstract, so 'callOriginal()' has no implementation to call.
+
+/abstractOriginalCall.kt:44:43: error: 'pressure' is abstract, so 'callOriginal()' has no implementation to call.
+
+/abstractOriginalCall.kt:51:43: error: 'start' is abstract, so 'callOriginal()' has no implementation to call.

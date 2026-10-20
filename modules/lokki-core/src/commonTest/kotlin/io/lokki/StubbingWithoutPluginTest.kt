@@ -13,6 +13,23 @@ class StubbingWithoutPluginTest {
     }
 
     @Test
+    fun testCoEveryThrowsWithoutCompilerPlugin() {
+        val exception = assertFailsWith<LokkiException> { coEvery { 1 } returns 2 }
+
+        assertEquals("lokki compiler plugin is not applied to this compilation", exception.message)
+    }
+
+    @Test
+    fun testJustRunThrowsWithoutCompilerPlugin() {
+        val exceptions = listOf(
+            assertFailsWith<LokkiException> { justRun { } },
+            assertFailsWith<LokkiException> { coJustRun { } },
+        )
+
+        assertEquals(List(2) { "lokki compiler plugin is not applied to this compilation" }, exceptions.map { it.message })
+    }
+
+    @Test
     fun testVerifyThrowsWithoutCompilerPlugin() {
         val exception = assertFailsWith<LokkiException> { verify { 1 } }
 

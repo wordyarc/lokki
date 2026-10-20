@@ -7,6 +7,18 @@ import io.lokki.internal.states
 public fun <T> every(stubBlock: MatcherScope.() -> T): StubScope<T> =
     throw LokkiException("lokki compiler plugin is not applied to this compilation")
 
+@LokkiIntrinsic(LokkiIntrinsic.Kind.STUB_BLOCK)
+public fun <T> coEvery(stubBlock: suspend MatcherScope.() -> T): StubScope<T> =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.STUB_BLOCK)
+public fun justRun(stubBlock: MatcherScope.() -> Unit): AdditionalAnswerScope<Unit> =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.STUB_BLOCK)
+public fun coJustRun(stubBlock: suspend MatcherScope.() -> Unit): AdditionalAnswerScope<Unit> =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
 public fun checkUnnecessaryStub(vararg mocks: Any) {
     states("checkUnnecessaryStub", mocks).forEach { it.checkUnnecessaryStub() }
 }
@@ -18,6 +30,9 @@ public interface StubScope<T> {
 
     @LokkiIntrinsic(LokkiIntrinsic.Kind.ANSWER)
     public infix fun answers(answer: AnswerScope<T>.(Call) -> T): AdditionalAnswerScope<T>
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.ANSWER)
+    public infix fun coAnswers(answer: suspend AnswerScope<T>.(Call) -> T): AdditionalAnswerScope<T>
 
     @LokkiIntrinsic(LokkiIntrinsic.Kind.ANSWER)
     public infix fun returns(returnValue: T): AdditionalAnswerScope<T>

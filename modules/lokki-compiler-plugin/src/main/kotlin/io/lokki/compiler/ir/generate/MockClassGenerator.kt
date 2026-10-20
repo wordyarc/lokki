@@ -295,12 +295,18 @@ internal class MockClassGenerator(
         correspondingPropertySymbol?.owner?.materialize()
         adoptParameters(mock)
         body = DeclarationIrBuilder(context, symbol).irBlockBody {
-            val answer = irCall(symbols.answer).apply {
-                arguments[0] = irGetField(irGet(dispatchReceiverParameter!!), state)
-                arguments[1] = irInt(member)
-                arguments[2] = irArrayOf(context.irBuiltIns.anyNType, nonDispatchParameters.map(::irGet))
+            val answer = when {
+                isSuspend -> irCall(symbols.coAnswer.symbol, returnType, listOf(returnType))
+                else -> irCall(symbols.answer)
             }
-            if (returnType.isUnit()) +answer else +irReturn(irAs(answer, returnType))
+            answer.arguments[0] = irGetField(irGet(dispatchReceiverParameter!!), state)
+            answer.arguments[1] = irInt(member)
+            answer.arguments[2] = irArrayOf(context.irBuiltIns.anyNType, nonDispatchParameters.map(::irGet))
+            when {
+                isSuspend -> +irReturn(answer)
+                returnType.isUnit() -> +answer
+                else -> +irReturn(irAs(answer, returnType))
+            }
         }
     }
 

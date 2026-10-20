@@ -4,6 +4,7 @@ import io.lokki.compiler.ALL_ANY
 import io.lokki.compiler.CAPTURE_MATCHERS
 import io.lokki.compiler.COMPOSITE_MATCHERS
 import io.lokki.compiler.IntrinsicKind
+import io.lokki.compiler.JUST_RUN_BLOCKS
 import io.lokki.compiler.WITH_ARG_MATCHERS
 import io.lokki.compiler.ir.LokkiSymbols
 import io.lokki.compiler.ir.intrinsicKind
@@ -33,6 +34,7 @@ import org.jetbrains.kotlin.ir.builders.irNull
 import org.jetbrains.kotlin.ir.builders.irReturn
 import org.jetbrains.kotlin.ir.builders.irString
 import org.jetbrains.kotlin.ir.builders.irTemporary
+import org.jetbrains.kotlin.ir.builders.irUnit
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
@@ -111,12 +113,15 @@ internal class StubBlockLowering(
         val stubbed = block.function.stubbedCall()
             ?: return fail(block.function, "The block of '${every.name}' must be a single call of a mock member")
 
-        val registration = lambda(every, every.type)
+        val justRuns = every.name in JUST_RUN_BLOCKS
+        val answered = if (justRuns) context.irBuiltIns.unitType else every.typeArguments[0]!!
+        val stubType = if (justRuns) symbols.stubScope.typeWith(answered) else every.type
+        val registration = lambda(every, stubType)
         registration.body = DeclarationIrBuilder(context, registration.symbol, every.startOffset, every.endOffset)
             .irBlockBody {
                 val call = irRegistration(every, block, stubbed) ?: return null
                 +irReturn(
-                    irCall(symbols.stub.symbol, every.type, listOf(every.typeArguments[0]!!)).apply {
+                    irCall(symbols.stub.symbol, stubType, listOf(answered)).apply {
                         arguments[0] = irGet(call.state)
                         arguments[1] = irString(call.key)
                         arguments[2] = call.matchers
@@ -124,9 +129,14 @@ internal class StubBlockLowering(
                 )
             }
 
-        return DeclarationIrBuilder(context, scope.scopeOwnerSymbol, every.startOffset, every.endOffset)
-            .irWithoutStateChanges(registration, every.type)
-            .patchDeclarationParents(scope.getLocalDeclarationParent())
+        return DeclarationIrBuilder(context, scope.scopeOwnerSymbol, every.startOffset, every.endOffset).run {
+            val stub = irWithoutStateChanges(registration, stubType)
+            if (!justRuns) return@run stub
+            irCall(symbols.returns.symbol, every.type).apply {
+                arguments[0] = stub
+                arguments[1] = irUnit()
+            }
+        }.patchDeclarationParents(scope.getLocalDeclarationParent())
     }
 
     private fun verify(verify: IrCall, scope: Scope): IrExpression? {
@@ -228,11 +238,25 @@ internal class StubBlockLowering(
         if (!stubbed.receiver.isIndependentOf(block.function)) {
             return fail(stubbed.receiver, "The receiver of the stubbed or verified call must not use matchers")
         }
+        (listOf(stubbed.receiver) + stubbed.arguments.filterNotNull()).find { it.callsSuspend() }?.let {
+            return fail(
+                it,
+                "'${dsl.name}' cannot evaluate suspend calls in the receiver or arguments yet: " +
+                    "evaluate them outside the block",
+            )
+        }
         val call = stubbed.call
         val member = call.symbol.owner
         val parameters = member.nonDispatchParameters
         val declared = member.root.parameters
         val capturesDefaults = !stubbed.allAny && null in stubbed.arguments
+        if (capturesDefaults && member.isSuspend) {
+            return fail(
+                call,
+                "Omitted arguments of the suspend member '${member.name}' are not supported yet: " +
+                    "pass all arguments explicitly or use allAny()",
+            )
+        }
 
         val receiver = irTemporary(verification?.let { irLinks(dsl, stubbed.receiver, it) } ?: stubbed.receiver)
         val state = irTemporary(irStateOf(irGet(receiver)))
@@ -701,6 +725,21 @@ private fun IrExpression.isIndependentOf(block: IrSimpleFunction): Boolean =
 
 private fun IrExpression.isHelperOf(block: IrSimpleFunction): Boolean =
     this is IrCall && arguments.any { it?.isScopeOf(block) == true } && !contains { it.returnsFrom(block) }
+
+private fun IrExpression.callsSuspend(): Boolean {
+    var found = false
+    acceptVoid(object : IrVisitorVoid() {
+        override fun visitElement(element: IrElement) {
+            when {
+                found -> {}
+                element is IrCall && element.symbol.owner.isSuspend -> found = true
+                element is IrFunctionExpression && element.function.isSuspend -> {}
+                else -> element.acceptChildrenVoid(this)
+            }
+        }
+    })
+    return found
+}
 
 private fun IrExpression.contains(predicate: (IrElement) -> Boolean): Boolean {
     var found = false

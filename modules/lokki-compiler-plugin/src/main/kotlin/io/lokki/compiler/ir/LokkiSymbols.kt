@@ -39,10 +39,14 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
 
     val mockState by lazy { findClass(INTERNAL_PACKAGE, "MockState") }
     val answer by lazy { mockState.function("answer") }
+    val coAnswer by lazy { mockState.function("coAnswer") }
     val noOriginal by lazy { mockState.function("noOriginal") }
     val stub by lazy { mockState.function("stub") }
     val captureDefaults by lazy { mockState.function("captureDefaults") }
     val exclude by lazy { mockState.function("exclude") }
+
+    val stubScope by lazy { findClass(PACKAGE, "StubScope") }
+    val returns by lazy { stubScope.function("returns") }
 
     val verification by lazy { findClass(INTERNAL_PACKAGE, "Verification") }
     val expect by lazy { verification.function("expect") }

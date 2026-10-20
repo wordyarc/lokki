@@ -25,3 +25,4 @@ internal const val ALL_ANY = "allAny"
 internal val COMPOSITE_MATCHERS = setOf("and", "or", "not")
 internal val CAPTURE_MATCHERS = setOf("capture", "captureNullable")
 internal val WITH_ARG_MATCHERS = setOf("withArg", "withNullableArg")
+internal val JUST_RUN_BLOCKS = setOf("justRun", "coJustRun")

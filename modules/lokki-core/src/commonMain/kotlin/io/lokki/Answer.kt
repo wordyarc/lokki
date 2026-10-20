@@ -2,10 +2,13 @@ package io.lokki
 
 import io.lokki.internal.GeneratedMock
 import io.lokki.internal.LokkiIntrinsic
+import io.lokki.internal.toStr
 import kotlin.reflect.KClass
 
 public fun interface Answer<out T> {
     public fun answer(call: Call): T
+
+    public suspend fun coAnswer(call: Call): T = answer(call)
 }
 
 public class Call internal constructor(public val invocation: Invocation) {
@@ -24,6 +27,9 @@ public class Invocation internal constructor(
     public val args: List<Any?> = ArgumentList(arguments)
 
     internal fun callOriginal(): Any? = (self as GeneratedMock).`lokki$original`(member, arguments)
+
+    internal fun describe(): String =
+        (self as GeneratedMock).`lokki$state`.call(member, arguments.joinToString { it.toStr() })
 }
 
 @LokkiDslMarker

@@ -6,6 +6,8 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 import java.io.File
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class IncrementalCompilationTest {
     @TempDir
@@ -59,6 +61,33 @@ class IncrementalCompilationTest {
         assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
         assertEquals(setOf("CarTest.kt"), project.compiledSources(":compileTestKotlin"))
         assertEquals(setOf("drive(int)"), project.mockedMethods("test", "sample.Car\$LokkiMock\$08768170\$CarTestKt"))
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testRemovedSuspendMemberWithContinuationInMain(gradle: GradleUnderTest) {
+        val project = jvmProject(gradle)
+        project.write(
+            "src/main/kotlin/sample/Car.kt",
+            declaration("interface Car", "fun drive(): String", "suspend fun plate(): Result<String>"),
+        )
+        project.write("src/main/kotlin/sample/Driver.kt", exercise("Car", "drive()"))
+        project.write("src/test/kotlin/sample/CarTest.kt", mockTest("CarTest", "Car"))
+        project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
+        val continuation = projectDir.resolve(
+            "build/classes/kotlin/test/sample/Car\$LokkiMock\$08768170\$CarTestKt\$plate\$1.class",
+        )
+
+        project.build("test")
+        assertTrue(continuation.exists())
+
+        project.write("src/main/kotlin/sample/Car.kt", declaration("interface Car", "fun drive(): String"))
+        val result = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
+        assertEquals(setOf("CarTest.kt"), project.compiledSources(":compileTestKotlin"))
+        assertEquals(setOf("drive()"), project.mockedMethods("test", "sample.Car\$LokkiMock\$08768170\$CarTestKt"))
+        assertFalse(continuation.exists())
     }
 
     @ParameterizedTest

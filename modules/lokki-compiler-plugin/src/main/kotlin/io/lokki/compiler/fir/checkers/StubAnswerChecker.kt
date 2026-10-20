@@ -1,6 +1,7 @@
 package io.lokki.compiler.fir.checkers
 
 import io.lokki.compiler.IntrinsicKind
+import io.lokki.compiler.JUST_RUN_BLOCKS
 import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.fir.intrinsicKind
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
@@ -48,7 +49,7 @@ internal object StubAnswerChecker : FirFunctionCallChecker(MppCheckerKind.Common
     override fun check(expression: FirFunctionCall) {
         val function = expression.calleeReference.toResolvedCallableSymbol() ?: return
         when (function.intrinsicKind(context.session)) {
-            IntrinsicKind.STUB_BLOCK -> if (context.dropsValueOf(expression)) {
+            IntrinsicKind.STUB_BLOCK -> if (function.name.asString() !in JUST_RUN_BLOCKS && context.dropsValueOf(expression)) {
                 reporter.reportOn(
                     expression.calleeReference.source ?: expression.source,
                     LokkiDiagnostics.LOKKI_STUB_WITHOUT_ANSWER,
@@ -179,4 +180,4 @@ private fun FirFunctionCall.returnsResultOf(lambda: FirAnonymousFunction): Boole
 
 private const val RETURNS_ARGUMENT = "returnsArgument"
 private const val CALL_ORIGINAL = "callOriginal"
-private val ANSWER_BLOCKS = setOf("answers", "andThenAnswer")
+private val ANSWER_BLOCKS = setOf("answers", "coAnswers", "andThenAnswer")

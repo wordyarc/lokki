@@ -28,23 +28,12 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
     @Volatile
     private var capture: DefaultsCapture? = null
 
-    fun answer(member: Int, arguments: Array<Any?>): Any? {
-        val capture = capture
-        if (capture != null && capture.member == member && capture.thread === currentThread()) {
-            capture.arguments = arguments
-            throw DefaultsCaptured()
-        }
-        val changesState = !Registration.isActive
-        val record = if (changesState && member > TO_STRING) record(member, arguments) else null
-        val stub = findStub(member, arguments) ?: return defaultAnswer(member, arguments, record)
-        if (changesState) stub.use(arguments)
-        return when (val answer = stub.answer(advance = changesState)) {
-            is ConstantAnswer -> answer.value
-            is ThrowingAnswer -> throw answer.exception
-            is ArgumentAnswer -> arguments[answer.index]
-            else -> answer.answer(Call(Invocation(owner, member, arguments)))
-        }
-    }
+    fun answer(member: Int, arguments: Array<Any?>): Any? =
+        respond(member, arguments) { answer, call -> answer.answer(call) }
+
+    @Suppress("UNCHECKED_CAST")
+    suspend fun <T> coAnswer(member: Int, arguments: Array<Any?>): T =
+        respond(member, arguments) { answer, call -> answer.coAnswer(call) } as T
 
     fun noOriginal(member: Int, arguments: Array<Any?>): Nothing =
         throw LokkiException("no original implementation for ${call(member, arguments.joinToString { it.toStr() })}")
@@ -129,6 +118,28 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
     }
 
     internal fun call(member: Int, arguments: String): String = "$name.${description(member).name}($arguments)"
+
+    private inline fun respond(
+        member: Int,
+        arguments: Array<Any?>,
+        answer: (Answer<Any?>, Call) -> Any?,
+    ): Any? {
+        val capture = capture
+        if (capture != null && capture.member == member && capture.thread === currentThread()) {
+            capture.arguments = arguments
+            throw DefaultsCaptured()
+        }
+        val changesState = !Registration.isActive
+        val record = if (changesState && member > TO_STRING) record(member, arguments) else null
+        val stub = findStub(member, arguments) ?: return defaultAnswer(member, arguments, record)
+        if (changesState) stub.use(arguments)
+        return when (val selected = stub.answer(advance = changesState)) {
+            is ConstantAnswer -> selected.value
+            is ThrowingAnswer -> throw selected.exception
+            is ArgumentAnswer -> arguments[selected.index]
+            else -> answer(selected, Call(Invocation(owner, member, arguments)))
+        }
+    }
 
     private fun record(member: Int, arguments: Array<Any?>): CallRecord? {
         val exclusions = exclusions
@@ -259,6 +270,9 @@ private class PendingStub<T>(
 
     override fun answers(answer: AnswerScope<T>.(Call) -> T): AdditionalAnswerScope<T> =
         add(listOf(Answer { call -> AnswerScope<T>(call).answer(call) }))
+
+    override fun coAnswers(answer: suspend AnswerScope<T>.(Call) -> T): AdditionalAnswerScope<T> =
+        add(listOf(SuspendingAnswer { call -> AnswerScope<T>(call).answer(call) }))
 
     override fun returns(returnValue: T): AdditionalAnswerScope<T> = add(listOf(ConstantAnswer(returnValue)))
 
