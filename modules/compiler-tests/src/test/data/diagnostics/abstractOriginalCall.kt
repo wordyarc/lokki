@@ -1,10 +1,13 @@
 // RUN_PIPELINE_TILL: FRONTEND
 // RENDER_DIAGNOSTICS_FULL_TEXT
+// WITH_KOTLINX_COROUTINES
 
 package sample
 
 import io.lokki.AnswerScope
+import io.lokki.Awaits
 import io.lokki.Runs
+import io.lokki.andThenJust
 import io.lokki.coEvery
 import io.lokki.every
 import io.lokki.just
@@ -46,6 +49,8 @@ fun test() {
     coEvery { pump.fetch() } coAnswers { <!LOKKI_ABSTRACT_ORIGINAL_CALL!>coCallOriginal<!>() }
     coEvery { pump.fetch() } returns 1 coAndThen { <!LOKKI_ABSTRACT_ORIGINAL_CALL!>coCallOriginal<!>() }
     coEvery { pump.fetch() } returns 1 coAndThen { <!LOKKI_ABSTRACT_ORIGINAL_CALL!>callOriginal<!>() }
+    coEvery { pump.fetch() } just Awaits coAndThen { <!LOKKI_ABSTRACT_ORIGINAL_CALL!>coCallOriginal<!>() }
+    coEvery { pump.fetch() } returns 1 andThenJust Awaits coAndThen { <!LOKKI_ABSTRACT_ORIGINAL_CALL!>coCallOriginal<!>() }
     every { pump.pressure() } coAnswers { <!LOKKI_ABSTRACT_ORIGINAL_CALL!>coCallOriginal<!>() }
     every { pump.name() } coAnswers { coCallOriginal() }
     every { pump.pressure() } answers { original() }

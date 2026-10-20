@@ -36,6 +36,8 @@ fun test(repo: Repo, ids: MutableList<Int>) {
     }
     verify { repo.name(withNullableArg { <!LOKKI_WITH_ARG_PREDICATE_NOT_USED!>it == null<!> }) }
     verifyCount { 1 * { repo.find(withArg { <!LOKKI_WITH_ARG_PREDICATE_NOT_USED!>it == 2<!> }) } }
+    verify { repo.find(coWithArg { <!LOKKI_WITH_ARG_PREDICATE_NOT_USED!>it == 2<!> }) }
+    verify { repo.name(coWithNullableArg { <!LOKKI_WITH_ARG_PREDICATE_NOT_USED!>it == null<!> }) }
 
     verify { repo.find(withArg { ids.add(it) }) }
     verify { repo.find(withArg { checkEquals(2) }) }

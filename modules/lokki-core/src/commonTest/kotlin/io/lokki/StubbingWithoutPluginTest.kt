@@ -1,5 +1,6 @@
 package io.lokki
 
+import io.lokki.internal.TestMock
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -24,6 +25,18 @@ class StubbingWithoutPluginTest {
         val exceptions = listOf(
             assertFailsWith<LokkiException> { justRun { } },
             assertFailsWith<LokkiException> { coJustRun { } },
+            assertFailsWith<LokkiException> { coJustAwait { } },
+        )
+
+        assertEquals(List(3) { "lokki compiler plugin is not applied to this compilation" }, exceptions.map { it.message })
+    }
+
+    @Test
+    fun testJustAwaitsThrowsWithoutCompilerPlugin() {
+        val state = TestMock(null, "Repo#find()").`lokki$state`
+        val exceptions = listOf(
+            assertFailsWith<LokkiException> { state.stub<Int>("Repo#find()", emptyArray()) just Awaits },
+            assertFailsWith<LokkiException> { state.stub<Int>("Repo#find()", emptyArray()) returns 1 andThenJust Awaits },
         )
 
         assertEquals(List(2) { "lokki compiler plugin is not applied to this compilation" }, exceptions.map { it.message })

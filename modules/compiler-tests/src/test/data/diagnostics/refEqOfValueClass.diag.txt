@@ -1,0 +1,13 @@
+/refEqOfValueClass.kt:24:39: error: 'refEq' compares references, but value class 'Id' has no identity: a mock receives the argument in a new box on every call. Use 'eq' or compare the underlying value in 'match'.
+
+/refEqOfValueClass.kt:27:23: error: 'refEq' compares references, but value class 'Id' has no identity: a mock receives the argument in a new box on every call. Use 'eq' or compare the underlying value in 'match'.
+
+/refEqOfValueClass.kt:28:23: error: 'nrefEq' compares references, but value class 'Id' has no identity: a mock receives the argument in a new box on every call. Use 'eq' or compare the underlying value in 'match'.
+
+/refEqOfValueClass.kt:29:24: error: 'refEq' compares references, but value class 'Name' has no identity: a mock receives the argument in a new box on every call. Use 'eq' or compare the underlying value in 'match'.
+
+/refEqOfValueClass.kt:30:25: error: 'refEq' compares references, but value class 'Result<String>' has no identity: a mock receives the argument in a new box on every call. Use 'eq' or compare the underlying value in 'match'.
+
+/refEqOfValueClass.kt:31:22: error: 'refEq' compares references, but value class 'Id' has no identity: a mock receives the argument in a new box on every call. Use 'eq' or compare the underlying value in 'match'.
+
+/refEqOfValueClass.kt:32:24: error: 'refEq' compares references, but value class 'Id' has no identity: a mock receives the argument in a new box on every call. Use 'eq' or compare the underlying value in 'match'.

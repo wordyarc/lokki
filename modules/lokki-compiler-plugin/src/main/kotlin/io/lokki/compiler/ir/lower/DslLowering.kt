@@ -60,6 +60,7 @@ internal class DslLowering(
             IntrinsicKind.STUB_BLOCK -> stubBlocks.lowerStub(expression, currentScope!!.scope)
             IntrinsicKind.VERIFY_BLOCK -> stubBlocks.lowerVerify(expression, currentScope!!.scope)
             IntrinsicKind.EXCLUDE_BLOCK -> stubBlocks.lowerExclusion(expression, currentScope!!.scope)
+            IntrinsicKind.AWAITS -> stubBlocks.lowerAwaits(expression, currentScope!!.scope)
             IntrinsicKind.WAS_NOT_CALLED -> expression.also {
                 if (it !in verifiedNoCalls) unsupported(it, "'wasNot Called' must be a statement of a verify block")
             }

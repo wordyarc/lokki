@@ -4,6 +4,7 @@ import io.lokki.compiler.ALL_ANY
 import io.lokki.compiler.CAPTURE_MATCHERS
 import io.lokki.compiler.COMPOSITE_MATCHERS
 import io.lokki.compiler.IntrinsicKind
+import io.lokki.compiler.JUST_AWAIT_BLOCK
 import io.lokki.compiler.JUST_RUN_BLOCKS
 import io.lokki.compiler.WITH_ARG_MATCHERS
 import io.lokki.compiler.ir.LokkiSymbols
@@ -62,6 +63,7 @@ import org.jetbrains.kotlin.ir.expressions.impl.IrFunctionExpressionImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrSpreadElementImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrVarargImpl
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
+import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.types.classifierOrNull
@@ -75,6 +77,7 @@ import org.jetbrains.kotlin.ir.types.isPrimitiveType
 import org.jetbrains.kotlin.ir.types.isShort
 import org.jetbrains.kotlin.ir.types.isUnit
 import org.jetbrains.kotlin.ir.types.makeNullable
+import org.jetbrains.kotlin.ir.types.typeOrFail
 import org.jetbrains.kotlin.ir.types.typeWith
 import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.deepCopyWithSymbols
@@ -106,6 +109,15 @@ internal class StubBlockLowering(
 
     fun lowerExclusion(exclude: IrCall, scope: Scope): IrExpression = exclusion(exclude, scope) ?: exclude
 
+    fun lowerAwaits(just: IrCall, scope: Scope): IrExpression {
+        val awaitCancellation = awaitCancellation(just, "${just.name} Awaits") ?: return just
+        val answers = just.symbol.owner.parameters.first { it.kind == IrParameterKind.ExtensionReceiver }
+        val answersClass = answers.type.erasedUpperBound
+        return DeclarationIrBuilder(context, scope.scopeOwnerSymbol, just.startOffset, just.endOffset)
+            .irAwaits(just, just.arguments[answers.indexInParameters]!!, answersClass, awaitCancellation)
+            .patchDeclarationParents(scope.getLocalDeclarationParent())
+    }
+
     fun noCallsStatements(verify: IrCall): List<IrCall> =
         (verify.arguments.last() as? IrFunctionExpression)?.function?.blockStatements().orEmpty()
             .mapNotNull { it.noCalls()?.call }
@@ -116,8 +128,13 @@ internal class StubBlockLowering(
             ?: return fail(block.function, "The block of '${every.name}' must be a single call of a mock member")
 
         val justRuns = every.name in JUST_RUN_BLOCKS
-        val answered = if (justRuns) context.irBuiltIns.unitType else every.typeArguments[0]!!
-        val stubType = if (justRuns) symbols.stubScope.typeWith(answered) else every.type
+        val awaitCancellation = when (every.name) {
+            JUST_AWAIT_BLOCK -> awaitCancellation(every, every.name) ?: return null
+            else -> null
+        }
+        val just = justRuns || awaitCancellation != null
+        val answered = if (just) context.irBuiltIns.unitType else every.typeArguments[0]!!
+        val stubType = if (just) symbols.stubScope.typeWith(answered) else every.type
         val registration = lambda(every, stubType)
         registration.body = DeclarationIrBuilder(context, registration.symbol, every.startOffset, every.endOffset)
             .irBlockBody {
@@ -133,12 +150,40 @@ internal class StubBlockLowering(
 
         return DeclarationIrBuilder(context, scope.scopeOwnerSymbol, every.startOffset, every.endOffset).run {
             val stub = irWithoutStateChanges(registration, stubType)
-            if (!justRuns) return@run stub
-            irCall(symbols.returns.symbol, every.type).apply {
-                arguments[0] = stub
-                arguments[1] = irUnit()
+            when {
+                awaitCancellation != null -> irAwaits(every, stub, symbols.stubScope, awaitCancellation)
+                justRuns -> irCall(symbols.returns.symbol, every.type).apply {
+                    arguments[0] = stub
+                    arguments[1] = irUnit()
+                }
+                else -> stub
             }
         }.patchDeclarationParents(scope.getLocalDeclarationParent())
+    }
+
+    private fun awaitCancellation(dsl: IrCall, name: String): IrSimpleFunction? =
+        symbols.awaitCancellation
+            ?: fail(dsl, "'$name' needs kotlinx.coroutines.awaitCancellation(), which is not on the classpath")
+
+    private fun IrBuilderWithScope.irAwaits(
+        dsl: IrCall,
+        answers: IrExpression,
+        answersClass: IrClass,
+        awaitCancellation: IrSimpleFunction,
+    ): IrExpression {
+        val type = (dsl.type as IrSimpleType).arguments.single().typeOrFail
+        val answerScope = symbols.answerScope.typeWith(type)
+        val call = symbols.call.defaultType
+        val answer = lambda(dsl, type, suspend = true)
+        answer.addValueParameter("scope", answerScope)
+        answer.addValueParameter("call", call)
+        answer.body = DeclarationIrBuilder(context, answer.symbol, dsl.startOffset, dsl.endOffset)
+            .irBlockBody { +irReturn(irCall(awaitCancellation)) }
+        val answerWith = if (answersClass == symbols.stubScope) symbols.coAnswers else symbols.coAndThen
+        return irCall(answerWith.symbol, dsl.type).apply {
+            arguments[0] = answers
+            arguments[1] = answer.expression(answerScope, call, type)
+        }
     }
 
     private fun verify(verify: IrCall, scope: Scope): IrExpression? {
@@ -805,8 +850,8 @@ private const val VARARG_OF = "varargOf"
 private val ANY_MATCHERS = setOf("any", "anyNullable", ALL_ANY)
 private val COMPARISON_MATCHERS = setOf("cmpEq", "more", "less", "range")
 private val TYPED_MATCHERS =
-    setOf("any", "anyNullable", "match", "matchNullable") + WITH_ARG_MATCHERS + COMPARISON_MATCHERS +
-        CAPTURE_MATCHERS
+    setOf("any", "anyNullable", "match", "matchNullable", "coMatch", "coMatchNullable") +
+        WITH_ARG_MATCHERS + COMPARISON_MATCHERS + CAPTURE_MATCHERS
 private val VARARG_MATCHERS =
     setOf("anyVararg", "varargAll", "varargAllNullable", "varargAny", "varargAnyNullable") +
         listOf("Boolean", "Byte", "Char", "Short", "Int", "Long", "Float", "Double")

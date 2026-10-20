@@ -5,6 +5,8 @@ import io.lokki.CapturingSlot
 import io.lokki.LokkiException
 import io.lokki.Matcher
 import io.lokki.VarargScope
+import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
+import kotlin.coroutines.intrinsics.startCoroutineUninterceptedOrReturn
 import kotlin.reflect.KClass
 
 @PublishedApi
@@ -101,6 +103,26 @@ internal object Matchers {
     @Suppress("UNCHECKED_CAST")
     fun withNullableArg(captureBlock: AssertScope.(Nothing?) -> Unit): Matcher<Any?> =
         matchNullable(asserting(captureBlock as AssertScope.(Any?) -> Unit))
+
+    @Suppress("UNCHECKED_CAST")
+    fun coMatch(matcher: suspend (Nothing) -> Boolean): Matcher<Any?> {
+        val predicate = matcher as suspend (Any?) -> Boolean
+        return match { arg: Any? -> complete("coMatch") { predicate(arg) } }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    fun coMatchNullable(matcher: suspend (Nothing?) -> Boolean): Matcher<Any?> {
+        val predicate = matcher as suspend (Any?) -> Boolean
+        return matchNullable { arg: Any? -> complete("coMatchNullable") { predicate(arg) } }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    fun coWithArg(captureBlock: suspend AssertScope.(Nothing) -> Unit): Matcher<Any?> =
+        match(coAsserting("coWithArg", captureBlock as suspend AssertScope.(Any?) -> Unit))
+
+    @Suppress("UNCHECKED_CAST")
+    fun coWithNullableArg(captureBlock: suspend AssertScope.(Nothing?) -> Unit): Matcher<Any?> =
+        matchNullable(coAsserting("coWithNullableArg", captureBlock as suspend AssertScope.(Any?) -> Unit))
 
     @Suppress("UNCHECKED_CAST")
     fun capture(lst: MutableList<*>): Matcher<Any?> =
@@ -370,6 +392,20 @@ private class VarargMatcher(
 private fun asserting(block: AssertScope.(Any?) -> Unit): (Any?) -> Boolean = { arg ->
     AssertScope(arg).block(arg)
     true
+}
+
+private fun coAsserting(name: String, block: suspend AssertScope.(Any?) -> Unit): (Any?) -> Boolean = { arg ->
+    complete(name) { AssertScope(arg).block(arg) }
+    true
+}
+
+@Suppress("UNCHECKED_CAST")
+private fun <T> complete(name: String, block: suspend () -> T): T {
+    val result = block.startCoroutineUninterceptedOrReturn(Abandoned)
+    if (result === COROUTINE_SUSPENDED) {
+        throw LokkiException("$name suspended; a matcher must complete without suspension")
+    }
+    return result as T
 }
 
 @Suppress("UNCHECKED_CAST")

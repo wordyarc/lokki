@@ -37,6 +37,10 @@ public final class io/lokki/AssertScope {
 	public final fun getActual ()Ljava/lang/Object;
 }
 
+public final class io/lokki/Awaits {
+	public static final field INSTANCE Lio/lokki/Awaits;
+}
+
 public final class io/lokki/Call {
 	public final fun getInvocation ()Lio/lokki/Invocation;
 	public final fun getRetType ()Lkotlin/reflect/KClass;
@@ -164,11 +168,14 @@ public abstract interface class io/lokki/StubScope {
 }
 
 public final class io/lokki/StubbingKt {
+	public static final fun andThenJust (Lio/lokki/AdditionalAnswerScope;Lio/lokki/Awaits;)Lio/lokki/AdditionalAnswerScope;
 	public static final fun andThenJust (Lio/lokki/AdditionalAnswerScope;Lio/lokki/Runs;)Lio/lokki/AdditionalAnswerScope;
 	public static final fun checkUnnecessaryStub ([Ljava/lang/Object;)V
 	public static final fun coEvery (Lkotlin/jvm/functions/Function2;)Lio/lokki/StubScope;
+	public static final fun coJustAwait (Lkotlin/jvm/functions/Function2;)Lio/lokki/AdditionalAnswerScope;
 	public static final fun coJustRun (Lkotlin/jvm/functions/Function2;)Lio/lokki/AdditionalAnswerScope;
 	public static final fun every (Lkotlin/jvm/functions/Function1;)Lio/lokki/StubScope;
+	public static final fun just (Lio/lokki/StubScope;Lio/lokki/Awaits;)Lio/lokki/AdditionalAnswerScope;
 	public static final fun just (Lio/lokki/StubScope;Lio/lokki/Runs;)Lio/lokki/AdditionalAnswerScope;
 	public static final fun justRun (Lkotlin/jvm/functions/Function1;)Lio/lokki/AdditionalAnswerScope;
 }
@@ -244,6 +251,7 @@ public abstract interface annotation class io/lokki/internal/LokkiIntrinsic : ja
 
 public final class io/lokki/internal/LokkiIntrinsic$Kind : java/lang/Enum {
 	public static final field ANSWER Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field AWAITS Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field EXCLUDE_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field MATCHER Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field MOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
@@ -271,6 +279,10 @@ public final class io/lokki/internal/Matchers {
 	public final fun captureNullable (Lio/lokki/CapturingSlot;)Lio/lokki/Matcher;
 	public final fun captureNullable (Ljava/util/List;)Lio/lokki/Matcher;
 	public final fun cmpEq (Ljava/lang/Comparable;)Lio/lokki/Matcher;
+	public final fun coMatch (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
+	public final fun coMatchNullable (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
+	public final fun coWithArg (Lkotlin/jvm/functions/Function3;)Lio/lokki/Matcher;
+	public final fun coWithNullableArg (Lkotlin/jvm/functions/Function3;)Lio/lokki/Matcher;
 	public final fun eq (Ljava/lang/Object;Z)Lio/lokki/Matcher;
 	public static synthetic fun eq$default (Lio/lokki/internal/Matchers;Ljava/lang/Object;ZILjava/lang/Object;)Lio/lokki/Matcher;
 	public final fun filtered (Lio/lokki/Matcher;Lkotlin/jvm/functions/Function1;)Lio/lokki/Matcher;

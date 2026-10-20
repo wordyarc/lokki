@@ -36,6 +36,8 @@ internal object LokkiDiagnostics : KtDiagnosticsContainer() {
     val LOKKI_CONFLICTING_VERIFY_ARGUMENTS by error2<KtElement, String, String>()
     val LOKKI_FINAL_MEMBERS_NOT_MOCKED by warning2<KtElement, String, String>()
     val LOKKI_ABSTRACT_ORIGINAL_CALL by error2<KtElement, String, String>()
+    val LOKKI_MISSING_COROUTINES_DEPENDENCY by error1<KtElement, String>()
+    val LOKKI_REF_EQ_OF_VALUE_CLASS by error2<KtElement, String, String>()
 
     override fun getRendererFactory(): BaseDiagnosticRendererFactory = LokkiDiagnosticRenderers
 }
@@ -159,6 +161,19 @@ private object LokkiDiagnosticRenderers : BaseDiagnosticRendererFactory() {
         map.put(
             LokkiDiagnostics.LOKKI_ABSTRACT_ORIGINAL_CALL,
             "''{0}'' is abstract, so ''{1}()'' has no implementation to call.",
+            CommonRenderers.STRING,
+            CommonRenderers.STRING,
+        )
+        map.put(
+            LokkiDiagnostics.LOKKI_MISSING_COROUTINES_DEPENDENCY,
+            "''{0}'' waits in ''kotlinx.coroutines.awaitCancellation()'', which is not on the classpath of this " +
+                "compilation: add ''org.jetbrains.kotlinx:kotlinx-coroutines-core'' to the test dependencies.",
+            CommonRenderers.STRING,
+        )
+        map.put(
+            LokkiDiagnostics.LOKKI_REF_EQ_OF_VALUE_CLASS,
+            "''{0}'' compares references, but value class ''{1}'' has no identity: a mock receives the argument " +
+                "in a new box on every call. Use ''eq'' or compare the underlying value in ''match''.",
             CommonRenderers.STRING,
             CommonRenderers.STRING,
         )

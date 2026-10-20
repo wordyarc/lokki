@@ -27,3 +27,7 @@
 /withArgPredicateNotUsed.kt:37:42: warning: 'withNullableArg' ignores the result of its lambda, so this predicate does not filter calls: use 'match' instead or make it an assertion.
 
 /withArgPredicateNotUsed.kt:38:45: warning: 'withArg' ignores the result of its lambda, so this predicate does not filter calls: use 'match' instead or make it an assertion.
+
+/withArgPredicateNotUsed.kt:39:36: warning: 'coWithArg' ignores the result of its lambda, so this predicate does not filter calls: use 'match' instead or make it an assertion.
+
+/withArgPredicateNotUsed.kt:40:44: warning: 'coWithNullableArg' ignores the result of its lambda, so this predicate does not filter calls: use 'match' instead or make it an assertion.

@@ -19,6 +19,10 @@ public fun justRun(stubBlock: MatcherScope.() -> Unit): AdditionalAnswerScope<Un
 public fun coJustRun(stubBlock: suspend MatcherScope.() -> Unit): AdditionalAnswerScope<Unit> =
     throw LokkiException("lokki compiler plugin is not applied to this compilation")
 
+@LokkiIntrinsic(LokkiIntrinsic.Kind.STUB_BLOCK)
+public fun coJustAwait(stubBlock: suspend MatcherScope.() -> Unit): AdditionalAnswerScope<Unit> =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
 public fun checkUnnecessaryStub(vararg mocks: Any) {
     states("checkUnnecessaryStub", mocks).forEach { it.checkUnnecessaryStub() }
 }
@@ -87,3 +91,13 @@ public infix fun StubScope<Unit>.just(runs: Runs): AdditionalAnswerScope<Unit> =
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.ANSWER)
 public infix fun AdditionalAnswerScope<Unit>.andThenJust(runs: Runs): AdditionalAnswerScope<Unit> = andThen(Unit)
+
+public object Awaits
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.AWAITS)
+public infix fun <T> StubScope<T>.just(awaits: Awaits): AdditionalAnswerScope<T> =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.AWAITS)
+public infix fun <T> AdditionalAnswerScope<T>.andThenJust(awaits: Awaits): AdditionalAnswerScope<T> =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")

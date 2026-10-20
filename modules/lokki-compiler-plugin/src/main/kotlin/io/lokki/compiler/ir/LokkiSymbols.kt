@@ -1,5 +1,6 @@
 package io.lokki.compiler.ir
 
+import io.lokki.compiler.AWAIT_CANCELLATION
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrConstructor
@@ -50,6 +51,12 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
 
     val stubScope by lazy { findClass(PACKAGE, "StubScope") }
     val returns by lazy { stubScope.function("returns") }
+    val coAnswers by lazy { stubScope.function("coAnswers") }
+    val additionalAnswerScope by lazy { findClass(PACKAGE, "AdditionalAnswerScope") }
+    val coAndThen by lazy { additionalAnswerScope.function("coAndThen") }
+    val answerScope by lazy { findClass(PACKAGE, "AnswerScope") }
+    val call by lazy { findClass(PACKAGE, "Call") }
+    val awaitCancellation by lazy { finder.findFunctions(AWAIT_CANCELLATION).singleOrNull()?.owner }
 
     val verification by lazy { findClass(INTERNAL_PACKAGE, "Verification") }
     val expect by lazy { verification.function("expect") }

@@ -49,6 +49,14 @@ public abstract class VerificationScope internal constructor() : MatcherScope() 
     public inline fun <reified T : Any> withNullableArg(noinline captureBlock: AssertScope.(T?) -> Unit): T =
         push(Matchers.typed<T>(Matchers.withNullableArg(captureBlock)), T::class)
 
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <reified T : Any> coWithArg(noinline captureBlock: suspend AssertScope.(T) -> Unit): T =
+        push(Matchers.typed<T>(Matchers.coWithArg(captureBlock)), T::class)
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <reified T : Any> coWithNullableArg(noinline captureBlock: suspend AssertScope.(T?) -> Unit): T =
+        push(Matchers.typed<T>(Matchers.coWithNullableArg(captureBlock)), T::class)
+
     @LokkiIntrinsic(LokkiIntrinsic.Kind.WAS_NOT_CALLED)
     public infix fun Any.wasNot(called: Called): Unit =
         throw LokkiException("'wasNot Called' must be a statement of a verify block")

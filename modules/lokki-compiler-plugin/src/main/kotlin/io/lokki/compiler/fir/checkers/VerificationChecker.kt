@@ -2,11 +2,13 @@ package io.lokki.compiler.fir.checkers
 
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiDiagnostics
+import io.lokki.compiler.REF_EQ_MATCHERS
 import io.lokki.compiler.WITH_ARG_MATCHERS
 import io.lokki.compiler.fir.intrinsicKind
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.analysis.checkers.MppCheckerKind
+import org.jetbrains.kotlin.fir.analysis.checkers.isValueClass
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.analysis.checkers.expression.FirFunctionCallChecker
 import org.jetbrains.kotlin.fir.expressions.FirAnonymousFunctionExpression
@@ -24,6 +26,9 @@ import org.jetbrains.kotlin.fir.expressions.arguments
 import org.jetbrains.kotlin.fir.expressions.resolvedArgumentMapping
 import org.jetbrains.kotlin.fir.expressions.unwrapArgument
 import org.jetbrains.kotlin.fir.references.toResolvedCallableSymbol
+import org.jetbrains.kotlin.fir.types.renderReadable
+import org.jetbrains.kotlin.fir.types.toConeTypeProjection
+import org.jetbrains.kotlin.fir.types.type
 import org.jetbrains.kotlin.types.ConstantValueKind
 import org.jetbrains.kotlin.util.OperatorNameConventions
 
@@ -34,7 +39,10 @@ internal object VerificationChecker : FirFunctionCallChecker(MppCheckerKind.Comm
         val name = function.name.asString()
         when (function.intrinsicKind(context.session)) {
             IntrinsicKind.VERIFY_BLOCK -> checkCallCounts(expression, name)
-            IntrinsicKind.MATCHER -> if (name in WITH_ARG_MATCHERS) checkWithArg(expression, name)
+            IntrinsicKind.MATCHER -> when (name) {
+                in WITH_ARG_MATCHERS -> checkWithArg(expression, name)
+                in REF_EQ_MATCHERS -> checkRefEq(expression, name)
+            }
             else -> {}
         }
     }
@@ -57,6 +65,18 @@ internal object VerificationChecker : FirFunctionCallChecker(MppCheckerKind.Comm
         }
         val source = (count.argument ?: verification).source
         reporter.reportOn(source, LokkiDiagnostics.LOKKI_CONFLICTING_VERIFY_ARGUMENTS, name, problem)
+    }
+
+    context(context: CheckerContext, reporter: DiagnosticReporter)
+    private fun checkRefEq(matcher: FirFunctionCall, name: String) {
+        val type = matcher.typeArguments.firstOrNull()?.toConeTypeProjection()?.type ?: return
+        if (!type.isValueClass(context.session)) return
+        reporter.reportOn(
+            matcher.calleeReference.source ?: matcher.source,
+            LokkiDiagnostics.LOKKI_REF_EQ_OF_VALUE_CLASS,
+            name,
+            type.renderReadable(),
+        )
     }
 
     context(context: CheckerContext, reporter: DiagnosticReporter)

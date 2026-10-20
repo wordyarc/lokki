@@ -1,0 +1,5 @@
+/missingCoroutinesDependency.kt:20:28: error: 'just Awaits' waits in 'kotlinx.coroutines.awaitCancellation()', which is not on the classpath of this compilation: add 'org.jetbrains.kotlinx:kotlinx-coroutines-core' to the test dependencies.
+
+/missingCoroutinesDependency.kt:21:40: error: 'andThenJust Awaits' waits in 'kotlinx.coroutines.awaitCancellation()', which is not on the classpath of this compilation: add 'org.jetbrains.kotlinx:kotlinx-coroutines-core' to the test dependencies.
+
+/missingCoroutinesDependency.kt:22:5: error: 'coJustAwait' waits in 'kotlinx.coroutines.awaitCancellation()', which is not on the classpath of this compilation: add 'org.jetbrains.kotlinx:kotlinx-coroutines-core' to the test dependencies.

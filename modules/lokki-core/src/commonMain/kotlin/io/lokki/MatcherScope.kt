@@ -86,6 +86,14 @@ public abstract class MatcherScope internal constructor() {
         push(Matchers.typed<T>(Matchers.matchNullable(matcher)), T::class)
 
     @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <reified T : Any> coMatch(noinline matcher: suspend (T) -> Boolean): T =
+        push(Matchers.typed<T>(Matchers.coMatch(matcher)), T::class)
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <reified T : Any> coMatchNullable(noinline matcher: suspend (T?) -> Boolean): T =
+        push(Matchers.typed<T>(Matchers.coMatchNullable(matcher)), T::class)
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
     public inline fun <reified T : Any> capture(lst: MutableList<T>): T =
         push(Matchers.typed<T>(Matchers.capture(lst)), T::class)
 

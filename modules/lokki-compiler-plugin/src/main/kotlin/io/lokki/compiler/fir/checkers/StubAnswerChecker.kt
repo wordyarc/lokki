@@ -1,6 +1,8 @@
 package io.lokki.compiler.fir.checkers
 
+import io.lokki.compiler.AWAIT_CANCELLATION
 import io.lokki.compiler.IntrinsicKind
+import io.lokki.compiler.JUST_AWAIT_BLOCK
 import io.lokki.compiler.JUST_RUN_BLOCKS
 import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.fir.intrinsicKind
@@ -36,6 +38,7 @@ import org.jetbrains.kotlin.fir.expressions.resolvedArgumentMapping
 import org.jetbrains.kotlin.fir.expressions.unwrapArgument
 import org.jetbrains.kotlin.fir.expressions.unwrapSmartcastExpression
 import org.jetbrains.kotlin.fir.references.toResolvedCallableSymbol
+import org.jetbrains.kotlin.fir.resolve.providers.symbolProvider
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirFunctionSymbol
@@ -48,20 +51,35 @@ internal object StubAnswerChecker : FirFunctionCallChecker(MppCheckerKind.Common
     context(context: CheckerContext, reporter: DiagnosticReporter)
     override fun check(expression: FirFunctionCall) {
         val function = expression.calleeReference.toResolvedCallableSymbol() ?: return
+        val name = function.name.asString()
         when (function.intrinsicKind(context.session)) {
-            IntrinsicKind.STUB_BLOCK -> if (function.name.asString() !in JUST_RUN_BLOCKS && context.dropsValueOf(expression)) {
-                reporter.reportOn(
+            IntrinsicKind.STUB_BLOCK -> when {
+                name == JUST_AWAIT_BLOCK -> checkCoroutines(expression, name)
+                name !in JUST_RUN_BLOCKS && context.dropsValueOf(expression) -> reporter.reportOn(
                     expression.calleeReference.source ?: expression.source,
                     LokkiDiagnostics.LOKKI_STUB_WITHOUT_ANSWER,
-                    function.name.asString(),
+                    name,
                 )
             }
-            IntrinsicKind.ANSWER -> when (function.name.asString()) {
+            IntrinsicKind.ANSWER -> when (name) {
                 RETURNS_ARGUMENT -> checkReturnsArgument(expression)
                 in ANSWER_BLOCKS -> checkOriginalCalls(expression)
             }
+            IntrinsicKind.AWAITS -> checkCoroutines(expression, "$name Awaits")
             else -> {}
         }
+    }
+
+    context(context: CheckerContext, reporter: DiagnosticReporter)
+    private fun checkCoroutines(call: FirFunctionCall, name: String) {
+        val symbols = context.session.symbolProvider
+            .getTopLevelFunctionSymbols(AWAIT_CANCELLATION.packageName, AWAIT_CANCELLATION.callableName)
+        if (symbols.isNotEmpty()) return
+        reporter.reportOn(
+            call.calleeReference.source ?: call.source,
+            LokkiDiagnostics.LOKKI_MISSING_COROUTINES_DEPENDENCY,
+            name,
+        )
     }
 
     context(context: CheckerContext, reporter: DiagnosticReporter)
@@ -110,7 +128,8 @@ private fun FirFunctionCall.stubBlock(): FirAnonymousFunction? {
             IntrinsicKind.STUB_BLOCK ->
                 return (receiver.arguments.firstOrNull()?.unwrapArgument() as? FirAnonymousFunctionExpression)
                     ?.anonymousFunction
-            IntrinsicKind.ANSWER -> receiver.explicitReceiver?.unwrapSmartcastExpression() as? FirFunctionCall
+            IntrinsicKind.ANSWER, IntrinsicKind.AWAITS ->
+                receiver.explicitReceiver?.unwrapSmartcastExpression() as? FirFunctionCall
             else -> null
         }
     }

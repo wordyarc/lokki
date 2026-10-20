@@ -14,5 +14,6 @@ public annotation class LokkiIntrinsic(val kind: Kind) {
         VERIFY_BLOCK,
         WAS_NOT_CALLED,
         EXCLUDE_BLOCK,
+        AWAITS,
     }
 }

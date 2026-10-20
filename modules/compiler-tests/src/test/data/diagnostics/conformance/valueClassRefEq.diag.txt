@@ -1,0 +1,1 @@
+/valueClassRefEq.kt:22:51: error: 'refEq' compares references, but value class 'DummyValue' has no identity: a mock receives the argument in a new box on every call. Use 'eq' or compare the underlying value in 'match'.

@@ -24,6 +24,16 @@ val lokkiRuntimeClasspath = configurations.resolvable("lokkiRuntimeClasspath") {
     }
 }
 
+val kotlinxCoroutines = configurations.dependencyScope("kotlinxCoroutines")
+val kotlinxCoroutinesClasspath = configurations.resolvable("kotlinxCoroutinesClasspath") {
+    extendsFrom(kotlinxCoroutines)
+    isTransitive = false
+    attributes {
+        attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_RUNTIME))
+        attribute(KotlinPlatformType.attribute, KotlinPlatformType.jvm)
+    }
+}
+
 dependencies {
     testFixturesApi(project(":lokki-compiler-plugin"))
     testFixturesApi(libs.kotlin.test.junit5)
@@ -33,6 +43,7 @@ dependencies {
 
     compilerTestLibraries(libs.bundles.kotlin.compiler.test.libraries)
     lokkiRuntime(project(":lokki-core"))
+    kotlinxCoroutines(libs.kotlinx.coroutines.core)
 }
 
 kotlin {
@@ -83,6 +94,9 @@ tasks.test {
     }
 
     jvmArgumentProviders.add(ClasspathSystemProperty("lokki.runtime.classpath", files(lokkiRuntimeClasspath)))
+    jvmArgumentProviders.add(
+        ClasspathSystemProperty("kotlinx.coroutines.classpath", files(kotlinxCoroutinesClasspath))
+    )
 }
 
 val JAVAC_LIBRARY_PROPERTIES = mapOf(

@@ -10,6 +10,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlin.coroutines.suspendCoroutine
 
 class MatchersTest {
     @Test
@@ -96,6 +97,41 @@ class MatchersTest {
     }
 
     @Test
+    fun testCoMatchersCompleteSuspendBlocksWithoutSuspension() {
+        val received = ArrayList<Any?>()
+        val coMatch = Matchers.coMatch { value: Int -> answer(value % 2 == 0) }
+        val coMatchNullable = Matchers.coMatchNullable { value: Int? -> answer(value == null) }
+        val coWithArg = Matchers.coWithArg { value: Int ->
+            received += answer(actual)
+            checkEquals(1)
+        }
+        val coWithNullableArg = Matchers.coWithNullableArg { value: Int? -> received += answer(value) }
+
+        assertContentEquals(listOf(true, false, false), listOf(2, 3, null).map(coMatch::match))
+        assertContentEquals(listOf(true, false), listOf(null, 1).map(coMatchNullable::match))
+        assertTrue(coWithArg.match(1))
+        assertFalse(coWithArg.match(2))
+        assertFalse(coWithArg.match(null))
+        assertTrue(coWithNullableArg.match(null))
+        assertContentEquals(listOf(1, 2, null), received)
+    }
+
+    @Test
+    fun testCoMatchersThrowWhenTheBlockSuspends() {
+        val matchers = mapOf(
+            "coMatch" to Matchers.coMatch { _: Int -> suspended() },
+            "coMatchNullable" to Matchers.coMatchNullable { _: Int? -> suspended() },
+            "coWithArg" to Matchers.coWithArg { _: Int -> suspended() },
+            "coWithNullableArg" to Matchers.coWithNullableArg { _: Int? -> suspended() },
+        )
+
+        for ((name, matcher) in matchers) {
+            val exception = assertFailsWith<LokkiException> { matcher.match(1) }
+            assertEquals("$name suspended; a matcher must complete without suspension", exception.message)
+        }
+    }
+
+    @Test
     fun testAssertionErrorOfFunctionMatcherIsReported() {
         val failure = AssertionError("not positive")
         val matchers = listOf(
@@ -103,6 +139,8 @@ class MatchersTest {
             Matchers.withNullableArg { value: Int? -> if (value == null || value <= 0) throw failure },
             Matchers.match { value: Int -> if (value <= 0) throw failure else true },
             Matchers.matchNullable { value: Int? -> if (value == null || value <= 0) throw failure else true },
+            Matchers.coWithArg { value: Int -> if (answer(value) <= 0) throw failure },
+            Matchers.coMatch { value: Int -> if (answer(value) <= 0) throw failure else true },
         )
 
         for (matcher in matchers) {
@@ -361,3 +399,7 @@ class MatchersTest {
         assertTrue(EqMatcher(unequal).match(unequal))
     }
 }
+
+private suspend fun <T> answer(value: T): T = value
+
+private suspend fun suspended(): Boolean = suspendCoroutine { }

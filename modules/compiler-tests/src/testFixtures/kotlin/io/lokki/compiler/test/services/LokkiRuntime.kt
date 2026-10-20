@@ -19,7 +19,7 @@ internal class LokkiEnvironmentConfigurator(testServices: TestServices) : Enviro
         get() = listOf(LokkiDirectives)
 
     override fun configureCompilerConfiguration(configuration: CompilerConfiguration, module: TestModule) {
-        configuration.addJvmClasspathRoots(lokkiRuntimeClasspath)
+        configuration.addJvmClasspathRoots(runtimeClasspath(module))
     }
 
     override fun provideAdditionalAnalysisFlags(
@@ -37,9 +37,20 @@ internal class LokkiEnvironmentConfigurator(testServices: TestServices) : Enviro
 }
 
 internal class LokkiRuntimeClasspathProvider(testServices: TestServices) : RuntimeClasspathProvider(testServices) {
-    override fun runtimeClassPaths(module: TestModule): List<File> = lokkiRuntimeClasspath
+    override fun runtimeClassPaths(module: TestModule): List<File> = runtimeClasspath(module)
 }
 
-private val lokkiRuntimeClasspath: List<File> =
-    System.getProperty("lokki.runtime.classpath")?.split(File.pathSeparator)?.map(::File)
-        ?: error("System property 'lokki.runtime.classpath' is not set")
+private fun runtimeClasspath(module: TestModule): List<File> =
+    if (LokkiDirectives.WITH_KOTLINX_COROUTINES in module.directives) {
+        lokkiRuntimeClasspath + kotlinxCoroutinesClasspath
+    } else {
+        lokkiRuntimeClasspath
+    }
+
+private val lokkiRuntimeClasspath: List<File> = classpath("lokki.runtime.classpath")
+
+private val kotlinxCoroutinesClasspath: List<File> by lazy { classpath("kotlinx.coroutines.classpath") }
+
+private fun classpath(property: String): List<File> =
+    System.getProperty(property)?.split(File.pathSeparator)?.map(::File)
+        ?: error("System property '$property' is not set")

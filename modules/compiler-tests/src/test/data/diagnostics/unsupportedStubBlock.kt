@@ -8,16 +8,21 @@
     "LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION",
     "LOKKI_CALLABLE_REFERENCE_TO_INTRINSIC",
     "LOKKI_NOT_RECORDED",
+    "LOKKI_MISSING_COROUTINES_DEPENDENCY",
 )
 
 package sample
 
+import io.lokki.Awaits
 import io.lokki.Called
 import io.lokki.MatcherScope
 import io.lokki.StubScope
 import io.lokki.VerificationScope
+import io.lokki.coEvery
+import io.lokki.coJustAwait
 import io.lokki.every
 import io.lokki.excludeRecords
+import io.lokki.just
 import io.lokki.mock
 import io.lokki.verify
 import io.lokki.verifyCount
@@ -60,6 +65,8 @@ fun test(repo: Repo, nullable: Repo?, block: MatcherScope.() -> String, check: V
     every { repo.names(*<!LOKKI_UNSUPPORTED!>any()<!>) } returns 1
     every { repo.names(*anyVararg(), "a", *<!LOKKI_UNSUPPORTED!>varargAny { it.isEmpty() }<!>) } returns 1
     mock<Repo> { every { <!LOKKI_UNSUPPORTED!>toString()<!> } returns "a" }
+    <!LOKKI_UNSUPPORTED!>coEvery { repo.find(1) } just Awaits<!>
+    <!LOKKI_UNSUPPORTED!>coJustAwait { repo.find(1) }<!>
     val reference: (MatcherScope.() -> String) -> StubScope<String> = <!LOKKI_UNSUPPORTED!>::every<!>
     val adapted: (MatcherScope.() -> String) -> Unit = <!LOKKI_UNSUPPORTED!>::every<!>
 
