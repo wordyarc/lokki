@@ -19,25 +19,43 @@ import org.jetbrains.kotlin.fir.analysis.checkers.declaredMemberScope
 import org.jetbrains.kotlin.fir.analysis.checkers.expression.FirFunctionCallChecker
 import org.jetbrains.kotlin.fir.analysis.checkers.unsubstitutedScope
 import org.jetbrains.kotlin.fir.canSeeInternalsOf
+import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
 import org.jetbrains.kotlin.fir.declarations.getStringArgument
+import org.jetbrains.kotlin.fir.declarations.getTargetType
 import org.jetbrains.kotlin.fir.declarations.hasAnnotation
 import org.jetbrains.kotlin.fir.declarations.toAnnotationClassId
 import org.jetbrains.kotlin.fir.declarations.utils.isAbstract
 import org.jetbrains.kotlin.fir.declarations.utils.isFinal
 import org.jetbrains.kotlin.fir.declarations.utils.modality
 import org.jetbrains.kotlin.fir.declarations.utils.visibility
+import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
+import org.jetbrains.kotlin.fir.expressions.FirGetClassCall
+import org.jetbrains.kotlin.fir.expressions.FirVarargArgumentsExpression
+import org.jetbrains.kotlin.fir.expressions.arguments
+import org.jetbrains.kotlin.fir.expressions.resolvedArgumentMapping
+import org.jetbrains.kotlin.fir.expressions.unwrapArgument
 import org.jetbrains.kotlin.fir.moduleData
 import org.jetbrains.kotlin.fir.references.toResolvedCallableSymbol
 import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
 import org.jetbrains.kotlin.fir.resolve.lookupSuperTypes
+import org.jetbrains.kotlin.fir.resolve.scope
+import org.jetbrains.kotlin.fir.resolve.substitution.substitutorByMap
 import org.jetbrains.kotlin.fir.resolve.toRegularClassSymbol
 import org.jetbrains.kotlin.fir.resolve.toSymbol
+import org.jetbrains.kotlin.fir.scopes.CallableCopyTypeCalculator
+import org.jetbrains.kotlin.fir.scopes.firOverrideChecker
 import org.jetbrains.kotlin.fir.scopes.getDeclaredConstructors
+import org.jetbrains.kotlin.fir.scopes.getFunctions
+import org.jetbrains.kotlin.fir.scopes.getProperties
+import org.jetbrains.kotlin.fir.scopes.impl.toConeType
+import org.jetbrains.kotlin.fir.scopes.isOverriddenFunction
+import org.jetbrains.kotlin.fir.scopes.isOverriddenProperty
 import org.jetbrains.kotlin.fir.scopes.processAllCallables
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirFunctionSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.types.ConeClassLikeType
 import org.jetbrains.kotlin.fir.types.ConeDefinitelyNotNullType
@@ -45,17 +63,22 @@ import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.fir.types.ConeStarProjection
 import org.jetbrains.kotlin.fir.types.ConeTypeParameterType
 import org.jetbrains.kotlin.fir.types.coneType
+import org.jetbrains.kotlin.fir.types.constructType
 import org.jetbrains.kotlin.fir.types.contains
 import org.jetbrains.kotlin.fir.types.isNonPrimitiveArray
 import org.jetbrains.kotlin.fir.types.isNothing
 import org.jetbrains.kotlin.fir.types.lowerBoundIfFlexible
+import org.jetbrains.kotlin.fir.types.renderReadable
 import org.jetbrains.kotlin.fir.types.toConeTypeProjection
 import org.jetbrains.kotlin.fir.types.type
+import org.jetbrains.kotlin.fir.types.typeContext
 import org.jetbrains.kotlin.fir.unwrapFakeOverrides
+import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.StandardClassIds
+import org.jetbrains.kotlin.types.AbstractTypeChecker
 
 internal object MockChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
     context(context: CheckerContext, reporter: DiagnosticReporter)
@@ -69,8 +92,9 @@ internal object MockChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
             reporter.reportOn(
                 source,
                 LokkiDiagnostics.LOKKI_TYPE_ARGUMENT_NOT_CONCRETE,
+                "The type argument",
                 function.name.asString(),
-                type.lookupTag.name.asString(),
+                "'${type.lookupTag.name}' is a type parameter",
             )
             return
         }
@@ -78,6 +102,16 @@ internal object MockChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
         val reason = mocked.notMockableReason() ?: (type as? ConeClassLikeType)?.irreplaceableStarProjection(mocked)
         if (reason != null) {
             reporter.reportOn(source, LokkiDiagnostics.LOKKI_TYPE_NOT_MOCKABLE, mocked.displayName, reason)
+            return
+        }
+        val interfaces = moreInterfaces(expression, function) ?: return
+        val mockedType = (type as? ConeClassLikeType)?.approximated(mocked) ?: return
+        val conflict = mockedType.addedInterfaces(interfaces).firstNotNullOfOrNull { (literal, supertypes) ->
+            supertypes.last().conflict(supertypes.dropLast(1))?.let { literal to it }
+        }
+        if (conflict != null) {
+            val (literal, problem) = conflict
+            reporter.reportOn(literal.source, LokkiDiagnostics.LOKKI_TYPE_NOT_MOCKABLE, mocked.displayName, problem)
             return
         }
         mocked.restriction(context.session)?.let { restriction ->
@@ -256,6 +290,175 @@ private fun FirRegularClassSymbol.restriction(session: FirSession): String? {
     return null
 }
 
+context(context: CheckerContext, reporter: DiagnosticReporter)
+private fun moreInterfaces(
+    call: FirFunctionCall,
+    function: FirCallableSymbol<*>,
+): List<Pair<FirExpression, ConeClassLikeType>>? {
+    val parameter = (function as? FirFunctionSymbol<*>)?.valueParameterSymbols?.find { it.name == MORE_INTERFACES }
+        ?: return emptyList()
+    val argument = call.resolvedArgumentMapping?.entries?.find { it.value.symbol == parameter }?.key
+        ?: return emptyList()
+    val interfaces = ArrayList<Pair<FirExpression, ConeClassLikeType>>()
+    var valid = true
+    for (element in argument.interfaceArguments()) {
+        val target = (element as? FirGetClassCall)?.getTargetType()?.fullyExpandedType()
+        val notConcrete = when (target) {
+            null -> "it is not a class literal such as 'Closeable::class'"
+            is ConeTypeParameterType -> "'${target.lookupTag.name}' is a type parameter"
+            else -> null
+        }
+        if (notConcrete != null) {
+            reporter.reportOn(
+                element.source,
+                LokkiDiagnostics.LOKKI_TYPE_ARGUMENT_NOT_CONCRETE,
+                "An interface in 'moreInterfaces'",
+                function.name.asString(),
+                notConcrete,
+            )
+            valid = false
+            continue
+        }
+        val symbol = target?.toRegularClassSymbol(context.session) ?: continue
+        val reason = if (symbol.classKind != ClassKind.INTERFACE) {
+            "it is not an interface, and 'moreInterfaces' takes only interfaces"
+        } else {
+            symbol.notMockableReason() ?: (target as? ConeClassLikeType)?.irreplaceableStarProjection(symbol)
+        }
+        if (reason != null) {
+            reporter.reportOn(element.source, LokkiDiagnostics.LOKKI_TYPE_NOT_MOCKABLE, symbol.displayName, reason)
+            valid = false
+            continue
+        }
+        interfaces += element to (target as ConeClassLikeType).approximated(symbol)
+    }
+    return interfaces.takeIf { valid }
+}
+
+private fun FirExpression.interfaceArguments(): List<FirExpression> =
+    when (val expression = unwrapArgument()) {
+        is FirVarargArgumentsExpression -> expression.arguments.flatMap { it.interfaceArguments() }
+        is FirFunctionCall ->
+            if (expression.calleeReference.toResolvedCallableSymbol()?.callableId == ARRAY_OF) {
+                expression.arguments.flatMap { it.interfaceArguments() }
+            } else {
+                listOf(expression)
+            }
+        else -> listOf(expression)
+    }
+
+context(context: CheckerContext)
+private fun ConeClassLikeType.approximated(symbol: FirRegularClassSymbol): ConeClassLikeType {
+    val parameters = symbol.typeParameterSymbols
+    val explicit = parameters.zip(typeArguments).mapNotNull { (parameter, argument) ->
+        argument.type?.let { parameter to it }
+    }.toMap()
+    val substitutor = substitutorByMap(explicit, context.session)
+    val arguments = parameters.mapIndexed { index, parameter ->
+        typeArguments.getOrNull(index)?.type
+            ?: substitutor.substituteOrSelf(parameter.resolvedBounds.single().coneType)
+    }
+    return symbol.constructType(arguments.toTypedArray())
+}
+
+context(context: CheckerContext)
+private fun ConeClassLikeType.addedInterfaces(
+    interfaces: List<Pair<FirExpression, ConeClassLikeType>>,
+): List<Pair<FirExpression, List<ConeClassLikeType>>> {
+    val distinct = interfaces.distinctBy { it.second.lookupTag }
+    val all = listOf(this) + distinct.map { it.second }
+    val added = distinct.filter { (_, extra) ->
+        all.none { other ->
+            other !== extra && extra.lookupTag in (listOf(other) + other.supertypes()).map { it.lookupTag }
+        }
+    }
+    return added.mapIndexed { index, (literal, extra) ->
+        literal to listOf(this) + added.take(index).map { it.second } + extra
+    }
+}
+
+context(context: CheckerContext)
+private fun ConeClassLikeType.supertypes(): List<ConeClassLikeType> {
+    val symbol = toRegularClassSymbol(context.session) ?: return emptyList()
+    val substitutor = substitutorByMap(
+        symbol.typeParameterSymbols.zip(typeArguments.mapNotNull { it.type }).toMap(),
+        context.session,
+    )
+    val supertypes = lookupSuperTypes(
+        listOf(symbol),
+        lookupInterfaces = true,
+        deep = true,
+        context.session,
+        substituteTypes = true,
+    )
+    return supertypes.map { substitutor.substituteOrSelf(it) as ConeClassLikeType }
+}
+
+context(context: CheckerContext)
+private fun ConeClassLikeType.conflict(previous: List<ConeClassLikeType>): String? {
+    val inherited = previous.flatMap { listOf(it) + it.supertypes() }
+    for (supertype in listOf(this) + supertypes()) {
+        val other = inherited.find { it.lookupTag == supertype.lookupTag && it != supertype } ?: continue
+        return "it would inherit '${supertype.lookupTag.name}' with different type arguments: " +
+            "'${other.renderReadable()}' and '${supertype.renderReadable()}'"
+    }
+    return previous.firstNotNullOfOrNull { memberConflict(it, this) }
+}
+
+context(context: CheckerContext)
+private fun memberConflict(first: ConeClassLikeType, second: ConeClassLikeType): String? {
+    val session = context.session
+    val scopes = listOf(first, second).map { type ->
+        type.scope(session, context.scopeSession, CallableCopyTypeCalculator.DoNothing, FirResolvePhase.STATUS)
+            ?: return null
+    }
+    val checker = session.firOverrideChecker
+    for (name in scopes[0].getCallableNames() intersect scopes[1].getCallableNames()) {
+        val functions = scopes[0].getFunctions(name).any { left ->
+            scopes[1].getFunctions(name).any { right ->
+                checker.isOverriddenFunction(left, right) && !left.isCompatibleWith(right)
+            }
+        }
+        val properties = scopes[0].getProperties(name).filterIsInstance<FirPropertySymbol>().any { left ->
+            scopes[1].getProperties(name).filterIsInstance<FirPropertySymbol>().any { right ->
+                checker.isOverriddenProperty(left, right) && !left.isCompatibleWith(right)
+            }
+        }
+        if (functions || properties) {
+            val owners = "'${first.lookupTag.name}' and '${second.lookupTag.name}'"
+            return "its member '$name' has incompatible types in $owners"
+        }
+    }
+    return null
+}
+
+context(context: CheckerContext)
+private fun FirCallableSymbol<*>.isCompatibleWith(other: FirCallableSymbol<*>): Boolean {
+    val substitutor = substitutorByMap(
+        other.typeParameterSymbols.zip(typeParameterSymbols.map { it.toConeType() }).toMap(),
+        context.session,
+    )
+    val type = resolvedReturnType
+    val otherType = substitutor.substituteOrSelf(other.resolvedReturnType)
+    return isMoreSpecific(type, other, otherType) || other.isMoreSpecific(otherType, this, type)
+}
+
+context(context: CheckerContext)
+private fun FirCallableSymbol<*>.isMoreSpecific(
+    type: ConeKotlinType,
+    other: FirCallableSymbol<*>,
+    otherType: ConeKotlinType,
+): Boolean {
+    val typeContext = context.session.typeContext
+    val otherIsVar = other is FirPropertySymbol && other.isVar
+    return when {
+        otherIsVar -> this is FirPropertySymbol && isVar && AbstractTypeChecker.equalTypes(typeContext, type, otherType)
+        else -> AbstractTypeChecker.isSubtypeOf(typeContext, type, otherType)
+    }
+}
+
+private val MORE_INTERFACES = Name.identifier("moreInterfaces")
+private val ARRAY_OF = CallableId(StandardClassIds.BASE_KOTLIN_PACKAGE, Name.identifier("arrayOf"))
 private val DO_NOT_MOCK = Name.identifier("DoNotMock")
 private val VALUE = Name.identifier("value")
 private val RESTRICTED_TYPES = setOf(

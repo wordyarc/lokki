@@ -6,13 +6,12 @@ import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.expressions.IrCall
-import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.visitors.IrVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 
 internal class MockClassUsage(
     val firstCall: IrCall,
-    val mockedType: IrSimpleType,
+    val mockedTypes: MockedTypes,
     var visibility: DescriptorVisibility,
 )
 
@@ -35,9 +34,9 @@ private class MockCollector(private val file: IrFile) : IrVisitorVoid() {
     }
 
     override fun visitCall(expression: IrCall) {
-        expression.mockableType(file)?.let { type ->
-            val usage = mockClasses.getOrPut(type.mockClassKey(file)) {
-                MockClassUsage(expression, type, DescriptorVisibilities.PRIVATE)
+        expression.mockedTypes(file)?.let { types ->
+            val usage = mockClasses.getOrPut(types.mockClassKey(file)) {
+                MockClassUsage(expression, types, DescriptorVisibilities.PRIVATE)
             }
             if (enclosingInlineFunctions > 0) usage.visibility = DescriptorVisibilities.PUBLIC
         }

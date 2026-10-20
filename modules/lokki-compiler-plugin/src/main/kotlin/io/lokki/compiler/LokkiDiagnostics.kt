@@ -21,7 +21,7 @@ internal object LokkiDiagnostics : KtDiagnosticsContainer() {
     val LOKKI_STUB_BLOCK_NOT_SINGLE_CALL by error3<KtElement, String, String, String>()
     val LOKKI_NOT_INTERCEPTABLE by error2<KtElement, String, String>()
     val LOKKI_TYPE_NOT_MOCKABLE by error2<KtElement, String, String>()
-    val LOKKI_TYPE_ARGUMENT_NOT_CONCRETE by error2<KtElement, String, String>()
+    val LOKKI_TYPE_ARGUMENT_NOT_CONCRETE by error3<KtElement, String, String, String>()
     val LOKKI_CHAINED_CALL_DISABLED by error0<KtElement>()
     val LOKKI_CALLABLE_REFERENCE_TO_INTRINSIC by error1<KtElement, String>()
     val LOKKI_STUB_WITHOUT_ANSWER by error1<KtElement, String>()
@@ -74,7 +74,8 @@ private object LokkiDiagnosticRenderers : BaseDiagnosticRendererFactory() {
         )
         map.put(
             LokkiDiagnostics.LOKKI_TYPE_ARGUMENT_NOT_CONCRETE,
-            "The type argument of ''{0}'' must be known at compile time, but ''{1}'' is a type parameter.",
+            "{0} of ''{1}'' must be known at compile time, but {2}.",
+            CommonRenderers.STRING,
             CommonRenderers.STRING,
             CommonRenderers.STRING,
         )

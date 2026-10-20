@@ -12,6 +12,15 @@ fun exercise(type: String, call: String): String =
     fun exercisedMember(): String = "${type.substringBefore('<')}.${call.substringBefore('(')}"
     """
 
+fun additionalInterfaceExercise(call: String): String =
+    """
+    package sample
+
+    fun exercise(mock: Named): Any? = mock.$call
+
+    fun exercisedMember(): String = "Car.${call.substringBefore('(')}"
+    """
+
 fun mockTest(name: String, type: String, mock: String = "mock<$type>()"): String =
     """
     package sample

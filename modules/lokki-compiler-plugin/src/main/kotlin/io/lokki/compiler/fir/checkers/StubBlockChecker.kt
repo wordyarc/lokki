@@ -38,7 +38,6 @@ import org.jetbrains.kotlin.fir.expressions.FirResolvedQualifier
 import org.jetbrains.kotlin.fir.expressions.FirReturnExpression
 import org.jetbrains.kotlin.fir.expressions.FirSafeCallExpression
 import org.jetbrains.kotlin.fir.expressions.FirSmartCastExpression
-import org.jetbrains.kotlin.fir.expressions.FirSpreadArgumentExpression
 import org.jetbrains.kotlin.fir.expressions.FirStatement
 import org.jetbrains.kotlin.fir.expressions.FirStringConcatenationCall
 import org.jetbrains.kotlin.fir.expressions.FirThisReceiverExpression
@@ -288,12 +287,7 @@ private class StubBlock(
     private fun checkArgument(argument: FirExpression, first: FirExpression?) {
         val expression = argument.unwrapArgument()
         when {
-            expression is FirVarargArgumentsExpression -> expression.arguments.forEach { element ->
-                when {
-                    element !is FirSpreadArgumentExpression -> checkArgument(element, first)
-                    !element.expression.takesScope() -> misplacedMatchers(element.expression)
-                }
-            }
+            expression is FirVarargArgumentsExpression -> expression.arguments.forEach { checkArgument(it, first) }
             expression is FirQualifiedAccessExpression && expression.takesScope() -> {
                 val matcher = expression.calleeReference.toResolvedCallableSymbol()
                     ?.takeIf { it.intrinsicKind(session) == IntrinsicKind.MATCHER }

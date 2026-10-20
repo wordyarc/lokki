@@ -3,11 +3,13 @@ package io.lokki
 import io.lokki.internal.GeneratedMock
 import io.lokki.internal.LokkiIntrinsic
 import io.lokki.internal.states
+import kotlin.reflect.KClass
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK)
 public inline fun <reified T : Any> mock(
     name: String? = null,
     relaxed: Boolean = false,
+    vararg moreInterfaces: KClass<*>,
     relaxUnitFun: Boolean = false,
     block: T.() -> Unit = {},
 ): T = throw LokkiException("lokki compiler plugin is not applied to this compilation")

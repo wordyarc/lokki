@@ -9,12 +9,19 @@ import io.lokki.compiler.ir.typeKey
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.declarations.IrClass
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrOverridableMember
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.declarations.IrTypeParameter
+import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.IrCall
+import org.jetbrains.kotlin.ir.expressions.IrClassReference
+import org.jetbrains.kotlin.ir.expressions.IrExpression
+import org.jetbrains.kotlin.ir.expressions.IrGetValue
+import org.jetbrains.kotlin.ir.expressions.IrSpreadElement
+import org.jetbrains.kotlin.ir.expressions.IrVararg
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrStarProjection
@@ -30,6 +37,7 @@ import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.getAllSuperclasses
 import org.jetbrains.kotlin.ir.util.getPackageFragment
 import org.jetbrains.kotlin.ir.util.isFakeOverride
+import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.ir.util.substitute
@@ -38,15 +46,73 @@ import org.jetbrains.kotlin.name.FqName
 
 internal data class MockClassKey(val typeKey: String, val file: IrFile)
 
+internal class MockedTypes(val type: IrSimpleType, val interfaces: List<IrSimpleType>) {
+    val classes: List<IrClass>
+        get() = (listOf(type) + interfaces).map { it.mockedClass }
+}
+
 internal val IrCall.mockedType: IrType
     get() = typeArguments.single()!!
 
-internal fun IrCall.mockableType(file: IrFile): IrSimpleType? =
-    if (intrinsicKind != IntrinsicKind.MOCK || mockedType.notMockableReason(file) != null) null
-    else (mockedType as IrSimpleType).approximated()
+internal fun IrCall.mockedTypes(file: IrFile): MockedTypes? {
+    if (intrinsicKind != IntrinsicKind.MOCK || notMockableReason(file) != null) return null
+    val type = (mockedType as IrSimpleType).approximated()!!
+    val interfaces = moreInterfaces()!!.map { (it as IrSimpleType).approximated()!! }.distinctBy { it.mockedClass }
+    val all = listOf(type) + interfaces
+    val added = interfaces.filter { extra ->
+        all.none { other ->
+            other !== extra &&
+                (other.mockedClass == extra.mockedClass || extra.mockedClass in other.mockedClass.getAllSuperclasses())
+        }
+    }
+    return MockedTypes(type, added.sortedBy { it.typeKey(emptyList()) })
+}
 
-internal fun IrSimpleType.mockClassKey(file: IrFile): MockClassKey =
-    MockClassKey(typeKey(referencedTypeParameters), file)
+internal fun IrCall.notMockableReason(file: IrFile): String? {
+    mockedType.notMockableReason(file)?.let { return it }
+    val interfaces = moreInterfaces()
+        ?: return "'moreInterfaces' takes only class literals of interfaces, such as 'Closeable::class'"
+    for (type in interfaces) {
+        val extra = type.classOrNull?.owner
+        if (extra != null && !extra.isInterface) {
+            return "'${extra.kotlinFqName}' is not an interface: 'moreInterfaces' takes only interfaces"
+        }
+        type.notMockableReason(file)?.let { return it }
+    }
+    return null
+}
+
+internal fun MockedTypes.mockClassKey(file: IrFile): MockClassKey {
+    val interfaceKeys = interfaces.joinToString("") { "&" + it.typeKey(emptyList()) }
+    return MockClassKey(type.typeKey(type.referencedTypeParameters) + interfaceKeys, file)
+}
+
+private fun IrCall.moreInterfaces(): List<IrType>? {
+    val parameter = symbol.owner.parameters.find { it.name.asString() == MORE_INTERFACES } ?: return emptyList()
+    return when (val argument = arguments[parameter.indexInParameters]?.unwrapTemporary()) {
+        null -> emptyList()
+        is IrVararg -> argument.classLiterals()
+        else -> null
+    }
+}
+
+private fun IrVararg.classLiterals(): List<IrType>? =
+    elements.flatMap { element ->
+        when (element) {
+            is IrClassReference -> listOf(element.classType)
+            is IrSpreadElement -> {
+                val array = (element.expression.unwrapTemporary() as? IrCall)
+                    ?.takeIf { it.symbol.owner.kotlinFqName == ARRAY_OF }
+                (array?.arguments?.singleOrNull() as? IrVararg)?.classLiterals() ?: return null
+            }
+            else -> return null
+        }
+    }
+
+private fun IrExpression.unwrapTemporary(): IrExpression {
+    val variable = (this as? IrGetValue)?.symbol?.owner as? IrVariable
+    return variable?.takeIf { it.origin == IrDeclarationOrigin.IR_TEMPORARY_VARIABLE && !it.isVar }?.initializer ?: this
+}
 
 internal val IrType.referencedTypeParameters: List<IrTypeParameterSymbol>
     get() = LinkedHashSet<IrTypeParameterSymbol>().also(::collectTypeParameters).toList()
@@ -86,6 +152,9 @@ internal fun IrType.notMockableReason(file: IrFile): String? {
             )
     }
 }
+
+private val ARRAY_OF = FqName("kotlin.arrayOf")
+private const val MORE_INTERFACES = "moreInterfaces"
 
 private fun IrSimpleType.approximated(): IrSimpleType? {
     val parameters = mockedClassTypeParameters

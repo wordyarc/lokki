@@ -5,11 +5,10 @@ import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.ir.LokkiSymbols
 import io.lokki.compiler.ir.collect.MockClassKey
 import io.lokki.compiler.ir.collect.mockClassKey
-import io.lokki.compiler.ir.collect.mockableType
 import io.lokki.compiler.ir.collect.mockedClass
-import io.lokki.compiler.ir.collect.mockedType
-import io.lokki.compiler.ir.collect.referencedTypeParameters
+import io.lokki.compiler.ir.collect.mockedTypes
 import io.lokki.compiler.ir.collect.notMockableReason
+import io.lokki.compiler.ir.collect.referencedTypeParameters
 import io.lokki.compiler.ir.generate.INIT
 import io.lokki.compiler.ir.intrinsicKind
 import org.jetbrains.kotlin.backend.common.IrElementTransformerVoidWithContext
@@ -80,9 +79,10 @@ internal class DslLowering(
     }
 
     private fun lowerMock(call: IrCall): IrExpression {
-        val type = call.mockableType(file)
-        val mock = type?.let { mocks[it.mockClassKey(file)] }
-            ?: return call.also { unsupported(it, it.mockedType.notMockableReason(file)!!) }
+        val types = call.mockedTypes(file)
+        val mock = types?.let { mocks[it.mockClassKey(file)] }
+            ?: return call.also { unsupported(it, it.notMockableReason(file)!!) }
+        val type = types.type
         val scope = currentScope!!.scope.scopeOwnerSymbol
         return DeclarationIrBuilder(context, scope, call.startOffset, call.endOffset).run {
             val spec = irCallConstructor(symbols.mockSpec.primaryConstructor!!.symbol, emptyList()).apply {

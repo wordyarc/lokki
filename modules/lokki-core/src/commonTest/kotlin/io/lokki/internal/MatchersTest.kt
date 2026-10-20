@@ -1,6 +1,7 @@
 package io.lokki.internal
 
 import io.lokki.CapturingSlot
+import io.lokki.LokkiException
 import io.lokki.Matcher
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -188,6 +189,98 @@ class MatchersTest {
     }
 
     @Test
+    fun testVarargMatcherMatchesElementsBetweenPrefixAndPostfix() {
+        val matcher = Matchers.varargOf(arrayOf(EqMatcher("a")), Matchers.anyVararg<String>(), arrayOf(EqMatcher("z")))
+
+        assertTrue(matcher.match(arrayOf("a", "z")))
+        assertTrue(matcher.match(arrayOf("a", "b", "c", "z")))
+        assertFalse(matcher.match(arrayOf("a")))
+        assertFalse(matcher.match(arrayOf("b", "z")))
+        assertFalse(matcher.match(arrayOf("a", "b")))
+        assertFalse(matcher.match(listOf("a", "z")))
+        assertFalse(matcher.match(null))
+    }
+
+    @Test
+    fun testVarargAllAndVarargAny() {
+        val all = Matchers.varargAllInt { it > 0 }
+        val any = Matchers.varargAnyInt { it > 0 }
+
+        assertTrue(all.match(intArrayOf(1, 2)))
+        assertFalse(all.match(intArrayOf(1, -2)))
+        assertTrue(all.match(IntArray(0)))
+        assertTrue(any.match(intArrayOf(-1, 2)))
+        assertFalse(any.match(intArrayOf(-1, -2)))
+        assertFalse(any.match(IntArray(0)))
+    }
+
+    @Test
+    fun testVarargMatchersAreTyped() {
+        assertTrue(Matchers.anyVararg<String>().match(arrayOf("a", null)))
+        assertFalse(Matchers.anyVararg<String>().match(arrayOf<Any>("a", 1)))
+        assertFalse(Matchers.varargAll<String> { true }.match(arrayOf("a", null)))
+        assertTrue(Matchers.varargAllNullable<String> { true }.match(arrayOf("a", null)))
+        assertFalse(Matchers.varargAny<String> { true }.match(arrayOf<Any?>(1, null)))
+        assertTrue(Matchers.varargAnyNullable<String> { it == null }.match(arrayOf<Any?>(1, null)))
+    }
+
+    @Test
+    fun testVarargScopeHasPositionInTheWholeArray() {
+        val positions = ArrayList<String>()
+        val matcher = Matchers.varargOf(
+            arrayOf(AnyMatcher),
+            Matchers.varargAll<String> { positions += "$position/$nArgs:$it"; true },
+            arrayOf(AnyMatcher),
+        )
+
+        assertTrue(matcher.match(arrayOf("a", "b", "c", "d")))
+        assertEquals(listOf("1/4:b", "2/4:c"), positions)
+    }
+
+    @Test
+    fun testVarargMatcherCapturesPrefixAndPostfix() {
+        val first = CapturingSlot<String>()
+        val last = CapturingSlot<String>()
+        val matcher = Matchers.varargOf(
+            arrayOf(Matchers.capture(first)),
+            Matchers.anyVararg<String>(),
+            arrayOf(Matchers.capture(last)),
+        )
+
+        assertTrue(matcher.match(arrayOf("a", "b", "c")))
+        (matcher as CapturingMatcher).capture(arrayOf("a", "b", "c"))
+        assertEquals("a", first.captured)
+        assertEquals("c", last.captured)
+    }
+
+    @Test
+    fun testAssertionErrorOfVarargPredicateIsReported() {
+        val failure = AssertionError("not positive")
+        val matcher = Matchers.varargOf(
+            arrayOf(Matchers.withArg { value: Int -> if (value <= 0) throw failure }),
+            Matchers.varargAllInt { if (it <= 0) throw failure else true },
+            emptyArray(),
+        )
+        val errors = ArrayList<AssertionError>()
+
+        assertTrue(matcher.match(intArrayOf(1, 2), errors))
+        assertFalse(matcher.match(intArrayOf(1, -2), errors))
+        assertFalse(matcher.match(intArrayOf(-1, 2), errors))
+        assertEquals(List(2) { failure }, errors)
+    }
+
+    @Test
+    fun testOnlyVarargMatcherIsSpread() {
+        val exception = assertFailsWith<LokkiException> { Matchers.varargOf(emptyArray(), AnyMatcher, emptyArray()) }
+
+        assertEquals(
+            "any() cannot be spread into a vararg parameter: " +
+                "only anyVararg, varargAll and varargAny match a part of the array",
+            exception.message,
+        )
+    }
+
+    @Test
     fun testMatchersDescribeThemselves() {
         val descriptions = listOf(
             AnyMatcher,
@@ -209,6 +302,9 @@ class MatchersTest {
             Matchers.typed<Int>(Matchers.capture(ArrayList<Int>())),
             Matchers.captureNullable(CapturingSlot<Int?>()),
             ArrayMatcher(arrayOf(AnyMatcher, EqMatcher { })),
+            Matchers.varargOf(arrayOf(EqMatcher("a")), Matchers.anyVararg<String>(), arrayOf(AnyMatcher)),
+            Matchers.varargAllNullable<String> { true },
+            Matchers.varargAnyDouble { true },
         ).map { it.toString() }
 
         assertContentEquals(
@@ -232,6 +328,9 @@ class MatchersTest {
                 "capture()",
                 "slotCapture()",
                 "[any(), eq(lambda {})]",
+                "[eq(a), *anyVararg(), any()]",
+                "[*varargAll()]",
+                "[*varargAny()]",
             ),
             descriptions,
         )

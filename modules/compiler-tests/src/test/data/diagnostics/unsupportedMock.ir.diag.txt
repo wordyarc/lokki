@@ -1,15 +1,29 @@
-/test.kt:36:44: error: The mocked type must be known at compile time, but 'T of sample.create' is not a class.
+/test.kt:61:44: error: The mocked type must be known at compile time, but 'T of sample.create' is not a class.
 
-/test.kt:39:5: error: 'sample.Bolt' is final and cannot be mocked.
+/test.kt:63:53: error: The mocked type must be known at compile time, but 'T of sample.withInterface' is not a class.
 
-/test.kt:40:5: error: 'sample.Garage' is an object and cannot be mocked.
+/test.kt:66:5: error: 'sample.Bolt' is final and cannot be mocked.
 
-/test.kt:41:5: error: 'sample.Singleton' has no constructor visible to the mock.
+/test.kt:67:5: error: 'sample.Garage' is an object and cannot be mocked.
 
-/test.kt:42:5: error: 'lib.Base' has abstract members that the mock cannot implement: hidden.
+/test.kt:68:5: error: 'sample.Singleton' has no constructor visible to the mock.
 
-/test.kt:43:5: error: 'sample.Shape' is sealed and cannot be mocked.
+/test.kt:69:5: error: 'lib.Base' has abstract members that the mock cannot implement: hidden.
 
-/test.kt:44:5: error: 'middle.Middle' has abstract members that the mock cannot implement: hidden.
+/test.kt:70:5: error: 'sample.Shape' is sealed and cannot be mocked.
 
-/test.kt:45:5: error: 'sample.Node<*>' has a star projection that cannot be replaced with the upper bound of its type parameter.
+/test.kt:71:5: error: 'middle.Middle' has abstract members that the mock cannot implement: hidden.
+
+/test.kt:72:5: error: 'sample.Node<*>' has a star projection that cannot be replaced with the upper bound of its type parameter.
+
+/test.kt:76:5: error: 'moreInterfaces' takes only class literals of interfaces, such as 'Closeable::class'.
+
+/test.kt:77:5: error: 'sample.Bolt' is not an interface: 'moreInterfaces' takes only interfaces.
+
+/test.kt:78:5: error: 'sample.Shape' is sealed and cannot be mocked.
+
+/test.kt:79:5: error: The mock of 'sample.IntId' cannot implement 'id' of 'sample.IntId' and 'sample.StringId' at once: their types are incompatible.
+
+/test.kt:80:5: error: The mock of 'sample.ValInt' cannot implement 'size' of 'sample.ValInt' and 'sample.VarNumber' at once: their types are incompatible.
+
+/test.kt:81:5: error: The mock of 'sample.StringRepo' inherits 'sample.Repo' with different type arguments: 'sample.Repo<kotlin.Int>' and 'sample.Repo<kotlin.String>'.

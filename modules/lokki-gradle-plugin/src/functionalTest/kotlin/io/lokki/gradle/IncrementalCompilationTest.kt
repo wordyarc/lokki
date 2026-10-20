@@ -148,6 +148,36 @@ class IncrementalCompilationTest {
 
     @ParameterizedTest
     @EnumSource(GradleUnderTest::class)
+    fun testNewMemberOfAdditionalInterfaceInMain(gradle: GradleUnderTest) {
+        val project = jvmProject(gradle)
+        project.write("src/main/kotlin/sample/Car.kt", declaration("interface Car", "fun drive(): String"))
+        project.write("src/main/kotlin/sample/Named.kt", declaration("interface Named", "fun name(): String"))
+        project.write("src/main/kotlin/sample/Driver.kt", additionalInterfaceExercise("name()"))
+        project.write(
+            "src/test/kotlin/sample/CarTest.kt",
+            mockTest("CarTest", "Named", mock = "mock<Car>(moreInterfaces = arrayOf(Named::class)) as Named"),
+        )
+        project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
+
+        project.build("test")
+
+        project.write(
+            "src/main/kotlin/sample/Named.kt",
+            declaration("interface Named", "fun name(): String", "fun rename(name: String)"),
+        )
+        project.write("src/main/kotlin/sample/Driver.kt", additionalInterfaceExercise("rename(\"x\")"))
+        val result = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
+        assertEquals(setOf("CarTest.kt"), project.compiledSources(":compileTestKotlin"))
+        assertEquals(
+            setOf("drive()", "name()", "rename(java.lang.String)"),
+            project.mockedMethods("test", "sample.Car\$LokkiMock\$a7d52d8b\$CarTestKt"),
+        )
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
     fun testNewAbstractMemberOfClassInMain(gradle: GradleUnderTest) {
         val project = jvmProject(gradle)
         project.write(

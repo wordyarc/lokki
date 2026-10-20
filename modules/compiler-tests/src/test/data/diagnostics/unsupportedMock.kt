@@ -20,6 +20,7 @@ public abstract class Middle extends lib.Base {
 package sample
 
 import io.lokki.mock
+import kotlin.reflect.KClass
 import lib.Base
 import middle.Middle
 
@@ -33,7 +34,33 @@ sealed interface Shape
 
 interface Node<T : Node<T>>
 
+interface Car
+
+interface IntId {
+    fun id(): Int
+}
+
+interface StringId {
+    fun id(): String
+}
+
+interface ValInt {
+    val size: Int
+}
+
+interface VarNumber {
+    var size: Number
+}
+
+interface Repo<T>
+
+interface StringRepo : Repo<String>
+
+interface IntRepo : Repo<Int>
+
 inline fun <reified T : Any> create(): T = <!LOKKI_UNSUPPORTED!>mock<T>()<!>
+
+inline fun <reified T : Any> withInterface(): Car = <!LOKKI_UNSUPPORTED!>mock<Car>(moreInterfaces = arrayOf(T::class))<!>
 
 fun test() {
     <!LOKKI_UNSUPPORTED!>mock<Bolt>()<!>
@@ -43,4 +70,13 @@ fun test() {
     <!LOKKI_UNSUPPORTED!>mock<Shape>()<!>
     <!LOKKI_UNSUPPORTED!>mock<Middle>()<!>
     <!LOKKI_UNSUPPORTED!>mock<Node<*>>()<!>
+}
+
+fun testMoreInterfaces(type: KClass<*>) {
+    <!LOKKI_UNSUPPORTED!>mock<Car>(moreInterfaces = arrayOf(type))<!>
+    <!LOKKI_UNSUPPORTED!>mock<Car>(moreInterfaces = arrayOf(Bolt::class))<!>
+    <!LOKKI_UNSUPPORTED!>mock<Car>(moreInterfaces = arrayOf(Shape::class))<!>
+    <!LOKKI_UNSUPPORTED!>mock<IntId>(moreInterfaces = arrayOf(StringId::class))<!>
+    <!LOKKI_UNSUPPORTED!>mock<ValInt>(moreInterfaces = arrayOf(VarNumber::class))<!>
+    <!LOKKI_UNSUPPORTED!>mock<StringRepo>(moreInterfaces = arrayOf(IntRepo::class))<!>
 }

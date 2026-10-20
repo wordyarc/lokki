@@ -1,5 +1,6 @@
 package io.lokki.compiler.ir.generate
 
+import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.LokkiPluginKey
 import io.lokki.compiler.ir.FriendAwareFakeOverrides
 import io.lokki.compiler.ir.LokkiSymbols
@@ -113,7 +114,7 @@ internal class MockClassGenerator(
     private val relaxedDefaults = RelaxedDefaults(context, symbols)
 
     fun generate(key: MockClassKey, usage: MockClassUsage): IrClass {
-        val mocked = usage.mockedType.mockedClass
+        val mocked = usage.mockedTypes.type.mockedClass
         val mock = context.irFactory.buildClass {
             startOffset = usage.firstCall.startOffset
             endOffset = usage.firstCall.endOffset
@@ -121,11 +122,11 @@ internal class MockClassGenerator(
             origin = this@MockClassGenerator.origin
             visibility = if (mocked.isLocal) DescriptorVisibilities.LOCAL else usage.visibility
         }
-        val parameters = usage.mockedType.referencedTypeParameters
+        val parameters = usage.mockedTypes.type.referencedTypeParameters
         val ownParameters = parameters.indices.map { mock.addTypeParameter("T$it", context.irBuiltIns.anyNType) }
-        val mockedType = usage.mockedType.substitute(parameters.zip(ownParameters.map { it.defaultType }).toMap())
-            as IrSimpleType
-        mock.superTypes = listOf(mockedType, symbols.generatedMock.defaultType)
+        val mockedType = usage.mockedTypes.type
+            .substitute(parameters.zip(ownParameters.map { it.defaultType }).toMap()) as IrSimpleType
+        mock.superTypes = listOf(mockedType) + usage.mockedTypes.interfaces + symbols.generatedMock.defaultType
         mock.createThisReceiverParameter()
         if (mocked.isLocal) key.file.addAfter(mocked, mock) else key.file.addChild(mock)
         val spec = if (mocked.isInterface) {
@@ -137,6 +138,13 @@ internal class MockClassGenerator(
         IrFakeOverrideBuilder(typeSystem, FriendAwareFakeOverrides, emptyList())
             .buildFakeOverridesForClassUsingOverriddenSymbols(mock, emptyMap(), compatibilityMode = false)
             .forEach(mock::addChild)
+        if (usage.mockedTypes.interfaces.isNotEmpty()) {
+            val conflict = mock.inheritanceConflict(mocked)
+            if (conflict != null) {
+                context.diagnosticReporter.at(usage.firstCall, key.file)
+                    .report(LokkiDiagnostics.LOKKI_UNSUPPORTED, conflict)
+            }
+        }
 
         val stateProperty = mock.declarations.filterIsInstance<IrProperty>()
             .single { symbols.state.symbol in it.overriddenSymbols }
@@ -170,7 +178,7 @@ internal class MockClassGenerator(
         original.implementOriginal(mock, mocked, state, originals)
         val names = ownParameters.zip(parameters).associate { (own, parameter) -> own.symbol to parameter.owner.name }
         relaxed.implementRelaxed(mock, members) { (names[it.symbol] ?: it.name).asString() }
-        lookupTracker?.recordMockedTypeLookups(mocked, key.file)
+        usage.mockedTypes.classes.forEach { lookupTracker?.recordMockedTypeLookups(it, key.file) }
         return mock
     }
 
@@ -408,7 +416,8 @@ internal class MockClassGenerator(
         val (target, qualifier) = if (mocked.isInterface && member.isMethodOfAny()) {
             anyClass.owner.functions.single { it.name == member.name }.symbol to anyClass
         } else {
-            member.overriddenSymbols.first { it.owner.parentAsClass == mocked } to mocked.symbol
+            val overridden = member.overriddenSymbols.first { it.owner.modality != Modality.ABSTRACT }
+            overridden to overridden.owner.parentAsClass.symbol
         }
         val erasure = member.typeParameters.associate { it.symbol to it.erasure }
         return IrCallImpl(

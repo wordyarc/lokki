@@ -74,9 +74,34 @@ public abstract interface class io/lokki/Matcher {
 }
 
 public abstract class io/lokki/MatcherScope {
+	public final fun anyBooleanVararg ()[Z
+	public final fun anyByteVararg ()[B
+	public final fun anyCharVararg ()[C
+	public final fun anyDoubleVararg ()[D
+	public final fun anyFloatVararg ()[F
+	public final fun anyIntVararg ()[I
+	public final fun anyLongVararg ()[J
+	public final fun anyShortVararg ()[S
 	public final fun matcherOf (Ljava/lang/Object;)Lio/lokki/Matcher;
 	public final fun pop ()Lio/lokki/Matcher;
 	public final fun push (Lio/lokki/Matcher;Lkotlin/reflect/KClass;)Ljava/lang/Object;
+	public final fun pushVararg (Lio/lokki/Matcher;Ljava/lang/Object;)Ljava/lang/Object;
+	public final fun varargAllBoolean (Lkotlin/jvm/functions/Function2;)[Z
+	public final fun varargAllByte (Lkotlin/jvm/functions/Function2;)[B
+	public final fun varargAllChar (Lkotlin/jvm/functions/Function2;)[C
+	public final fun varargAllDouble (Lkotlin/jvm/functions/Function2;)[D
+	public final fun varargAllFloat (Lkotlin/jvm/functions/Function2;)[F
+	public final fun varargAllInt (Lkotlin/jvm/functions/Function2;)[I
+	public final fun varargAllLong (Lkotlin/jvm/functions/Function2;)[J
+	public final fun varargAllShort (Lkotlin/jvm/functions/Function2;)[S
+	public final fun varargAnyBoolean (Lkotlin/jvm/functions/Function2;)[Z
+	public final fun varargAnyByte (Lkotlin/jvm/functions/Function2;)[B
+	public final fun varargAnyChar (Lkotlin/jvm/functions/Function2;)[C
+	public final fun varargAnyDouble (Lkotlin/jvm/functions/Function2;)[D
+	public final fun varargAnyFloat (Lkotlin/jvm/functions/Function2;)[F
+	public final fun varargAnyInt (Lkotlin/jvm/functions/Function2;)[I
+	public final fun varargAnyLong (Lkotlin/jvm/functions/Function2;)[J
+	public final fun varargAnyShort (Lkotlin/jvm/functions/Function2;)[S
 }
 
 public final class io/lokki/MockKt {
@@ -105,6 +130,11 @@ public final class io/lokki/StubbingKt {
 	public static final fun checkUnnecessaryStub ([Ljava/lang/Object;)V
 	public static final fun every (Lkotlin/jvm/functions/Function1;)Lio/lokki/StubScope;
 	public static final fun just (Lio/lokki/StubScope;Lio/lokki/Runs;)Lio/lokki/AdditionalAnswerScope;
+}
+
+public final class io/lokki/VarargScope {
+	public final fun getNArgs ()I
+	public final fun getPosition ()I
 }
 
 public final class io/lokki/VerificationKt {
@@ -179,6 +209,14 @@ public final class io/lokki/internal/LokkiIntrinsic$Kind : java/lang/Enum {
 public final class io/lokki/internal/Matchers {
 	public static final field INSTANCE Lio/lokki/internal/Matchers;
 	public final fun and (Lio/lokki/Matcher;Lio/lokki/Matcher;)Lio/lokki/Matcher;
+	public final fun anyBooleanVararg ()Lio/lokki/Matcher;
+	public final fun anyByteVararg ()Lio/lokki/Matcher;
+	public final fun anyCharVararg ()Lio/lokki/Matcher;
+	public final fun anyDoubleVararg ()Lio/lokki/Matcher;
+	public final fun anyFloatVararg ()Lio/lokki/Matcher;
+	public final fun anyIntVararg ()Lio/lokki/Matcher;
+	public final fun anyLongVararg ()Lio/lokki/Matcher;
+	public final fun anyShortVararg ()Lio/lokki/Matcher;
 	public final fun capture (Lio/lokki/CapturingSlot;)Lio/lokki/Matcher;
 	public final fun capture (Ljava/util/List;)Lio/lokki/Matcher;
 	public final fun captureNullable (Lio/lokki/CapturingSlot;)Lio/lokki/Matcher;
@@ -205,6 +243,24 @@ public final class io/lokki/internal/Matchers {
 	public final fun refEq (Ljava/lang/Object;Z)Lio/lokki/Matcher;
 	public static synthetic fun refEq$default (Lio/lokki/internal/Matchers;Ljava/lang/Object;ZILjava/lang/Object;)Lio/lokki/Matcher;
 	public final fun spread (Ljava/lang/Object;)[Lio/lokki/Matcher;
+	public final fun varargAllBoolean (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
+	public final fun varargAllByte (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
+	public final fun varargAllChar (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
+	public final fun varargAllDouble (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
+	public final fun varargAllFloat (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
+	public final fun varargAllInt (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
+	public final fun varargAllLong (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
+	public final fun varargAllShort (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
+	public final fun varargAnyBoolean (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
+	public final fun varargAnyByte (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
+	public final fun varargAnyChar (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
+	public final fun varargAnyDouble (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
+	public final fun varargAnyFloat (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
+	public final fun varargAnyInt (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
+	public final fun varargAnyLong (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
+	public final fun varargAnyShort (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
+	public final fun varargMatcher (Ljava/lang/String;ZLkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
+	public final fun varargOf ([Lio/lokki/Matcher;Lio/lokki/Matcher;[Lio/lokki/Matcher;)Lio/lokki/Matcher;
 	public final fun withArg (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
 	public final fun withNullableArg (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
 }

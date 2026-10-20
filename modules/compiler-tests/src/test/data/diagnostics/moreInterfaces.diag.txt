@@ -1,0 +1,23 @@
+/moreInterfaces.kt:61:88: error: An interface in 'moreInterfaces' of 'mock' must be known at compile time, but 'T' is a type parameter.
+
+/moreInterfaces.kt:64:40: error: An interface in 'moreInterfaces' of 'mock' must be known at compile time, but it is not a class literal such as 'Closeable::class'.
+
+/moreInterfaces.kt:65:32: error: An interface in 'moreInterfaces' of 'mock' must be known at compile time, but it is not a class literal such as 'Closeable::class'.
+
+/moreInterfaces.kt:66:40: error: 'sample.Engine' cannot be mocked: it is not an interface, and 'moreInterfaces' takes only interfaces.
+
+/moreInterfaces.kt:67:40: error: 'sample.Marker' cannot be mocked: it is not an interface, and 'moreInterfaces' takes only interfaces.
+
+/moreInterfaces.kt:68:40: error: 'sample.Shape' cannot be mocked: it is sealed.
+
+/moreInterfaces.kt:69:40: error: 'sample.Node' cannot be mocked: the star projection for 'T' cannot be replaced with the upper bound of 'T'. Specify the type argument.
+
+/moreInterfaces.kt:70:29: error: 'sample.Engine' cannot be mocked: it is not an interface, and 'moreInterfaces' takes only interfaces.
+
+/moreInterfaces.kt:72:42: error: 'sample.IntId' cannot be mocked: its member 'id' has incompatible types in 'IntId' and 'StringId'.
+
+/moreInterfaces.kt:73:54: error: 'sample.Car' cannot be mocked: its member 'id' has incompatible types in 'IntId' and 'StringId'.
+
+/moreInterfaces.kt:74:43: error: 'sample.ValInt' cannot be mocked: its member 'size' has incompatible types in 'ValInt' and 'VarNumber'.
+
+/moreInterfaces.kt:75:47: error: 'sample.StringRepo' cannot be mocked: it would inherit 'Repo' with different type arguments: 'Repo<String>' and 'Repo<Int>'.

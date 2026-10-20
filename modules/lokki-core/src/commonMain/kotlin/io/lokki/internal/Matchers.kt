@@ -2,7 +2,9 @@ package io.lokki.internal
 
 import io.lokki.AssertScope
 import io.lokki.CapturingSlot
+import io.lokki.LokkiException
 import io.lokki.Matcher
+import io.lokki.VarargScope
 import kotlin.reflect.KClass
 
 @PublishedApi
@@ -128,6 +130,90 @@ internal object Matchers {
         val elements = array.arrayElements()!!
         return Array(elements.size) { EqMatcher(elements[it]) }
     }
+
+    inline fun <reified T : Any> anyVararg(): Matcher<Any?> =
+        varargMatcher("anyVararg", all = true, { it == null || it is T }) { true }
+
+    fun anyBooleanVararg(): Matcher<Any?> = anyVararg<Boolean>()
+
+    fun anyByteVararg(): Matcher<Any?> = anyVararg<Byte>()
+
+    fun anyCharVararg(): Matcher<Any?> = anyVararg<Char>()
+
+    fun anyShortVararg(): Matcher<Any?> = anyVararg<Short>()
+
+    fun anyIntVararg(): Matcher<Any?> = anyVararg<Int>()
+
+    fun anyLongVararg(): Matcher<Any?> = anyVararg<Long>()
+
+    fun anyFloatVararg(): Matcher<Any?> = anyVararg<Float>()
+
+    fun anyDoubleVararg(): Matcher<Any?> = anyVararg<Double>()
+
+    @Suppress("UNCHECKED_CAST")
+    inline fun <reified T : Any> varargAll(noinline matcher: VarargScope.(T) -> Boolean): Matcher<Any?> =
+        varargMatcher("varargAll", all = true, { it is T }, matcher as VarargScope.(Any?) -> Boolean)
+
+    @Suppress("UNCHECKED_CAST")
+    inline fun <reified T : Any> varargAllNullable(noinline matcher: VarargScope.(T?) -> Boolean): Matcher<Any?> =
+        varargMatcher("varargAll", all = true, { it == null || it is T }, matcher as VarargScope.(Any?) -> Boolean)
+
+    fun varargAllBoolean(matcher: VarargScope.(Boolean) -> Boolean): Matcher<Any?> = varargAll(matcher)
+
+    fun varargAllByte(matcher: VarargScope.(Byte) -> Boolean): Matcher<Any?> = varargAll(matcher)
+
+    fun varargAllChar(matcher: VarargScope.(Char) -> Boolean): Matcher<Any?> = varargAll(matcher)
+
+    fun varargAllShort(matcher: VarargScope.(Short) -> Boolean): Matcher<Any?> = varargAll(matcher)
+
+    fun varargAllInt(matcher: VarargScope.(Int) -> Boolean): Matcher<Any?> = varargAll(matcher)
+
+    fun varargAllLong(matcher: VarargScope.(Long) -> Boolean): Matcher<Any?> = varargAll(matcher)
+
+    fun varargAllFloat(matcher: VarargScope.(Float) -> Boolean): Matcher<Any?> = varargAll(matcher)
+
+    fun varargAllDouble(matcher: VarargScope.(Double) -> Boolean): Matcher<Any?> = varargAll(matcher)
+
+    @Suppress("UNCHECKED_CAST")
+    inline fun <reified T : Any> varargAny(noinline matcher: VarargScope.(T) -> Boolean): Matcher<Any?> =
+        varargMatcher("varargAny", all = false, { it is T }, matcher as VarargScope.(Any?) -> Boolean)
+
+    @Suppress("UNCHECKED_CAST")
+    inline fun <reified T : Any> varargAnyNullable(noinline matcher: VarargScope.(T?) -> Boolean): Matcher<Any?> =
+        varargMatcher("varargAny", all = false, { it == null || it is T }, matcher as VarargScope.(Any?) -> Boolean)
+
+    fun varargAnyBoolean(matcher: VarargScope.(Boolean) -> Boolean): Matcher<Any?> = varargAny(matcher)
+
+    fun varargAnyByte(matcher: VarargScope.(Byte) -> Boolean): Matcher<Any?> = varargAny(matcher)
+
+    fun varargAnyChar(matcher: VarargScope.(Char) -> Boolean): Matcher<Any?> = varargAny(matcher)
+
+    fun varargAnyShort(matcher: VarargScope.(Short) -> Boolean): Matcher<Any?> = varargAny(matcher)
+
+    fun varargAnyInt(matcher: VarargScope.(Int) -> Boolean): Matcher<Any?> = varargAny(matcher)
+
+    fun varargAnyLong(matcher: VarargScope.(Long) -> Boolean): Matcher<Any?> = varargAny(matcher)
+
+    fun varargAnyFloat(matcher: VarargScope.(Float) -> Boolean): Matcher<Any?> = varargAny(matcher)
+
+    fun varargAnyDouble(matcher: VarargScope.(Double) -> Boolean): Matcher<Any?> = varargAny(matcher)
+
+    fun varargMatcher(
+        name: String,
+        all: Boolean,
+        accepts: (Any?) -> Boolean,
+        matcher: VarargScope.(Any?) -> Boolean,
+    ): Matcher<Any?> = VarargMatcher(name, all, accepts, matcher, emptyArray(), emptyArray())
+
+    fun varargOf(prefix: Array<Matcher<Any?>>, matcher: Matcher<Any?>, postfix: Array<Matcher<Any?>>): Matcher<Any?> {
+        if (matcher !is VarargMatcher) {
+            throw LokkiException(
+                "$matcher cannot be spread into a vararg parameter: " +
+                    "only anyVararg, varargAll and varargAny match a part of the array",
+            )
+        }
+        return matcher.between(prefix, postfix)
+    }
 }
 
 internal interface CapturingMatcher {
@@ -229,6 +315,56 @@ private class CompositeMatcher(
     }
 
     override fun toString(): String = operands.joinToString(prefix = "$name(", postfix = ")")
+}
+
+private class VarargMatcher(
+    private val name: String,
+    private val all: Boolean,
+    private val accepts: (Any?) -> Boolean,
+    private val matcher: VarargScope.(Any?) -> Boolean,
+    private val prefix: Array<Matcher<Any?>>,
+    private val postfix: Array<Matcher<Any?>>,
+) : Matcher<Any?>, ReportingMatcher, CapturingMatcher {
+    fun between(prefix: Array<Matcher<Any?>>, postfix: Array<Matcher<Any?>>): VarargMatcher =
+        VarargMatcher(name, all, accepts, matcher, prefix, postfix)
+
+    override fun match(arg: Any?): Boolean = match(arg, null)
+
+    override fun match(arg: Any?, errors: MutableList<AssertionError>?): Boolean {
+        val actual = arg.arrayElements() ?: return false
+        val end = actual.size - postfix.size
+        if (end < prefix.size) return false
+        if (prefix.indices.any { !prefix[it].match(actual[it], errors) }) return false
+        if (postfix.indices.any { !postfix[it].match(actual[end + it], errors) }) return false
+        val central = prefix.size until end
+        return if (all) {
+            central.all { matches(it, actual, errors) }
+        } else {
+            central.any { matches(it, actual, errors) }
+        }
+    }
+
+    private fun matches(position: Int, actual: List<Any?>, errors: MutableList<AssertionError>?): Boolean {
+        val element = actual[position]
+        if (!accepts(element)) return false
+        return try {
+            VarargScope(position, actual.size).matcher(element)
+        } catch (e: AssertionError) {
+            errors?.add(e)
+            false
+        }
+    }
+
+    override fun capture(arg: Any?) {
+        val actual = arg.arrayElements() ?: return
+        val end = actual.size - postfix.size
+        if (end < prefix.size) return
+        prefix.forEachIndexed { index, element -> (element as? CapturingMatcher)?.capture(actual[index]) }
+        postfix.forEachIndexed { index, element -> (element as? CapturingMatcher)?.capture(actual[end + index]) }
+    }
+
+    override fun toString(): String = (prefix.map { it.toString() } + "*$name()" + postfix.map { it.toString() })
+        .joinToString(prefix = "[", postfix = "]")
 }
 
 private fun asserting(block: AssertScope.(Any?) -> Unit): (Any?) -> Boolean = { arg ->

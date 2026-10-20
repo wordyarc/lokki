@@ -1,7 +1,9 @@
 package io.lokki.it
 
 import io.lokki.LokkiException
+import io.lokki.every
 import io.lokki.mock
+import io.lokki.verify
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -28,6 +30,15 @@ class MockInterfaceTest {
             "no answer found for $car.getPlate() among the configured answers: ()",
             assertFailsWith<LokkiException> { garage.plate() }.message,
         )
+    }
+
+    @Test
+    fun additionalInterfaceIsMockedForMemberCalledFromMain() {
+        val car = mock<Car>(moreInterfaces = arrayOf(Radio::class))
+        every { (car as Radio).tune(101) } returns "news"
+
+        assertEquals("news", Dashboard(car as Radio).news())
+        verify { car.tune(101, volume = 5) }
     }
 
     @Test

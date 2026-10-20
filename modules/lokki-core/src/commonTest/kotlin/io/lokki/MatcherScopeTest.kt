@@ -94,6 +94,17 @@ class MatcherScopeTest {
     }
 
     @Test
+    fun testVarargMatcherOfHelperIsTakenFromTheFrame() {
+        val placeholder = scope.varargAllInt { it > 0 }
+        val matcher = scope.matcherOf(placeholder)
+
+        assertEquals(0, placeholder.size)
+        assertEquals(0, scope.anyVararg<String>().size)
+        assertTrue(matcher.match(intArrayOf(1, 2)))
+        assertFalse(matcher.match(intArrayOf(1, 0)))
+    }
+
+    @Test
     fun testCaptureOfHelperIsTyped() {
         val slot = slot<Int>()
         val matcher = scope.matcherOf(scope.capture(slot))

@@ -101,11 +101,124 @@ public abstract class MatcherScope internal constructor() {
     public inline fun <reified T : Any> captureNullable(lst: CapturingSlot<T?>): T? =
         push(Matchers.typed<T>(Matchers.captureNullable(lst)), T::class)
 
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <reified T : Any> anyVararg(): Array<T> = pushVararg(Matchers.anyVararg<T>(), emptyArray())
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public fun anyBooleanVararg(): BooleanArray = pushVararg(Matchers.anyBooleanVararg(), BooleanArray(0))
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public fun anyByteVararg(): ByteArray = pushVararg(Matchers.anyByteVararg(), ByteArray(0))
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public fun anyCharVararg(): CharArray = pushVararg(Matchers.anyCharVararg(), CharArray(0))
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public fun anyShortVararg(): ShortArray = pushVararg(Matchers.anyShortVararg(), ShortArray(0))
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public fun anyIntVararg(): IntArray = pushVararg(Matchers.anyIntVararg(), IntArray(0))
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public fun anyLongVararg(): LongArray = pushVararg(Matchers.anyLongVararg(), LongArray(0))
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public fun anyFloatVararg(): FloatArray = pushVararg(Matchers.anyFloatVararg(), FloatArray(0))
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public fun anyDoubleVararg(): DoubleArray = pushVararg(Matchers.anyDoubleVararg(), DoubleArray(0))
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <reified T : Any> varargAll(noinline matcher: VarargScope.(T) -> Boolean): Array<T> =
+        pushVararg(Matchers.varargAll(matcher), emptyArray())
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <reified T : Any> varargAllNullable(noinline matcher: VarargScope.(T?) -> Boolean): Array<T> =
+        pushVararg(Matchers.varargAllNullable(matcher), emptyArray())
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public fun varargAllBoolean(matcher: VarargScope.(Boolean) -> Boolean): BooleanArray =
+        pushVararg(Matchers.varargAllBoolean(matcher), BooleanArray(0))
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public fun varargAllByte(matcher: VarargScope.(Byte) -> Boolean): ByteArray =
+        pushVararg(Matchers.varargAllByte(matcher), ByteArray(0))
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public fun varargAllChar(matcher: VarargScope.(Char) -> Boolean): CharArray =
+        pushVararg(Matchers.varargAllChar(matcher), CharArray(0))
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public fun varargAllShort(matcher: VarargScope.(Short) -> Boolean): ShortArray =
+        pushVararg(Matchers.varargAllShort(matcher), ShortArray(0))
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public fun varargAllInt(matcher: VarargScope.(Int) -> Boolean): IntArray =
+        pushVararg(Matchers.varargAllInt(matcher), IntArray(0))
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public fun varargAllLong(matcher: VarargScope.(Long) -> Boolean): LongArray =
+        pushVararg(Matchers.varargAllLong(matcher), LongArray(0))
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public fun varargAllFloat(matcher: VarargScope.(Float) -> Boolean): FloatArray =
+        pushVararg(Matchers.varargAllFloat(matcher), FloatArray(0))
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public fun varargAllDouble(matcher: VarargScope.(Double) -> Boolean): DoubleArray =
+        pushVararg(Matchers.varargAllDouble(matcher), DoubleArray(0))
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <reified T : Any> varargAny(noinline matcher: VarargScope.(T) -> Boolean): Array<T> =
+        pushVararg(Matchers.varargAny(matcher), emptyArray())
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <reified T : Any> varargAnyNullable(noinline matcher: VarargScope.(T?) -> Boolean): Array<T> =
+        pushVararg(Matchers.varargAnyNullable(matcher), emptyArray())
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public fun varargAnyBoolean(matcher: VarargScope.(Boolean) -> Boolean): BooleanArray =
+        pushVararg(Matchers.varargAnyBoolean(matcher), BooleanArray(0))
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public fun varargAnyByte(matcher: VarargScope.(Byte) -> Boolean): ByteArray =
+        pushVararg(Matchers.varargAnyByte(matcher), ByteArray(0))
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public fun varargAnyChar(matcher: VarargScope.(Char) -> Boolean): CharArray =
+        pushVararg(Matchers.varargAnyChar(matcher), CharArray(0))
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public fun varargAnyShort(matcher: VarargScope.(Short) -> Boolean): ShortArray =
+        pushVararg(Matchers.varargAnyShort(matcher), ShortArray(0))
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public fun varargAnyInt(matcher: VarargScope.(Int) -> Boolean): IntArray =
+        pushVararg(Matchers.varargAnyInt(matcher), IntArray(0))
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public fun varargAnyLong(matcher: VarargScope.(Long) -> Boolean): LongArray =
+        pushVararg(Matchers.varargAnyLong(matcher), LongArray(0))
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public fun varargAnyFloat(matcher: VarargScope.(Float) -> Boolean): FloatArray =
+        pushVararg(Matchers.varargAnyFloat(matcher), FloatArray(0))
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public fun varargAnyDouble(matcher: VarargScope.(Double) -> Boolean): DoubleArray =
+        pushVararg(Matchers.varargAnyDouble(matcher), DoubleArray(0))
+
     @PublishedApi
     internal fun <T> push(matcher: Matcher<Any?>, type: KClass<*>): T {
         frame += matcher
         @Suppress("UNCHECKED_CAST")
         return placeholder(type) as T
+    }
+
+    @PublishedApi
+    internal fun <A> pushVararg(matcher: Matcher<Any?>, placeholder: A): A {
+        frame += matcher
+        return placeholder
     }
 
     @PublishedApi
@@ -124,6 +237,9 @@ public abstract class MatcherScope internal constructor() {
         return matcher
     }
 }
+
+@LokkiDslMarker
+public class VarargScope internal constructor(public val position: Int, public val nArgs: Int)
 
 private fun placeholder(type: KClass<*>): Any? =
     when (type) {
