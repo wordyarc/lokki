@@ -488,6 +488,100 @@ class IncrementalCompilationTest {
         assertEquals(emptySet(), project.compiledSources(":compileTestKotlin"))
     }
 
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testNewConstructorParameterOfSpiedClassInMain(gradle: GradleUnderTest) {
+        val project = jvmProject(gradle)
+        project.write("src/main/kotlin/sample/Engine.kt", engine("private val power: Int = 2", "\"${'$'}power\""))
+        project.write(
+            "src/test/kotlin/sample/EngineTest.kt",
+            """
+            package sample
+
+            import io.lokki.spy
+            import kotlin.test.Test
+            import kotlin.test.assertEquals
+
+            class EngineTest {
+                @Test
+                fun spyCallsTheConstructor() {
+                    assertEquals(expectedDescription(), spy<Engine>().describe())
+                }
+            }
+            """,
+        )
+        project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
+
+        project.build("test")
+
+        project.write(
+            "src/main/kotlin/sample/Engine.kt",
+            engine("private val power: Int = 2, private val unit: String = \"kW\"", "\"${'$'}power ${'$'}unit\""),
+        )
+        val result = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
+        assertEquals(setOf("EngineTest.kt"), project.compiledSources(":compileTestKotlin"))
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testNewOpenMemberOfSpiedClassInMain(gradle: GradleUnderTest) {
+        val project = jvmProject(gradle)
+        project.write(
+            "src/main/kotlin/sample/Car.kt",
+            declaration("open class Car", "open fun drive(): String = \"driven\""),
+        )
+        project.write("src/main/kotlin/sample/Driver.kt", exercise("Car", "drive()"))
+        project.write(
+            "src/test/kotlin/sample/CarTest.kt",
+            """
+            package sample
+
+            import io.lokki.confirmVerified
+            import io.lokki.spy
+            import kotlin.test.Test
+            import kotlin.test.assertContains
+            import kotlin.test.assertFailsWith
+
+            class CarTest {
+                @Test
+                fun spyRecordsTheCall() {
+                    val car = spy(Car())
+                    exercise(car)
+
+                    val error = assertFailsWith<AssertionError> { confirmVerified(car) }
+                    assertContains(error.message.orEmpty(), exercisedMember().substringAfter('.') + "()")
+                }
+            }
+            """,
+        )
+        project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
+
+        project.build("test")
+
+        project.write(
+            "src/main/kotlin/sample/Car.kt",
+            declaration("open class Car", "open fun drive(): String = \"driven\"", "open fun park() {}"),
+        )
+        project.write("src/main/kotlin/sample/Driver.kt", exercise("Car", "park()"))
+        val result = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
+        assertEquals(setOf("CarTest.kt"), project.compiledSources(":compileTestKotlin"))
+    }
+
+    private fun engine(parameters: String, description: String): String =
+        """
+        package sample
+
+        open class Engine($parameters) {
+            open fun describe(): String = $description
+        }
+
+        fun expectedDescription(): String = Engine().describe()
+        """
+
     private fun relaxedPlate(value: String): String =
         """
         package sample

@@ -424,6 +424,82 @@ class MockStateTest {
     }
 
     @Test
+    fun testSpyAnswersWithTheOriginalWithoutStub() {
+        val mock = TestMock("repo", FIND, flags = SPY)
+        mock.original = { member, arguments ->
+            when (member) {
+                EQUALS -> arguments[0] == "same"
+                HASH_CODE -> 42
+                else -> "original ${arguments[0]}"
+            }
+        }
+        val state = mock.`lokki$state`
+        state.stub<String>(FIND, arrayOf(EqMatcher(1), AnyMatcher)) returns "one"
+
+        assertEquals("one", state.answer(FIND_MEMBER, arrayOf(1, true)))
+        assertEquals("original 2", state.answer(FIND_MEMBER, arrayOf(2, true)))
+        assertEquals(true, state.answer(EQUALS, arrayOf("same")))
+        assertEquals(42, state.answer(HASH_CODE, emptyArray()))
+        assertTrue((state.answer(TO_STRING, emptyArray()) as String).startsWith("Repo(repo#"))
+        assertEquals(2, state.records().size)
+        assertEquals(emptyList(), state.unansweredRecords())
+    }
+
+    @Test
+    fun testDelegatingSpyComparesByIdentity() {
+        val mock = TestMock("repo", FIND, flags = SPY or DELEGATE)
+        mock.original = { member, arguments ->
+            if (member <= TO_STRING) throw AssertionError("member $member was delegated")
+            "delegate ${arguments[0]}"
+        }
+        val state = mock.`lokki$state`
+
+        assertEquals("delegate 2", state.answer(FIND_MEMBER, arrayOf(2, true)))
+        assertEquals(true, state.answer(EQUALS, arrayOf(mock)))
+        assertEquals(false, state.answer(EQUALS, arrayOf("other")))
+        assertEquals(identityHashCode(mock), state.answer(HASH_CODE, emptyArray()))
+    }
+
+    @Test
+    fun testSuspendCallOfSpyAnswersWithTheSuspendingOriginal() {
+        val mock = TestMock("repo", FIND, flags = SPY, suspending = setOf(FIND))
+        var pending: Continuation<Unit>? = null
+        mock.coOriginal = { _, arguments ->
+            suspendCoroutine { pending = it }
+            "original ${arguments[0]}"
+        }
+
+        val outcome = start { mock.`lokki$state`.coAnswer<String>(FIND_MEMBER, arrayOf(7, true)) }
+        assertNull(outcome())
+        pending!!.resume(Unit)
+
+        assertEquals(Result.success("original 7"), outcome())
+    }
+
+    @Test
+    fun testAbstractUnitMemberOfSpyDoesNothing() {
+        val mock = TestMock("repo", FIND, SAVE, flags = SPY, units = setOf(SAVE))
+        val state = mock.`lokki$state`
+        val name = state.answer(TO_STRING, emptyArray())
+
+        assertEquals(Unit, state.answer(SAVE_MEMBER, emptyArray()))
+        assertEquals(
+            "no original implementation for $name.find(7, true)",
+            assertFailsWith<LokkiException> { state.answer(FIND_MEMBER, arrayOf(7, true)) }.message,
+        )
+        assertEquals(listOf("$name.save()", "$name.find(7, true)"), state.records().map { it.toString() })
+    }
+
+    @Test
+    fun testAbstractUnitMemberOfMockHasNoOriginal() {
+        val mock = TestMock("repo", SAVE, units = setOf(SAVE))
+        val state = mock.`lokki$state`
+        state.stub<Unit>(SAVE, emptyArray()) answers { callOriginal() }
+
+        assertFailsWith<LokkiException> { state.answer(3, emptyArray()) }
+    }
+
+    @Test
     fun testRelaxedMockAnswersWithTheDefaultOfTheMember() {
         val mock = TestMock("repo", FIND, SAVE, flags = RELAXED)
         val defaults = mapOf<Int, Any?>(FIND_MEMBER to null, SAVE_MEMBER to Unit)

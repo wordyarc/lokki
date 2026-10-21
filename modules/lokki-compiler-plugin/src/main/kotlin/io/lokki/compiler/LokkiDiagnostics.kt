@@ -38,6 +38,8 @@ internal object LokkiDiagnostics : KtDiagnosticsContainer() {
     val LOKKI_ABSTRACT_ORIGINAL_CALL by error2<KtElement, String, String>()
     val LOKKI_MISSING_COROUTINES_DEPENDENCY by error1<KtElement, String>()
     val LOKKI_REF_EQ_OF_VALUE_CLASS by error2<KtElement, String, String>()
+    val LOKKI_UNSAFE_SPY_DELEGATION by error3<KtElement, String, String, String>()
+    val LOKKI_SPY_ARGUMENT_NOT_CONSTRUCTOR_CALL by warning2<KtElement, String, String>()
 
     override fun getRendererFactory(): BaseDiagnosticRendererFactory = LokkiDiagnosticRenderers
 }
@@ -174,6 +176,23 @@ private object LokkiDiagnosticRenderers : BaseDiagnosticRendererFactory() {
             LokkiDiagnostics.LOKKI_REF_EQ_OF_VALUE_CLASS,
             "''{0}'' compares references, but value class ''{1}'' has no identity: a mock receives the argument " +
                 "in a new box on every call. Use ''eq'' or compare the underlying value in ''match''.",
+            CommonRenderers.STRING,
+            CommonRenderers.STRING,
+        )
+        map.put(
+            LokkiDiagnostics.LOKKI_UNSAFE_SPY_DELEGATION,
+            "A spy of ''{0}'' cannot delegate to an existing instance: it cannot forward {1} to the instance, " +
+                "so they would run on an object created without a constructor. " +
+                "Pass a constructor call instead, such as ''spy({2}(...))''.",
+            CommonRenderers.STRING,
+            CommonRenderers.STRING,
+            CommonRenderers.STRING,
+        )
+        map.put(
+            LokkiDiagnostics.LOKKI_SPY_ARGUMENT_NOT_CONSTRUCTOR_CALL,
+            "The spy of ''{0}'' delegates to an existing instance: calls that the instance makes on itself " +
+                "bypass the spy, and the spy is a different object. Pass a constructor call, such as " +
+                "''spy({1}(...))'', to spy on the object itself.",
             CommonRenderers.STRING,
             CommonRenderers.STRING,
         )

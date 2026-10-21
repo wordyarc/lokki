@@ -1,6 +1,7 @@
 package io.lokki.internal
 
 import io.lokki.MethodDescription
+import io.lokki.RETURNS_UNIT
 import io.lokki.SUSPEND
 
 internal class TestMock(
@@ -9,6 +10,7 @@ internal class TestMock(
     flags: Int = 0,
     aliases: Array<String> = emptyArray(),
     private val suspending: Set<String> = emptySet(),
+    private val units: Set<String> = emptySet(),
 ) : GeneratedMock {
     private val keys = ANY_KEYS + keys
 
@@ -28,7 +30,9 @@ internal class TestMock(
     override fun `lokki$relaxed`(member: Int): Any? = relaxed(member)
 
     override fun `lokki$describe`(member: Int): MethodDescription? =
-        keys.getOrNull(member)?.let { descriptionOf(it, if (it in suspending) SUSPEND else 0) }
+        keys.getOrNull(member)?.let { key ->
+            descriptionOf(key, (if (key in suspending) SUSPEND else 0) or (if (key in units) RETURNS_UNIT else 0))
+        }
 }
 
 private fun descriptionOf(key: String, flags: Int): MethodDescription {

@@ -16,6 +16,12 @@ class MockWithoutPluginTest {
     }
 
     @Test
+    fun testSpyThrowsWithoutCompilerPlugin() {
+        assertFailsWith<LokkiException> { spy<Car>() }
+        assertFailsWith<LokkiException> { spy<Car>(object : Car {}) }
+    }
+
+    @Test
     fun testRegularObjectIsNotMock() {
         assertFalse(isMock(object : Car {}))
     }

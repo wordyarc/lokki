@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.ir.util.companionObject
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.erasedUpperBound
 import org.jetbrains.kotlin.ir.util.functions
+import org.jetbrains.kotlin.ir.util.primaryConstructor
 import org.jetbrains.kotlin.ir.util.properties
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
@@ -34,6 +35,8 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
     val of by lazy { generatedMock.companionObject()!!.function("of") }
     val withoutStateChanges by lazy { generatedMock.companionObject()!!.function("withoutStateChanges") }
     val evaluate by lazy { generatedMock.companionObject()!!.function("evaluate") }
+
+    val lokkiException by lazy { findClass(PACKAGE, "LokkiException").primaryConstructor!! }
 
     val mockDescriptor by lazy { findClass(INTERNAL_PACKAGE, "MockDescriptor") }
     val mockSpec by lazy { findClass(INTERNAL_PACKAGE, "MockSpec") }

@@ -14,6 +14,21 @@ public inline fun <reified T : Any> mock(
     block: T.() -> Unit = {},
 ): T = throw LokkiException("lokki compiler plugin is not applied to this compilation")
 
+@LokkiIntrinsic(LokkiIntrinsic.Kind.SPY)
+public inline fun <reified T : Any> spy(
+    name: String? = null,
+    vararg moreInterfaces: KClass<*>,
+    block: T.() -> Unit = {},
+): T = throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.SPY)
+public inline fun <reified T : Any> spy(
+    obj: T,
+    name: String? = null,
+    vararg moreInterfaces: KClass<*>,
+    block: T.() -> Unit = {},
+): T = throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
 public fun isMock(obj: Any): Boolean = obj is GeneratedMock
 
 public fun clearMocks(

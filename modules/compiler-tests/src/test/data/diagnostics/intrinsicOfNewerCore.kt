@@ -6,16 +6,16 @@ package io.lokki.internal
 
 annotation class LokkiIntrinsic(val kind: Kind) {
     enum class Kind {
-        SPY,
+        MOCK_OBJECT,
     }
 }
 
 // FILE: test.kt
 import io.lokki.internal.LokkiIntrinsic
 
-@LokkiIntrinsic(LokkiIntrinsic.Kind.SPY)
-fun <T> spy(value: T): T = value
+@LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK_OBJECT)
+fun <T> mockObject(value: T): T = value
 
 fun test() {
-    <!LOKKI_UNSUPPORTED!>spy("a")<!>
+    <!LOKKI_UNSUPPORTED!>mockObject("a")<!>
 }

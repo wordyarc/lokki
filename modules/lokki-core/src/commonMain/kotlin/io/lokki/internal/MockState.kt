@@ -32,14 +32,20 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
     private var capture: DefaultsCapture? = null
 
     fun answer(member: Int, arguments: Array<Any?>): Any? =
-        respond(member, arguments) { answer, call -> answer.answer(call) }
+        respond(member, arguments, { mock.`lokki$original`(member, arguments) }) { answer, call ->
+            answer.answer(call)
+        }
 
     @Suppress("UNCHECKED_CAST")
     suspend fun <T> coAnswer(member: Int, arguments: Array<Any?>): T =
-        respond(member, arguments) { answer, call -> answer.coAnswer(call) } as T
+        respond(member, arguments, { mock.`lokki$coOriginal`(member, arguments) }) { answer, call ->
+            answer.coAnswer(call)
+        } as T
 
-    fun noOriginal(member: Int, arguments: Array<Any?>): Nothing =
+    fun noOriginal(member: Int, arguments: Array<Any?>): Any? {
+        if (flags and SPY != 0 && description(member).returnsUnit) return Unit
         throw LokkiException("no original implementation for ${call(member, arguments.joinToString { it.toStr() })}")
+    }
 
     fun <T> stub(key: String, matchers: Array<Matcher<Any?>>): StubScope<T> =
         PendingStub(this, descriptor.member(key), matchers)
@@ -73,7 +79,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
 
     internal fun memberName(member: Int): String = "${descriptor.name}.${description(member).name}"
 
-    internal fun description(member: Int): MethodDescription = descriptor.description(owner as GeneratedMock, member)
+    internal fun description(member: Int): MethodDescription = descriptor.description(mock, member)
 
     internal fun register(member: Int, entry: StubEntry) {
         synchronized(this) {
@@ -133,9 +139,13 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
 
     internal fun call(member: Int, arguments: String): String = "$name.${description(member).name}($arguments)"
 
+    private val mock: GeneratedMock
+        get() = owner as GeneratedMock
+
     private inline fun respond(
         member: Int,
         arguments: Array<Any?>,
+        original: () -> Any?,
         answer: (Answer<Any?>, Call) -> Any?,
     ): Any? {
         val capture = capture
@@ -145,7 +155,8 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         }
         val changesState = !Registration.isActive
         val record = if (changesState && member > TO_STRING) record(member, arguments) else null
-        val stub = findStub(member, arguments) ?: return defaultAnswer(member, arguments, record)
+        val stub = findStub(member, arguments)
+            ?: return if (answersWithOriginal(member)) original() else defaultAnswer(member, arguments, record)
         if (changesState) stub.use(arguments)
         return when (val selected = stub.answer(advance = changesState)) {
             is ConstantAnswer -> selected.value
@@ -205,7 +216,10 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         throw LokkiException(message)
     }
 
-    private fun relaxedAnswer(member: Int): Any? = (owner as GeneratedMock).`lokki$relaxed`(member)
+    private fun answersWithOriginal(member: Int): Boolean =
+        flags and SPY != 0 && member != TO_STRING && (member > TO_STRING || flags and DELEGATE == 0)
+
+    private fun relaxedAnswer(member: Int): Any? = mock.`lokki$relaxed`(member)
 
     private inline fun describeStubs(predicate: (StubEntry) -> Boolean): List<String> {
         val stubs = stubs

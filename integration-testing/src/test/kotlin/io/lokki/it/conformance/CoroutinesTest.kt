@@ -4,6 +4,7 @@ import io.lokki.coEvery
 import io.lokki.coVerify
 import io.lokki.mock
 import io.lokki.slot
+import io.lokki.spy
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
@@ -11,6 +12,7 @@ import kotlin.test.assertEquals
 
 class CoroutinesTest {
     private val mock = mock<MockCls>()
+    private val spy = spy<MockCls>()
 
     @Test
     fun simpleCoroutineCall() {
@@ -41,16 +43,16 @@ class CoroutinesTest {
     @Test
     fun coroutineLambdaSlot() {
         val slot = slot<suspend () -> Int>()
-        coEvery { mock.coLambdaOp(1, capture(slot)) } coAnswers {
+        coEvery { spy.coLambdaOp(1, capture(slot)) } coAnswers {
             1 - slot.captured()
         }
 
         runBlocking {
-            mock.coLambdaOp(1) { 2 }
+            spy.coLambdaOp(1) { 2 }
         }
 
         coVerify {
-            mock.coLambdaOp(1, any())
+            spy.coLambdaOp(1, any())
         }
     }
 

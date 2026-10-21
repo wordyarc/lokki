@@ -14,6 +14,7 @@ internal enum class IntrinsicKind {
     WAS_NOT_CALLED,
     EXCLUDE_BLOCK,
     AWAITS,
+    SPY,
     UNKNOWN;
 
     companion object {

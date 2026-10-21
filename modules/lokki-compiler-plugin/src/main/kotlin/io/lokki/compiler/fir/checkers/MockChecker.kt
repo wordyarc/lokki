@@ -26,6 +26,7 @@ import org.jetbrains.kotlin.fir.declarations.hasAnnotation
 import org.jetbrains.kotlin.fir.declarations.toAnnotationClassId
 import org.jetbrains.kotlin.fir.declarations.utils.isAbstract
 import org.jetbrains.kotlin.fir.declarations.utils.isFinal
+import org.jetbrains.kotlin.fir.declarations.utils.isInner
 import org.jetbrains.kotlin.fir.declarations.utils.modality
 import org.jetbrains.kotlin.fir.declarations.utils.visibility
 import org.jetbrains.kotlin.fir.expressions.FirExpression
@@ -54,6 +55,7 @@ import org.jetbrains.kotlin.fir.scopes.isOverriddenProperty
 import org.jetbrains.kotlin.fir.scopes.processAllCallables
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirConstructorSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
@@ -69,6 +71,7 @@ import org.jetbrains.kotlin.fir.types.isNonPrimitiveArray
 import org.jetbrains.kotlin.fir.types.isNothing
 import org.jetbrains.kotlin.fir.types.lowerBoundIfFlexible
 import org.jetbrains.kotlin.fir.types.renderReadable
+import org.jetbrains.kotlin.fir.types.resolvedType
 import org.jetbrains.kotlin.fir.types.toConeTypeProjection
 import org.jetbrains.kotlin.fir.types.type
 import org.jetbrains.kotlin.fir.types.typeContext
@@ -84,10 +87,18 @@ internal object MockChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
     context(context: CheckerContext, reporter: DiagnosticReporter)
     override fun check(expression: FirFunctionCall) {
         val function = expression.calleeReference.toResolvedCallableSymbol() ?: return
-        if (function.intrinsicKind(context.session) != IntrinsicKind.MOCK) return
+        val kind = function.intrinsicKind(context.session)
+        if (kind != IntrinsicKind.MOCK && kind != IntrinsicKind.SPY) return
+        val instance = if (kind == IntrinsicKind.SPY) spiedInstance(expression, function) else null
+        val constructed = instance?.constructedType()
         val argument = expression.typeArguments.singleOrNull() ?: return
-        val source = argument.source?.takeIf { it.kind is KtRealSourceElementKind } ?: expression.source
-        val type = argument.toConeTypeProjection().type?.lowerBoundIfFlexible()?.fullyExpandedType() ?: return
+        val source = when {
+            instance != null -> instance.source
+            else -> argument.source?.takeIf { it.kind is KtRealSourceElementKind } ?: expression.source
+        }
+        val type = constructed
+            ?: argument.toConeTypeProjection().type?.lowerBoundIfFlexible()?.fullyExpandedType()
+            ?: return
         if (type is ConeTypeParameterType) {
             reporter.reportOn(
                 source,
@@ -99,10 +110,31 @@ internal object MockChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
             return
         }
         val mocked = type.takeUnless { it.isNothing }?.toRegularClassSymbol(context.session) ?: return
-        val reason = mocked.notMockableReason() ?: (type as? ConeClassLikeType)?.irreplaceableStarProjection(mocked)
+        val reason = mocked.notMockableReason()
+            ?: (type as? ConeClassLikeType)?.irreplaceableStarProjection(mocked)
+            ?: mocked.unconstructibleReason().takeIf { kind == IntrinsicKind.SPY && instance == null }
         if (reason != null) {
             reporter.reportOn(source, LokkiDiagnostics.LOKKI_TYPE_NOT_MOCKABLE, mocked.displayName, reason)
             return
+        }
+        if (instance != null && constructed == null && mocked.classKind == ClassKind.CLASS) {
+            val members = mocked.unforwardableMembers()
+            if (members.isNotEmpty()) {
+                reporter.reportOn(
+                    instance.source,
+                    LokkiDiagnostics.LOKKI_UNSAFE_SPY_DELEGATION,
+                    mocked.displayName,
+                    members.joinToString { "'$it'" },
+                    mocked.name.asString(),
+                )
+                return
+            }
+            reporter.reportOn(
+                instance.source,
+                LokkiDiagnostics.LOKKI_SPY_ARGUMENT_NOT_CONSTRUCTOR_CALL,
+                mocked.displayName,
+                mocked.name.asString(),
+            )
         }
         val interfaces = moreInterfaces(expression, function) ?: return
         val mockedType = (type as? ConeClassLikeType)?.approximated(mocked) ?: return
@@ -114,6 +146,7 @@ internal object MockChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
             reporter.reportOn(literal.source, LokkiDiagnostics.LOKKI_TYPE_NOT_MOCKABLE, mocked.displayName, problem)
             return
         }
+        if (kind == IntrinsicKind.SPY) return
         mocked.restriction(context.session)?.let { restriction ->
             reporter.reportOn(source, LokkiDiagnostics.LOKKI_RESTRICTED_TYPE, mocked.displayName, restriction)
         }
@@ -154,6 +187,47 @@ private fun FirRegularClassSymbol.notMockableReason(): String? =
                 "runtime, e.g. with 'testImplementation'"
         } ?: membersWithInaccessibleClasses()
     }
+
+private fun spiedInstance(call: FirFunctionCall, function: FirCallableSymbol<*>): FirExpression? {
+    val parameter = (function as? FirFunctionSymbol<*>)?.valueParameterSymbols?.find { it.name == SPIED_INSTANCE }
+        ?: return null
+    return call.resolvedArgumentMapping?.entries?.find { it.value.symbol == parameter }?.key
+}
+
+context(context: CheckerContext)
+private fun FirExpression.constructedType(): ConeKotlinType? {
+    val call = unwrapArgument() as? FirFunctionCall ?: return null
+    if (call.calleeReference.toResolvedCallableSymbol() !is FirConstructorSymbol) return null
+    val type = call.resolvedType.fullyExpandedType()
+    val constructed = type.toRegularClassSymbol(context.session) ?: return null
+    return type.takeIf {
+        constructed.classKind == ClassKind.CLASS && constructed.modality != Modality.FINAL &&
+            constructed.modality != Modality.SEALED
+    }
+}
+
+context(context: CheckerContext)
+private fun FirRegularClassSymbol.unconstructibleReason(): String? {
+    if (classKind != ClassKind.CLASS) return null
+    val constructible = !isInner && declaredMemberScope().getDeclaredConstructors().any { constructor ->
+        constructor.isVisibleToMock() && constructor.valueParameterSymbols.all { it.hasDefaultValue }
+    }
+    if (constructible) return null
+    return "none of its constructors can be called without arguments. Pass a constructor call to 'spy', " +
+        "such as 'spy(${name}(...))'"
+}
+
+context(context: CheckerContext)
+private fun FirRegularClassSymbol.unforwardableMembers(): List<String> {
+    val members = sortedSetOf<String>()
+    unsubstitutedScope().processAllCallables { member ->
+        if (member.visibility == Visibilities.Private) return@processAllCallables
+        if (member.isFinal || member.visibility in PROTECTED || !member.isVisibleToMock()) {
+            members += member.name.asString()
+        }
+    }
+    return members.toList()
+}
 
 private fun ConeClassLikeType.irreplaceableStarProjection(mocked: FirRegularClassSymbol): String? {
     val stars = mocked.typeParameterSymbols.filterIndexed { index, _ -> typeArguments.getOrNull(index) is ConeStarProjection }
@@ -487,7 +561,13 @@ private fun FirCallableSymbol<*>.isMoreSpecific(
 }
 
 private val PACKAGE_PRIVATE_CLASSES = setOf(Visibilities.Private, JavaVisibilities.PackageVisibility)
+private val PROTECTED = setOf(
+    Visibilities.Protected,
+    JavaVisibilities.ProtectedAndPackage,
+    JavaVisibilities.ProtectedStaticVisibility,
+)
 private val MORE_INTERFACES = Name.identifier("moreInterfaces")
+private val SPIED_INSTANCE = Name.identifier("obj")
 private val ARRAY_OF = CallableId(StandardClassIds.BASE_KOTLIN_PACKAGE, Name.identifier("arrayOf"))
 private val DO_NOT_MOCK = Name.identifier("DoNotMock")
 private val VALUE = Name.identifier("value")

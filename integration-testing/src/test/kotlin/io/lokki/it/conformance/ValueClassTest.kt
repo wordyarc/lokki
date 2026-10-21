@@ -5,6 +5,7 @@ import io.lokki.coEvery
 import io.lokki.every
 import io.lokki.mock
 import io.lokki.slot
+import io.lokki.spy
 import io.lokki.verify
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.assertDoesNotThrow
@@ -816,12 +817,28 @@ class ValueClassTest {
     }
 
     @Test
+    fun `spy class returning value class not boxed due to cast to another type`() {
+        val f = spy<DummyService>()
+        val result = f.returnValueClassNotInlined() as DummyValue
+
+        assertEquals(DummyValue(0), result)
+    }
+
+    @Test
     fun `mock class returning value class not boxed due to cast to another type`() {
         val f = mock<DummyService>()
         every { f.returnValueClassNotInlined() } returns DummyValue(3)
         val result = f.returnValueClassNotInlined() as DummyValue
 
         assertEquals(DummyValue(3), result)
+    }
+
+    @Test
+    fun `spy class returning value class boxed due to suspend function`() {
+        val f = spy<DummyService>()
+        val result = runBlocking { f.returnValueClassSuspendNotInlined() }
+
+        assertEquals(DummyValue(0), result)
     }
 
     @Test
@@ -852,6 +869,14 @@ class ValueClassTest {
         val result = runBlocking { f.returnNestedComplexValueClassSuspendNotInlined() }
 
         assertEquals(expected, result)
+    }
+
+    @Test
+    fun `spy class returning complex value class not boxed due to suspend function`() {
+        val f = spy<DummyService>()
+        val result = runBlocking { f.returnComplexValueClassSuspendInlined() }
+
+        assertEquals(ComplexValue(UUID.fromString("c5744ead-302f-4e29-9f82-d10eb2a85ea3")), result)
     }
 
     @Test

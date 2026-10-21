@@ -1,7 +1,9 @@
 package io.lokki.it.conformance
 
 import io.lokki.coEvery
+import io.lokki.coVerify
 import io.lokki.mock
+import io.lokki.spy
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -187,6 +189,20 @@ class CoroutineTest {
             thread.interrupt()
             assertFalse(timeout.get(), "Failed to cancel execution")
             assertTrue(done.get(), "Failed to finish execution/execute coAndThen")
+        }
+    }
+
+    fun interface SuspendingUseCase {
+        suspend operator fun invoke(event: String)
+    }
+
+    @Test
+    fun coVerifyOnSpykOfSuspendFunctionalInterface() {
+        val mock = spy(SuspendingUseCase {})
+
+        runBlocking {
+            mock("hello")
+            coVerify { mock("hello") }
         }
     }
 }

@@ -279,6 +279,7 @@ public final class io/lokki/internal/LokkiIntrinsic$Kind : java/lang/Enum {
 	public static final field EXCLUDE_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field MATCHER Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field MOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field SPY Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field STUB_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field VERIFY_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field WAS_NOT_CALLED Lio/lokki/internal/LokkiIntrinsic$Kind;
@@ -376,7 +377,7 @@ public final class io/lokki/internal/MockState {
 	public final fun coCaptureDefaults (Ljava/lang/String;[Ljava/lang/String;Lkotlin/jvm/functions/Function2;)[Ljava/lang/Object;
 	public final fun exclude (Ljava/lang/String;[Lio/lokki/Matcher;Z)V
 	public static synthetic fun exclude$default (Lio/lokki/internal/MockState;Ljava/lang/String;[Lio/lokki/Matcher;ZILjava/lang/Object;)V
-	public final fun noOriginal (I[Ljava/lang/Object;)Ljava/lang/Void;
+	public final fun noOriginal (I[Ljava/lang/Object;)Ljava/lang/Object;
 	public final fun stub (Ljava/lang/String;[Lio/lokki/Matcher;)Lio/lokki/StubScope;
 }
 
