@@ -1,5 +1,6 @@
 package io.lokki.compiler.ir.lower
 
+import io.lokki.compiler.CHAINED_MOCKS
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.ir.LokkiSymbols
@@ -46,6 +47,7 @@ import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.types.typeWith
 import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.functions
+import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.ir.util.primaryConstructor
 import org.jetbrains.kotlin.ir.util.render
@@ -56,7 +58,7 @@ internal class DslLowering(
     private val file: IrFile,
     private val mocks: Map<MockClassKey, IrClass>,
 ) : IrElementTransformerVoidWithContext() {
-    private val stubBlocks = StubBlockLowering(context, symbols, ::unsupported)
+    private val stubBlocks = StubBlockLowering(context, symbols, file.hasAnnotation(CHAINED_MOCKS), ::unsupported)
     private val verifiedNoCalls = HashSet<IrCall>()
 
     override fun visitCall(expression: IrCall): IrExpression {

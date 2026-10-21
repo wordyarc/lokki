@@ -35,6 +35,15 @@ internal interface GeneratedMock {
             }
         }
 
+        inline fun <T> chain(block: () -> T): T {
+            Registration.enterChain()
+            try {
+                return block()
+            } finally {
+                Registration.exitChain()
+            }
+        }
+
         fun <T> evaluate(dsl: String, block: suspend () -> T): T {
             val result = block.startCoroutineUninterceptedOrReturn(Abandoned)
             if (result === COROUTINE_SUSPENDED) {

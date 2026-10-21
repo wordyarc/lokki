@@ -51,6 +51,22 @@ class MockStateTest {
     }
 
     @Test
+    fun testNoAnswerInChainHasHint() {
+        val chained = assertFailsWith<LokkiException> {
+            GeneratedMock.withoutStateChanges { GeneratedMock.chain { state.answer(FIND_MEMBER, arrayOf(1, true)) } }
+        }
+        val plain = assertFailsWith<LokkiException> { state.answer(FIND_MEMBER, arrayOf(1, true)) }
+
+        val message = "no answer found for $name.find(1, true) among the configured answers: ()" + CALLED_FIND
+        assertEquals(
+            message + "\nThe call is a link of a call chain in a stubbed or verified call: " +
+                "stub it first or annotate the file with @file:ChainedMocks",
+            chained.message,
+        )
+        assertEquals(message, plain.message)
+    }
+
+    @Test
     fun testMemberIsDescribedOnce() {
         val mock = TestMock(null, FIND)
         val descriptions = ArrayList<Int>()

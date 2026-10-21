@@ -76,6 +76,9 @@ public final class io/lokki/CapturingSlotKt {
 	public static final fun slot ()Lio/lokki/CapturingSlot;
 }
 
+public abstract interface annotation class io/lokki/ChainedMocks : java/lang/annotation/Annotation {
+}
+
 public abstract interface annotation class io/lokki/InternalLokkiApi : java/lang/annotation/Annotation {
 }
 
@@ -259,6 +262,7 @@ public abstract interface class io/lokki/internal/GeneratedMock {
 }
 
 public final class io/lokki/internal/GeneratedMock$Companion {
+	public final fun chain (Lkotlin/jvm/functions/Function0;)Ljava/lang/Object;
 	public final fun evaluate (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
 	public final fun of (Ljava/lang/Object;)Lio/lokki/internal/GeneratedMock;
 	public final fun withoutStateChanges (Lkotlin/jvm/functions/Function0;)Ljava/lang/Object;
@@ -388,8 +392,11 @@ public final class io/lokki/internal/NoRelaxedDefault {
 public final class io/lokki/internal/Registration {
 	public static final field INSTANCE Lio/lokki/internal/Registration;
 	public final fun enter ()V
+	public final fun enterChain ()V
 	public final fun exit ()V
+	public final fun exitChain ()V
 	public final fun isActive ()Z
+	public final fun isChain ()Z
 }
 
 public final class io/lokki/internal/RegistrationScope : io/lokki/VerificationScope {

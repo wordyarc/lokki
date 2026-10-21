@@ -213,7 +213,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
                 "Called member: ${description(member).signature()}"
         }
         if (record != null) synchronized(records) { record.unanswered = true }
-        throw LokkiException(message)
+        throw LokkiException(if (Registration.isChain) message + CHAIN_HINT else message)
     }
 
     private fun answersWithOriginal(member: Int): Boolean =
@@ -373,3 +373,5 @@ private object MockIds {
 private const val EQUALS = 0
 private const val HASH_CODE = 1
 private const val TO_STRING = 2
+private const val CHAIN_HINT = "\nThe call is a link of a call chain in a stubbed or verified call: " +
+    "stub it first or annotate the file with @file:ChainedMocks"

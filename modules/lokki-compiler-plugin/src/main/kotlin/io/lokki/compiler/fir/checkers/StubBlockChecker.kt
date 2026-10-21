@@ -2,6 +2,7 @@ package io.lokki.compiler.fir.checkers
 
 import io.lokki.compiler.ALL_ANY
 import io.lokki.compiler.CAPTURE_MATCHERS
+import io.lokki.compiler.CHAINED_MOCKS
 import io.lokki.compiler.COMPOSITE_MATCHERS
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiDiagnostics
@@ -109,6 +110,7 @@ private class StubBlock(
     private val session = context.session
     private val scope = block.receiverParameter?.symbol
     private val action = mode.action
+    private val chainedMocks = CHAINED_MOCKS in context.containingFileSymbol?.resolvedAnnotationClassIds.orEmpty()
 
     fun check() {
         if (mode != BlockMode.EXCLUDE) checkSlotReads()
@@ -200,7 +202,7 @@ private class StubBlock(
         val matchers = receiver.scopeCalls()
         if (matchers.singleOrNull() === receiver) {
             report(receiver, LokkiDiagnostics.LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION)
-        } else {
+        } else if (!chainedMocks) {
             matchers.forEach { report(it, LokkiDiagnostics.LOKKI_CHAINED_CALL_DISABLED) }
         }
         val reason = notInterceptableReason(callee, receiver)

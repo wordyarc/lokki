@@ -29,6 +29,10 @@ public inline fun <reified T : Any> spy(
     block: T.() -> Unit = {},
 ): T = throw LokkiException("lokki compiler plugin is not applied to this compilation")
 
+@Target(AnnotationTarget.FILE)
+@Retention(AnnotationRetention.SOURCE)
+public annotation class ChainedMocks
+
 public fun isMock(obj: Any): Boolean = obj is GeneratedMock
 
 public fun clearMocks(

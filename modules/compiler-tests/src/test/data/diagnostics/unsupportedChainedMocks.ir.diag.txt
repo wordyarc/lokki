@@ -1,0 +1,5 @@
+/unsupportedChainedMocks.kt:22:17: error: Chained mocks do not support matchers in the receiver of the stubbed or verified call yet.
+
+/unsupportedChainedMocks.kt:23:18: error: Chained mocks do not support matchers in the receiver of the stubbed or verified call yet.
+
+/unsupportedChainedMocks.kt:24:26: error: Chained mocks do not support matchers in the receiver of the stubbed or verified call yet.

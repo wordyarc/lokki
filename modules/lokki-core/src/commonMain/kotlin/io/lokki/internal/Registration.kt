@@ -4,20 +4,46 @@ import kotlin.concurrent.Volatile
 
 @PublishedApi
 internal object Registration {
-    @Volatile
-    private var threads = emptyArray<Any>()
+    private val registering = Threads()
+    private val chains = Threads()
 
     val isActive: Boolean
-        get() {
-            val threads = threads
-            return threads.isNotEmpty() && currentThread() in threads
-        }
+        get() = registering.containsCurrent()
+
+    val isChain: Boolean
+        get() = chains.containsCurrent()
 
     fun enter() {
-        synchronized(this) { threads += currentThread() }
+        registering.add()
     }
 
     fun exit() {
+        registering.remove()
+    }
+
+    fun enterChain() {
+        chains.add()
+    }
+
+    fun exitChain() {
+        chains.remove()
+    }
+}
+
+private class Threads {
+    @Volatile
+    private var threads = emptyArray<Any>()
+
+    fun containsCurrent(): Boolean {
+        val threads = threads
+        return threads.isNotEmpty() && currentThread() in threads
+    }
+
+    fun add() {
+        synchronized(this) { threads += currentThread() }
+    }
+
+    fun remove() {
         synchronized(this) {
             val index = threads.lastIndexOf(currentThread())
             threads = (threads.take(index) + threads.drop(index + 1)).toTypedArray()

@@ -23,6 +23,7 @@ internal enum class IntrinsicKind {
 }
 
 internal val LOKKI_INTRINSIC = ClassId(FqName("io.lokki.internal"), Name.identifier("LokkiIntrinsic"))
+internal val CHAINED_MOCKS = ClassId(FqName("io.lokki"), Name.identifier("ChainedMocks"))
 
 internal const val ALL_ANY = "allAny"
 internal val COMPOSITE_MATCHERS = setOf("and", "or", "not")

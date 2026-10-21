@@ -85,8 +85,8 @@ private object LokkiDiagnosticRenderers : BaseDiagnosticRendererFactory() {
         )
         map.put(
             LokkiDiagnostics.LOKKI_CHAINED_CALL_DISABLED,
-            "A matcher in the receiver of the stubbed or verified call needs chained mocks, which are disabled: " +
-                "stub or verify the call in the receiver separately.",
+            "A matcher in the receiver of the stubbed or verified call needs chained mocks: " +
+                "stub or verify the call in the receiver separately, or annotate the file with @file:ChainedMocks.",
         )
         map.put(
             LokkiDiagnostics.LOKKI_CALLABLE_REFERENCE_TO_INTRINSIC,

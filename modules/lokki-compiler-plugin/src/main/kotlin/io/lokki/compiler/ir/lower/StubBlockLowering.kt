@@ -101,6 +101,7 @@ import org.jetbrains.kotlin.name.SpecialNames
 internal class StubBlockLowering(
     private val context: IrPluginContext,
     private val symbols: LokkiSymbols,
+    private val chainedMocks: Boolean,
     private val unsupported: (IrElement, String) -> Unit,
 ) {
     private val matcherType = symbols.matcher.typeWith(context.irBuiltIns.anyNType)
@@ -296,7 +297,14 @@ internal class StubBlockLowering(
         verification: IrVariable? = null,
     ): Registration? {
         if (!stubbed.receiver.isIndependentOf(block.function)) {
-            return fail(stubbed.receiver, "The receiver of the stubbed or verified call must not use matchers")
+            return fail(
+                stubbed.receiver,
+                when {
+                    chainedMocks -> "Chained mocks do not support matchers in the receiver of the stubbed or " +
+                        "verified call yet"
+                    else -> "The receiver of the stubbed or verified call must not use matchers"
+                },
+            )
         }
         if (!stubbed.callsSuspend) return irEvaluatedRegistration(dsl, block, stubbed, verification)
         val anyN = context.irBuiltIns.anyNType
@@ -325,7 +333,12 @@ internal class StubBlockLowering(
         val declared = member.root.parameters
         val capturesDefaults = !stubbed.allAny && null in stubbed.arguments
 
-        val receiver = irTemporary(verification?.let { irLinks(dsl, stubbed.receiver, it) } ?: stubbed.receiver)
+        val receiver = irTemporary(
+            when {
+                chainedMocks || !stubbed.receiver.isChain -> irReceiver(dsl, stubbed, verification)
+                else -> irChain(dsl, stubbed.receiver.type) { irReceiver(dsl, stubbed, verification) }
+            }
+        )
         val state = irTemporary(irStateOf(irGet(receiver)))
         val key = member.memberKeys.first()
         val values = arrayOfNulls<IrVariable>(parameters.size)
@@ -356,6 +369,23 @@ internal class StubBlockLowering(
             }
         }
         return Registration(state, key, irArrayOf(matcherType, arguments))
+    }
+
+    private fun IrBlockBodyBuilder.irReceiver(
+        dsl: IrCall,
+        stubbed: StubbedCall,
+        verification: IrVariable?,
+    ): IrExpression = verification?.let { irLinks(dsl, stubbed.receiver, it) } ?: stubbed.receiver
+
+    private inline fun IrBuilder.irChain(
+        dsl: IrCall,
+        type: IrType,
+        value: IrBlockBodyBuilder.() -> IrExpression,
+    ): IrExpression {
+        val chain = lambda(dsl, type)
+        chain.body = DeclarationIrBuilder(context, chain.symbol, dsl.startOffset, dsl.endOffset)
+            .irBlockBody { +irReturn(value()) }
+        return irCompanionCall(symbols.chain, chain, type)
     }
 
     private fun IrBlockBodyBuilder.irLinks(
@@ -439,10 +469,17 @@ internal class StubBlockLowering(
     }
 
     private fun IrBuilder.irWithoutStateChanges(registration: IrSimpleFunction, type: IrType): IrExpression =
-        irCall(symbols.withoutStateChanges.symbol, type, listOf(type)).apply {
-            val companion = symbols.withoutStateChanges.parentAsClass
+        irCompanionCall(symbols.withoutStateChanges, registration, type)
+
+    private fun IrBuilder.irCompanionCall(
+        function: IrSimpleFunction,
+        block: IrSimpleFunction,
+        type: IrType,
+    ): IrExpression =
+        irCall(function.symbol, type, listOf(type)).apply {
+            val companion = function.parentAsClass
             arguments[0] = irGetObjectValue(companion.defaultType, companion.symbol)
-            arguments[1] = registration.expression(type)
+            arguments[1] = block.expression(type)
         }
 
     private fun IrBuilder.irCaptureDefaults(
@@ -790,6 +827,9 @@ private fun IrExpression.memberCall(): StubbedCall? {
 
 private val IrSimpleFunction.isLink: Boolean
     get() = modality != Modality.FINAL && !isMethodOfAny()
+
+private val IrExpression.isChain: Boolean
+    get() = (unwrapped() as? IrExpression)?.memberCall()?.call?.symbol?.owner?.isLink == true
 
 private val IrExpression?.isAllAny: Boolean
     get() = when (this) {
