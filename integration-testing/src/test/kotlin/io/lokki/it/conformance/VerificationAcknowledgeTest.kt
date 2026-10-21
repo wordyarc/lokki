@@ -2,20 +2,24 @@ package io.lokki.it.conformance
 
 import io.lokki.Called
 import io.lokki.checkUnnecessaryStub
+import io.lokki.clearAllMocks
 import io.lokki.clearMocks
 import io.lokki.confirmVerified
 import io.lokki.every
 import io.lokki.excludeRecords
+import io.lokki.junit5.LokkiExtension
 import io.lokki.mock
 import io.lokki.verify
 import io.lokki.verifyCount
 import io.lokki.verifyOrder
 import io.lokki.verifySequence
+import org.junit.jupiter.api.extension.ExtendWith
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
 import kotlin.test.assertFailsWith
 
+@ExtendWith(LokkiExtension::class)
 class VerificationAcknowledgeTest {
     interface MockCls {
         fun op(a: Int): Int
@@ -74,6 +78,35 @@ class VerificationAcknowledgeTest {
                     "\n" +
                     "1) $mock.op(eq(98))\n" +
                     "2) $mock.op(eq(99))",
+                it.message,
+            )
+        }
+    }
+
+    @Test
+    fun `checkUnnecessaryStubAll with single call to each stub`() {
+        clearAllMocks()
+        doCalls1()
+        val mock2 = mock<MockCls>()
+        every { mock2.op(98) } returns 1
+        mock2.op(98)
+        checkUnnecessaryStub()
+    }
+
+    @Test
+    fun `checkUnnecessaryStubAll with some used and some unused stubs`() {
+        clearAllMocks()
+        doCalls1()
+        val mock2 = mock<MockCls> { every { op(42) } returns 1 }
+        assertFailsWith<AssertionError> {
+            checkUnnecessaryStub()
+        }.also {
+            assertEquals(
+                "Unnecessary stubbings detected.\n" +
+                    "Following stubbings are not used, either because there are unnecessary or because " +
+                    "tested code doesn't call them :\n" +
+                    "\n" +
+                    "1) $mock2.op(eq(42))",
                 it.message,
             )
         }
@@ -548,6 +581,49 @@ class VerificationAcknowledgeTest {
         }
 
         confirmVerified(mock)
+    }
+
+    @Test
+    fun confirmVerifiedAll() {
+        doCalls1()
+
+        verify {
+            mock.op(5)
+            mock.op(6)
+            mock.op(7)
+        }
+
+        confirmVerified()
+    }
+
+    @Test
+    fun confirmVerifiedAllInverse() {
+        doCalls1()
+
+        verify {
+            mock.op(5)
+            mock.op(6)
+        }
+
+        assertFails {
+            confirmVerified()
+        }
+    }
+
+    @Test
+    fun confirmVerifiedAllExclude() {
+        excludeRecords(current = false) {
+            mock.op(7)
+        }
+
+        doCalls1()
+
+        verify {
+            mock.op(6)
+            mock.op(5)
+        }
+
+        confirmVerified()
     }
 
     @Test

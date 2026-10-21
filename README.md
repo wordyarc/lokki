@@ -31,6 +31,7 @@ JVM test suites, and adds `lokki-core` to their dependencies.
 | [`modules/lokki-core`](modules/lokki-core) | `io.lokki:lokki-core` | Runtime: the public DSL and the support for generated code. |
 | [`modules/lokki-compiler-plugin`](modules/lokki-compiler-plugin) | `io.lokki:lokki-compiler-plugin` | Compiler plugin `io.lokki.compiler`: collects `mock<T>()` calls, generates mock classes and lowers the DSL. |
 | [`modules/lokki-gradle-plugin`](modules/lokki-gradle-plugin) | `io.lokki:lokki-gradle-plugin` | Gradle plugin `io.lokki`. |
+| [`modules/lokki-junit5`](modules/lokki-junit5) | `io.lokki:lokki-junit5` | `LokkiExtension`: a mock scope per test class, test and dynamic test (JUnit Jupiter 5.12+ and 6.x). |
 | [`modules/compiler-tests`](modules/compiler-tests) | not published | Compiler tests on the [Kotlin compiler test framework][test-framework]. |
 | [`integration-testing`](integration-testing) | not published | A composite build that tests the real Gradle plugin end to end. |
 
