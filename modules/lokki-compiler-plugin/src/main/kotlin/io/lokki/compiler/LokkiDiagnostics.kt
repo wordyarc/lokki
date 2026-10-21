@@ -46,6 +46,7 @@ internal object LokkiDiagnostics : KtDiagnosticsContainer() {
     val LOKKI_UNRESOLVED_INJECTION by error2<KtElement, String, String>()
     val LOKKI_AMBIGUOUS_INJECTION by error2<KtElement, String, String>()
     val LOKKI_UNSUPPORTED_INJECTION by error2<KtElement, String, String>()
+    val LOKKI_OBJECT_NOT_INTERCEPTABLE by error2<KtElement, String, String>()
 
     override fun getRendererFactory(): BaseDiagnosticRendererFactory = LokkiDiagnosticRenderers
 }
@@ -231,6 +232,12 @@ private object LokkiDiagnosticRenderers : BaseDiagnosticRendererFactory() {
         map.put(
             LokkiDiagnostics.LOKKI_UNSUPPORTED_INJECTION,
             "''@InjectMocks'' cannot inject ''{0}'': {1}.",
+            CommonRenderers.STRING,
+            CommonRenderers.STRING,
+        )
+        map.put(
+            LokkiDiagnostics.LOKKI_OBJECT_NOT_INTERCEPTABLE,
+            "Calls of ''{0}'' cannot be intercepted: {1}.",
             CommonRenderers.STRING,
             CommonRenderers.STRING,
         )

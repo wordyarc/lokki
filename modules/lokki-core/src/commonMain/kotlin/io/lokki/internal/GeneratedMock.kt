@@ -25,7 +25,8 @@ internal interface GeneratedMock {
 
     companion object {
         fun of(instance: Any?): GeneratedMock =
-            instance as? GeneratedMock ?: throw LokkiException("$instance is not a lokki mock")
+            instance as? GeneratedMock ?: instance?.let(Redirects::find)
+                ?: throw LokkiException("$instance is not a lokki mock")
 
         inline fun <T> withoutStateChanges(block: () -> T): T {
             Registration.enter()

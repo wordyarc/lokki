@@ -202,6 +202,10 @@ public final class io/lokki/MockKt {
 	public static final fun clearMocks (Ljava/lang/Object;[Ljava/lang/Object;ZZZZZ)V
 	public static synthetic fun clearMocks$default (Ljava/lang/Object;[Ljava/lang/Object;ZZZZZILjava/lang/Object;)V
 	public static final fun isMock (Ljava/lang/Object;)Z
+	public static final fun mockObject ([Ljava/lang/Object;)V
+	public static final fun mockObject ([Ljava/lang/Object;Lkotlin/jvm/functions/Function0;)V
+	public static final fun unmockAll ()V
+	public static final fun unmockObject ([Ljava/lang/Object;)V
 }
 
 public final class io/lokki/Ordering : java/lang/Enum {
@@ -349,6 +353,7 @@ public final class io/lokki/internal/LokkiIntrinsic$Kind : java/lang/Enum {
 	public static final field INJECT_MOCKS Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field MATCHER Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field MOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field MOCK_OBJECT Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field RELAXED_MOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field SPY Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field STUB_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
@@ -459,6 +464,19 @@ public final class io/lokki/internal/MockState {
 
 public final class io/lokki/internal/NoRelaxedDefault {
 	public fun <init> (Ljava/lang/String;Z)V
+}
+
+public final class io/lokki/internal/ObjectRedirect {
+	public fun <init> (Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)V
+}
+
+public final class io/lokki/internal/Redirects {
+	public static final field INSTANCE Lio/lokki/internal/Redirects;
+	public final fun install ([Lio/lokki/internal/ObjectRedirect;)Ljava/lang/Object;
+	public final fun mockObject ([Lio/lokki/internal/ObjectRedirect;)V
+	public final fun mockObject ([Lio/lokki/internal/ObjectRedirect;Lkotlin/jvm/functions/Function0;)V
+	public final fun of (Ljava/lang/Object;Ljava/lang/String;)Lio/lokki/internal/GeneratedMock;
+	public final fun uninstall (Ljava/lang/Object;)V
 }
 
 public final class io/lokki/internal/Registration {

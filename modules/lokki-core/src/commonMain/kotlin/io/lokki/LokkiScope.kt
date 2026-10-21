@@ -4,6 +4,7 @@ import io.lokki.internal.ALL
 import io.lokki.internal.CallRecord
 import io.lokki.internal.CommonThreadLocal
 import io.lokki.internal.MockState
+import io.lokki.internal.Redirects
 import io.lokki.internal.StaticInitializer
 import io.lokki.internal.StubPosition
 import io.lokki.internal.WeakReference
@@ -38,6 +39,7 @@ public class LokkiScope private constructor(private val parent: LokkiScope?, pri
             parent.children -= this
             parent
         }
+        Redirects.release(this)
         val own = ownStates()
         val inherited = parent.windowStates()
         val unanswered = (inherited + own).flatMap { it.unansweredRecords(start) }.sortedBy { it.sequenceNumber }
@@ -63,6 +65,8 @@ public class LokkiScope private constructor(private val parent: LokkiScope?, pri
     internal fun adopt(state: MockState) {
         synchronized(mocks) { mocks += WeakReference(state) }
     }
+
+    internal fun isWithin(ancestor: LokkiScope): Boolean = generateSequence(this) { it.parent }.any { it === ancestor }
 
     internal fun windowStates(): List<MockState> =
         generateSequence(this) { it.parent }.toList().asReversed().flatMap { it.ownStates() }

@@ -8,7 +8,7 @@ kotlin {
 }
 
 lokki {
-    mockable("io.lokki.it.mockable.**")
+    mockable("io.lokki.it.mockable.**", "io.lokki.it.conformance.**")
 }
 
 testing {
@@ -19,6 +19,7 @@ testing {
             dependencies {
                 implementation("io.lokki:lokki-junit5")
                 implementation(libs.junit.platform.testkit)
+                implementation(libs.junit.jupiter.params)
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.coroutines.test)
             }

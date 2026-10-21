@@ -1,0 +1,3 @@
+/unsupportedMockObject.kt:14:16: error: 'test.Local' is not an object with interception points.
+
+/unsupportedMockObject.kt:15:5: error: Pass objects to 'mockObject' directly, not as a spread array.

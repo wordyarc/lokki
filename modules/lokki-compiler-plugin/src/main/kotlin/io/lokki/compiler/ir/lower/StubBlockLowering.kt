@@ -33,6 +33,7 @@ import org.jetbrains.kotlin.ir.types.makeNotNull
 import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.util.render
 import io.lokki.compiler.ir.LokkiSymbols
+import io.lokki.compiler.ir.ObjectRedirects
 import io.lokki.compiler.ir.intrinsicKind
 import io.lokki.compiler.ir.irArrayOf
 import io.lokki.compiler.ir.memberKeys
@@ -128,6 +129,7 @@ internal class StubBlockLowering(
     private val file: IrFile,
     private val mocks: Map<MockClassKey, IrClass>,
     private val instances: MockInstances,
+    private val redirects: ObjectRedirects,
     private val unsupported: (IrElement, String) -> Unit,
 ) {
     private val chainedMocks = file.hasAnnotation(CHAINED_MOCKS)
@@ -337,7 +339,7 @@ internal class StubBlockLowering(
         )
         return Registration(
             irTemporary(irAs(irArrayGet(evaluated, 0), symbols.mockState.defaultType)),
-            stubbed.call.symbol.owner.memberKeys.first(),
+            keyOf(stubbed.call),
             irAs(irArrayGet(evaluated, 1), context.irBuiltIns.arrayClass.typeWith(matcherType)),
         )
     }
@@ -358,9 +360,9 @@ internal class StubBlockLowering(
                 else -> stubbed.receiver
             }
         )
-        val state = irTemporary(irStateOf(irGet(receiver)))
+        val state = irTemporary(irStateOf(stubbed.call, irGet(receiver)))
         val matchers = irArguments(dsl, block, stubbed, receiver, state) ?: return null
-        return Registration(state, stubbed.call.symbol.owner.memberKeys.first(), matchers)
+        return Registration(state, keyOf(stubbed.call), matchers)
     }
 
     private fun IrBlockBodyBuilder.irArguments(
@@ -391,7 +393,7 @@ internal class StubBlockLowering(
         }
         val defaults = if (capturesDefaults) {
             call.dispatchReceiver = irGet(receiver)
-            irTemporary(irCaptureDefaults(dsl, state, member.memberKeys.first(), stubbed, values))
+            irTemporary(irCaptureDefaults(dsl, state, keyOf(call), stubbed, values))
         } else {
             null
         }
@@ -798,6 +800,20 @@ internal class StubBlockLowering(
 
     private fun IrBuilder.irAny(): IrExpression =
         irGetObjectValue(symbols.anyMatcher.defaultType, symbols.anyMatcher.symbol)
+
+    private fun keyOf(call: IrCall): String =
+        redirects.member(call.symbol.owner)?.key ?: call.symbol.owner.memberKeys.first()
+
+    private fun IrBuilder.irStateOf(call: IrCall, receiver: IrExpression): IrExpression {
+        val member = redirects.member(call.symbol.owner) ?: return irStateOf(receiver)
+        return irCall(symbols.state.getter!!).apply {
+            arguments[0] = irCall(symbols.redirectOf).apply {
+                arguments[0] = irGetObjectValue(symbols.redirects.defaultType, symbols.redirects.symbol)
+                arguments[1] = receiver
+                arguments[2] = irString(member.redirect.name)
+            }
+        }
+    }
 
     private fun IrBuilder.irStateOf(instance: IrExpression): IrExpression =
         irCall(symbols.state.getter!!).apply {

@@ -4,7 +4,9 @@ import io.lokki.compiler.CHAINED_MOCKS
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.ir.blockCalls
 import io.lokki.compiler.ir.intrinsicKind
+import io.lokki.compiler.ir.ObjectRedirects
 import io.lokki.compiler.ir.links
+import io.lokki.compiler.ir.mockedObjects
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.DescriptorVisibility
 import org.jetbrains.kotlin.ir.IrElement
@@ -13,6 +15,7 @@ import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrConst
+import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.visitors.IrVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
@@ -24,10 +27,10 @@ internal class MockClassUsage(
     var relaxedChildren: Boolean = false,
 )
 
-internal fun IrFile.collectMockClasses(): Map<MockClassKey, MockClassUsage> =
-    MockCollector(this).also(::acceptChildrenVoid).mockClasses
+internal fun IrFile.collectMockClasses(redirects: ObjectRedirects): Map<MockClassKey, MockClassUsage> =
+    MockCollector(this, redirects).also(::acceptChildrenVoid).mockClasses
 
-private class MockCollector(private val file: IrFile) : IrVisitorVoid() {
+private class MockCollector(private val file: IrFile, private val redirects: ObjectRedirects) : IrVisitorVoid() {
     val mockClasses = LinkedHashMap<MockClassKey, MockClassUsage>()
 
     private val chainedMocks = file.hasAnnotation(CHAINED_MOCKS)
@@ -57,6 +60,11 @@ private class MockCollector(private val file: IrFile) : IrVisitorVoid() {
         expression.mockedTypes(file)?.let { types ->
             val usage = add(expression, types)
             if (chainedMocks && expression.mayBeRelaxed) usage.relaxedChildren = true
+        }
+        if (expression.intrinsicKind == IntrinsicKind.MOCK_OBJECT) {
+            for (redirect in expression.mockedObjects.orEmpty().mapNotNull(redirects::of)) {
+                add(expression, MockedTypes(redirect.redirect.defaultType, emptyList(), MockForm.Mock))
+            }
         }
         if (chainedMocks) {
             for (link in expression.blockCalls().flatMap { it.receiver.links() }) {

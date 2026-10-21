@@ -3,6 +3,27 @@ package io.lokki.compiler.ir.lower
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.ir.LokkiSymbols
+import io.lokki.compiler.ir.ObjectRedirect
+import io.lokki.compiler.ir.ObjectRedirects
+import io.lokki.compiler.ir.collect.MockedTypes
+import io.lokki.compiler.ir.irArrayOf
+import io.lokki.compiler.ir.mockedObjects
+import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
+import org.jetbrains.kotlin.ir.builders.declarations.addValueParameter
+import org.jetbrains.kotlin.ir.builders.declarations.buildFun
+import org.jetbrains.kotlin.ir.builders.irAs
+import org.jetbrains.kotlin.ir.builders.irBlockBody
+import org.jetbrains.kotlin.ir.builders.irGet
+import org.jetbrains.kotlin.ir.builders.irGetObjectValue
+import org.jetbrains.kotlin.ir.builders.irString
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
+import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
+import org.jetbrains.kotlin.ir.expressions.impl.IrFunctionExpressionImpl
+import org.jetbrains.kotlin.ir.types.makeNullable
+import org.jetbrains.kotlin.ir.util.defaultType
+import org.jetbrains.kotlin.ir.util.patchDeclarationParents
+import org.jetbrains.kotlin.ir.util.render
+import org.jetbrains.kotlin.name.SpecialNames
 import io.lokki.compiler.ir.collect.MockClassKey
 import io.lokki.compiler.ir.collect.MockForm
 import io.lokki.compiler.ir.collect.argument
@@ -45,9 +66,10 @@ internal class DslLowering(
     private val symbols: LokkiSymbols,
     private val file: IrFile,
     private val mocks: Map<MockClassKey, IrClass>,
+    private val redirects: ObjectRedirects,
 ) : IrElementTransformerVoidWithContext() {
     private val instances = MockInstances(context, symbols)
-    private val stubBlocks = StubBlockLowering(context, symbols, file, mocks, instances, ::unsupported)
+    private val stubBlocks = StubBlockLowering(context, symbols, file, mocks, instances, redirects, ::unsupported)
     private val verifiedNoCalls = HashSet<IrCall>()
 
     override fun visitCall(expression: IrCall): IrExpression {
@@ -56,6 +78,7 @@ internal class DslLowering(
         super.visitCall(expression)
         return when (kind) {
             IntrinsicKind.MOCK, IntrinsicKind.SPY -> lowerMock(expression)
+            IntrinsicKind.MOCK_OBJECT -> lowerMockObject(expression)
             IntrinsicKind.STUB_BLOCK -> stubBlocks.lowerStub(expression, currentScope!!.scope)
             IntrinsicKind.VERIFY_BLOCK -> stubBlocks.lowerVerify(expression, currentScope!!.scope)
             IntrinsicKind.EXCLUDE_BLOCK -> stubBlocks.lowerExclusion(expression, currentScope!!.scope)
@@ -124,6 +147,56 @@ internal class DslLowering(
                 arguments[0] = instance
                 arguments[1] = block
             }
+        }
+    }
+
+    private fun lowerMockObject(call: IrCall): IrExpression {
+        val objects = call.mockedObjects
+            ?: return call.also { unsupported(it, "Pass objects to 'mockObject' directly, not as a spread array") }
+        val redirects = objects.map { argument ->
+            redirects.of(argument) ?: return call.also {
+                unsupported(argument, "'${argument.type.render()}' is not an object with interception points")
+            }
+        }
+        val scope = currentScope!!.scope
+        val block = call.argument("block")
+        return DeclarationIrBuilder(context, scope.scopeOwnerSymbol, call.startOffset, call.endOffset).run {
+            val type = symbols.objectRedirect.defaultType
+            val array = irArrayOf(type, objects.zip(redirects).map { (target, redirect) -> irRedirect(target, redirect) })
+            irCall(if (block == null) symbols.mockObject else symbols.mockObjectWithBlock).apply {
+                arguments[0] = irGetObjectValue(symbols.redirects.defaultType, symbols.redirects.symbol)
+                arguments[1] = array
+                if (block != null) arguments[2] = block
+            }
+        }.also { it.patchDeclarationParents(scope.getLocalDeclarationParent()) }
+    }
+
+    private fun IrBuilderWithScope.irRedirect(target: IrExpression, redirect: ObjectRedirect): IrExpression {
+        val types = MockedTypes(redirect.redirect.defaultType, emptyList(), MockForm.Mock)
+        val mock = mocks.getValue(types.mockClassKey(file))
+        val anyN = context.irBuiltIns.anyNType
+        val unit = context.irBuiltIns.unitType
+        val install = context.irFactory.buildFun {
+            startOffset = this@irRedirect.startOffset
+            endOffset = this@irRedirect.endOffset
+            origin = IrDeclarationOrigin.LOCAL_FUNCTION_FOR_LAMBDA
+            name = SpecialNames.ANONYMOUS
+            visibility = DescriptorVisibilities.LOCAL
+            returnType = unit
+        }
+        val value = install.addValueParameter("redirect", anyN)
+        install.body = DeclarationIrBuilder(context, install.symbol, startOffset, endOffset).irBlockBody {
+            +irCall(redirect.property.setter!!).apply {
+                arguments[0] = irGetObjectValue(redirect.target.defaultType, redirect.target.symbol)
+                arguments[1] = irAs(irGet(value), redirect.redirect.defaultType.makeNullable())
+            }
+        }
+        val installType = context.irBuiltIns.functionN(1).typeWith(anyN, unit)
+        return irCallConstructor(symbols.objectRedirect.primaryConstructor!!.symbol, emptyList()).apply {
+            arguments[0] = target
+            arguments[1] = irString(redirect.name)
+            arguments[2] = with(instances) { irFactory(mock, types) }
+            arguments[3] = IrFunctionExpressionImpl(startOffset, endOffset, installType, install, IrStatementOrigin.LAMBDA)
         }
     }
 

@@ -1,7 +1,9 @@
 package io.lokki.it.conformance
 
 import io.lokki.every
+import io.lokki.lokkiScope
 import io.lokki.mock
+import io.lokki.mockObject
 import io.lokki.verify
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -66,5 +68,17 @@ class JvmSyntheticMemberTest {
         every { mock.value } returns "stubbed"
 
         assertEquals("stubbed", mock.value)
+    }
+
+    @Test
+    fun syntheticJvmStaticFunctionIsStubbed() {
+        lokkiScope {
+            mockObject(SyntheticStaticHolder) {
+                every { SyntheticStaticHolder.compute("in") } returns "out"
+
+                assertEquals("out", SyntheticStaticHolder.compute("in"))
+                verify { SyntheticStaticHolder.compute("in") }
+            }
+        }
     }
 }

@@ -31,6 +31,7 @@ kotlin-test-junit5 = { group = "org.jetbrains.kotlin", name = "kotlin-test-junit
 kotlin-test-framework = { group = "org.jetbrains.kotlin", name = "kotlin-compiler-internal-test-framework", version.ref = "kotlin" }
 junit = { module = "junit:junit", version.ref = "junit" }
 junit-platform-testkit = { module = "org.junit.platform:junit-platform-testkit" }
+junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 

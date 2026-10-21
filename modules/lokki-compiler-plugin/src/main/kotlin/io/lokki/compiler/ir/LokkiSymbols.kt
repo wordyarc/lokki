@@ -41,6 +41,13 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
     val chain by lazy { generatedMock.companionObject()!!.function("chain") }
     val link by lazy { generatedMock.companionObject()!!.function("link") }
     val childMock by lazy { findClass(INTERNAL_PACKAGE, "ChildMock") }
+    val redirects by lazy { findClass(INTERNAL_PACKAGE, "Redirects") }
+    val mockObject by lazy { redirects.functions.single { it.name.asString() == "mockObject" && it.parameters.size == 2 } }
+    val mockObjectWithBlock by lazy {
+        redirects.functions.single { it.name.asString() == "mockObject" && it.parameters.size == 3 }
+    }
+    val redirectOf by lazy { redirects.function("of") }
+    val objectRedirect by lazy { findClass(INTERNAL_PACKAGE, "ObjectRedirect") }
     val mockFieldsOwner by lazy { findClass(INTERNAL_PACKAGE, "MockFieldsOwner") }
     val initMockFields by lazy { mockFieldsOwner.function("lokki\$initMockFields") }
 
@@ -113,6 +120,9 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
 
     val jvmSynthetic by lazy { finder.findConstructors(ClassId(JVM_PACKAGE, Name.identifier("JvmSynthetic"))).single() }
     val volatile by lazy { finder.findConstructors(ClassId(JVM_PACKAGE, Name.identifier("Volatile"))).single() }
+    val jvmDefaultWithoutCompatibility by lazy {
+        finder.findConstructors(ClassId(JVM_PACKAGE, Name.identifier("JvmDefaultWithoutCompatibility"))).single()
+    }
     val deprecated by lazy { finder.findConstructors(ClassId(KOTLIN_PACKAGE, Name.identifier("Deprecated"))).single() }
     val hiddenDeprecation by lazy {
         finder.findClass(ClassId(KOTLIN_PACKAGE, Name.identifier("DeprecationLevel")))!!.owner

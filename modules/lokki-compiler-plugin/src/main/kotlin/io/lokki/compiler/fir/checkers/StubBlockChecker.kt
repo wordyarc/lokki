@@ -9,7 +9,9 @@ import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.ORDERED_VERIFY_BLOCKS
 import io.lokki.compiler.fir.displayName
 import io.lokki.compiler.fir.intrinsicKind
+import io.lokki.compiler.fir.MemberInterception
 import io.lokki.compiler.fir.isFinalType
+import io.lokki.compiler.fir.objectInterception
 import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
@@ -313,9 +315,12 @@ private class StubBlock(
 
     private fun notInterceptableReason(callee: FirCallableSymbol<*>, receiver: FirExpression): String? {
         val inline = if (callee is FirPropertySymbol) callee.getterSymbol?.isInline == true else callee.isInline
+        val interception = with(context) { callee.objectInterception() }
         return when {
             callee is FirFieldSymbol -> "it is a field"
             inline -> "it is inline. $action the member it calls"
+            interception is MemberInterception.NotIntercepted -> interception.reason
+            interception == MemberInterception.Intercepted -> null
             callee.modality == Modality.FINAL -> "it is final"
             else -> receiver.resolvedType.fullyExpandedType(session).toRegularClassSymbol(session)
                 ?.takeIf { it.isFinalType }

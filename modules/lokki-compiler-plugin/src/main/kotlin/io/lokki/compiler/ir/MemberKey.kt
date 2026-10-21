@@ -24,6 +24,9 @@ internal val IrSimpleFunction.memberKeys: List<String>
 internal val IrSimpleFunction.root: IrSimpleFunction
     get() = roots().first()
 
+internal val IrSimpleFunction.ownKey: String
+    get() = memberKey
+
 private fun IrSimpleFunction.roots(): List<IrSimpleFunction> =
     if (overriddenSymbols.isEmpty()) listOf(this) else overriddenSymbols.flatMap { it.owner.roots() }.distinct()
 

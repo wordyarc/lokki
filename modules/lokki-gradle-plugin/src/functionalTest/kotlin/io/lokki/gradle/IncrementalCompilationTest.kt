@@ -578,6 +578,69 @@ class IncrementalCompilationTest {
 
     @ParameterizedTest
     @EnumSource(GradleUnderTest::class)
+    fun testNewMemberOfMockableObjectInMain(gradle: GradleUnderTest) {
+        val project = TestProject(projectDir, gradle)
+        project.write("build.gradle.kts", mockableBuildScript("sample.Clock"))
+        project.write("src/main/kotlin/sample/Clock.kt", declaration("object Clock", "fun now(): Long = 1"))
+        project.write("src/test/kotlin/sample/ClockTest.kt", OBJECT_TEST)
+        project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
+        project.build("test")
+        assertEquals(setOf("now()"), project.mockedMethods("test", CLOCK_REDIRECT_MOCK))
+
+        project.write(
+            "src/main/kotlin/sample/Clock.kt",
+            declaration("object Clock", "fun now(): Long = 1", "fun zone(): String = \"UTC\""),
+        )
+        val result = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
+        assertEquals(setOf("ClockTest.kt"), project.compiledSources(":compileTestKotlin"))
+        assertEquals(setOf("now()", "zone()"), project.mockedMethods("test", CLOCK_REDIRECT_MOCK))
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testObjectRemovedFromMockable(gradle: GradleUnderTest) {
+        val project = TestProject(projectDir, gradle)
+        project.write("build.gradle.kts", mockableBuildScript("sample.Clock"))
+        project.write("src/main/kotlin/sample/Clock.kt", declaration("object Clock", "fun now(): Long = 1"))
+        project.write("src/test/kotlin/sample/ClockTest.kt", OBJECT_TEST)
+        project.write(
+            "src/test/kotlin/sample/MockObjectTest.kt",
+            """
+            package sample
+
+            import io.lokki.lokkiScope
+            import io.lokki.mockObject
+            import kotlin.test.Test
+
+            class MockObjectTest {
+                @Test
+                fun mocksObject() {
+                    lokkiScope { mockObject(Clock) }
+                }
+            }
+            """,
+        )
+        project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
+        project.build("test")
+
+        project.write("build.gradle.kts", mockableBuildScript("sample.Gear"))
+        val failure = project.buildAndFail("test")
+
+        val errors = failure.output.lines().filter { it.startsWith("e: ") }
+        val noPoints = "'sample.Clock' cannot be intercepted: it has no interception points"
+        assertTrue(errors.any { "MockObjectTest.kt" in it && noPoints in it }, failure.output)
+        assertTrue(errors.any { "ClockTest.kt" in it && "A call of 'now' cannot be intercepted" in it }, failure.output)
+
+        project.write("build.gradle.kts", mockableBuildScript("sample.Clock"))
+        project.build("test")
+
+        assertEquals(setOf("now()"), project.mockedMethods("test", CLOCK_REDIRECT_MOCK))
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
     fun testOpenClassRemovedFromMockable(gradle: GradleUnderTest) {
         val project = TestProject(projectDir, gradle)
         project.write("build.gradle.kts", mockableBuildScript("sample.Engine"))
@@ -1042,4 +1105,26 @@ class IncrementalCompilationTest {
 
 private const val MOCK_FIELDS_OWNER = "io.lokki.internal.MockFieldsOwner"
 private const val ENGINE_MOCK = "sample.Engine\$LokkiMock\$dabe4326\$EngineTestKt"
+private const val CLOCK_REDIRECT_MOCK = "sample.LokkiRedirect\$LokkiMock\$40c3b43e\$ClockTestKt"
+private const val OBJECT_TEST: String =
+    """
+    package sample
+
+    import io.lokki.every
+    import io.lokki.lokkiScope
+    import io.lokki.mockObject
+    import kotlin.test.Test
+    import kotlin.test.assertEquals
+
+    class ClockTest {
+        @Test
+        fun stubsObject() {
+            lokkiScope {
+                mockObject(Clock)
+                every { Clock.now() } returns 2
+                assertEquals(2, Clock.now())
+            }
+        }
+    }
+    """
 private const val INIT_MOCK_FIELDS = "lokki\$initMockFields(int)"

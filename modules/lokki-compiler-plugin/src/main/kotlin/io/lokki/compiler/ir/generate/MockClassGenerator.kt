@@ -14,6 +14,8 @@ import io.lokki.compiler.ir.collect.mockedClass
 import io.lokki.compiler.ir.collect.mockedClassTypeParameters
 import io.lokki.compiler.ir.collect.referencedTypeParameters
 import io.lokki.compiler.ir.irArrayOf
+import io.lokki.compiler.ir.isRedirect
+import io.lokki.compiler.ir.objectName
 import io.lokki.compiler.ir.isVisibleFrom
 import io.lokki.compiler.ir.memberKeys
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
@@ -326,7 +328,7 @@ internal class MockClassGenerator(
         descriptor.initializer = DeclarationIrBuilder(context, descriptor.symbol).run {
             irExprBody(
                 irCallConstructor(constructor.symbol, emptyList()).apply {
-                    arguments[0] = irString(mockedClass.name.asString())
+                    arguments[0] = irString(mockedClass.descriptorName)
                     arrays.forEachIndexed { index, strings ->
                         arguments[index + 1] = irArrayOf(context.irBuiltIns.stringType, strings.map(::irString))
                     }
@@ -685,6 +687,9 @@ private fun MockClassKey.mockClassName(mocked: IrClass, form: MockForm): Name {
     val kind = if (form == MockForm.Mock) "LokkiMock" else "LokkiSpy"
     return Name.identifier("${mocked.name}\$$kind\$$hash\$$filePart")
 }
+
+private val IrClass.descriptorName: String
+    get() = if (isRedirect) parentAsClass.objectName else name.asString()
 
 private val IrType.depth: Int
     get() = 1 + ((this as? IrSimpleType)?.arguments.orEmpty().maxOfOrNull { it.typeOrNull?.depth ?: 0 } ?: 0)

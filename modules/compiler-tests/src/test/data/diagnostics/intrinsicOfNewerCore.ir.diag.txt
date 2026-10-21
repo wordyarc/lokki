@@ -1,1 +1,1 @@
-/test.kt:20:5: error: 'mockObject' requires a newer version of the lokki compiler plugin.
+/test.kt:20:5: error: 'mockStatic' requires a newer version of the lokki compiler plugin.
