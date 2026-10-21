@@ -4,8 +4,10 @@
 package sample
 
 import io.lokki.coVerify
+import io.lokki.coVerifyOrder
 import io.lokki.every
 import io.lokki.verify
+import io.lokki.verifySequence
 
 interface Repo {
     fun find(id: Int): String
@@ -29,4 +31,9 @@ fun test(repo: Repo, other: Any, any: Any) {
     verify { repo.find(1) }
     coVerify { repo.<!LOKKI_NOT_RECORDED!>toString<!>() }
     coVerify { repo.find(1) }
+    verifySequence {
+        repo.find(1)
+        repo.<!LOKKI_NOT_RECORDED!>hashCode<!>()
+    }
+    coVerifyOrder { repo.<!LOKKI_NOT_RECORDED!>toString<!>() }
 }

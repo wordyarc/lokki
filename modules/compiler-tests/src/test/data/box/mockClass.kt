@@ -136,6 +136,7 @@ fun box(): String {
     val state = mockClass.getDeclaredField("lokki\$state")
     val init = mockClass.getDeclaredMethod("lokki\$init", Class.forName("io.lokki.internal.MockSpec"))
     if (!state.isSynthetic || Modifier.isFinal(state.modifiers)) return "Fail: state field is final or not synthetic"
+    if (!Modifier.isVolatile(state.modifiers)) return "Fail: state field is not volatile"
     if (!init.isSynthetic || !Modifier.isPublic(init.modifiers)) return "Fail: lokki\$init is not synthetic or public"
 
     return "OK"

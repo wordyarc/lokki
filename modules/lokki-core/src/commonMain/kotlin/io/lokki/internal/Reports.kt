@@ -1,7 +1,7 @@
 package io.lokki.internal
 
-internal fun List<CallRecord>.numbered(): String =
-    withIndex().joinToString("\n") { (index, call) -> "${index + 1}) $call" }
+internal fun List<CallRecord>.numbered(marked: Set<CallRecord> = emptySet()): String =
+    withIndex().joinToString("\n") { (index, call) -> "${index + 1}) ${if (call in marked) "+" else ""}$call" }
 
 internal fun List<CallRecord>.callSites(): String {
     if (all { it.callStack == null }) return "\n$CALL_SITES_NOT_RECORDED"

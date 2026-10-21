@@ -5,6 +5,7 @@ import io.lokki.compiler.CAPTURE_MATCHERS
 import io.lokki.compiler.COMPOSITE_MATCHERS
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiDiagnostics
+import io.lokki.compiler.ORDERED_VERIFY_BLOCKS
 import io.lokki.compiler.fir.displayName
 import io.lokki.compiler.fir.intrinsicKind
 import io.lokki.compiler.fir.isFinalType
@@ -150,10 +151,15 @@ private class StubBlock(
             statement is FirPropertyAccessExpression -> checkCall(statement, statement, emptyList())
             mode == BlockMode.VERIFY && statement.isLoop -> notSingleCall(
                 statement,
-                "is a loop. Call 'verify' in the loop or verify one call with matchers and 'exactly'",
+                when (function) {
+                    in ORDERED_VERIFY_BLOCKS -> "is a loop. Write out the calls in the expected order"
+                    else -> "is a loop. Call 'verify' in the loop or verify one call with matchers and 'exactly'"
+                },
             )
-            mode == BlockMode.VERIFY && statement is FirWhenExpression ->
-                notSingleCall(statement, "is a condition. Call 'verify' in its branches")
+            mode == BlockMode.VERIFY && statement is FirWhenExpression -> notSingleCall(
+                statement,
+                "is a condition. Call '${if (function in ORDERED_VERIFY_BLOCKS) function else "verify"}' in its branches",
+            )
             else -> notSingleCall(statement, "is not a call")
         }
     }

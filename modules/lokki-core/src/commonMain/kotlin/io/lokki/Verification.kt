@@ -8,21 +8,49 @@ import io.lokki.internal.toStr
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_BLOCK)
 public fun verify(
+    ordering: Ordering = Ordering.UNORDERED,
     inverse: Boolean = false,
     atLeast: Int = 1,
     atMost: Int = Int.MAX_VALUE,
     exactly: Int = -1,
+    timeout: Long = 0,
     verifyBlock: VerificationScope.() -> Any?,
 ): Unit = throw LokkiException("lokki compiler plugin is not applied to this compilation")
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_BLOCK)
 public fun coVerify(
+    ordering: Ordering = Ordering.UNORDERED,
     inverse: Boolean = false,
     atLeast: Int = 1,
     atMost: Int = Int.MAX_VALUE,
     exactly: Int = -1,
+    timeout: Long = 0,
     verifyBlock: suspend VerificationScope.() -> Any?,
 ): Unit = throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_BLOCK)
+public fun verifyAll(inverse: Boolean = false, verifyBlock: VerificationScope.() -> Any?): Unit =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_BLOCK)
+public fun verifyOrder(inverse: Boolean = false, verifyBlock: VerificationScope.() -> Any?): Unit =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_BLOCK)
+public fun verifySequence(inverse: Boolean = false, verifyBlock: VerificationScope.() -> Any?): Unit =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_BLOCK)
+public fun coVerifyAll(inverse: Boolean = false, verifyBlock: suspend VerificationScope.() -> Any?): Unit =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_BLOCK)
+public fun coVerifyOrder(inverse: Boolean = false, verifyBlock: suspend VerificationScope.() -> Any?): Unit =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_BLOCK)
+public fun coVerifySequence(inverse: Boolean = false, verifyBlock: suspend VerificationScope.() -> Any?): Unit =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")
 
 public fun verifyCount(verifyBlock: CallCountVerificationScope.() -> Unit) {
     CallCountVerificationScope().verifyBlock()
@@ -80,6 +108,13 @@ public class AssertScope internal constructor(public val actual: Any?) {
 }
 
 public object Called
+
+public enum class Ordering {
+    UNORDERED,
+    ALL,
+    ORDERED,
+    SEQUENCE,
+}
 
 @LokkiDslMarker
 public class CallCountVerificationScope internal constructor() {

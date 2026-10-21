@@ -153,6 +153,16 @@ public final class io/lokki/MockKt {
 	public static final fun isMock (Ljava/lang/Object;)Z
 }
 
+public final class io/lokki/Ordering : java/lang/Enum {
+	public static final field ALL Lio/lokki/Ordering;
+	public static final field ORDERED Lio/lokki/Ordering;
+	public static final field SEQUENCE Lio/lokki/Ordering;
+	public static final field UNORDERED Lio/lokki/Ordering;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/lokki/Ordering;
+	public static fun values ()[Lio/lokki/Ordering;
+}
+
 public final class io/lokki/Runs {
 	public static final field INSTANCE Lio/lokki/Runs;
 }
@@ -190,16 +200,28 @@ public final class io/lokki/VarargScope {
 public final class io/lokki/VerificationKt {
 	public static final fun coExcludeRecords (ZLkotlin/jvm/functions/Function2;)V
 	public static synthetic fun coExcludeRecords$default (ZLkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
-	public static final fun coVerify (ZIIILkotlin/jvm/functions/Function2;)V
-	public static synthetic fun coVerify$default (ZIIILkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
+	public static final fun coVerify (Lio/lokki/Ordering;ZIIIJLkotlin/jvm/functions/Function2;)V
+	public static synthetic fun coVerify$default (Lio/lokki/Ordering;ZIIIJLkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
+	public static final fun coVerifyAll (ZLkotlin/jvm/functions/Function2;)V
+	public static synthetic fun coVerifyAll$default (ZLkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
 	public static final fun coVerifyCount (Lkotlin/jvm/functions/Function1;)V
+	public static final fun coVerifyOrder (ZLkotlin/jvm/functions/Function2;)V
+	public static synthetic fun coVerifyOrder$default (ZLkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
+	public static final fun coVerifySequence (ZLkotlin/jvm/functions/Function2;)V
+	public static synthetic fun coVerifySequence$default (ZLkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
 	public static final fun confirmVerified ([Ljava/lang/Object;Z)V
 	public static synthetic fun confirmVerified$default ([Ljava/lang/Object;ZILjava/lang/Object;)V
 	public static final fun excludeRecords (ZLkotlin/jvm/functions/Function1;)V
 	public static synthetic fun excludeRecords$default (ZLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
-	public static final fun verify (ZIIILkotlin/jvm/functions/Function1;)V
-	public static synthetic fun verify$default (ZIIILkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public static final fun verify (Lio/lokki/Ordering;ZIIIJLkotlin/jvm/functions/Function1;)V
+	public static synthetic fun verify$default (Lio/lokki/Ordering;ZIIIJLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public static final fun verifyAll (ZLkotlin/jvm/functions/Function1;)V
+	public static synthetic fun verifyAll$default (ZLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 	public static final fun verifyCount (Lkotlin/jvm/functions/Function1;)V
+	public static final fun verifyOrder (ZLkotlin/jvm/functions/Function1;)V
+	public static synthetic fun verifyOrder$default (ZLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public static final fun verifySequence (ZLkotlin/jvm/functions/Function1;)V
+	public static synthetic fun verifySequence$default (ZLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 }
 
 public abstract class io/lokki/VerificationScope : io/lokki/MatcherScope {
@@ -376,8 +398,10 @@ public final class io/lokki/internal/RegistrationScope : io/lokki/VerificationSc
 public final class io/lokki/internal/Verification {
 	public fun <init> ()V
 	public fun <init> (I)V
+	public fun <init> (Lio/lokki/Ordering;ZIIIJ)V
+	public synthetic fun <init> (Lio/lokki/Ordering;ZIIIJILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun <init> (Lkotlin/ranges/IntRange;)V
-	public fun <init> (ZIII)V
+	public synthetic fun <init> (ZIII)V
 	public synthetic fun <init> (ZIIIILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun check ()V
 	public final fun expect (Lio/lokki/internal/MockState;Ljava/lang/String;[Lio/lokki/Matcher;)V

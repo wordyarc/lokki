@@ -4,6 +4,7 @@ import io.lokki.compiler.AWAIT_CANCELLATION
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrConstructor
+import org.jetbrains.kotlin.ir.declarations.IrEnumEntry
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
@@ -59,6 +60,7 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
     val awaitCancellation by lazy { finder.findFunctions(AWAIT_CANCELLATION).singleOrNull()?.owner }
 
     val verification by lazy { findClass(INTERNAL_PACKAGE, "Verification") }
+    val ordering by lazy { findClass(PACKAGE, "Ordering") }
     val expect by lazy { verification.function("expect") }
     val expectLink by lazy { verification.function("expectLink") }
     val check by lazy { verification.function("check") }
@@ -87,6 +89,7 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
     val optionalEmpty by lazy { findClass(JAVA_UTIL_PACKAGE, "Optional").function("empty") }
 
     val jvmSynthetic by lazy { finder.findConstructors(ClassId(JVM_PACKAGE, Name.identifier("JvmSynthetic"))).single() }
+    val volatile by lazy { finder.findConstructors(ClassId(JVM_PACKAGE, Name.identifier("Volatile"))).single() }
     val apply by lazy { finder.findFunctions(CallableId(KOTLIN_PACKAGE, Name.identifier("apply"))).single() }
     val javaClass by lazy {
         finder.findProperties(CallableId(JVM_PACKAGE, Name.identifier("java"))).single().owner.getter!!
@@ -94,6 +97,9 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
 
     fun verificationOf(calls: IrClass): IrConstructor =
         verification.constructors.single { it.firstParameterClass?.symbol == calls.symbol }
+
+    fun orderingEntry(name: String): IrEnumEntry =
+        ordering.declarations.filterIsInstance<IrEnumEntry>().single { it.name.asString() == name }
 
     fun expectNoCalls(mocks: IrClass): IrSimpleFunction =
         verification.functions.single {

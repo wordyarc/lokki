@@ -1516,7 +1516,7 @@ fun box(): String {
     if (large.member1499(1, "a") != 3000) return "Fail: last part"
 
     val parts = large.javaClass.declaredMethods.filter { it.name.startsWith("lokki\$original\$") }
-    if (parts.size < 2 || !parts.all { it.isSynthetic }) return "Fail: the dispatcher is not split: ${parts.map { it.name }}"
+    if (parts.size < 10 || !parts.all { it.isSynthetic }) return "Fail: the dispatcher is not split: ${parts.map { it.name }}"
 
     return "OK"
 }

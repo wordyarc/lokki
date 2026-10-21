@@ -3,6 +3,8 @@
 
 package sample
 
+import io.lokki.Ordering
+import io.lokki.Ordering.ORDERED
 import io.lokki.coVerify
 import io.lokki.coVerifyCount
 import io.lokki.verify
@@ -12,7 +14,7 @@ interface Repo {
     fun find(id: Int): String
 }
 
-fun test(repo: Repo, calls: Int) {
+fun test(repo: Repo, calls: Int, ordering: Ordering) {
     verify(exactly = <!LOKKI_CONFLICTING_VERIFY_ARGUMENTS!>1<!>, atLeast = 2) { repo.find(1) }
     verify(atMost = 3, exactly = <!LOKKI_CONFLICTING_VERIFY_ARGUMENTS!>1<!>) { repo.find(1) }
     verify(exactly = <!LOKKI_CONFLICTING_VERIFY_ARGUMENTS!>-2<!>) { repo.find(1) }
@@ -20,10 +22,14 @@ fun test(repo: Repo, calls: Int) {
     verify(atLeast = 0, atMost = <!LOKKI_CONFLICTING_VERIFY_ARGUMENTS!>-1<!>) { repo.find(1) }
     verify(atMost = <!LOKKI_CONFLICTING_VERIFY_ARGUMENTS!>0<!>) { repo.find(1) }
     verify(atLeast = 3, atMost = <!LOKKI_CONFLICTING_VERIFY_ARGUMENTS!>2<!>) { repo.find(1) }
-    verify(false, 3, <!LOKKI_CONFLICTING_VERIFY_ARGUMENTS!>2<!>) { repo.find(1) }
+    verify(Ordering.UNORDERED, false, 3, <!LOKKI_CONFLICTING_VERIFY_ARGUMENTS!>2<!>) { repo.find(1) }
     verifyCount { <!LOKKI_CONFLICTING_VERIFY_ARGUMENTS!>-1<!> * { repo.find(1) } }
     coVerify(exactly = <!LOKKI_CONFLICTING_VERIFY_ARGUMENTS!>1<!>, atLeast = 2) { repo.find(1) }
     coVerifyCount { <!LOKKI_CONFLICTING_VERIFY_ARGUMENTS!>-1<!> * { repo.find(1) } }
+    verify(Ordering.ORDERED, atLeast = <!LOKKI_CONFLICTING_VERIFY_ARGUMENTS!>2<!>) { repo.find(1) }
+    verify(ordering = Ordering.SEQUENCE, exactly = <!LOKKI_CONFLICTING_VERIFY_ARGUMENTS!>1<!>) { repo.find(1) }
+    verify(ORDERED, atLeast = 1, atMost = <!LOKKI_CONFLICTING_VERIFY_ARGUMENTS!>3<!>) { repo.find(1) }
+    coVerify(ordering = Ordering.ALL, exactly = <!LOKKI_CONFLICTING_VERIFY_ARGUMENTS!>0<!>) { repo.find(1) }
 
     verify(exactly = 0) { repo.find(1) }
     verify(exactly = -1) { repo.find(1) }
@@ -38,4 +44,8 @@ fun test(repo: Repo, calls: Int) {
     verifyCount { (2..1) * { repo.find(1) } }
     coVerify(atLeast = 2, atMost = 2) { repo.find(1) }
     coVerifyCount { calls * { repo.find(1) } }
+    verify(ordering = Ordering.UNORDERED, atLeast = 2) { repo.find(1) }
+    verify(ordering = ordering, atLeast = 2) { repo.find(1) }
+    verify(ordering = Ordering.ORDERED, atLeast = calls) { repo.find(1) }
+    verify(ordering = Ordering.ORDERED, atLeast = 1, exactly = -1, timeout = 100) { repo.find(1) }
 }

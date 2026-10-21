@@ -7,11 +7,14 @@ import io.lokki.Runs
 import io.lokki.coExcludeRecords
 import io.lokki.coVerify
 import io.lokki.coVerifyCount
+import io.lokki.coVerifySequence
 import io.lokki.every
 import io.lokki.excludeRecords
 import io.lokki.just
 import io.lokki.verify
+import io.lokki.verifyAll
 import io.lokki.verifyCount
+import io.lokki.verifyOrder
 
 class Tenant
 
@@ -87,6 +90,9 @@ fun testVerify(repo: Repo, nullable: Repo?, flag: Boolean) {
     verify { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>with(repo) { find(1) }<!> }
     verify { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>if (flag) repo.find(1) else repo.find(2)<!> }
     verify { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>for (id in 1..2) repo.find(id)<!> }
+    verifyOrder { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>if (flag) repo.find(1) else repo.find(2)<!> }
+    verifyAll <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>{ }<!>
+    coVerifySequence { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>for (id in 1..2) repo.find(id)<!> }
 
     verify {
         repo.find(1)
@@ -97,6 +103,10 @@ fun testVerify(repo: Repo, nullable: Repo?, flag: Boolean) {
     verify { repo[1] = "a" }
     verify { repo += "a" }
     verify { repo.compareTo(repo) }
+    verifyOrder {
+        repo.find(1)
+        repo.find(2)
+    }
 }
 
 fun testExclude(repo: Repo, nullable: Repo?, flag: Boolean) {

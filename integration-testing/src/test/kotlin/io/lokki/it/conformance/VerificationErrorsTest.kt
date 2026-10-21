@@ -4,6 +4,9 @@ import io.lokki.clearMocks
 import io.lokki.every
 import io.lokki.mock
 import io.lokki.verify
+import io.lokki.verifyAll
+import io.lokki.verifyOrder
+import io.lokki.verifySequence
 import kotlin.test.Test
 import kotlin.test.fail
 
@@ -195,6 +198,81 @@ class VerificationErrorsTest {
             }
             if (reportedCall.contains("manyArgsOp")) {
                 fail("Reported call should not be an unrelated call to the same mock: " + message)
+            }
+        }
+    }
+
+    @Test
+    fun callsAreNotInVerificationOrder() {
+        expectVerificationError("calls are not in verification order", CALL_SITES) {
+            every { mock.otherOp(1, any()) } answers { 2 + firstArg<Int>() }
+
+            mock.otherOp(1, 2)
+            mock.otherOp(1, 3)
+
+            verifyOrder {
+                mock.otherOp(1, 3)
+                mock.otherOp(1, 2)
+            }
+        }
+    }
+
+    @Test
+    fun lessCallsHappenedThanDemanded() {
+        expectVerificationError("fewer calls happened than demanded by order verification sequence", CALL_SITES) {
+            every { mock.otherOp(1, any()) } answers { 2 + firstArg<Int>() }
+
+            mock.otherOp(1, 3)
+
+            verifyOrder {
+                mock.otherOp(1, 3)
+                mock.otherOp(1, 2)
+            }
+        }
+    }
+
+    @Test
+    fun notFullSequence() {
+        expectVerificationError(
+            "number of calls happened not matching exact number of verification sequence",
+            CALL_SITES,
+        ) {
+            every { mock.otherOp(1, any()) } answers { 2 + firstArg<Int>() }
+
+            mock.otherOp(1, 3)
+
+            verifySequence {
+                mock.otherOp(1, 3)
+                mock.otherOp(1, 2)
+            }
+        }
+    }
+
+    @Test
+    fun callsNotMatchingVerificationSequence() {
+        expectVerificationError("calls are not exactly matching verification sequence", CALL_SITES) {
+            every { mock.otherOp(1, any()) } answers { 2 + firstArg<Int>() }
+
+            mock.otherOp(1, 2)
+            mock.otherOp(1, 3)
+
+            verifySequence {
+                mock.otherOp(1, 3)
+                mock.otherOp(1, 2)
+            }
+        }
+    }
+
+    @Test
+    fun someCallsWereNotMatched() {
+        expectVerificationError("some calls were not matched", CALL_SITES) {
+            every { mock.otherOp(1, any()) } answers { 2 + firstArg<Int>() }
+
+            mock.otherOp(1, 2)
+            mock.otherOp(1, 3)
+
+            verifyAll {
+                mock.otherOp(1, 2)
             }
         }
     }

@@ -261,6 +261,7 @@ internal class MockClassGenerator(
             this.isFinal = isFinal
         }
         state.markSynthetic()
+        if (!isFinal) state.annotations += DeclarationIrBuilder(context, state.symbol).irAnnotation(symbols.volatile)
         getter!!.run {
             materialize()
             markSynthetic()
@@ -321,7 +322,7 @@ internal class MockClassGenerator(
         branchBytes: Int,
     ) {
         val widest = originals.maxOfOrNull { it.value.nonDispatchParameters.size } ?: 0
-        val partSize = maxOf(1, PART_BYTES / (branchBytes + ORIGINAL_ARGUMENT_BYTES * widest))
+        val partSize = maxOf(1, ORIGINAL_PART_BYTES / (branchBytes + ORIGINAL_ARGUMENT_BYTES * widest))
         implementDispatcher(
             mock,
             originals,
@@ -522,6 +523,7 @@ private val MOCK_PARAMETER = IrDeclarationOriginImpl("LOKKI_MOCK_PARAMETER", isS
 private val METHODS_OF_ANY =
     listOf(OperatorNameConventions.EQUALS, OperatorNameConventions.HASH_CODE, OperatorNameConventions.TO_STRING)
 private const val PART_BYTES = 32_000
+private const val ORIGINAL_PART_BYTES = 8_000
 private const val ORIGINAL_BRANCH_BYTES = 24
 private const val CO_ORIGINAL_BRANCH_BYTES = 96
 private const val ORIGINAL_ARGUMENT_BYTES = 16

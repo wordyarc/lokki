@@ -20,15 +20,20 @@ import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
 import org.jetbrains.kotlin.fir.expressions.FirFunctionCallOrigin
 import org.jetbrains.kotlin.fir.expressions.FirLiteralExpression
 import org.jetbrains.kotlin.fir.expressions.FirOperation
+import org.jetbrains.kotlin.fir.expressions.FirQualifiedAccessExpression
 import org.jetbrains.kotlin.fir.expressions.FirStatement
 import org.jetbrains.kotlin.fir.expressions.FirTypeOperatorCall
 import org.jetbrains.kotlin.fir.expressions.arguments
 import org.jetbrains.kotlin.fir.expressions.resolvedArgumentMapping
 import org.jetbrains.kotlin.fir.expressions.unwrapArgument
 import org.jetbrains.kotlin.fir.references.toResolvedCallableSymbol
+import org.jetbrains.kotlin.fir.references.toResolvedEnumEntrySymbol
 import org.jetbrains.kotlin.fir.types.renderReadable
 import org.jetbrains.kotlin.fir.types.toConeTypeProjection
 import org.jetbrains.kotlin.fir.types.type
+import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.types.ConstantValueKind
 import org.jetbrains.kotlin.util.OperatorNameConventions
 
@@ -57,11 +62,12 @@ internal object VerificationChecker : FirFunctionCallChecker(MppCheckerKind.Comm
         } else {
             val arguments = verification.resolvedArgumentMapping.orEmpty().entries
                 .associate { (argument, parameter) -> parameter.name.asString() to argument.unwrapArgument() }
-            countProblem(
-                exactly = Count(arguments[EXACTLY], -1),
-                atLeast = Count(arguments[AT_LEAST], 1),
-                atMost = Count(arguments[AT_MOST], Int.MAX_VALUE),
-            ) ?: return
+            val exactly = Count(arguments[EXACTLY], -1)
+            val atLeast = Count(arguments[AT_LEAST], 1)
+            val atMost = Count(arguments[AT_MOST], Int.MAX_VALUE)
+            countProblem(exactly, atLeast, atMost)
+                ?: orderingProblem(arguments[ORDERING], exactly to EXACTLY, atLeast to AT_LEAST, atMost to AT_MOST)
+                ?: return
         }
         val source = (count.argument ?: verification).source
         reporter.reportOn(source, LokkiDiagnostics.LOKKI_CONFLICTING_VERIFY_ARGUMENTS, name, problem)
@@ -88,9 +94,12 @@ internal object VerificationChecker : FirFunctionCallChecker(MppCheckerKind.Comm
     }
 }
 
-private class Count(val argument: FirExpression?, default: Int) {
+private class Count(val argument: FirExpression?, private val default: Int) {
     val value: Int? =
         if (argument == null) default else ((argument as? FirLiteralExpression)?.value as? Number)?.toInt()
+
+    val isExplicit: Boolean
+        get() = value.differsFrom(default)
 }
 
 private fun countProblem(exactly: Count, atLeast: Count, atMost: Count): Pair<Count, String>? {
@@ -109,6 +118,13 @@ private fun countProblem(exactly: Count, atLeast: Count, atMost: Count): Pair<Co
     }
 }
 
+private fun orderingProblem(ordering: FirExpression?, vararg counts: Pair<Count, String>): Pair<Count, String>? {
+    val entry = (ordering as? FirQualifiedAccessExpression)?.calleeReference?.toResolvedEnumEntrySymbol() ?: return null
+    if (entry.callableId.classId != ORDERING_CLASS || entry.name.asString() == UNORDERED) return null
+    val (count, name) = counts.firstOrNull { (count, _) -> count.isExplicit } ?: return null
+    return count to "'$name' is only allowed with Ordering.$UNORDERED, but 'ordering' is Ordering.${entry.name}"
+}
+
 private fun Int?.differsFrom(value: Int): Boolean = this != null && this != value
 
 private val FirStatement.isPredicate: Boolean
@@ -122,6 +138,9 @@ private val FirStatement.isPredicate: Boolean
 
 private val PREDICATE_OPERATORS = setOf(OperatorNameConventions.CONTAINS, OperatorNameConventions.NOT)
 
+private const val ORDERING = "ordering"
+private const val UNORDERED = "UNORDERED"
+private val ORDERING_CLASS = ClassId(FqName("io.lokki"), Name.identifier("Ordering"))
 private const val EXACTLY = "exactly"
 private const val AT_LEAST = "atLeast"
 private const val AT_MOST = "atMost"

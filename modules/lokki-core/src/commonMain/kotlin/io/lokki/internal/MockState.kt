@@ -23,6 +23,8 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
 
     private val records = ArrayList<CallRecord>()
 
+    private var waiters = emptyArray<RecordSignal>()
+
     @Volatile
     private var exclusions = emptyArray<Exclusion>()
 
@@ -84,6 +86,14 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
     internal fun records(): List<CallRecord> = synchronized(records) { records.toList() }
 
     internal fun unansweredRecords(): List<CallRecord> = synchronized(records) { records.filter { it.unanswered } }
+
+    internal fun addWaiter(signal: RecordSignal) {
+        synchronized(records) { waiters += signal }
+    }
+
+    internal fun removeWaiter(signal: RecordSignal) {
+        synchronized(records) { waiters = waiters.filter { it !== signal }.toTypedArray() }
+    }
 
     internal fun markVerified(calls: List<CallRecord>) {
         synchronized(records) { calls.forEach { it.verified = true } }
@@ -150,7 +160,10 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         if (exclusions.isNotEmpty() && exclusions.any { it.matches(member, arguments) }) return null
         val callStack = captureCallStack()
         return synchronized(records) {
-            CallRecord(this, member, arguments, nextSequenceNumber(), callStack).also { records += it }
+            val record = CallRecord(this, member, arguments, nextSequenceNumber(), callStack)
+            records += record
+            for (waiter in waiters) waiter.signal()
+            record
         }
     }
 
@@ -212,7 +225,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
 }
 
 internal class CallRecord(
-    private val state: MockState,
+    val state: MockState,
     val member: Int,
     val arguments: Array<Any?>,
     val sequenceNumber: Long,

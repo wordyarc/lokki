@@ -1,15 +1,19 @@
-/callableReferenceToIntrinsic.kt:21:71: error: 'every' must be called directly: a reference to it is not supported.
+/callableReferenceToIntrinsic.kt:24:71: error: 'every' must be called directly: a reference to it is not supported.
 
-/callableReferenceToIntrinsic.kt:22:56: error: 'every' must be called directly: a reference to it is not supported.
+/callableReferenceToIntrinsic.kt:25:56: error: 'every' must be called directly: a reference to it is not supported.
 
-/callableReferenceToIntrinsic.kt:24:9: error: 'verify' must be called directly: a reference to it is not supported.
+/callableReferenceToIntrinsic.kt:27:9: error: 'verify' must be called directly: a reference to it is not supported.
 
-/callableReferenceToIntrinsic.kt:25:46: error: 'neq' must be called directly: a reference to it is not supported.
+/callableReferenceToIntrinsic.kt:28:66: error: 'verifyOrder' must be called directly: a reference to it is not supported.
 
-/callableReferenceToIntrinsic.kt:26:65: error: 'excludeRecords' must be called directly: a reference to it is not supported.
+/callableReferenceToIntrinsic.kt:29:46: error: 'neq' must be called directly: a reference to it is not supported.
 
-/callableReferenceToIntrinsic.kt:29:9: error: 'coVerify' must be called directly: a reference to it is not supported.
+/callableReferenceToIntrinsic.kt:30:65: error: 'excludeRecords' must be called directly: a reference to it is not supported.
 
-/callableReferenceToIntrinsic.kt:31:9: error: 'coExcludeRecords' must be called directly: a reference to it is not supported.
+/callableReferenceToIntrinsic.kt:33:9: error: 'coVerify' must be called directly: a reference to it is not supported.
 
-/callableReferenceToIntrinsic.kt:37:43: error: 'isNull' must be called directly: a reference to it is not supported.
+/callableReferenceToIntrinsic.kt:35:9: error: 'coVerifySequence' must be called directly: a reference to it is not supported.
+
+/callableReferenceToIntrinsic.kt:37:9: error: 'coExcludeRecords' must be called directly: a reference to it is not supported.
+
+/callableReferenceToIntrinsic.kt:43:43: error: 'isNull' must be called directly: a reference to it is not supported.

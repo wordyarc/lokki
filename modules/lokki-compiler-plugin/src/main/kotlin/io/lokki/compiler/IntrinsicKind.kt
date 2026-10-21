@@ -29,6 +29,14 @@ internal val CAPTURE_MATCHERS = setOf("capture", "captureNullable")
 internal val WITH_ARG_MATCHERS = setOf("withArg", "withNullableArg", "coWithArg", "coWithNullableArg")
 internal val REF_EQ_MATCHERS = setOf("refEq", "nrefEq")
 internal val JUST_RUN_BLOCKS = setOf("justRun", "coJustRun")
+internal val ORDERED_VERIFY_BLOCKS = mapOf(
+    "verifyAll" to "ALL",
+    "coVerifyAll" to "ALL",
+    "verifyOrder" to "ORDERED",
+    "coVerifyOrder" to "ORDERED",
+    "verifySequence" to "SEQUENCE",
+    "coVerifySequence" to "SEQUENCE",
+)
 internal const val JUST_AWAIT_BLOCK = "coJustAwait"
 
 internal val AWAIT_CANCELLATION = CallableId(FqName("kotlinx.coroutines"), Name.identifier("awaitCancellation"))

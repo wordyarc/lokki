@@ -6,6 +6,8 @@ import io.lokki.just
 import io.lokki.mock
 import io.lokki.verify
 import io.lokki.verifyCount
+import io.lokki.verifyOrder
+import io.lokki.verifySequence
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -49,6 +51,109 @@ class VerifyTest {
         verify(inverse = true) {
             mock.op(4)
             mock.op(8)
+        }
+    }
+
+    @Test
+    fun checkVerifyOrder1() {
+        doCalls()
+
+        verifyOrder {
+            mock.op(5)
+            mock.op(7)
+        }
+    }
+
+    @Test
+    fun checkVerifyOrder2() {
+        doCalls()
+
+        verifyOrder {
+            mock.op(5)
+            mock.op(6)
+        }
+    }
+
+    @Test
+    fun checkVerifyOrder3() {
+        doCalls()
+
+        verifyOrder {
+            mock.op(6)
+            mock.op(7)
+        }
+    }
+
+    @Test
+    fun checkVerifyOrderInverse1() {
+        doCalls()
+
+        verifyOrder(inverse = true) {
+            mock.op(7)
+            mock.op(5)
+        }
+    }
+
+    @Test
+    fun checkVerifyOrderInverse2() {
+        doCalls()
+
+        verifyOrder(inverse = true) {
+            mock.op(5)
+            mock.op(4)
+        }
+    }
+
+    @Test
+    fun checkVerifyOrderInverse3() {
+        doCalls()
+
+        verifyOrder(inverse = true) {
+            mock.op(4)
+            mock.op(8)
+        }
+    }
+
+    @Test
+    fun verifySequence() {
+        doCalls()
+
+        verifySequence {
+            mock.op(5)
+            mock.op(6)
+            mock.op(7)
+        }
+    }
+
+    @Test
+    fun verifySequenceInverse1() {
+        doCalls()
+
+        verifySequence(inverse = true) {
+            mock.op(6)
+            mock.op(7)
+        }
+    }
+
+    @Test
+    fun verifySequenceInverse2() {
+        doCalls()
+
+        verifySequence(inverse = true) {
+            mock.op(7)
+            mock.op(6)
+            mock.op(5)
+        }
+    }
+
+    @Test
+    fun verifySequenceInverse3() {
+        doCalls()
+
+        verifySequence(inverse = true) {
+            mock.op(6)
+            mock.op(5)
+            mock.op(7)
         }
     }
 

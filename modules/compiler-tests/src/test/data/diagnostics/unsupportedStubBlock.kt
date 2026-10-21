@@ -16,6 +16,7 @@ package sample
 import io.lokki.Awaits
 import io.lokki.Called
 import io.lokki.MatcherScope
+import io.lokki.Ordering
 import io.lokki.StubScope
 import io.lokki.VerificationScope
 import io.lokki.coEvery
@@ -26,6 +27,7 @@ import io.lokki.just
 import io.lokki.mock
 import io.lokki.verify
 import io.lokki.verifyCount
+import io.lokki.verifyOrder
 
 @JvmInline
 value class Id(val value: Int)
@@ -80,7 +82,9 @@ fun test(repo: Repo, nullable: Repo?, block: MatcherScope.() -> String, check: V
     verify { <!LOKKI_UNSUPPORTED!>any<Repo>()<!>.find(1) }
     verify { repo.find(<!LOKKI_UNSUPPORTED!>any<Int>() + 1<!>) }
     verify { repo.find(withArg <!LOKKI_UNSUPPORTED!>{ this@verify.any<Int>() }<!>) }
-    val verification: (Boolean, Int, Int, Int, VerificationScope.() -> Any?) -> Unit = <!LOKKI_UNSUPPORTED!>::verify<!>
+    val verification: (Ordering, Boolean, Int, Int, Int, Long, VerificationScope.() -> Any?) -> Unit =
+        <!LOKKI_UNSUPPORTED!>::verify<!>
+    val order: (Boolean, VerificationScope.() -> Any?) -> Unit = <!LOKKI_UNSUPPORTED!>::verifyOrder<!>
     verify { <!LOKKI_UNSUPPORTED!>listOf(any<Repo>())<!> wasNot Called }
     verifyCount { 2.<!LOKKI_UNSUPPORTED!>times(check)<!> }
     verifyCount { 1 * <!LOKKI_UNSUPPORTED!>{ }<!> }

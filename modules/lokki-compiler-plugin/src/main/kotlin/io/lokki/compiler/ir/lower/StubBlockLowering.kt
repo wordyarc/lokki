@@ -6,6 +6,7 @@ import io.lokki.compiler.COMPOSITE_MATCHERS
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.JUST_AWAIT_BLOCK
 import io.lokki.compiler.JUST_RUN_BLOCKS
+import io.lokki.compiler.ORDERED_VERIFY_BLOCKS
 import io.lokki.compiler.WITH_ARG_MATCHERS
 import io.lokki.compiler.ir.LokkiSymbols
 import io.lokki.compiler.ir.intrinsicKind
@@ -60,6 +61,7 @@ import org.jetbrains.kotlin.ir.expressions.IrTypeOperatorCall
 import org.jetbrains.kotlin.ir.expressions.IrVararg
 import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrFunctionExpressionImpl
+import org.jetbrains.kotlin.ir.expressions.impl.IrGetEnumValueImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrSpreadElementImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrVarargImpl
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
@@ -267,10 +269,16 @@ internal class StubBlockLowering(
             }
         }
         val constructor = symbols.verification.primaryConstructor!!
+        val ordering = ORDERED_VERIFY_BLOCKS[verify.name]?.let(symbols::orderingEntry)
         return irCallConstructor(constructor.symbol, emptyList()).apply {
             for (parameter in constructor.parameters) {
-                val argument = function.parameters.find { it.name == parameter.name } ?: continue
-                arguments[parameter.indexInParameters] = verify.arguments[argument.indexInParameters]
+                val argument = function.parameters.find { it.name == parameter.name }
+                arguments[parameter.indexInParameters] = when {
+                    argument != null -> verify.arguments[argument.indexInParameters]
+                    ordering != null && parameter.name.asString() == ORDERING ->
+                        IrGetEnumValueImpl(startOffset, endOffset, symbols.ordering.defaultType, ordering.symbol)
+                    else -> continue
+                }
             }
         }
     }
@@ -845,6 +853,7 @@ private val CASTS = setOf(
 )
 
 private const val TYPED = "typed"
+private const val ORDERING = "ordering"
 private const val SPREAD = "spread"
 private const val VARARG_OF = "varargOf"
 private val ANY_MATCHERS = setOf("any", "anyNullable", ALL_ANY)
