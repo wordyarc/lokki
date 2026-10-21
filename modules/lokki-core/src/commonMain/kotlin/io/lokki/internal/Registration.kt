@@ -67,7 +67,7 @@ internal class Link internal constructor(
     internal var taken = false
 }
 
-private class Threads {
+internal class Threads {
     @Volatile
     private var threads = emptyArray<Any>()
 

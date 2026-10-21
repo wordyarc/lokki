@@ -73,20 +73,18 @@ class VerificationStateTest {
     }
 
     @Test
-    fun testOperationsNeedMocks() {
-        assertEquals(
-            "confirmVerified() without mocks is not supported yet: pass the mocks explicitly",
-            assertFailsWith<LokkiException> { confirmVerified() }.message,
-        )
-        assertEquals(
-            "checkUnnecessaryStub() without mocks is not supported yet: pass the mocks explicitly",
-            assertFailsWith<LokkiException> { checkUnnecessaryStub() }.message,
-        )
+    fun testOperationsWithoutMocksNeedScope() {
+        assertEquals(noScope("confirmVerified"), assertFailsWith<LokkiException> { confirmVerified() }.message)
+        assertEquals(noScope("checkUnnecessaryStub"), assertFailsWith<LokkiException> { checkUnnecessaryStub() }.message)
+        assertEquals(noScope("clearAllMocks"), assertFailsWith<LokkiException> { clearAllMocks() }.message)
         find(repo, 1)
 
         assertEquals("text is not a lokki mock", assertFailsWith<LokkiException> { clearMocks(repo, "text") }.message)
         assertEquals(1, repo.`lokki$state`.records().size)
     }
+
+    private fun noScope(function: String): String =
+        "no active LokkiScope for $function(): use LokkiExtension, LokkiRule or lokkiScope { }"
 
     private fun find(mock: TestMock, id: Int) {
         mock.`lokki$state`.answer(FIND_MEMBER, arrayOf(id))

@@ -1,7 +1,7 @@
 package io.lokki
 
 import io.lokki.internal.LokkiIntrinsic
-import io.lokki.internal.states
+import io.lokki.internal.window
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.STUB_BLOCK)
 public fun <T> every(stubBlock: MatcherScope.() -> T): StubScope<T> =
@@ -24,7 +24,8 @@ public fun coJustAwait(stubBlock: suspend MatcherScope.() -> Unit): AdditionalAn
     throw LokkiException("lokki compiler plugin is not applied to this compilation")
 
 public fun checkUnnecessaryStub(vararg mocks: Any) {
-    states("checkUnnecessaryStub", mocks).forEach { it.checkUnnecessaryStub() }
+    val window = window("checkUnnecessaryStub", mocks)
+    window.states.forEach { it.checkUnnecessaryStub(window.since) }
 }
 
 @SubclassOptInRequired(InternalLokkiApi::class)

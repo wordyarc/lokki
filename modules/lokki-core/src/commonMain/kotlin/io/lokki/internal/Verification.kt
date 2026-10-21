@@ -41,17 +41,19 @@ internal class Verification(
     constructor(calls: IntRange) : this(atLeast = calls.first, atMost = calls.last)
 
     fun expect(state: MockState, key: String, matchers: Array<Matcher<Any?>>) {
+        state.checkNotShared()
         expectations += Expectation(state, state.descriptor.member(key), matchers, min, max)
     }
 
     fun expectLink(receiver: Any?, key: String, matchers: (MockState) -> Array<Matcher<Any?>>) {
         if (ordering == Ordering.UNORDERED && (inverse || min == 0)) return
         val state = (receiver as? GeneratedMock)?.`lokki$state` ?: return
+        state.checkNotShared()
         expectations += Expectation(state, state.descriptor.member(key), matchers(state), 1, Int.MAX_VALUE)
     }
 
     fun expectNoCalls(mock: Any) {
-        uncalled += GeneratedMock.of(mock).`lokki$state`
+        uncalled += GeneratedMock.of(mock).`lokki$state`.also { it.checkNotShared() }
     }
 
     fun expectNoCalls(mocks: List<Any>) {

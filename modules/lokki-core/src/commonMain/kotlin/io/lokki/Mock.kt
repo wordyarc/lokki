@@ -44,7 +44,21 @@ public fun clearMocks(
     verificationMarks: Boolean = true,
     exclusionRules: Boolean = true,
 ) {
-    for (state in states("clearMocks", arrayOf(firstMock, *mocks))) {
+    for (state in states(arrayOf(firstMock, *mocks))) {
         state.clear(answers, recordedCalls, childMocks, verificationMarks, exclusionRules)
     }
+}
+
+public fun clearAllMocks(
+    answers: Boolean = true,
+    recordedCalls: Boolean = true,
+    childMocks: Boolean = true,
+    regularMocks: Boolean = true,
+    objectMocks: Boolean = true,
+    staticMocks: Boolean = true,
+    constructorMocks: Boolean = true,
+    currentThreadOnly: Boolean = false,
+) {
+    val scope = LokkiScope.requireCurrent("clearAllMocks")
+    if (regularMocks) scope.clearWindow(scope.windowStates(), answers, recordedCalls, childMocks)
 }

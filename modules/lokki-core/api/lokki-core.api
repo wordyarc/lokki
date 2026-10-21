@@ -93,6 +93,23 @@ public final class io/lokki/LokkiException : java/lang/RuntimeException {
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
+public final class io/lokki/LokkiScope {
+	public static final field Companion Lio/lokki/LokkiScope$Companion;
+	public final fun close (Ljava/lang/Throwable;)V
+	public static synthetic fun close$default (Lio/lokki/LokkiScope;Ljava/lang/Throwable;ILjava/lang/Object;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/lokki/LokkiScope$Companion {
+	public final fun getRoot ()Lio/lokki/LokkiScope;
+	public final fun open (Lio/lokki/LokkiScope;Ljava/lang/String;)Lio/lokki/LokkiScope;
+	public final fun withCurrent (Lio/lokki/LokkiScope;Lkotlin/jvm/functions/Function0;)Ljava/lang/Object;
+}
+
+public final class io/lokki/LokkiScopeKt {
+	public static final fun lokkiScope (Lkotlin/jvm/functions/Function0;)Ljava/lang/Object;
+}
+
 public abstract interface class io/lokki/Matcher {
 	public abstract fun match (Ljava/lang/Object;)Z
 }
@@ -151,6 +168,8 @@ public final class io/lokki/MethodDescription {
 }
 
 public final class io/lokki/MockKt {
+	public static final fun clearAllMocks (ZZZZZZZZ)V
+	public static synthetic fun clearAllMocks$default (ZZZZZZZZILjava/lang/Object;)V
 	public static final fun clearMocks (Ljava/lang/Object;[Ljava/lang/Object;ZZZZZ)V
 	public static synthetic fun clearMocks$default (Ljava/lang/Object;[Ljava/lang/Object;ZZZZZILjava/lang/Object;)V
 	public static final fun isMock (Ljava/lang/Object;)Z
@@ -412,6 +431,13 @@ public final class io/lokki/internal/Registration {
 
 public final class io/lokki/internal/RegistrationScope : io/lokki/VerificationScope {
 	public fun <init> ()V
+}
+
+public final class io/lokki/internal/StaticInitializer {
+	public static final field INSTANCE Lio/lokki/internal/StaticInitializer;
+	public final fun enter ()V
+	public final fun exit ()V
+	public final fun isActive ()Z
 }
 
 public final class io/lokki/internal/Verification {

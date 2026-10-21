@@ -24,3 +24,7 @@ internal actual fun park(nanos: Long) {
 internal actual fun unpark(thread: Any) {
     LockSupport.unpark(thread as Thread)
 }
+
+internal actual typealias CommonThreadLocal<T> = ThreadLocal<T>
+
+internal actual typealias WeakReference<T> = java.lang.ref.WeakReference<T>

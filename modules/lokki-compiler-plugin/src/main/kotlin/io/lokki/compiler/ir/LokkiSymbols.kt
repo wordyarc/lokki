@@ -41,6 +41,10 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
 
     val lokkiException by lazy { findClass(PACKAGE, "LokkiException").primaryConstructor!! }
 
+    val staticInitializer by lazy { findClass(INTERNAL_PACKAGE, "StaticInitializer") }
+    val enterStaticInitializer by lazy { staticInitializer.function("enter") }
+    val exitStaticInitializer by lazy { staticInitializer.function("exit") }
+
     val mockDescriptor by lazy { findClass(INTERNAL_PACKAGE, "MockDescriptor") }
     val mockSpec by lazy { findClass(INTERNAL_PACKAGE, "MockSpec") }
 

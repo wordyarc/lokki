@@ -3,7 +3,7 @@ package io.lokki
 import io.lokki.internal.LokkiIntrinsic
 import io.lokki.internal.Matchers
 import io.lokki.internal.deepEquals
-import io.lokki.internal.states
+import io.lokki.internal.window
 import io.lokki.internal.toStr
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_BLOCK)
@@ -139,16 +139,18 @@ public class CallCountCoVerificationScope internal constructor() {
 }
 
 public fun confirmVerified(vararg mocks: Any, clear: Boolean = false) {
-    val states = states("confirmVerified", mocks)
-    states.forEach { it.confirmVerified() }
+    val window = window("confirmVerified", mocks)
+    if (mocks.isNotEmpty()) window.states.forEach { it.checkNotShared() }
+    window.states.forEach { it.confirmVerified(window.since) }
     if (!clear) return
-    for (state in states) {
+    for (state in window.states) {
         state.clear(
             answers = false,
             recordedCalls = true,
             childMocks = false,
             verificationMarks = true,
             exclusionRules = false,
+            since = window.since,
         )
     }
 }

@@ -6,6 +6,7 @@ import io.lokki.AnswerScope
 import io.lokki.Call
 import io.lokki.Invocation
 import io.lokki.LokkiException
+import io.lokki.LokkiScope
 import io.lokki.Matcher
 import io.lokki.MethodDescription
 import io.lokki.StubScope
@@ -35,6 +36,12 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
 
     private val children = ArrayList<Child>()
 
+    internal val scope: LokkiScope? = LokkiScope.owner()
+
+    init {
+        scope?.adopt(this)
+    }
+
     fun answer(member: Int, arguments: Array<Any?>): Any? =
         respond(member, arguments, { mock.`lokki$original`(member, arguments) }) { answer, call ->
             answer.answer(call)
@@ -51,16 +58,21 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         throw LokkiException("no original implementation for ${call(member, arguments.joinToString { it.toStr() })}")
     }
 
-    fun <T> stub(key: String, matchers: Array<Matcher<Any?>>): StubScope<T> =
-        PendingStub(this, descriptor.member(key), matchers)
+    fun <T> stub(key: String, matchers: Array<Matcher<Any?>>): StubScope<T> {
+        checkNotShared()
+        return PendingStub(this, descriptor.member(key), matchers)
+    }
 
-    fun link(key: String, matchers: Array<Matcher<Any?>>, stubs: Boolean, factory: (MockSpec) -> Any): Any =
-        linkedChild(descriptor.member(key), matchers, stubs, factory)
+    fun link(key: String, matchers: Array<Matcher<Any?>>, stubs: Boolean, factory: (MockSpec) -> Any): Any {
+        checkNotShared()
+        return linkedChild(descriptor.member(key), matchers, stubs, factory)
+    }
 
     fun exclude(key: String, matchers: Array<Matcher<Any?>>, current: Boolean = true) {
         val member = descriptor.member(key)
         if (member <= TO_STRING) return
-        val exclusion = Exclusion(member, matchers)
+        checkNotShared()
+        val exclusion = Exclusion(member, matchers, nextMark())
         synchronized(this) { exclusions += exclusion }
         if (current) synchronized(records) { records.removeAll { exclusion.matches(it.member, it.arguments) } }
     }
@@ -96,9 +108,15 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         }
     }
 
-    internal fun records(): List<CallRecord> = synchronized(records) { records.toList() }
+    internal fun records(since: Long = ALL): List<CallRecord> =
+        synchronized(records) { records.filter { it.sequenceNumber > since } }
 
-    internal fun unansweredRecords(): List<CallRecord> = synchronized(records) { records.filter { it.unanswered } }
+    internal fun unansweredRecords(since: Long = ALL): List<CallRecord> =
+        synchronized(records) { records.filter { it.unanswered && it.sequenceNumber > since } }
+
+    internal fun checkNotShared() {
+        scope?.checkNotShared(name)
+    }
 
     internal fun addWaiter(signal: RecordSignal) {
         synchronized(records) { waiters += signal }
@@ -112,19 +130,21 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         synchronized(records) { calls.forEach { it.verified = true } }
     }
 
-    internal fun confirmVerified() {
-        val (recorded, unverified) = synchronized(records) { records.size to records.filterNot { it.verified } }
+    internal fun confirmVerified(since: Long = ALL) {
+        val recorded = records(since)
+        val unverified = synchronized(records) { recorded.filterNot { it.verified } }
         if (unverified.isEmpty()) return
+        checkNotShared()
         throw AssertionError(
-            unansweredRecords().unansweredReport() +
+            unansweredRecords(since).unansweredReport() +
                 "Verification acknowledgment failed\n\n" +
-                "Verified call count: ${recorded - unverified.size}\nRecorded call count: $recorded\n\n\n" +
+                "Verified call count: ${recorded.size - unverified.size}\nRecorded call count: ${recorded.size}\n\n\n" +
                 "Not verified calls:\n${unverified.numbered()}\n${unverified.callSites()}"
         )
     }
 
-    internal fun checkUnnecessaryStub() {
-        val unused = describeStubs { !it.used }
+    internal fun checkUnnecessaryStub(since: Long = ALL) {
+        val unused = describeStubs { !it.used && it.mark > since }
         if (unused.isEmpty()) return
         throw AssertionError(
             "Unnecessary stubbings detected.\nFollowing stubbings are not used, either because there are " +
@@ -139,17 +159,25 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         childMocks: Boolean,
         verificationMarks: Boolean,
         exclusionRules: Boolean,
+        since: Long = ALL,
     ) {
         synchronized(this) {
-            if (answers) stubs = arrayOfNulls(descriptor.memberCount)
-            if (childMocks) children.clear()
-            if (exclusionRules) exclusions = emptyArray()
+            if (answers) {
+                stubs = stubs.map { entries ->
+                    entries?.filter { it.mark <= since }?.takeIf { it.isNotEmpty() }?.toTypedArray()
+                }.toTypedArray()
+            }
+            if (childMocks) children.removeAll { it.mark > since }
+            if (exclusionRules) exclusions = exclusions.filter { it.mark <= since }.toTypedArray()
         }
         synchronized(records) {
-            if (recordedCalls) records.clear()
-            if (verificationMarks) records.forEach { it.verified = false }
+            if (recordedCalls) records.removeAll { it.sequenceNumber > since }
+            if (verificationMarks) records.forEach { if (it.sequenceNumber > since) it.verified = false }
         }
     }
+
+    internal fun chainPositions(): List<StubPosition> =
+        stubs.flatMap { entries -> entries.orEmpty().mapNotNull { it.chainPosition() } }
 
     internal fun call(member: Int, arguments: String): String = "$name.${description(member).name}($arguments)"
 
@@ -232,14 +260,17 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
                 "among the configured answers: (${describeStubs { true }.joinToString("\n")})\n" +
                 "Called member: ${description(member).signature()}"
         }
-        if (record != null) synchronized(records) { record.unanswered = true }
-        throw LokkiException(
-            when {
-                link != null -> "$message\n$LINK_HINT: stub it first, a child mock cannot be created: ${link.problem}"
-                Registration.isChain -> "$message\n$LINK_HINT: stub it first or annotate the file with $CHAINED_MOCKS"
-                else -> message
-            }
-        )
+        val hint = when {
+            link != null -> "\n$LINK_HINT: stub it first, a child mock cannot be created: ${link.problem}"
+            Registration.isChain -> "\n$LINK_HINT: stub it first or annotate the file with $CHAINED_MOCKS"
+            else -> ""
+        }
+        val closed = scope?.takeIf { it.isClosed }
+            ?.let { "\nThe mock belongs to $it, which is closed: the call came after its end" }
+            .orEmpty()
+        val failure = LokkiException(message + hint + closed)
+        if (record != null) synchronized(records) { record.failure = failure }
+        throw failure
     }
 
     private fun linkedChild(
@@ -252,7 +283,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         if (!registers) return child
         synchronized(this) {
             if (stubs[member]?.lastOrNull()?.answersWith(child, matchers) != true) {
-                register(member, StubEntry(matchers, listOf(ConstantAnswer(child))))
+                register(member, StubEntry(matchers, listOf(ConstantAnswer(child)), nextMark()))
             }
         }
         return child
@@ -262,7 +293,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         synchronized(this) {
             children.find { it.member == member && it.matchers.isEquivalentTo(matchers) }?.mock
                 ?: factory(MockSpec(childName(), flags and (RELAXED or RELAX_UNIT_FUN)))
-                    .also { children += Child(member, matchers, it) }
+                    .also { children += Child(member, matchers, it, nextMark()) }
         }
 
     private fun childName(): String {
@@ -302,12 +333,19 @@ internal class CallRecord(
 ) {
     var verified = false
 
-    var unanswered = false
+    var failure: LokkiException? = null
+
+    val unanswered: Boolean
+        get() = failure != null
 
     override fun toString(): String = state.call(member, arguments.joinToString { it.toStr() })
 }
 
-internal class StubEntry(private val matchers: Array<Matcher<Any?>>, answers: List<Answer<Any?>>) {
+internal class StubEntry(
+    private val matchers: Array<Matcher<Any?>>,
+    answers: List<Answer<Any?>>,
+    val mark: Long,
+) {
     private val captures = matchers.any { it is CapturingMatcher }
 
     val lambda = matchers.indexOfLast { it.capturesLambda }
@@ -339,6 +377,13 @@ internal class StubEntry(private val matchers: Array<Matcher<Any?>>, answers: Li
 
     fun add(answers: List<Answer<Any?>>) {
         synchronized(this) { this.answers += answers }
+    }
+
+    fun chainPosition(): StubPosition? =
+        synchronized(this) { if (answers.size > 1) StubPosition(this, position) else null }
+
+    fun restore(position: Int) {
+        synchronized(this) { this.position = position }
     }
 
     fun answer(advance: Boolean): Answer<Any?> {
@@ -409,15 +454,21 @@ private class PendingStub<T>(
         when {
             entry != null -> entry.add(answers)
             answers.isEmpty() -> throw LokkiException("a stub needs at least one answer")
-            else -> this.entry = StubEntry(matchers, answers).also { state.register(member, it) }
+            else -> this.entry = StubEntry(matchers, answers, nextMark()).also { state.register(member, it) }
         }
         return this
     }
 }
 
-private class Child(val member: Int, val matchers: Array<Matcher<Any?>>, val mock: Any)
+internal class StubPosition(private val entry: StubEntry, private val position: Int) {
+    fun restore() {
+        entry.restore(position)
+    }
+}
 
-private class Exclusion(private val member: Int, private val matchers: Array<Matcher<Any?>>) {
+private class Child(val member: Int, val matchers: Array<Matcher<Any?>>, val mock: Any, val mark: Long)
+
+private class Exclusion(private val member: Int, private val matchers: Array<Matcher<Any?>>, val mark: Long) {
     fun matches(member: Int, arguments: Array<Any?>): Boolean = member == this.member && matchers.match(arguments)
 }
 
@@ -432,6 +483,8 @@ private object MockIds {
 
     fun next(): Int = synchronized(this) { ++last }
 }
+
+internal const val ALL = -1L
 
 private const val EQUALS = 0
 private const val HASH_CODE = 1
