@@ -14,9 +14,20 @@ public fun interface Answer<out T> {
     public suspend fun coAnswer(call: Call): T = answer(call)
 }
 
-public class Call internal constructor(public val invocation: Invocation) {
+public class Call internal constructor(public val invocation: Invocation, private val lambda: Int) {
     public val retType: KClass<*>
         get() = invocation.method.returnType
+
+    internal fun <F> capturedLambda(function: String, matcher: String): CapturingSlot<F> {
+        if (lambda < 0) {
+            throw LokkiException(
+                "$function() in the answer of ${invocation.describe()} needs $matcher() " +
+                    "as an argument of the stubbed call"
+            )
+        }
+        @Suppress("UNCHECKED_CAST")
+        return CapturingSlot<F>().apply { captured = invocation.args[lambda] as F }
+    }
 }
 
 public class Invocation internal constructor(
@@ -83,6 +94,10 @@ public class AnswerScope<T> internal constructor(public val call: Call) {
     public inline fun <reified R> arg(n: Int): R = args[n] as R
 
     public fun <E> MutableList<E>.captured(): E = last()
+
+    public fun <F : Function<*>> lambda(): CapturingSlot<F> = call.capturedLambda("lambda", "captureLambda")
+
+    public fun <F : Any> coroutine(): CapturingSlot<F> = call.capturedLambda("coroutine", "captureCoroutine")
 
     @Suppress("UNCHECKED_CAST")
     @LokkiIntrinsic(LokkiIntrinsic.Kind.ANSWER)

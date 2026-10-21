@@ -141,7 +141,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
             is ConstantAnswer -> selected.value
             is ThrowingAnswer -> throw selected.exception
             is ArgumentAnswer -> arguments[selected.index]
-            else -> answer(selected, Call(Invocation(owner, member, arguments)))
+            else -> answer(selected, Call(Invocation(owner, member, arguments), stub.lambda))
         }
     }
 
@@ -227,6 +227,8 @@ internal class CallRecord(
 
 internal class StubEntry(private val matchers: Array<Matcher<Any?>>, answers: List<Answer<Any?>>) {
     private val captures = matchers.any { it is CapturingMatcher }
+
+    val lambda = matchers.indexOfLast { it.capturesLambda }
 
     @Volatile
     private var answers = answers.toTypedArray()

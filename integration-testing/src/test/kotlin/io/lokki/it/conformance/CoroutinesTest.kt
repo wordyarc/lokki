@@ -7,6 +7,7 @@ import io.lokki.slot
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class CoroutinesTest {
     private val mock = mock<MockCls>()
@@ -20,6 +21,21 @@ class CoroutinesTest {
         }
 
         coVerify { mock.coOtherOp(1, 2) }
+    }
+
+    @Test
+    fun coroutineLambdaInvoke() {
+        coEvery {
+            mock.coLambdaOp(1, captureCoroutine())
+        } coAnswers { 1 - coroutine<suspend () -> Int>().captured() }
+
+        runBlocking {
+            assertEquals(-4, mock.coLambdaOp(1) { 5 })
+        }
+
+        coVerify {
+            mock.coLambdaOp(1, any())
+        }
     }
 
     @Test

@@ -851,7 +851,7 @@ private val ANY_MATCHERS = setOf("any", "anyNullable", ALL_ANY)
 private val COMPARISON_MATCHERS = setOf("cmpEq", "more", "less", "range")
 private val TYPED_MATCHERS =
     setOf("any", "anyNullable", "match", "matchNullable", "coMatch", "coMatchNullable") +
-        WITH_ARG_MATCHERS + COMPARISON_MATCHERS + CAPTURE_MATCHERS
+        setOf("captureLambda", "captureCoroutine") + WITH_ARG_MATCHERS + COMPARISON_MATCHERS + CAPTURE_MATCHERS
 private val VARARG_MATCHERS =
     setOf("anyVararg", "varargAll", "varargAllNullable", "varargAny", "varargAnyNullable") +
         listOf("Boolean", "Byte", "Char", "Short", "Int", "Long", "Float", "Double")

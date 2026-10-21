@@ -140,6 +140,10 @@ internal object Matchers {
     fun captureNullable(lst: CapturingSlot<*>): Matcher<Any?> =
         CaptureMatcher(slot = true) { (lst as CapturingSlot<Any?>).captured = it }
 
+    fun captureLambda(): Matcher<Any?> = LambdaMatcher
+
+    fun captureCoroutine(): Matcher<Any?> = LambdaMatcher
+
     inline fun <reified T> ofType(): Matcher<Any?> = named("ofType(${T::class.simpleName})") { it is T }
 
     inline fun <reified T> typed(matcher: Matcher<Any?>): Matcher<Any?> = filtered(matcher) { it == null || it is T }
@@ -268,6 +272,15 @@ internal val Matcher<Any?>.capturesIntoSlot: Boolean
         is FilteredMatcher -> matcher.capturesIntoSlot
         else -> false
     }
+
+internal val Matcher<Any?>.capturesLambda: Boolean
+    get() = this === LambdaMatcher || this is FilteredMatcher && matcher.capturesLambda
+
+private object LambdaMatcher : Matcher<Any?> {
+    override fun match(arg: Any?): Boolean = arg != null
+
+    override fun toString(): String = "slotCapture()"
+}
 
 private class NamedMatcher(private val name: String, private val matches: (Any?) -> Boolean) : Matcher<Any?> {
     override fun match(arg: Any?): Boolean = matches(arg)

@@ -110,6 +110,14 @@ public abstract class MatcherScope internal constructor() {
         push(Matchers.typed<T>(Matchers.captureNullable(lst)), T::class)
 
     @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <reified T : Function<*>> captureLambda(): T =
+        push(Matchers.typed<T>(Matchers.captureLambda()), T::class)
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <reified T : Any> captureCoroutine(): T =
+        push(Matchers.typed<T>(Matchers.captureCoroutine()), T::class)
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
     public inline fun <reified T : Any> anyVararg(): Array<T> = pushVararg(Matchers.anyVararg<T>(), emptyArray())
 
     @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)

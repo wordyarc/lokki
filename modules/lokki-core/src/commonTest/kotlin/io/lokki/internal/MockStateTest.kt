@@ -294,6 +294,46 @@ class MockStateTest {
     }
 
     @Test
+    fun testLambdaIsTheLastCapturedArgumentOfTheCall() {
+        val captures = arrayOf(Matchers.captureLambda(), Matchers.typed<() -> String>(Matchers.captureLambda()))
+        state.stub<String>(FIND, captures) answers { lambda<() -> String>().captured() }
+
+        assertEquals("second", state.answer(FIND_MEMBER, arrayOf({ "first" }, { "second" })))
+        assertEquals("third", state.answer(FIND_MEMBER, arrayOf({ "first" }, { "third" })))
+    }
+
+    @Test
+    fun testSuspendedAnswerKeepsTheCoroutineOfItsCall() {
+        val pending = ArrayList<Continuation<Unit>>()
+        state.stub<String>(FIND, arrayOf(AnyMatcher, Matchers.captureCoroutine())) coAnswers {
+            suspendCoroutine { pending += it }
+            coroutine<suspend () -> String>().captured()
+        }
+
+        val first = start { state.coAnswer<String>(FIND_MEMBER, arrayOf(1, suspend { "first" })) }
+        val second = start { state.coAnswer<String>(FIND_MEMBER, arrayOf(2, suspend { "second" })) }
+        pending.forEach { it.resume(Unit) }
+
+        assertEquals(listOf(Result.success("first"), Result.success("second")), listOf(first(), second()))
+    }
+
+    @Test
+    fun testLambdaNeedsCaptureLambda() {
+        state.stub<String>(FIND, arrayOf(AnyMatcher, AnyMatcher)) answers { lambda<() -> String>().captured() }
+        state.stub<String>(FIND, arrayOf(EqMatcher(2), AnyMatcher)) answers { coroutine<suspend () -> String>().toString() }
+
+        assertEquals(
+            "lambda() in the answer of $name.find(1, lambda {}) needs captureLambda() as an argument of the stubbed call",
+            assertFailsWith<LokkiException> { state.answer(FIND_MEMBER, arrayOf(1, { "x" })) }.message,
+        )
+        assertEquals(
+            "coroutine() in the answer of $name.find(2, lambda {}) needs captureCoroutine() " +
+                "as an argument of the stubbed call",
+            assertFailsWith<LokkiException> { state.answer(FIND_MEMBER, arrayOf(2, suspend { "x" })) }.message,
+        )
+    }
+
+    @Test
     fun testOriginalReceivesTheMemberAndTheArgumentsOfTheCall() {
         val mock = TestMock("repo", FIND)
         val calls = ArrayList<Pair<Int, Array<Any?>>>()

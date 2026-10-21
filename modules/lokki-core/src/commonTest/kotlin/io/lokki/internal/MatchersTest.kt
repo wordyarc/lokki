@@ -319,6 +319,20 @@ class MatchersTest {
     }
 
     @Test
+    fun testCaptureLambdaMatchesEveryValueButNull() {
+        for (matcher in listOf(Matchers.captureLambda(), Matchers.captureCoroutine())) {
+            assertTrue(matcher.match { 1 })
+            assertFalse(matcher.match(null))
+            assertTrue(matcher.capturesLambda)
+        }
+        val typed = Matchers.typed<() -> Int>(Matchers.captureLambda())
+
+        assertTrue(typed.capturesLambda)
+        assertFalse(typed.match { value: Int -> value })
+        assertFalse(Matchers.capture(CapturingSlot<() -> Int>()).capturesLambda)
+    }
+
+    @Test
     fun testMatchersDescribeThemselves() {
         val descriptions = listOf(
             AnyMatcher,
@@ -339,6 +353,7 @@ class MatchersTest {
             Matchers.withNullableArg { _: Int? -> },
             Matchers.typed<Int>(Matchers.capture(ArrayList<Int>())),
             Matchers.captureNullable(CapturingSlot<Int?>()),
+            Matchers.captureLambda(),
             ArrayMatcher(arrayOf(AnyMatcher, EqMatcher { })),
             Matchers.varargOf(arrayOf(EqMatcher("a")), Matchers.anyVararg<String>(), arrayOf(AnyMatcher)),
             Matchers.varargAllNullable<String> { true },
@@ -364,6 +379,7 @@ class MatchersTest {
                 "matcher()",
                 "matcher()",
                 "capture()",
+                "slotCapture()",
                 "slotCapture()",
                 "[any(), eq(lambda {})]",
                 "[eq(a), *anyVararg(), any()]",
