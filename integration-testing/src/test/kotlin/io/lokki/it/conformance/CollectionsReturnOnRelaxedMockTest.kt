@@ -1,6 +1,8 @@
 package io.lokki.it.conformance
 
-import io.lokki.mock
+import io.lokki.MockAnnotations
+import io.lokki.RelaxedMock
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -20,7 +22,13 @@ class CollectionsReturnOnRelaxedMockTest {
         open fun getHashSet(): HashSet<Any> = hashSetOf()
     }
 
-    private val returningCollections = mock<ReturningCollections>(relaxed = true, relaxUnitFun = true)
+    @RelaxedMock
+    private lateinit var returningCollections: ReturningCollections
+
+    @BeforeTest
+    fun setup() {
+        MockAnnotations.init(this, relaxUnitFun = true)
+    }
 
     @Test
     fun getList() {

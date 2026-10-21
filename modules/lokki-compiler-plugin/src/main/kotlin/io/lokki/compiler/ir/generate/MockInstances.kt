@@ -20,6 +20,8 @@ import org.jetbrains.kotlin.ir.builders.irReturn
 import org.jetbrains.kotlin.ir.builders.irTemporary
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
+import org.jetbrains.kotlin.ir.expressions.IrBlock
+import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.expressions.impl.IrClassReferenceImpl
@@ -33,6 +35,7 @@ import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.functions
 import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.ir.util.primaryConstructor
+import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.name.SpecialNames
 
 internal class MockInstances(private val context: IrPluginContext, private val symbols: LokkiSymbols) {
@@ -78,6 +81,20 @@ internal class MockInstances(private val context: IrPluginContext, private val s
         }
     }
 
+    fun IrBuilderWithScope.irDelegatingSpy(
+        mock: IrClass,
+        types: MockedTypes,
+        instance: IrExpression,
+        spec: IrExpression,
+    ): IrExpression {
+        val typeArguments = types.type.referencedTypeParameters.map { it.defaultType }
+        val arguments = listOf(instance, spec)
+        return when {
+            types.type.mockedClass.isInterface -> irConstruct(mock, typeArguments, arguments)
+            else -> irAllocate(mock.typeWith(typeArguments), arguments)
+        }
+    }
+
     fun IrBuilderWithScope.irFactory(mock: IrClass, types: MockedTypes): IrExpression {
         val specType = symbols.mockSpec.defaultType
         val anyType = context.irBuiltIns.anyType
@@ -97,3 +114,22 @@ internal class MockInstances(private val context: IrPluginContext, private val s
         return IrFunctionExpressionImpl(startOffset, endOffset, type, factory, IrStatementOrigin.LAMBDA)
     }
 }
+
+internal fun IrExpression.replaceConstructorCall(
+    type: IrType,
+    replacement: (IrConstructorCall) -> IrExpression,
+): IrExpression =
+    when (this) {
+        is IrConstructorCall -> replacement(this)
+        is IrBlock -> apply {
+            statements[statements.lastIndex] =
+                (statements.last() as IrExpression).replaceConstructorCall(type, replacement)
+            this.type = type
+        }
+        else -> error("not a constructor call: ${render()}")
+    }
+
+internal const val RELAXED_FLAG = 1
+internal const val RELAX_UNIT_FUN_FLAG = 2
+internal const val SPY_FLAG = 4
+internal const val DELEGATE_FLAG = 8

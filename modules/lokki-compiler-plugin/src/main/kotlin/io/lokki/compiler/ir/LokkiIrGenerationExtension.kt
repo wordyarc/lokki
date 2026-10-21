@@ -2,6 +2,7 @@ package io.lokki.compiler.ir
 
 import io.lokki.compiler.ir.collect.collectMockClasses
 import io.lokki.compiler.ir.generate.MockClassGenerator
+import io.lokki.compiler.ir.generate.MockFieldInitializers
 import io.lokki.compiler.ir.lower.DslLowering
 import io.lokki.compiler.ir.lower.StaticInitializers
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
@@ -14,8 +15,11 @@ class LokkiIrGenerationExtension(private val lookupTracker: LookupTracker?) : Ir
         val symbols = LokkiSymbols(pluginContext)
         val generator = MockClassGenerator(pluginContext, symbols, lookupTracker)
         val staticInitializers = StaticInitializers(pluginContext, symbols)
+        val fields = MockFieldInitializers(pluginContext, symbols)
+        fields.declare(moduleFragment)
         for (file in moduleFragment.files) {
             val mocks = generator.generate(file, file.collectMockClasses())
+            fields.implement(file, mocks)
             file.transform(DslLowering(pluginContext, symbols, file, mocks), null)
             staticInitializers.lower(file)
         }

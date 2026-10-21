@@ -26,6 +26,7 @@ import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrClassReference
 import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
+import org.jetbrains.kotlin.ir.expressions.IrFunctionAccessExpression
 import org.jetbrains.kotlin.ir.expressions.IrGetValue
 import org.jetbrains.kotlin.ir.expressions.IrSpreadElement
 import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
@@ -95,7 +96,7 @@ internal val IrCall.mockedType: IrType
 internal val IrCall.spiedInstance: IrExpression?
     get() = argument(SPIED_INSTANCE)
 
-internal fun IrCall.argument(name: String): IrExpression? =
+internal fun IrFunctionAccessExpression.argument(name: String): IrExpression? =
     symbol.owner.parameters.find { it.name.asString() == name }?.let { arguments[it.indexInParameters] }
 
 internal fun IrExpression.constructorCall(): IrConstructorCall? =
@@ -106,44 +107,14 @@ internal fun IrExpression.constructorCall(): IrConstructorCall? =
         else -> null
     }
 
-internal fun IrCall.mockedTypes(file: IrFile): MockedTypes? {
-    if (intrinsicKind !in MOCK_KINDS || notMockableReason(file) != null) return null
-    val mocked = mocked(file)
-    val type = (mocked.type as IrSimpleType).approximated()!!
-    val interfaces = moreInterfaces()!!.map { (it as IrSimpleType).approximated()!! }.distinctBy { it.mockedClass }
-    val all = listOf(type) + interfaces
-    val added = interfaces.filter { extra ->
-        all.none { other ->
-            other !== extra &&
-                (other.mockedClass == extra.mockedClass || extra.mockedClass in other.mockedClass.getAllSuperclasses())
-        }
-    }
-    return MockedTypes(type, added.sortedBy { it.typeKey(emptyList()) }, mocked.form!!)
-}
+internal fun IrCall.mockedTypes(file: IrFile): MockedTypes? =
+    if (intrinsicKind in MOCK_KINDS) request.mockedTypes(file) else null
 
-internal fun IrCall.notMockableReason(file: IrFile): String? {
-    val mocked = mocked(file)
-    mocked.type.notMockableReason(file)?.let { return it }
-    val mockedClass = mocked.type.classOrFail.owner
-    when (mocked.form) {
-        null -> return "'${mockedClass.kotlinFqName}' has no constructor that a spy can call without arguments"
-        MockForm.Delegation -> mockedClass.unforwardableMembers(file).takeIf { it.isNotEmpty() }?.let { members ->
-            return "A spy of '${mockedClass.kotlinFqName}' cannot forward its members to the instance: " +
-                members.joinToString()
-        }
-        else -> {}
-    }
-    val interfaces = moreInterfaces()
-        ?: return "'moreInterfaces' takes only class literals of interfaces, such as 'Closeable::class'"
-    for (type in interfaces) {
-        val extra = type.classOrNull?.owner
-        if (extra != null && !extra.isInterface) {
-            return "'${extra.kotlinFqName}' is not an interface: 'moreInterfaces' takes only interfaces"
-        }
-        type.notMockableReason(file)?.let { return it }
-    }
-    return null
-}
+internal fun IrCall.notMockableReason(file: IrFile): String? = request.notMockableReason(file)
+
+internal fun MockField.mockedTypes(file: IrFile): MockedTypes? = request.mockedTypes(file)
+
+internal fun MockField.notMockableReason(file: IrFile): String? = request.notMockableReason(file)
 
 internal fun IrType.childMockedTypes(file: IrFile): MockedTypes? {
     val type = makeNotNull().removeAnnotations()
@@ -156,23 +127,79 @@ internal fun MockedTypes.mockClassKey(file: IrFile): MockClassKey {
     return MockClassKey(type.typeKey(type.referencedTypeParameters) + interfaceKeys + form.keySuffix, file)
 }
 
+private class MockRequest(
+    val isSpy: Boolean,
+    val type: IrType,
+    val instance: IrExpression?,
+    val interfaces: List<IrType>?,
+)
+
+private val IrCall.request: MockRequest
+    get() = MockRequest(intrinsicKind == IntrinsicKind.SPY, mockedType, spiedInstance, moreInterfaces())
+
+private val MockField.request: MockRequest
+    get() = MockRequest(
+        kind == IntrinsicKind.SPY,
+        property.valueType.makeNotNull(),
+        property.backingField?.initializer?.expression,
+        listOfNotNull(additionalInterface),
+    )
+
+private fun MockRequest.mockedTypes(file: IrFile): MockedTypes? {
+    if (notMockableReason(file) != null) return null
+    val mocked = mocked(file)
+    val type = (mocked.type as IrSimpleType).approximated()!!
+    val interfaces = interfaces!!.map { (it as IrSimpleType).approximated()!! }.distinctBy { it.mockedClass }
+    val all = listOf(type) + interfaces
+    val added = interfaces.filter { extra ->
+        all.none { other ->
+            other !== extra &&
+                (other.mockedClass == extra.mockedClass || extra.mockedClass in other.mockedClass.getAllSuperclasses())
+        }
+    }
+    return MockedTypes(type, added.sortedBy { it.typeKey(emptyList()) }, mocked.form!!)
+}
+
+private fun MockRequest.notMockableReason(file: IrFile): String? {
+    val mocked = mocked(file)
+    mocked.type.notMockableReason(file)?.let { return it }
+    val mockedClass = mocked.type.classOrFail.owner
+    when (mocked.form) {
+        null -> return "'${mockedClass.kotlinFqName}' has no constructor that a spy can call without arguments"
+        MockForm.Delegation -> mockedClass.unforwardableMembers(file).takeIf { it.isNotEmpty() }?.let { members ->
+            return "A spy of '${mockedClass.kotlinFqName}' cannot forward its members to the instance: " +
+                members.joinToString()
+        }
+        else -> {}
+    }
+    val interfaces = interfaces
+        ?: return "'moreInterfaces' takes only class literals of interfaces, such as 'Closeable::class'"
+    for (type in interfaces) {
+        val extra = type.classOrNull?.owner
+        if (extra != null && !extra.isInterface) {
+            return "'${extra.kotlinFqName}' is not an interface: 'moreInterfaces' takes only interfaces"
+        }
+        type.notMockableReason(file)?.let { return it }
+    }
+    return null
+}
+
 private class Mocked(val type: IrType, val form: MockForm?)
 
-private fun IrCall.mocked(file: IrFile): Mocked {
-    if (intrinsicKind == IntrinsicKind.MOCK) return Mocked(mockedType, MockForm.Mock)
-    val instance = spiedInstance
+private fun MockRequest.mocked(file: IrFile): Mocked {
+    if (!isSpy) return Mocked(type, MockForm.Mock)
     if (instance == null) {
-        val spied = mockedType.classOrNull?.owner
-        if (spied == null || spied.isInterface) return Mocked(mockedType, MockForm.Mock)
+        val spied = type.classOrNull?.owner
+        if (spied == null || spied.isInterface) return Mocked(type, MockForm.Mock)
         val constructor = spied.constructorWithoutArguments(file)
-        return Mocked(mockedType, constructor?.let { MockForm.Construction(it, it.parameters.map { false }) })
+        return Mocked(type, constructor?.let { MockForm.Construction(it, it.parameters.map { false }) })
     }
     val construction = instance.unwrapTemporary().constructorCall()
     if (construction != null && construction.symbol.owner.constructedClass.canBeSubclassed) {
         val passed = construction.arguments.map { it != null }
         return Mocked(construction.type, MockForm.Construction(construction.symbol.owner, passed))
     }
-    return Mocked(mockedType, MockForm.Delegation)
+    return Mocked(type, MockForm.Delegation)
 }
 
 private val IrClass.canBeSubclassed: Boolean

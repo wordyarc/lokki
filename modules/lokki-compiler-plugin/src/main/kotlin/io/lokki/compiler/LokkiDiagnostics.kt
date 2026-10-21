@@ -40,6 +40,8 @@ internal object LokkiDiagnostics : KtDiagnosticsContainer() {
     val LOKKI_REF_EQ_OF_VALUE_CLASS by error2<KtElement, String, String>()
     val LOKKI_UNSAFE_SPY_DELEGATION by error3<KtElement, String, String, String>()
     val LOKKI_SPY_ARGUMENT_NOT_CONSTRUCTOR_CALL by warning2<KtElement, String, String>()
+    val LOKKI_MOCK_PROPERTY_NOT_MUTABLE by error2<KtElement, String, String>()
+    val LOKKI_UNSUPPORTED_MOCK_PARAMETER by error1<KtElement, String>()
 
     override fun getRendererFactory(): BaseDiagnosticRendererFactory = LokkiDiagnosticRenderers
 }
@@ -194,6 +196,19 @@ private object LokkiDiagnosticRenderers : BaseDiagnosticRendererFactory() {
                 "bypass the spy, and the spy is a different object. Pass a constructor call, such as " +
                 "''spy({1}(...))'', to spy on the object itself.",
             CommonRenderers.STRING,
+            CommonRenderers.STRING,
+        )
+        map.put(
+            LokkiDiagnostics.LOKKI_MOCK_PROPERTY_NOT_MUTABLE,
+            "''@{0}'' needs a ''lateinit var'' or ''var'' property: lokki assigns the property after the object " +
+                "is constructed{1}.",
+            CommonRenderers.STRING,
+            CommonRenderers.STRING,
+        )
+        map.put(
+            LokkiDiagnostics.LOKKI_UNSUPPORTED_MOCK_PARAMETER,
+            "''@{0}'' on a parameter is not supported yet: lokki initializes only properties declared in the class " +
+                "body. Declare a ''lateinit var'' property instead.",
             CommonRenderers.STRING,
         )
     }

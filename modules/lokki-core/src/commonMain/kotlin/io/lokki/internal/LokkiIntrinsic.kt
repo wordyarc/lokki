@@ -16,5 +16,7 @@ public annotation class LokkiIntrinsic(val kind: Kind) {
         EXCLUDE_BLOCK,
         AWAITS,
         SPY,
+        RELAXED_MOCK,
+        ADDITIONAL_INTERFACE,
     }
 }

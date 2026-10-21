@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.DescriptorVisibility
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrFile
+import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrConst
@@ -17,7 +18,7 @@ import org.jetbrains.kotlin.ir.visitors.IrVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 
 internal class MockClassUsage(
-    val firstCall: IrCall,
+    val firstUse: IrElement,
     val mockedTypes: MockedTypes,
     var visibility: DescriptorVisibility,
     var relaxedChildren: Boolean = false,
@@ -43,6 +44,15 @@ private class MockCollector(private val file: IrFile) : IrVisitorVoid() {
         if (declaration.isInline) enclosingInlineFunctions--
     }
 
+    override fun visitProperty(declaration: IrProperty) {
+        val field = declaration.mockField?.takeIf { it.unsupportedReason(file) == null }
+        field?.mockedTypes(file)?.let { types ->
+            val usage = add(declaration, types)
+            if (chainedMocks && field.kind != IntrinsicKind.SPY) usage.relaxedChildren = true
+        }
+        super.visitProperty(declaration)
+    }
+
     override fun visitCall(expression: IrCall) {
         expression.mockedTypes(file)?.let { types ->
             val usage = add(expression, types)
@@ -56,9 +66,9 @@ private class MockCollector(private val file: IrFile) : IrVisitorVoid() {
         super.visitCall(expression)
     }
 
-    private fun add(call: IrCall, types: MockedTypes): MockClassUsage {
+    private fun add(use: IrElement, types: MockedTypes): MockClassUsage {
         val usage = mockClasses.getOrPut(types.mockClassKey(file)) {
-            MockClassUsage(call, types, DescriptorVisibilities.PRIVATE)
+            MockClassUsage(use, types, DescriptorVisibilities.PRIVATE)
         }
         if (enclosingInlineFunctions > 0) usage.visibility = DescriptorVisibilities.PUBLIC
         return usage

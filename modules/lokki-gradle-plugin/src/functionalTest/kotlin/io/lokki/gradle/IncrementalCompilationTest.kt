@@ -670,6 +670,142 @@ class IncrementalCompilationTest {
         assertEquals(setOf("knock()", "close()"), project.mockedMethods("test", child))
     }
 
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testFirstMockFieldOfBaseClassInSameCompilation(gradle: GradleUnderTest) {
+        val project = jvmProject(gradle)
+        project.write("src/test/kotlin/sample/Car.kt", declaration("interface Car", "fun drive(): String"))
+        project.write("src/test/kotlin/sample/BaseTest.kt", baseTest(mockField = false))
+        project.write("src/test/kotlin/sample/CarTest.kt", mockFieldsTest("sample"))
+        project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
+
+        project.build("test")
+        assertEquals(setOf(MOCK_FIELDS_OWNER), project.interfaces("test", "sample.CarTest"))
+
+        project.write("src/test/kotlin/sample/BaseTest.kt", baseTest(mockField = true))
+        val added = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, added.task(":test")?.outcome)
+        assertEquals(setOf("BaseTest.kt", "CarTest.kt"), project.compiledSources(":compileTestKotlin"))
+        assertEquals(emptySet(), project.interfaces("test", "sample.CarTest"))
+
+        project.write("src/test/kotlin/sample/CarTest.kt", mockFieldsTest("sample", "otherCar"))
+        val subclass = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, subclass.task(":test")?.outcome)
+        assertEquals(setOf("CarTest.kt"), project.compiledSources(":compileTestKotlin"))
+        assertTrue(INIT_MOCK_FIELDS in project.syntheticMethods("test", "sample.CarTest"))
+
+        project.write("src/test/kotlin/sample/BaseTest.kt", baseTest(mockField = false))
+        val removed = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, removed.task(":test")?.outcome)
+        assertEquals(setOf("BaseTest.kt", "CarTest.kt"), project.compiledSources(":compileTestKotlin"))
+        assertEquals(setOf(MOCK_FIELDS_OWNER), project.interfaces("test", "sample.CarTest"))
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testFirstMockFieldOfBaseClassInTestFixturesOfAnotherProject(gradle: GradleUnderTest) {
+        val project = TestProject(projectDir, gradle, subprojects = listOf("core", "app"))
+        project.write(
+            "build.gradle.kts",
+            """
+            plugins {
+                kotlin("jvm") version "$KOTLIN_VERSION" apply false
+                id("io.lokki") version "$LOKKI_VERSION" apply false
+            }
+            """,
+        )
+        project.write(
+            "core/build.gradle.kts",
+            """
+            plugins {
+                kotlin("jvm")
+                `java-test-fixtures`
+                id("io.lokki")
+            }
+            """,
+        )
+        project.write(
+            "app/build.gradle.kts",
+            """
+            plugins {
+                kotlin("jvm")
+                id("io.lokki")
+            }
+
+            dependencies {
+                testImplementation(testFixtures(project(":core")))
+            }
+
+            testing {
+                suites {
+                    named<JvmTestSuite>("test") {
+                        useKotlinTest("$KOTLIN_VERSION")
+                    }
+                }
+            }
+            """,
+        )
+        project.write("core/src/testFixtures/kotlin/sample/Car.kt", declaration("interface Car", "fun drive(): String"))
+        project.write("core/src/testFixtures/kotlin/sample/BaseTest.kt", baseTest(mockField = false))
+        project.write("app/src/test/kotlin/app/CarTest.kt", mockFieldsTest("app"))
+        project.write("app/src/test/kotlin/app/UnrelatedTest.kt", UNRELATED_TEST.replace("package sample", "package app"))
+
+        project.build(":app:test")
+
+        project.write("core/src/testFixtures/kotlin/sample/BaseTest.kt", baseTest(mockField = true))
+        val result = project.build(":app:test")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":app:test")?.outcome)
+        assertEquals(setOf("BaseTest.kt"), project.compiledSources(":core:compileTestFixturesKotlin"))
+        assertEquals(setOf("CarTest.kt"), project.compiledSources(":app:compileTestKotlin"))
+    }
+
+    private fun baseTest(mockField: Boolean): String =
+        """
+        package sample
+
+        import io.lokki.Mock
+        import io.lokki.isMock
+
+        abstract class BaseTest {
+            ${if (mockField) "@Mock lateinit var baseCar: Car" else ""}
+
+            fun baseMocks(): Int = ${if (mockField) "if (isMock(baseCar)) 1 else 0" else "0"}
+
+            fun baseFields(): Int = ${if (mockField) 1 else 0}
+        }
+        """
+
+    private fun mockFieldsTest(packageName: String, vararg names: String): String {
+        val fields = listOf("car") + names
+        return """
+            package $packageName
+
+            import io.lokki.Mock
+            import io.lokki.MockAnnotations
+            import io.lokki.isMock
+            import kotlin.test.Test
+            import kotlin.test.assertEquals
+            import kotlin.test.assertTrue
+            import sample.BaseTest
+            import sample.Car
+
+            class CarTest : BaseTest() {
+                ${fields.joinToString("\n                ") { "@Mock lateinit var $it: Car" }}
+
+                @Test
+                fun initializesTheMockFieldsOfTheHierarchy() {
+                    MockAnnotations.init(this)
+                    assertTrue(${fields.joinToString(" && ") { "isMock($it)" }})
+                    assertEquals(baseFields(), baseMocks())
+                }
+            }
+            """
+    }
+
     private fun engine(parameters: String, description: String): String =
         """
         package sample
@@ -739,3 +875,6 @@ class IncrementalCompilationTest {
             )
         }
 }
+
+private const val MOCK_FIELDS_OWNER = "io.lokki.internal.MockFieldsOwner"
+private const val INIT_MOCK_FIELDS = "lokki\$initMockFields(int)"

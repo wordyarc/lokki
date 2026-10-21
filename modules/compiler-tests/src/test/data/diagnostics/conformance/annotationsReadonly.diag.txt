@@ -1,0 +1,1 @@
+/annotationsReadonly.kt:13:5: error: '@Mock' needs a 'lateinit var' or 'var' property: lokki assigns the property after the object is constructed.

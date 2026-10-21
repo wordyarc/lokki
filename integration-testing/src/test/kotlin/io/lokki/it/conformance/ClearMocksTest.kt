@@ -3,17 +3,21 @@
 package io.lokki.it.conformance
 
 import io.lokki.ChainedMocks
+import io.lokki.clearAllMocks
 import io.lokki.clearMocks
 import io.lokki.confirmVerified
 import io.lokki.every
+import io.lokki.junit5.LokkiExtension
 import io.lokki.mock
 import io.lokki.spy
 import io.lokki.verify
+import org.junit.jupiter.api.extension.ExtendWith
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 
+@ExtendWith(LokkiExtension::class)
 class ClearMocksTest {
     open class MockCls {
         open fun op(a: Int) = a + 1
@@ -131,5 +135,27 @@ class ClearMocksTest {
         assertEquals(3, child.op(1))
         verify(exactly = 1) { child.op(1) }
         assertSame(child, mockObj.child())
+    }
+
+    @Test
+    fun clearAllMocksCurrentThreadOnly() {
+        var mockInOtherThread: MockCls? = null
+
+        val thread =
+            Thread {
+                mockInOtherThread = mock()
+                every { mockInOtherThread!!.op(any()) } returns 42
+            }
+        thread.start()
+        thread.join()
+
+        every { spyObj.op(any()) } returns 24
+        assertEquals(24, spyObj.op(1))
+        assertEquals(42, mockInOtherThread?.op(1))
+
+        clearAllMocks(currentThreadOnly = true)
+
+        assertEquals(2, spyObj.op(1))
+        assertEquals(42, mockInOtherThread?.op(1))
     }
 }

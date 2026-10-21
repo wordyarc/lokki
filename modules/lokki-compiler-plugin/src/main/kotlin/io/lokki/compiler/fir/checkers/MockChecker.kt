@@ -6,6 +6,15 @@ import io.lokki.compiler.fir.displayName
 import io.lokki.compiler.fir.intrinsicKind
 import io.lokki.compiler.fir.isFinalType
 import org.jetbrains.kotlin.KtRealSourceElementKind
+import org.jetbrains.kotlin.KtSourceElement
+import org.jetbrains.kotlin.fir.analysis.checkers.declaration.FirPropertyChecker
+import org.jetbrains.kotlin.fir.analysis.checkers.declaration.FirValueParameterChecker
+import org.jetbrains.kotlin.fir.declarations.FirProperty
+import org.jetbrains.kotlin.fir.declarations.FirValueParameter
+import org.jetbrains.kotlin.fir.declarations.findArgumentByName
+import org.jetbrains.kotlin.fir.declarations.toAnnotationClassLikeSymbol
+import org.jetbrains.kotlin.fir.declarations.utils.correspondingValueParameterFromPrimaryConstructor
+import io.lokki.compiler.fir.fieldKind
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Visibilities
@@ -90,76 +99,136 @@ internal object MockChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
         val kind = function.intrinsicKind(context.session)
         if (kind != IntrinsicKind.MOCK && kind != IntrinsicKind.SPY) return
         val instance = if (kind == IntrinsicKind.SPY) spiedInstance(expression, function) else null
-        val constructed = instance?.constructedType()
         val argument = expression.typeArguments.singleOrNull() ?: return
         val source = when {
             instance != null -> instance.source
             else -> argument.source?.takeIf { it.kind is KtRealSourceElementKind } ?: expression.source
         }
-        val type = constructed
+        val type = instance?.constructedType()
             ?: argument.toConeTypeProjection().type?.lowerBoundIfFlexible()?.fullyExpandedType()
             ?: return
-        if (type is ConeTypeParameterType) {
-            reporter.reportOn(
-                source,
-                LokkiDiagnostics.LOKKI_TYPE_ARGUMENT_NOT_CONCRETE,
-                "The type argument",
-                function.name.asString(),
-                "'${type.lookupTag.name}' is a type parameter",
-            )
-            return
-        }
-        val mocked = type.takeUnless { it.isNothing }?.toRegularClassSymbol(context.session) ?: return
-        val reason = mocked.notMockableReason()
-            ?: (type as? ConeClassLikeType)?.irreplaceableStarProjection(mocked)
-            ?: mocked.unconstructibleReason().takeIf { kind == IntrinsicKind.SPY && instance == null }
-        if (reason != null) {
-            reporter.reportOn(source, LokkiDiagnostics.LOKKI_TYPE_NOT_MOCKABLE, mocked.displayName, reason)
-            return
-        }
-        if (instance != null && constructed == null && mocked.classKind == ClassKind.CLASS) {
-            val members = mocked.unforwardableMembers()
-            if (members.isNotEmpty()) {
-                reporter.reportOn(
-                    instance.source,
-                    LokkiDiagnostics.LOKKI_UNSAFE_SPY_DELEGATION,
-                    mocked.displayName,
-                    members.joinToString { "'$it'" },
-                    mocked.name.asString(),
-                )
-                return
+        val mocked = MockedType(kind, type, source, instance, "The type argument", function.name.asString())
+        mocked.check { moreInterfaces(expression, function) }
+    }
+}
+
+internal object MockPropertyChecker : FirPropertyChecker(MppCheckerKind.Common) {
+    context(context: CheckerContext, reporter: DiagnosticReporter)
+    override fun check(declaration: FirProperty) {
+        val session = context.session
+        val annotation = declaration.annotations.find { it.fieldKind(session) != null } ?: return
+        val kind = annotation.fieldKind(session)!!
+        val name = annotation.toAnnotationClassLikeSymbol(session)!!.name.asString()
+        val parameter = declaration.correspondingValueParameterFromPrimaryConstructor
+        if (parameter != null) {
+            if (parameter.resolvedAnnotationsWithArguments.none { it.fieldKind(session) != null }) {
+                reporter.reportOn(annotation.source, LokkiDiagnostics.LOKKI_UNSUPPORTED_MOCK_PARAMETER, name)
             }
-            reporter.reportOn(
-                instance.source,
-                LokkiDiagnostics.LOKKI_SPY_ARGUMENT_NOT_CONSTRUCTOR_CALL,
-                mocked.displayName,
-                mocked.name.asString(),
-            )
-        }
-        val interfaces = moreInterfaces(expression, function) ?: return
-        val mockedType = (type as? ConeClassLikeType)?.approximated(mocked) ?: return
-        val conflict = mockedType.addedInterfaces(interfaces).firstNotNullOfOrNull { (literal, supertypes) ->
-            supertypes.last().conflict(supertypes.dropLast(1))?.let { literal to it }
-        }
-        if (conflict != null) {
-            val (literal, problem) = conflict
-            reporter.reportOn(literal.source, LokkiDiagnostics.LOKKI_TYPE_NOT_MOCKABLE, mocked.displayName, problem)
             return
         }
-        if (kind == IntrinsicKind.SPY) return
-        mocked.restriction(context.session)?.let { restriction ->
-            reporter.reportOn(source, LokkiDiagnostics.LOKKI_RESTRICTED_TYPE, mocked.displayName, restriction)
-        }
-        val finalMembers = mocked.finalMembers()
-        if (finalMembers.isNotEmpty()) {
-            reporter.reportOn(
-                source,
-                LokkiDiagnostics.LOKKI_FINAL_MEMBERS_NOT_MOCKED,
-                mocked.displayName,
-                finalMembers.joinToString { "'$it'" },
-            )
+        if (declaration.isLocal) return
+        val instance = if (kind == IntrinsicKind.SPY) declaration.initializer else null
+        val type = instance?.constructedType()
+            ?: declaration.returnTypeRef.coneType.lowerBoundIfFlexible().fullyExpandedType()
+        val mocked = MockedType(
+            if (kind == IntrinsicKind.SPY) kind else IntrinsicKind.MOCK,
+            type,
+            annotation.source,
+            instance,
+            "The mocked type",
+            "@$name",
+        )
+        if (!mocked.check { additionalInterface(declaration) }) return
+        if (!declaration.isVar && (kind != IntrinsicKind.SPY || instance?.constructedType() == null)) {
+            val hint = if (kind == IntrinsicKind.SPY) SPY_VAL_HINT else ""
+            reporter.reportOn(annotation.source, LokkiDiagnostics.LOKKI_MOCK_PROPERTY_NOT_MUTABLE, name, hint)
         }
     }
+}
+
+internal object MockParameterChecker : FirValueParameterChecker(MppCheckerKind.Common) {
+    context(context: CheckerContext, reporter: DiagnosticReporter)
+    override fun check(declaration: FirValueParameter) {
+        val session = context.session
+        val annotation = declaration.annotations.find { it.fieldKind(session) != null } ?: return
+        val name = annotation.toAnnotationClassLikeSymbol(session)!!.name.asString()
+        reporter.reportOn(annotation.source, LokkiDiagnostics.LOKKI_UNSUPPORTED_MOCK_PARAMETER, name)
+    }
+}
+
+private class MockedType(
+    val kind: IntrinsicKind,
+    val type: ConeKotlinType,
+    val source: KtSourceElement?,
+    val instance: FirExpression?,
+    val subject: String,
+    val dsl: String,
+)
+
+context(context: CheckerContext, reporter: DiagnosticReporter)
+private fun MockedType.check(interfaces: () -> List<Pair<FirExpression, ConeClassLikeType>>?): Boolean {
+    if (type is ConeTypeParameterType) {
+        reporter.reportOn(
+            source,
+            LokkiDiagnostics.LOKKI_TYPE_ARGUMENT_NOT_CONCRETE,
+            subject,
+            dsl,
+            "'${type.lookupTag.name}' is a type parameter",
+        )
+        return false
+    }
+    val constructed = instance?.constructedType()
+    val mocked = type.takeUnless { it.isNothing }?.toRegularClassSymbol(context.session) ?: return false
+    val reason = mocked.notMockableReason()
+        ?: (type as? ConeClassLikeType)?.irreplaceableStarProjection(mocked)
+        ?: mocked.unconstructibleReason().takeIf { kind == IntrinsicKind.SPY && instance == null }
+    if (reason != null) {
+        reporter.reportOn(source, LokkiDiagnostics.LOKKI_TYPE_NOT_MOCKABLE, mocked.displayName, reason)
+        return false
+    }
+    if (instance != null && constructed == null && mocked.classKind == ClassKind.CLASS) {
+        val members = mocked.unforwardableMembers()
+        if (members.isNotEmpty()) {
+            reporter.reportOn(
+                instance.source,
+                LokkiDiagnostics.LOKKI_UNSAFE_SPY_DELEGATION,
+                mocked.displayName,
+                members.joinToString { "'$it'" },
+                mocked.name.asString(),
+            )
+            return false
+        }
+        reporter.reportOn(
+            instance.source,
+            LokkiDiagnostics.LOKKI_SPY_ARGUMENT_NOT_CONSTRUCTOR_CALL,
+            mocked.displayName,
+            mocked.name.asString(),
+        )
+    }
+    val mockedType = (type as? ConeClassLikeType)?.approximated(mocked) ?: return false
+    val added = interfaces() ?: return false
+    val conflict = mockedType.addedInterfaces(added).firstNotNullOfOrNull { (literal, supertypes) ->
+        supertypes.last().conflict(supertypes.dropLast(1))?.let { literal to it }
+    }
+    if (conflict != null) {
+        val (literal, problem) = conflict
+        reporter.reportOn(literal.source, LokkiDiagnostics.LOKKI_TYPE_NOT_MOCKABLE, mocked.displayName, problem)
+        return false
+    }
+    if (kind == IntrinsicKind.SPY) return true
+    mocked.restriction(context.session)?.let { restriction ->
+        reporter.reportOn(source, LokkiDiagnostics.LOKKI_RESTRICTED_TYPE, mocked.displayName, restriction)
+    }
+    val finalMembers = mocked.finalMembers()
+    if (finalMembers.isNotEmpty()) {
+        reporter.reportOn(
+            source,
+            LokkiDiagnostics.LOKKI_FINAL_MEMBERS_NOT_MOCKED,
+            mocked.displayName,
+            finalMembers.joinToString { "'$it'" },
+        )
+    }
+    return true
 }
 
 context(context: CheckerContext)
@@ -416,9 +485,29 @@ private fun moreInterfaces(
         ?: return emptyList()
     val argument = call.resolvedArgumentMapping?.entries?.find { it.value.symbol == parameter }?.key
         ?: return emptyList()
+    val dsl = function.name.asString()
+    return interfaces(argument.interfaceArguments(), "An interface in 'moreInterfaces'", dsl, "'moreInterfaces'")
+}
+
+context(context: CheckerContext, reporter: DiagnosticReporter)
+private fun additionalInterface(property: FirProperty): List<Pair<FirExpression, ConeClassLikeType>>? {
+    val annotation = property.annotations
+        .find { it.toAnnotationClassLikeSymbol(context.session)?.intrinsicKind(context.session) == ADDITIONAL_INTERFACE }
+        ?: return emptyList()
+    val type = annotation.findArgumentByName(TYPE) ?: return emptyList()
+    return interfaces(listOf(type), "The interface", "@AdditionalInterface", "'@AdditionalInterface'")
+}
+
+context(context: CheckerContext, reporter: DiagnosticReporter)
+private fun interfaces(
+    elements: List<FirExpression>,
+    subject: String,
+    dsl: String,
+    owner: String,
+): List<Pair<FirExpression, ConeClassLikeType>>? {
     val interfaces = ArrayList<Pair<FirExpression, ConeClassLikeType>>()
     var valid = true
-    for (element in argument.interfaceArguments()) {
+    for (element in elements) {
         val target = (element as? FirGetClassCall)?.getTargetType()?.fullyExpandedType()
         val notConcrete = when (target) {
             null -> "it is not a class literal such as 'Closeable::class'"
@@ -426,19 +515,13 @@ private fun moreInterfaces(
             else -> null
         }
         if (notConcrete != null) {
-            reporter.reportOn(
-                element.source,
-                LokkiDiagnostics.LOKKI_TYPE_ARGUMENT_NOT_CONCRETE,
-                "An interface in 'moreInterfaces'",
-                function.name.asString(),
-                notConcrete,
-            )
+            reporter.reportOn(element.source, LokkiDiagnostics.LOKKI_TYPE_ARGUMENT_NOT_CONCRETE, subject, dsl, notConcrete)
             valid = false
             continue
         }
         val symbol = target?.toRegularClassSymbol(context.session) ?: continue
         val reason = if (symbol.classKind != ClassKind.INTERFACE) {
-            "it is not an interface, and 'moreInterfaces' takes only interfaces"
+            "it is not an interface, and $owner takes only interfaces"
         } else {
             symbol.notMockableReason() ?: (target as? ConeClassLikeType)?.irreplaceableStarProjection(symbol)
         }
@@ -581,6 +664,10 @@ private val PROTECTED = setOf(
     JavaVisibilities.ProtectedStaticVisibility,
 )
 private val MORE_INTERFACES = Name.identifier("moreInterfaces")
+private val TYPE = Name.identifier("type")
+private val ADDITIONAL_INTERFACE = IntrinsicKind.ADDITIONAL_INTERFACE
+private const val SPY_VAL_HINT =
+    ". A 'val' can be a spy only with a constructor call of an open class as the initializer, such as 'val car = Car()'"
 private val SPIED_INSTANCE = Name.identifier("obj")
 private val ARRAY_OF = CallableId(StandardClassIds.BASE_KOTLIN_PACKAGE, Name.identifier("arrayOf"))
 private val DO_NOT_MOCK = Name.identifier("DoNotMock")

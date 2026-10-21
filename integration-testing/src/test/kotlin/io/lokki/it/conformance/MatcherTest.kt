@@ -1,20 +1,30 @@
 package io.lokki.it.conformance
 
 import io.lokki.LokkiException
+import io.lokki.Mock
+import io.lokki.MockAnnotations
 import io.lokki.Runs
 import io.lokki.every
 import io.lokki.just
 import io.lokki.mock
 import io.lokki.slot
 import io.lokki.verify
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class MatcherTest {
-    val mock = mock<MockCls>()
+    @Mock
+    lateinit var mock: MockCls
 
-    private val shopService = mock<ShopService>()
+    @Mock
+    private lateinit var shopService: ShopService
+
+    @BeforeTest
+    fun init() {
+        MockAnnotations.init(this)
+    }
 
     @Test
     fun eqRefEq() {

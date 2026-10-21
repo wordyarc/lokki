@@ -1,0 +1,34 @@
+package io.lokki
+
+import io.lokki.internal.LokkiIntrinsic
+import io.lokki.internal.MockFieldsOwner
+import io.lokki.internal.RELAXED
+import io.lokki.internal.RELAX_UNIT_FUN
+import kotlin.reflect.KClass
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK)
+@Target(AnnotationTarget.PROPERTY, AnnotationTarget.VALUE_PARAMETER)
+public annotation class Mock(
+    public val name: String = "",
+    public val relaxed: Boolean = false,
+    public val relaxUnitFun: Boolean = false,
+)
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.RELAXED_MOCK)
+@Target(AnnotationTarget.PROPERTY, AnnotationTarget.VALUE_PARAMETER)
+public annotation class RelaxedMock(public val name: String = "")
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.SPY)
+@Target(AnnotationTarget.PROPERTY, AnnotationTarget.VALUE_PARAMETER)
+public annotation class Spy(public val name: String = "")
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.ADDITIONAL_INTERFACE)
+@Target(AnnotationTarget.PROPERTY, AnnotationTarget.VALUE_PARAMETER)
+public annotation class AdditionalInterface(public val type: KClass<*>)
+
+public object MockAnnotations {
+    public fun init(vararg obj: Any, relaxUnitFun: Boolean = false, relaxed: Boolean = false) {
+        val flags = (if (relaxed) RELAXED else 0) or (if (relaxUnitFun) RELAX_UNIT_FUN else 0)
+        for (target in obj) (target as? MockFieldsOwner)?.`lokki$initMockFields`(flags)
+    }
+}

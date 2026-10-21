@@ -78,9 +78,8 @@ class TestProject(
         return sources
     }
 
-    fun mockedMethods(sourceSet: String, className: String, project: String = "."): Set<String> {
-        val classes = listOf(sourceSet, "main").map { dir.resolve("$project/build/classes/kotlin/$it").toURI().toURL() }
-        return URLClassLoader(classes.toTypedArray()).use { loader ->
+    fun mockedMethods(sourceSet: String, className: String, project: String = "."): Set<String> =
+        withClasses(sourceSet, project) { loader ->
             val generated = listOf(loader.loadClass("io.lokki.internal.GeneratedMock"), Any::class.java)
                 .flatMap { it.declaredMethods.asList() }
                 .map { it.name }
@@ -88,5 +87,19 @@ class TestProject(
                 .filterNot { it.name in generated || it.isSynthetic }
                 .mapTo(HashSet()) { method -> "${method.name}(${method.parameterTypes.joinToString { it.name }})" }
         }
+
+    fun syntheticMethods(sourceSet: String, className: String, project: String = "."): Set<String> =
+        withClasses(sourceSet, project) { loader ->
+            loader.loadClass(className).declaredMethods
+                .filter { it.isSynthetic }
+                .mapTo(HashSet()) { method -> "${method.name}(${method.parameterTypes.joinToString { it.name }})" }
+        }
+
+    fun interfaces(sourceSet: String, className: String, project: String = "."): Set<String> =
+        withClasses(sourceSet, project) { loader -> loader.loadClass(className).interfaces.mapTo(HashSet()) { it.name } }
+
+    private fun <T> withClasses(sourceSet: String, project: String, block: (ClassLoader) -> T): T {
+        val classes = listOf(sourceSet, "main").map { dir.resolve("$project/build/classes/kotlin/$it").toURI().toURL() }
+        return URLClassLoader(classes.toTypedArray()).use(block)
     }
 }

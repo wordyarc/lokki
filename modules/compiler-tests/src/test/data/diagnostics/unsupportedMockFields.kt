@@ -1,0 +1,34 @@
+// RUN_PIPELINE_TILL: FIR2IR
+// RENDER_IR_DIAGNOSTICS_FULL_TEXT
+
+@file:Suppress("LOKKI_MOCK_PROPERTY_NOT_MUTABLE", "LOKKI_UNSUPPORTED_MOCK_PARAMETER", "LOKKI_TYPE_NOT_MOCKABLE")
+
+package sample
+
+import io.lokki.Mock
+import io.lokki.Spy
+
+interface Car
+
+class Bolt
+
+open class Engine(val power: Int)
+
+<!LOKKI_UNSUPPORTED!>@Mock
+lateinit var topLevel: Car<!>
+
+class Fixture(<!LOKKI_UNSUPPORTED!>@Mock car: Car<!>) {
+    <!LOKKI_UNSUPPORTED!>@Mock
+    val readonly: Car? = null<!>
+
+    <!LOKKI_UNSUPPORTED!>@Mock
+    var computed: Car
+        get() = TODO()
+        set(value) {}<!>
+
+    <!LOKKI_UNSUPPORTED!>@Mock
+    lateinit var bolt: Bolt<!>
+
+    <!LOKKI_UNSUPPORTED!>@Spy
+    lateinit var engine: Engine<!>
+}

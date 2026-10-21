@@ -15,6 +15,8 @@ internal enum class IntrinsicKind {
     EXCLUDE_BLOCK,
     AWAITS,
     SPY,
+    RELAXED_MOCK,
+    ADDITIONAL_INTERFACE,
     UNKNOWN;
 
     companion object {

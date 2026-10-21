@@ -3,6 +3,7 @@ package io.lokki.junit5
 import io.lokki.InternalLokkiApi
 import io.lokki.LokkiException
 import io.lokki.LokkiScope
+import io.lokki.MockAnnotations
 import io.lokki.checkUnnecessaryStub
 import io.lokki.confirmVerified
 import org.junit.jupiter.api.extension.AfterAllCallback
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtensionContext
 import org.junit.jupiter.api.extension.InvocationInterceptor
 import org.junit.jupiter.api.extension.InvocationInterceptor.Invocation
 import org.junit.jupiter.api.extension.ReflectiveInvocationContext
+import org.junit.jupiter.api.extension.TestInstancePostProcessor
 import org.junit.jupiter.api.extension.TestInstantiationAwareExtension.ExtensionContextScope
 import org.junit.platform.commons.support.AnnotationSupport.isAnnotated
 import java.lang.reflect.Constructor
@@ -26,12 +28,17 @@ public open class LokkiExtension :
     BeforeEachCallback,
     AfterEachCallback,
     AfterAllCallback,
+    TestInstancePostProcessor,
     InvocationInterceptor {
     final override fun getTestInstantiationExtensionContextScope(rootContext: ExtensionContext): ExtensionContextScope =
         ExtensionContextScope.TEST_METHOD
 
     final override fun beforeAll(context: ExtensionContext) {
         scope(context)
+    }
+
+    final override fun postProcessTestInstance(testInstance: Any, context: ExtensionContext) {
+        LokkiScope.withCurrent(scope(context)) { MockAnnotations.init(testInstance) }
     }
 
     final override fun beforeEach(context: ExtensionContext) {

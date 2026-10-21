@@ -4,9 +4,27 @@
 package sample
 
 import io.lokki.ChainedMocks
+import io.lokki.Mock
+import io.lokki.RelaxedMock
+import io.lokki.Spy
 import io.lokki.mock
 
 fun relaxedCar(): Car = mock(relaxed = true)
+
+interface Garage {
+    fun car(): Car
+}
+
+class Fields {
+    @RelaxedMock
+    lateinit var relaxed: Garage
+
+    @Mock
+    lateinit var strict: Garage
+
+    @Spy
+    lateinit var spied: Wheel
+}
 
 fun maybeRelaxedCar(relaxed: Boolean): Car = mock(relaxed = relaxed)
 
@@ -18,6 +36,7 @@ fun relaxedUnitCar(): Car = mock(relaxUnitFun = true)
 package sample
 
 import io.lokki.LokkiException
+import io.lokki.MockAnnotations
 import io.lokki.clearMocks
 import io.lokki.every
 import io.lokki.mock
@@ -95,6 +114,15 @@ fun box(): String {
     if (!strict.startsWith("no answer found for")) return "Fail strict flag in variable: $strict"
     if (!message { strictCar().door(1) }.startsWith("no answer found for")) return "Fail strict mock"
     if (!message { relaxedUnitCar().door(1) }.startsWith("no answer found for")) return "Fail relaxUnitFun"
+
+    val fields = Fields()
+    MockAnnotations.init(fields)
+    if (fields.relaxed.car().door(1).handle().turn() != 0) return "Fail relaxed field"
+    if (!message { fields.strict.car() }.startsWith("no answer found for")) return "Fail strict field"
+    if (fields.spied.spin() != 1) return "Fail spy field"
+    val relaxedByInit = Fields()
+    MockAnnotations.init(relaxedByInit, relaxed = true)
+    if (relaxedByInit.strict.car().door(1).handle().turn() != 0) return "Fail field relaxed by init"
 
     clearMocks(car, answers = false, recordedCalls = false, childMocks = false)
     if (car.door(2) !== car.door(2)) return "Fail kept children"

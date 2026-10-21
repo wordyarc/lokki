@@ -9,6 +9,10 @@ public abstract interface class io/lokki/AdditionalAnswerScope {
 	public abstract fun coAndThen (Lkotlin/jvm/functions/Function3;)Lio/lokki/AdditionalAnswerScope;
 }
 
+public abstract interface annotation class io/lokki/AdditionalInterface : java/lang/annotation/Annotation {
+	public abstract fun type ()Ljava/lang/Class;
+}
+
 public abstract interface class io/lokki/Answer {
 	public abstract fun answer (Lio/lokki/Call;)Ljava/lang/Object;
 	public fun coAnswer (Lio/lokki/Call;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -167,6 +171,18 @@ public final class io/lokki/MethodDescription {
 	public fun toString ()Ljava/lang/String;
 }
 
+public abstract interface annotation class io/lokki/Mock : java/lang/annotation/Annotation {
+	public abstract fun name ()Ljava/lang/String;
+	public abstract fun relaxUnitFun ()Z
+	public abstract fun relaxed ()Z
+}
+
+public final class io/lokki/MockAnnotations {
+	public static final field INSTANCE Lio/lokki/MockAnnotations;
+	public final fun init ([Ljava/lang/Object;ZZ)V
+	public static synthetic fun init$default (Lio/lokki/MockAnnotations;[Ljava/lang/Object;ZZILjava/lang/Object;)V
+}
+
 public final class io/lokki/MockKt {
 	public static final fun clearAllMocks (ZZZZZZZZ)V
 	public static synthetic fun clearAllMocks$default (ZZZZZZZZILjava/lang/Object;)V
@@ -185,8 +201,16 @@ public final class io/lokki/Ordering : java/lang/Enum {
 	public static fun values ()[Lio/lokki/Ordering;
 }
 
+public abstract interface annotation class io/lokki/RelaxedMock : java/lang/annotation/Annotation {
+	public abstract fun name ()Ljava/lang/String;
+}
+
 public final class io/lokki/Runs {
 	public static final field INSTANCE Lio/lokki/Runs;
+}
+
+public abstract interface annotation class io/lokki/Spy : java/lang/annotation/Annotation {
+	public abstract fun name ()Ljava/lang/String;
 }
 
 public abstract interface class io/lokki/StubScope {
@@ -305,11 +329,13 @@ public abstract interface annotation class io/lokki/internal/LokkiIntrinsic : ja
 }
 
 public final class io/lokki/internal/LokkiIntrinsic$Kind : java/lang/Enum {
+	public static final field ADDITIONAL_INTERFACE Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field ANSWER Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field AWAITS Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field EXCLUDE_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field MATCHER Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field MOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field RELAXED_MOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field SPY Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field STUB_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field VERIFY_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
@@ -392,6 +418,10 @@ public final class io/lokki/internal/MethodDescriptions {
 public final class io/lokki/internal/MockDescriptor {
 	public fun <init> (Ljava/lang/String;[Ljava/lang/String;)V
 	public fun <init> (Ljava/lang/String;[Ljava/lang/String;[Ljava/lang/String;)V
+}
+
+public abstract interface class io/lokki/internal/MockFieldsOwner {
+	public abstract synthetic fun lokki$initMockFields (I)V
 }
 
 public final class io/lokki/internal/MockSpec {

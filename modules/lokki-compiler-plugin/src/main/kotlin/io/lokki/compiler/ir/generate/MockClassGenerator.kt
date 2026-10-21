@@ -145,8 +145,8 @@ internal class MockClassGenerator(
         val mocked = usage.mockedTypes.type.mockedClass
         val form = usage.mockedTypes.form
         val mock = context.irFactory.buildClass {
-            startOffset = usage.firstCall.startOffset
-            endOffset = usage.firstCall.endOffset
+            startOffset = usage.firstUse.startOffset
+            endOffset = usage.firstUse.endOffset
             name = key.mockClassName(mocked, form)
             origin = this@MockClassGenerator.origin
             visibility = if (mocked.isLocal) DescriptorVisibilities.LOCAL else usage.visibility
@@ -173,7 +173,7 @@ internal class MockClassGenerator(
         if (usage.mockedTypes.interfaces.isNotEmpty()) {
             val conflict = mock.inheritanceConflict(mocked)
             if (conflict != null) {
-                context.diagnosticReporter.at(usage.firstCall, key.file)
+                context.diagnosticReporter.at(usage.firstUse, key.file)
                     .report(LokkiDiagnostics.LOKKI_UNSUPPORTED, conflict)
             }
         }
@@ -505,7 +505,7 @@ internal class MockClassGenerator(
             val child = classes.generated[key] ?: generate(
                 key,
                 classes.usages[key]?.also { it.relaxedChildren = true }
-                    ?: MockClassUsage(usage.firstCall, types, DescriptorVisibilities.PRIVATE, relaxedChildren = true),
+                    ?: MockClassUsage(usage.firstUse, types, DescriptorVisibilities.PRIVATE, relaxedChildren = true),
                 classes,
                 path + types.type,
             )
@@ -662,7 +662,7 @@ internal class MockClassGenerator(
     }
 }
 
-private fun IrClass.dispatchReceiverFor(function: IrFunction): IrValueParameter =
+internal fun IrClass.dispatchReceiverFor(function: IrFunction): IrValueParameter =
     thisReceiver!!.let { it.copyTo(function, type = it.type) }
 
 private fun IrSimpleFunction.delegatedTo(mocked: IrClass): IrSimpleFunctionSymbol? =

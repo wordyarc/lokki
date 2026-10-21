@@ -7,13 +7,17 @@ import io.lokki.compiler.ir.collect.MockClassKey
 import io.lokki.compiler.ir.collect.MockForm
 import io.lokki.compiler.ir.collect.argument
 import io.lokki.compiler.ir.collect.mockClassKey
-import io.lokki.compiler.ir.collect.mockedClass
 import io.lokki.compiler.ir.collect.mockedTypes
 import io.lokki.compiler.ir.collect.notMockableReason
 import io.lokki.compiler.ir.collect.referencedTypeParameters
 import io.lokki.compiler.ir.collect.spiedInstance
 import io.lokki.compiler.ir.collect.temporary
+import io.lokki.compiler.ir.generate.DELEGATE_FLAG
 import io.lokki.compiler.ir.generate.MockInstances
+import io.lokki.compiler.ir.generate.RELAXED_FLAG
+import io.lokki.compiler.ir.generate.RELAX_UNIT_FUN_FLAG
+import io.lokki.compiler.ir.generate.SPY_FLAG
+import io.lokki.compiler.ir.generate.replaceConstructorCall
 import io.lokki.compiler.ir.intrinsicKind
 import org.jetbrains.kotlin.backend.common.IrElementTransformerVoidWithContext
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
@@ -29,17 +33,12 @@ import org.jetbrains.kotlin.ir.builders.irInt
 import org.jetbrains.kotlin.ir.builders.irNull
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrFile
-import org.jetbrains.kotlin.ir.expressions.IrBlock
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrConst
-import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrFunctionReference
-import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.typeWith
-import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.ir.util.primaryConstructor
-import org.jetbrains.kotlin.ir.util.render
 
 internal class DslLowering(
     private val context: IrPluginContext,
@@ -67,7 +66,8 @@ internal class DslLowering(
             IntrinsicKind.UNKNOWN -> expression.also {
                 unsupported(it, "'${it.symbol.owner.name}' requires a newer version of the lokki compiler plugin")
             }
-            IntrinsicKind.MATCHER, IntrinsicKind.ANSWER, null -> expression
+            IntrinsicKind.MATCHER, IntrinsicKind.ANSWER, IntrinsicKind.RELAXED_MOCK,
+            IntrinsicKind.ADDITIONAL_INTERFACE, null -> expression
         }
     }
 
@@ -95,8 +95,8 @@ internal class DslLowering(
         return DeclarationIrBuilder(context, scope, call.startOffset, call.endOffset).run {
             val flags = when {
                 call.intrinsicKind == IntrinsicKind.MOCK -> irFlags(call)
-                types.form == MockForm.Delegation -> irInt(SPY or DELEGATE)
-                else -> irInt(SPY)
+                types.form == MockForm.Delegation -> irInt(SPY_FLAG or DELEGATE_FLAG)
+                else -> irInt(SPY_FLAG)
             }
             val spec = irCallConstructor(symbols.mockSpec.primaryConstructor!!.symbol, emptyList()).apply {
                 arguments[0] = call.argument("name") ?: irNull()
@@ -107,13 +107,7 @@ internal class DslLowering(
             val instance = with(instances) {
                 when (types.form) {
                     MockForm.Mock -> irNewMock(mock, types, spec)
-                    MockForm.Delegation -> {
-                        val arguments = listOf(call.spiedInstance!!, spec)
-                        when {
-                            type.mockedClass.isInterface -> irConstruct(mock, typeArguments, arguments)
-                            else -> irAllocate(mockType, arguments)
-                        }
-                    }
+                    MockForm.Delegation -> irDelegatingSpy(mock, types, call.spiedInstance!!, spec)
                     is MockForm.Construction -> {
                         val instance = call.spiedInstance
                         val temporary = instance?.temporary
@@ -148,26 +142,10 @@ internal class DslLowering(
         return flags.reduce { left, right -> irCallOp(symbols.intOr.symbol, context.irBuiltIns.intType, left, right) }
     }
 
-    private fun IrExpression.replaceConstructorCall(
-        type: IrType,
-        replacement: (IrConstructorCall) -> IrExpression,
-    ): IrExpression =
-        when (this) {
-            is IrConstructorCall -> replacement(this)
-            is IrBlock -> apply {
-                statements[statements.lastIndex] =
-                    (statements.last() as IrExpression).replaceConstructorCall(type, replacement)
-                this.type = type
-            }
-            else -> error("not a constructor call: ${render()}")
-        }
-
     private fun unsupported(element: IrElement, reason: String) {
         context.diagnosticReporter.at(element, file).report(LokkiDiagnostics.LOKKI_UNSUPPORTED, reason)
     }
 }
 
 private val REFERABLE = setOf(IntrinsicKind.MATCHER, IntrinsicKind.ANSWER, null)
-private val MOCK_FLAGS = listOf("relaxed" to 1, "relaxUnitFun" to 2)
-private const val SPY = 4
-private const val DELEGATE = 8
+private val MOCK_FLAGS = listOf("relaxed" to RELAXED_FLAG, "relaxUnitFun" to RELAX_UNIT_FUN_FLAG)

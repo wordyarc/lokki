@@ -1,14 +1,20 @@
 package io.lokki.it.conformance
 
 import io.lokki.Called
+import io.lokki.clearAllMocks
 import io.lokki.every
+import io.lokki.junit5.LokkiExtension
 import io.lokki.mock
 import io.lokki.verify
 import io.lokki.verifyCount
+import io.lokki.verifyOrder
+import io.lokki.verifySequence
+import org.junit.jupiter.api.extension.ExtendWith
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
+@ExtendWith(LokkiExtension::class)
 class VerifyAtLeastAtMostExactlyTest {
     val mock = mock<MockCls>()
 
@@ -130,6 +136,54 @@ class VerifyAtLeastAtMostExactlyTest {
     }
 
     @Test
+    fun order() {
+        doCalls()
+
+        verifyOrder {
+            mock.op(1)
+            mock.op(1)
+            mock.op(1)
+            mock.op(1)
+        }
+    }
+
+    @Test
+    fun orderWithAny() {
+        val tracker = mock<Tracker>(relaxUnitFun = true)
+        val player = Player(tracker)
+
+        player.goCrazy()
+
+        verifyOrder {
+            tracker.track(any(), "play", "param", any())
+            tracker.track(any(), "pause", "param", any())
+            tracker.track(any(), "play", "param", any())
+            tracker.track(any(), "pause", "param", any())
+            tracker.track(any(), "play", "param", any())
+        }
+    }
+
+    @Test
+    fun verifyOrderThrowAssertionErrorIfNoCallHasBeenMade() {
+        val mock: MockCls = mock(relaxed = true, relaxUnitFun = true)
+
+        assertFailsWith<AssertionError> { verifyOrder { mock.op(any()) } }
+    }
+
+    @Test
+    fun sequence() {
+        doCalls()
+
+        verifySequence {
+            mock.op(0)
+            mock.op(1)
+            mock.op(1)
+            mock.op(1)
+            mock.op(1)
+        }
+    }
+
+    @Test
     fun count() {
         doCalls()
 
@@ -153,6 +207,23 @@ class VerifyAtLeastAtMostExactlyTest {
         mock.op(0)
 
         verify(atLeast = 0) { mock.op(2) }
+    }
+
+    @Test
+    fun atLeastNeverAtMostOnce() {
+        listOf(
+            { every { mock.op(any()) } returns 0 },
+            { every { mock.op(any()) } returns 1 },
+        ).forEach { condition ->
+            clearAllMocks()
+            every { mock.op2(any(), any()) } returns 5
+            condition()
+
+            doCalls3()
+
+            verify(atLeast = 0, atMost = 1) { mock.op(1) }
+            verify(exactly = 1) { mock.op2(3, 4) }
+        }
     }
 
     private fun doCalls() {
@@ -185,6 +256,14 @@ class VerifyAtLeastAtMostExactlyTest {
         assertEquals(3, mock.op2(2, 1))
     }
 
+    private fun doCalls3() {
+        if (doCalls4()) {
+            mock.op2(3, 4)
+        }
+    }
+
+    private fun doCalls4(): Boolean = mock.op(0) == 0 || mock.op(1) == 1
+
     interface MockCls {
         fun op(a: Int): Int
 
@@ -192,5 +271,26 @@ class VerifyAtLeastAtMostExactlyTest {
             a: Int,
             b: Int,
         ): Int
+    }
+
+    interface Tracker {
+        fun track(
+            song: String,
+            action: String,
+            param: String,
+            moreParam: Map<String, String>,
+        )
+    }
+
+    class Player(
+        private val tracker: Tracker,
+    ) {
+        fun goCrazy() {
+            tracker.track("song 2", "play", "param", mapOf(Pair("key", "value")))
+            tracker.track("song 2", "pause", "param", mapOf(Pair("key", "value")))
+            tracker.track("song 2", "play", "param", mapOf(Pair("key", "value")))
+            tracker.track("song 2", "pause", "param", mapOf(Pair("key", "value")))
+            tracker.track("song 2", "play", "param", mapOf(Pair("key", "value")))
+        }
     }
 }
