@@ -1,5 +1,6 @@
 package io.lokki.compiler.fir
 
+import io.lokki.compiler.fir.checkers.InjectMocksChecker
 import io.lokki.compiler.fir.checkers.IntrinsicReferenceChecker
 import io.lokki.compiler.fir.checkers.MockChecker
 import io.lokki.compiler.fir.checkers.MockParameterChecker
@@ -10,6 +11,7 @@ import io.lokki.compiler.fir.checkers.VerificationChecker
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.analysis.checkers.declaration.DeclarationCheckers
 import org.jetbrains.kotlin.fir.analysis.checkers.declaration.FirPropertyChecker
+import org.jetbrains.kotlin.fir.analysis.checkers.declaration.FirRegularClassChecker
 import org.jetbrains.kotlin.fir.analysis.checkers.declaration.FirValueParameterChecker
 import org.jetbrains.kotlin.fir.analysis.checkers.expression.ExpressionCheckers
 import org.jetbrains.kotlin.fir.analysis.checkers.expression.FirCallableReferenceAccessChecker
@@ -20,6 +22,7 @@ class LokkiFirCheckersExtension(session: FirSession) : FirAdditionalCheckersExte
     override val declarationCheckers: DeclarationCheckers = object : DeclarationCheckers() {
         override val propertyCheckers: Set<FirPropertyChecker> = setOf(MockPropertyChecker)
         override val valueParameterCheckers: Set<FirValueParameterChecker> = setOf(MockParameterChecker)
+        override val regularClassCheckers: Set<FirRegularClassChecker> = setOf(InjectMocksChecker)
     }
 
     override val expressionCheckers: ExpressionCheckers = object : ExpressionCheckers() {

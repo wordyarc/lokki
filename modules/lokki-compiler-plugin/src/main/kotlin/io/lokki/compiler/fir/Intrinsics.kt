@@ -24,4 +24,5 @@ private val KIND = Name.identifier("kind")
 internal fun FirAnnotation.fieldKind(session: FirSession): IntrinsicKind? =
     toAnnotationClassLikeSymbol(session)?.intrinsicKind(session)?.takeIf { it in FIELD_KINDS }
 
-private val FIELD_KINDS = setOf(IntrinsicKind.MOCK, IntrinsicKind.RELAXED_MOCK, IntrinsicKind.SPY)
+private val FIELD_KINDS =
+    setOf(IntrinsicKind.MOCK, IntrinsicKind.RELAXED_MOCK, IntrinsicKind.SPY, IntrinsicKind.INJECT_MOCKS)

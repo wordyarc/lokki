@@ -26,6 +26,16 @@ public annotation class Spy(public val name: String = "")
 @Target(AnnotationTarget.PROPERTY, AnnotationTarget.VALUE_PARAMETER)
 public annotation class AdditionalInterface(public val type: KClass<*>)
 
+@LokkiIntrinsic(LokkiIntrinsic.Kind.INJECT_MOCKS)
+@Target(AnnotationTarget.PROPERTY, AnnotationTarget.VALUE_PARAMETER)
+public annotation class InjectMocks(public val lookupType: InjectionLookupType = InjectionLookupType.BOTH)
+
+public enum class InjectionLookupType {
+    BY_NAME,
+    BY_TYPE,
+    BOTH,
+}
+
 public object MockAnnotations {
     public fun init(vararg obj: Any, relaxUnitFun: Boolean = false, relaxed: Boolean = false) {
         val flags = (if (relaxed) RELAXED else 0) or (if (relaxUnitFun) RELAX_UNIT_FUN else 0)

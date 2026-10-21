@@ -3,8 +3,10 @@ package io.lokki.compiler.fir.checkers
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.fir.displayName
+import io.lokki.compiler.fir.filePackage
 import io.lokki.compiler.fir.intrinsicKind
 import io.lokki.compiler.fir.isFinalType
+import io.lokki.compiler.fir.isVisibleToMock
 import org.jetbrains.kotlin.KtRealSourceElementKind
 import org.jetbrains.kotlin.KtSourceElement
 import org.jetbrains.kotlin.fir.analysis.checkers.declaration.FirPropertyChecker
@@ -31,7 +33,6 @@ import org.jetbrains.kotlin.fir.canSeeInternalsOf
 import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
 import org.jetbrains.kotlin.fir.declarations.getStringArgument
 import org.jetbrains.kotlin.fir.declarations.getTargetType
-import org.jetbrains.kotlin.fir.declarations.hasAnnotation
 import org.jetbrains.kotlin.fir.declarations.toAnnotationClassId
 import org.jetbrains.kotlin.fir.declarations.utils.isAbstract
 import org.jetbrains.kotlin.fir.declarations.utils.isFinal
@@ -63,7 +64,6 @@ import org.jetbrains.kotlin.fir.scopes.isOverriddenFunction
 import org.jetbrains.kotlin.fir.scopes.isOverriddenProperty
 import org.jetbrains.kotlin.fir.scopes.processAllCallables
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirConstructorSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
@@ -87,7 +87,6 @@ import org.jetbrains.kotlin.fir.types.typeContext
 import org.jetbrains.kotlin.fir.unwrapFakeOverrides
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
-import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.types.AbstractTypeChecker
@@ -116,7 +115,9 @@ internal object MockPropertyChecker : FirPropertyChecker(MppCheckerKind.Common) 
     context(context: CheckerContext, reporter: DiagnosticReporter)
     override fun check(declaration: FirProperty) {
         val session = context.session
-        val annotation = declaration.annotations.find { it.fieldKind(session) != null } ?: return
+        val annotations = declaration.annotations.filter { it.fieldKind(session) != null }
+        val inject = annotations.find { it.fieldKind(session) == IntrinsicKind.INJECT_MOCKS }
+        val annotation = annotations.find { it !== inject } ?: inject ?: return
         val kind = annotation.fieldKind(session)!!
         val name = annotation.toAnnotationClassLikeSymbol(session)!!.name.asString()
         val parameter = declaration.correspondingValueParameterFromPrimaryConstructor
@@ -127,9 +128,24 @@ internal object MockPropertyChecker : FirPropertyChecker(MppCheckerKind.Common) 
             return
         }
         if (declaration.isLocal) return
+        val declaredType = declaration.returnTypeRef.coneType.lowerBoundIfFlexible().fullyExpandedType()
+        if (inject != null && kind != IntrinsicKind.INJECT_MOCKS && kind != IntrinsicKind.SPY) {
+            reporter.reportOn(
+                inject.source,
+                LokkiDiagnostics.LOKKI_UNSUPPORTED_INJECTION,
+                declaredType.toRegularClassSymbol(session)?.displayName ?: declaredType.renderReadable(),
+                "a property cannot have both '@InjectMocks' and '@$name'",
+            )
+            return
+        }
+        if (kind == IntrinsicKind.INJECT_MOCKS) {
+            if (!declaration.isVar) {
+                reporter.reportOn(annotation.source, LokkiDiagnostics.LOKKI_MOCK_PROPERTY_NOT_MUTABLE, name, "")
+            }
+            return
+        }
         val instance = if (kind == IntrinsicKind.SPY) declaration.initializer else null
-        val type = instance?.constructedType()
-            ?: declaration.returnTypeRef.coneType.lowerBoundIfFlexible().fullyExpandedType()
+        val type = instance?.constructedType() ?: declaredType
         val mocked = MockedType(
             if (kind == IntrinsicKind.SPY) kind else IntrinsicKind.MOCK,
             type,
@@ -137,10 +153,12 @@ internal object MockPropertyChecker : FirPropertyChecker(MppCheckerKind.Common) 
             instance,
             "The mocked type",
             "@$name",
+            isInjected = inject != null,
         )
         if (!mocked.check { additionalInterface(declaration) }) return
-        if (!declaration.isVar && (kind != IntrinsicKind.SPY || instance?.constructedType() == null)) {
-            val hint = if (kind == IntrinsicKind.SPY) SPY_VAL_HINT else ""
+        val constructed = inject == null && kind == IntrinsicKind.SPY && instance?.constructedType() != null
+        if (!declaration.isVar && !constructed) {
+            val hint = if (kind == IntrinsicKind.SPY && inject == null) SPY_VAL_HINT else ""
             reporter.reportOn(annotation.source, LokkiDiagnostics.LOKKI_MOCK_PROPERTY_NOT_MUTABLE, name, hint)
         }
     }
@@ -163,6 +181,7 @@ private class MockedType(
     val instance: FirExpression?,
     val subject: String,
     val dsl: String,
+    val isInjected: Boolean = false,
 )
 
 context(context: CheckerContext, reporter: DiagnosticReporter)
@@ -181,7 +200,7 @@ private fun MockedType.check(interfaces: () -> List<Pair<FirExpression, ConeClas
     val mocked = type.takeUnless { it.isNothing }?.toRegularClassSymbol(context.session) ?: return false
     val reason = mocked.notMockableReason()
         ?: (type as? ConeClassLikeType)?.irreplaceableStarProjection(mocked)
-        ?: mocked.unconstructibleReason().takeIf { kind == IntrinsicKind.SPY && instance == null }
+        ?: mocked.unconstructibleReason().takeIf { kind == IntrinsicKind.SPY && instance == null && !isInjected }
     if (reason != null) {
         reporter.reportOn(source, LokkiDiagnostics.LOKKI_TYPE_NOT_MOCKABLE, mocked.displayName, reason)
         return false
@@ -435,31 +454,6 @@ private fun FirRegularClassSymbol.finalMembers(): List<String> {
     }
     return members.toList()
 }
-
-context(context: CheckerContext)
-private fun FirCallableSymbol<*>.isVisibleToMock(): Boolean {
-    val declaration = unwrapFakeOverrides()
-    return when (val visibility = visibility) {
-        Visibilities.Private, Visibilities.PrivateToThis, Visibilities.Local -> false
-        Visibilities.Internal ->
-            context.session.moduleData.canSeeInternalsOf(declaration.moduleData) ||
-                declaration.hasAnnotation(StandardClassIds.Annotations.PublishedApi, context.session)
-        else -> {
-            val filePackage = context.filePackage ?: return true
-            val declarationPackage = declaration.callableId?.packageName ?: return true
-            visibility.visibleFromPackage(filePackage, declarationPackage)
-        }
-    }
-}
-
-private val CheckerContext.filePackage: FqName?
-    get() = containingDeclarations.firstNotNullOfOrNull { declaration ->
-        when (declaration) {
-            is FirClassLikeSymbol<*> -> declaration.classId.packageFqName
-            is FirCallableSymbol<*> -> declaration.callableId?.packageName
-            else -> null
-        }
-    }
 
 private fun FirRegularClassSymbol.restriction(session: FirSession): String? {
     val supertypes = lookupSuperTypes(this, lookupInterfaces = true, deep = true, session)

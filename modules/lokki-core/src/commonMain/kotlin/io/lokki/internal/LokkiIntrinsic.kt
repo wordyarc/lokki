@@ -18,5 +18,6 @@ public annotation class LokkiIntrinsic(val kind: Kind) {
         SPY,
         RELAXED_MOCK,
         ADDITIONAL_INTERFACE,
+        INJECT_MOCKS,
     }
 }

@@ -67,7 +67,7 @@ internal class DslLowering(
                 unsupported(it, "'${it.symbol.owner.name}' requires a newer version of the lokki compiler plugin")
             }
             IntrinsicKind.MATCHER, IntrinsicKind.ANSWER, IntrinsicKind.RELAXED_MOCK,
-            IntrinsicKind.ADDITIONAL_INTERFACE, null -> expression
+            IntrinsicKind.ADDITIONAL_INTERFACE, IntrinsicKind.INJECT_MOCKS, null -> expression
         }
     }
 

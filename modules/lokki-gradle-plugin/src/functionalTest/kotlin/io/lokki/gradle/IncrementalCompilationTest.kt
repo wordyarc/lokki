@@ -526,6 +526,78 @@ class IncrementalCompilationTest {
 
     @ParameterizedTest
     @EnumSource(GradleUnderTest::class)
+    fun testNewConstructorParameterOfInjectedClassInMain(gradle: GradleUnderTest) {
+        val project = injectionProject(gradle)
+
+        project.write(
+            "src/main/kotlin/sample/Garage.kt",
+            garage("private val car: Car, private val door: Door", "car.drive() + door.state()"),
+        )
+        val result = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
+        assertEquals(setOf("GarageTest.kt"), project.compiledSources(":compileTestKotlin"))
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testNewPropertyOfInjectedClassInMain(gradle: GradleUnderTest) {
+        val project = injectionProject(gradle)
+
+        project.write(
+            "src/main/kotlin/sample/Garage.kt",
+            garage("private val car: Car", "car.drive() + door.state()", "lateinit var door: Door"),
+        )
+        val result = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
+        assertEquals(setOf("GarageTest.kt"), project.compiledSources(":compileTestKotlin"))
+    }
+
+    private fun injectionProject(gradle: GradleUnderTest): TestProject {
+        val project = jvmProject(gradle)
+        project.write("src/main/kotlin/sample/Car.kt", declaration("interface Car", "fun drive(): String"))
+        project.write("src/main/kotlin/sample/Door.kt", declaration("interface Door", "fun state(): String"))
+        project.write("src/main/kotlin/sample/Garage.kt", garage("private val car: Car", "car.drive()"))
+        project.write(
+            "src/test/kotlin/sample/GarageTest.kt",
+            """
+            package sample
+
+            import io.lokki.InjectMocks
+            import io.lokki.Mock
+            import io.lokki.MockAnnotations
+            import io.lokki.RelaxedMock
+            import io.lokki.every
+            import kotlin.test.Test
+            import kotlin.test.assertEquals
+
+            class GarageTest {
+                @Mock
+                lateinit var car: Car
+
+                @RelaxedMock
+                lateinit var door: Door
+
+                @InjectMocks
+                lateinit var garage: Garage
+
+                @Test
+                fun injectsTheMocks() {
+                    MockAnnotations.init(this)
+                    every { car.drive() } returns "driven"
+                    assertEquals("driven", garage.open())
+                }
+            }
+            """,
+        )
+        project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
+        project.build("test")
+        return project
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
     fun testNewOpenMemberOfSpiedClassInMain(gradle: GradleUnderTest) {
         val project = jvmProject(gradle)
         project.write(
@@ -815,6 +887,17 @@ class IncrementalCompilationTest {
         }
 
         fun expectedDescription(): String = Engine().describe()
+        """
+
+    private fun garage(parameters: String, opening: String, property: String = ""): String =
+        """
+        package sample
+
+        class Garage($parameters) {
+            $property
+
+            fun open(): String = $opening
+        }
         """
 
     private fun relaxedPlate(value: String): String =

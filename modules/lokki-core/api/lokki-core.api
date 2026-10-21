@@ -83,6 +83,19 @@ public final class io/lokki/CapturingSlotKt {
 public abstract interface annotation class io/lokki/ChainedMocks : java/lang/annotation/Annotation {
 }
 
+public abstract interface annotation class io/lokki/InjectMocks : java/lang/annotation/Annotation {
+	public abstract fun lookupType ()Lio/lokki/InjectionLookupType;
+}
+
+public final class io/lokki/InjectionLookupType : java/lang/Enum {
+	public static final field BOTH Lio/lokki/InjectionLookupType;
+	public static final field BY_NAME Lio/lokki/InjectionLookupType;
+	public static final field BY_TYPE Lio/lokki/InjectionLookupType;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/lokki/InjectionLookupType;
+	public static fun values ()[Lio/lokki/InjectionLookupType;
+}
+
 public abstract interface annotation class io/lokki/InternalLokkiApi : java/lang/annotation/Annotation {
 }
 
@@ -333,6 +346,7 @@ public final class io/lokki/internal/LokkiIntrinsic$Kind : java/lang/Enum {
 	public static final field ANSWER Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field AWAITS Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field EXCLUDE_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field INJECT_MOCKS Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field MATCHER Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field MOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field RELAXED_MOCK Lio/lokki/internal/LokkiIntrinsic$Kind;

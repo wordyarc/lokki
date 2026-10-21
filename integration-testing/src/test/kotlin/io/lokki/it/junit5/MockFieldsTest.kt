@@ -1,5 +1,6 @@
 package io.lokki.it.junit5
 
+import io.lokki.InjectMocks
 import io.lokki.Mock
 import io.lokki.MockAnnotations
 import io.lokki.RelaxedMock
@@ -39,6 +40,9 @@ class MockFieldsTest {
     @Spy
     var workshop = Workshop("lokki", capacity = 1)
 
+    @InjectMocks
+    lateinit var garage: Garage
+
     @Test
     @Order(1)
     fun mocksOfFieldsBelongToTest() {
@@ -72,6 +76,14 @@ class MockFieldsTest {
         val car = car
         MockAnnotations.init(this, relaxed = true)
         assertSame(car, this.car)
+    }
+
+    @Test
+    @Order(5)
+    fun injectedObjectGetsMocksOfTest() {
+        every { car.drive(1) } returns "injected"
+        assertEquals("injected", garage.leave())
+        assertEquals("Garage($car)", garage.toString())
     }
 
     @Nested

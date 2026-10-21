@@ -42,6 +42,9 @@ internal object LokkiDiagnostics : KtDiagnosticsContainer() {
     val LOKKI_SPY_ARGUMENT_NOT_CONSTRUCTOR_CALL by warning2<KtElement, String, String>()
     val LOKKI_MOCK_PROPERTY_NOT_MUTABLE by error2<KtElement, String, String>()
     val LOKKI_UNSUPPORTED_MOCK_PARAMETER by error1<KtElement, String>()
+    val LOKKI_UNRESOLVED_INJECTION by error2<KtElement, String, String>()
+    val LOKKI_AMBIGUOUS_INJECTION by error2<KtElement, String, String>()
+    val LOKKI_UNSUPPORTED_INJECTION by error2<KtElement, String, String>()
 
     override fun getRendererFactory(): BaseDiagnosticRendererFactory = LokkiDiagnosticRenderers
 }
@@ -209,6 +212,24 @@ private object LokkiDiagnosticRenderers : BaseDiagnosticRendererFactory() {
             LokkiDiagnostics.LOKKI_UNSUPPORTED_MOCK_PARAMETER,
             "''@{0}'' on a parameter is not supported yet: lokki initializes only properties declared in the class " +
                 "body. Declare a ''lateinit var'' property instead.",
+            CommonRenderers.STRING,
+        )
+        map.put(
+            LokkiDiagnostics.LOKKI_UNRESOLVED_INJECTION,
+            "''@InjectMocks'' cannot create ''{0}'': {1}.",
+            CommonRenderers.STRING,
+            CommonRenderers.STRING,
+        )
+        map.put(
+            LokkiDiagnostics.LOKKI_AMBIGUOUS_INJECTION,
+            "''@InjectMocks'' cannot choose how to create ''{0}'': {1}.",
+            CommonRenderers.STRING,
+            CommonRenderers.STRING,
+        )
+        map.put(
+            LokkiDiagnostics.LOKKI_UNSUPPORTED_INJECTION,
+            "''@InjectMocks'' cannot inject ''{0}'': {1}.",
+            CommonRenderers.STRING,
             CommonRenderers.STRING,
         )
     }

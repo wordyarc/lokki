@@ -84,7 +84,7 @@ class VerificationStateTest {
     }
 
     private fun noScope(function: String): String =
-        "no active LokkiScope for $function(): use LokkiExtension, LokkiRule or lokkiScope { }"
+        "no active LokkiScope for $function(): use LokkiExtension or lokkiScope { }"
 
     private fun find(mock: TestMock, id: Int) {
         mock.`lokki$state`.answer(FIND_MEMBER, arrayOf(id))

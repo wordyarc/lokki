@@ -128,7 +128,7 @@ class LokkiExtensionFailureTest {
         val failure = runSample(WithoutExtension::class).testFailures.getValue("operationWithoutMocks()")
 
         assertEquals(
-            "no active LokkiScope for confirmVerified(): use LokkiExtension, LokkiRule or lokkiScope { }",
+            "no active LokkiScope for confirmVerified(): use LokkiExtension or lokkiScope { }",
             failure.message,
         )
         assertEquals(

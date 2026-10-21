@@ -13,9 +13,15 @@ import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrGetValue
 import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.makeNotNull
 import org.jetbrains.kotlin.ir.util.constructedClass
 
-internal class MockField(val property: IrProperty, val annotation: IrConstructorCall, val kind: IntrinsicKind) {
+internal class MockField(
+    val property: IrProperty,
+    val annotation: IrConstructorCall,
+    val kind: IntrinsicKind,
+    val inject: IrConstructorCall?,
+) {
     val annotationName: String
         get() = annotation.symbol.owner.constructedClass.name.asString()
 
@@ -32,26 +38,49 @@ internal class MockField(val property: IrProperty, val annotation: IrConstructor
             ?.takeIf { it.origin == IrStatementOrigin.INITIALIZE_PROPERTY_FROM_PARAMETER }
             ?.symbol?.owner as? IrValueParameter
 
+    val isMock: Boolean
+        get() = inject == null || kind == IntrinsicKind.SPY
+
     fun isConstructedSpy(file: IrFile): Boolean =
         kind == IntrinsicKind.SPY && property.backingField?.initializer != null &&
             mockedTypes(file)?.form is MockForm.Construction
 
-    fun unsupportedReason(file: IrFile): String? =
+    fun declarationReason(file: IrFile): String? =
         when {
             constructorParameter != null -> "'@$annotationName' on a constructor parameter is not supported yet"
             property.parent !is IrClass -> "'@$annotationName' initializes only properties of classes"
             property.backingField == null -> "'@$annotationName' needs a property with a backing field"
+            inject == null -> null
+            kind != IntrinsicKind.INJECT_MOCKS && kind != IntrinsicKind.SPY ->
+                "A property cannot have both '@InjectMocks' and '@$annotationName'"
+            !property.isVar -> "'@InjectMocks' needs a 'lateinit var' or 'var' property"
+            kind == IntrinsicKind.SPY -> property.valueType.makeNotNull().notMockableReason(file)
+            else -> null
+        }
+
+    fun unsupportedReason(file: IrFile): String? =
+        declarationReason(file) ?: when {
+            inject != null -> (property.parent as IrClass).injections(file).problemOf(this)
+                ?: notMockableReason(file).takeIf { kind == IntrinsicKind.SPY }
             else -> notMockableReason(file)
                 ?: "'@$annotationName' needs a 'lateinit var' or 'var' property"
                     .takeIf { !property.isVar && !isConstructedSpy(file) }
         }
 
-    fun isInitialized(file: IrFile): Boolean = unsupportedReason(file) == null && !isConstructedSpy(file)
+    fun isInitialized(file: IrFile): Boolean =
+        unsupportedReason(file) == null && (inject != null || !isConstructedSpy(file))
 }
 
 internal val IrProperty.mockField: MockField?
-    get() = annotations.firstNotNullOfOrNull { annotation ->
-        annotation.annotationKind?.takeIf { it in FIELD_KINDS }?.let { MockField(this, annotation, it) }
+    get() {
+        val kinds = annotations.mapNotNull { annotation ->
+            annotation.annotationKind?.takeIf { it in FIELD_KINDS }?.let { annotation to it }
+        }
+        val inject = kinds.find { (_, kind) -> kind == IntrinsicKind.INJECT_MOCKS }?.first
+        val (annotation, kind) = kinds.find { (_, kind) -> kind != IntrinsicKind.INJECT_MOCKS }
+            ?: kinds.firstOrNull()
+            ?: return null
+        return MockField(this, annotation, kind, inject)
     }
 
 internal val IrAnnotationContainer.mockAnnotationName: String?
@@ -66,4 +95,5 @@ internal val IrClass.mockFields: List<MockField>
 private val IrConstructorCall.annotationKind: IntrinsicKind?
     get() = symbol.owner.constructedClass.intrinsicKind
 
-private val FIELD_KINDS = setOf(IntrinsicKind.MOCK, IntrinsicKind.RELAXED_MOCK, IntrinsicKind.SPY)
+private val FIELD_KINDS =
+    setOf(IntrinsicKind.MOCK, IntrinsicKind.RELAXED_MOCK, IntrinsicKind.SPY, IntrinsicKind.INJECT_MOCKS)

@@ -112,9 +112,9 @@ internal fun IrCall.mockedTypes(file: IrFile): MockedTypes? =
 
 internal fun IrCall.notMockableReason(file: IrFile): String? = request.notMockableReason(file)
 
-internal fun MockField.mockedTypes(file: IrFile): MockedTypes? = request.mockedTypes(file)
+internal fun MockField.mockedTypes(file: IrFile): MockedTypes? = if (isMock) request(file).mockedTypes(file) else null
 
-internal fun MockField.notMockableReason(file: IrFile): String? = request.notMockableReason(file)
+internal fun MockField.notMockableReason(file: IrFile): String? = request(file).notMockableReason(file)
 
 internal fun IrType.childMockedTypes(file: IrFile): MockedTypes? {
     val type = makeNotNull().removeAnnotations()
@@ -132,18 +132,22 @@ private class MockRequest(
     val type: IrType,
     val instance: IrExpression?,
     val interfaces: List<IrType>?,
+    val construction: MockForm.Construction? = null,
 )
 
 private val IrCall.request: MockRequest
     get() = MockRequest(intrinsicKind == IntrinsicKind.SPY, mockedType, spiedInstance, moreInterfaces())
 
-private val MockField.request: MockRequest
-    get() = MockRequest(
+private fun MockField.request(file: IrFile): MockRequest {
+    val instance = property.backingField?.initializer?.expression
+    return MockRequest(
         kind == IntrinsicKind.SPY,
         property.valueType.makeNotNull(),
-        property.backingField?.initializer?.expression,
+        instance,
         listOfNotNull(additionalInterface),
+        (property.parent as? IrClass)?.takeIf { inject != null && instance == null }?.injections(file)?.constructionOf(this),
     )
+}
 
 private fun MockRequest.mockedTypes(file: IrFile): MockedTypes? {
     if (notMockableReason(file) != null) return null
@@ -189,6 +193,7 @@ private class Mocked(val type: IrType, val form: MockForm?)
 private fun MockRequest.mocked(file: IrFile): Mocked {
     if (!isSpy) return Mocked(type, MockForm.Mock)
     if (instance == null) {
+        construction?.let { return Mocked(type, it) }
         val spied = type.classOrNull?.owner
         if (spied == null || spied.isInterface) return Mocked(type, MockForm.Mock)
         val constructor = spied.constructorWithoutArguments(file)

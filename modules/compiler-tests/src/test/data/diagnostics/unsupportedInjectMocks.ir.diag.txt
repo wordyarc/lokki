@@ -1,0 +1,15 @@
+/unsupportedInjectMocks.kt:33:15: error: '@InjectMocks' on a parameter is not supported yet.
+
+/unsupportedInjectMocks.kt:43:5: error: '@InjectMocks' cannot choose how to create 'sample.Listened': parameter 'listener' of 'Listened(listener: sample.Listener)' matches several properties by type: 'first', 'second', 'interfaceTarget'. Name one of them 'listener' or create the object yourself.
+
+/unsupportedInjectMocks.kt:46:5: error: '@InjectMocks' cannot inject 'sample.Guarded': its property 'repo' would get 'repo', but it cannot be set from this class. Make the property and its setter visible or create the object yourself.
+
+/unsupportedInjectMocks.kt:49:5: error: '@InjectMocks' cannot create 'sample.Listener': it is an interface.
+
+/unsupportedInjectMocks.kt:52:5: error: '@InjectMocks' cannot create 'sample.First': the constructors of the '@InjectMocks' properties 'cycleFirst', 'cycleSecond' need each other's objects.
+
+/unsupportedInjectMocks.kt:55:5: error: '@InjectMocks' cannot create 'sample.Second': the constructors of the '@InjectMocks' properties 'cycleFirst', 'cycleSecond' need each other's objects.
+
+/unsupportedInjectMocks.kt:58:5: error: A property cannot have both '@InjectMocks' and '@Mock'.
+
+/unsupportedInjectMocks.kt:62:5: error: '@InjectMocks' needs a 'lateinit var' or 'var' property.

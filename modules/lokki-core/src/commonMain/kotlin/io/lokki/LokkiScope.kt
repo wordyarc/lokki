@@ -135,7 +135,7 @@ public class LokkiScope private constructor(private val parent: LokkiScope?, pri
 
         internal fun requireCurrent(function: String): LokkiScope =
             current.get() ?: throw LokkiException(
-                "no active LokkiScope for $function(): use LokkiExtension, LokkiRule or lokkiScope { }"
+                "no active LokkiScope for $function(): use LokkiExtension or lokkiScope { }"
             )
     }
 }

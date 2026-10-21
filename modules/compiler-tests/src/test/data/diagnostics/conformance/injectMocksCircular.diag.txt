@@ -1,0 +1,3 @@
+/injectMocksCircular.kt:13:5: error: '@InjectMocks' cannot create 'sample.NodeX': the constructors of the '@InjectMocks' properties 'x', 'y' need each other's objects.
+
+/injectMocksCircular.kt:16:5: error: '@InjectMocks' cannot create 'sample.NodeY': the constructors of the '@InjectMocks' properties 'x', 'y' need each other's objects.

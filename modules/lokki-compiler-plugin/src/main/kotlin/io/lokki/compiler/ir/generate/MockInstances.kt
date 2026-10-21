@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.ir.builders.irCallConstructor
 import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.builders.irGetObjectValue
 import org.jetbrains.kotlin.ir.builders.irReturn
+import org.jetbrains.kotlin.ir.builders.irString
 import org.jetbrains.kotlin.ir.builders.irTemporary
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
@@ -39,6 +40,12 @@ import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.name.SpecialNames
 
 internal class MockInstances(private val context: IrPluginContext, private val symbols: LokkiSymbols) {
+    fun IrBuilderWithScope.irSpec(name: String, flags: IrExpression): IrExpression =
+        irCallConstructor(symbols.mockSpec.primaryConstructor!!.symbol, emptyList()).apply {
+            arguments[0] = irString(name)
+            arguments[1] = flags
+        }
+
     fun IrBuilderWithScope.irConstruct(
         mock: IrClass,
         typeArguments: List<IrType>,

@@ -96,6 +96,13 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
     val intOr by lazy { context.irBuiltIns.intClass.owner.function("or") }
 
     val emptyList by lazy { findFunction(COLLECTIONS_PACKAGE, "emptyList") }
+    val listOf by lazy {
+        finder.findFunctions(CallableId(COLLECTIONS_PACKAGE, Name.identifier("listOf"))).map { it.owner }
+            .single { it.parameters.singleOrNull()?.varargElementType != null }
+    }
+    val uninitializedPropertyAccessException by lazy {
+        findClass(KOTLIN_PACKAGE, "UninitializedPropertyAccessException")
+    }
     val emptySet by lazy { findFunction(COLLECTIONS_PACKAGE, "emptySet") }
     val emptyMap by lazy { findFunction(COLLECTIONS_PACKAGE, "emptyMap") }
     val emptySequence by lazy { findFunction(SEQUENCES_PACKAGE, "emptySequence") }
