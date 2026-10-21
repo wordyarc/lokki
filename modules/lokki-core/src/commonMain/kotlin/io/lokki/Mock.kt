@@ -45,6 +45,6 @@ public fun clearMocks(
     exclusionRules: Boolean = true,
 ) {
     for (state in states("clearMocks", arrayOf(firstMock, *mocks))) {
-        state.clear(answers, recordedCalls, verificationMarks, exclusionRules)
+        state.clear(answers, recordedCalls, childMocks, verificationMarks, exclusionRules)
     }
 }

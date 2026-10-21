@@ -44,6 +44,22 @@ internal interface GeneratedMock {
             }
         }
 
+        inline fun <T> link(
+            receiver: Any?,
+            key: String,
+            stubs: Boolean,
+            noinline factory: ((MockSpec) -> Any)?,
+            problem: String?,
+            block: () -> T,
+        ): T {
+            val link = Registration.enterLink(receiver, key, stubs, factory, problem)
+            try {
+                return block()
+            } finally {
+                Registration.exitLink(link)
+            }
+        }
+
         fun <T> evaluate(dsl: String, block: suspend () -> T): T {
             val result = block.startCoroutineUninterceptedOrReturn(Abandoned)
             if (result === COROUTINE_SUSPENDED) {
@@ -56,7 +72,10 @@ internal interface GeneratedMock {
 }
 
 @PublishedApi
-internal class NoRelaxedDefault(internal val type: String)
+internal class NoRelaxedDefault(internal val type: String, internal val mockable: Boolean)
+
+@PublishedApi
+internal class ChildMock(internal val factory: (MockSpec) -> Any)
 
 internal fun states(function: String, mocks: Array<out Any>): List<MockState> {
     if (mocks.isEmpty()) {

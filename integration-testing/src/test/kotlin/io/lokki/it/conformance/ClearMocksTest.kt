@@ -1,19 +1,28 @@
+@file:ChainedMocks
+
 package io.lokki.it.conformance
 
+import io.lokki.ChainedMocks
 import io.lokki.clearMocks
 import io.lokki.confirmVerified
 import io.lokki.every
+import io.lokki.mock
 import io.lokki.spy
 import io.lokki.verify
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotSame
+import kotlin.test.assertSame
 
 class ClearMocksTest {
     open class MockCls {
         open fun op(a: Int) = a + 1
+
+        open fun child(): MockCls = error("need a stub")
     }
 
     val spyObj = spy(MockCls())
+    val mockObj = mock<MockCls>(relaxed = true)
 
     @Test
     fun clearAnswers() {
@@ -26,6 +35,21 @@ class ClearMocksTest {
         confirmVerified(spyObj, clear = true)
         assertEquals(2, spyObj.op(1))
         verify(exactly = 1) { spyObj.op(1) }
+    }
+
+    @Test
+    fun `clearAnswers does not affect a child`() {
+        val child = mockObj.child()
+        every { child.op(1) } returns 3
+        assertEquals(3, child.op(1))
+        verify(exactly = 1) { child.op(1) }
+
+        clearMocks(mockObj, answers = true, recordedCalls = false, childMocks = false, verificationMarks = false)
+
+        confirmVerified(child, clear = true)
+        assertEquals(3, child.op(1))
+        verify(exactly = 1) { child.op(1) }
+        assertSame(child, mockObj.child())
     }
 
     @Test
@@ -42,6 +66,46 @@ class ClearMocksTest {
     }
 
     @Test
+    fun `clearRecordedCalls does not affect a child`() {
+        val child = mockObj.child()
+        every { child.op(1) } returns 3
+        assertEquals(3, child.op(1))
+        verify(exactly = 1) { child.op(1) }
+
+        clearMocks(mockObj, answers = false, recordedCalls = true, childMocks = false, verificationMarks = false)
+
+        confirmVerified(child, clear = true)
+        assertEquals(3, child.op(1))
+        verify(exactly = 1) { child.op(1) }
+        assertSame(child, mockObj.child())
+    }
+
+    @Test
+    fun clearChildMocks() {
+        val child = mockObj.child()
+
+        every { mockObj.op(1) } returns 3
+        every { child.op(1) } returns 3
+
+        assertEquals(3, mockObj.op(1))
+        assertEquals(3, child.op(1))
+
+        verify(exactly = 1) { mockObj.op(1) }
+        verify(exactly = 1) { mockObj.child() }
+        verify(exactly = 1) { child.op(1) }
+        confirmVerified(mockObj, child)
+
+        clearMocks(mockObj, answers = false, recordedCalls = false, childMocks = true, verificationMarks = false)
+
+        confirmVerified(mockObj, child)
+
+        assertEquals(3, mockObj.op(1))
+        assertEquals(3, child.op(1))
+
+        assertNotSame(child, mockObj.child())
+    }
+
+    @Test
     fun clearVerificationMarks() {
         every { spyObj.op(1) } returns 3
         assertEquals(3, spyObj.op(1))
@@ -52,5 +116,20 @@ class ClearMocksTest {
         verify(exactly = 1) { spyObj.op(1) }
         confirmVerified(spyObj)
         assertEquals(3, spyObj.op(1))
+    }
+
+    @Test
+    fun `clearVerificationMarks does not affect a child`() {
+        val child = mockObj.child()
+        every { child.op(1) } returns 3
+        assertEquals(3, child.op(1))
+        verify(exactly = 1) { child.op(1) }
+
+        clearMocks(mockObj, answers = false, recordedCalls = false, childMocks = false, verificationMarks = true)
+
+        confirmVerified(child, clear = true)
+        assertEquals(3, child.op(1))
+        verify(exactly = 1) { child.op(1) }
+        assertSame(child, mockObj.child())
     }
 }

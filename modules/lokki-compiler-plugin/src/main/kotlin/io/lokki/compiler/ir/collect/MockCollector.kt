@@ -1,11 +1,18 @@
 package io.lokki.compiler.ir.collect
 
+import io.lokki.compiler.CHAINED_MOCKS
+import io.lokki.compiler.IntrinsicKind
+import io.lokki.compiler.ir.blockCalls
+import io.lokki.compiler.ir.intrinsicKind
+import io.lokki.compiler.ir.links
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.DescriptorVisibility
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.expressions.IrCall
+import org.jetbrains.kotlin.ir.expressions.IrConst
+import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.visitors.IrVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 
@@ -13,6 +20,7 @@ internal class MockClassUsage(
     val firstCall: IrCall,
     val mockedTypes: MockedTypes,
     var visibility: DescriptorVisibility,
+    var relaxedChildren: Boolean = false,
 )
 
 internal fun IrFile.collectMockClasses(): Map<MockClassKey, MockClassUsage> =
@@ -20,6 +28,8 @@ internal fun IrFile.collectMockClasses(): Map<MockClassKey, MockClassUsage> =
 
 private class MockCollector(private val file: IrFile) : IrVisitorVoid() {
     val mockClasses = LinkedHashMap<MockClassKey, MockClassUsage>()
+
+    private val chainedMocks = file.hasAnnotation(CHAINED_MOCKS)
 
     private var enclosingInlineFunctions = 0
 
@@ -35,11 +45,26 @@ private class MockCollector(private val file: IrFile) : IrVisitorVoid() {
 
     override fun visitCall(expression: IrCall) {
         expression.mockedTypes(file)?.let { types ->
-            val usage = mockClasses.getOrPut(types.mockClassKey(file)) {
-                MockClassUsage(expression, types, DescriptorVisibilities.PRIVATE)
+            val usage = add(expression, types)
+            if (chainedMocks && expression.mayBeRelaxed) usage.relaxedChildren = true
+        }
+        if (chainedMocks) {
+            for (link in expression.blockCalls().flatMap { it.receiver.links() }) {
+                link.call.type.childMockedTypes(file)?.let { add(link.call, it) }
             }
-            if (enclosingInlineFunctions > 0) usage.visibility = DescriptorVisibilities.PUBLIC
         }
         super.visitCall(expression)
     }
+
+    private fun add(call: IrCall, types: MockedTypes): MockClassUsage {
+        val usage = mockClasses.getOrPut(types.mockClassKey(file)) {
+            MockClassUsage(call, types, DescriptorVisibilities.PRIVATE)
+        }
+        if (enclosingInlineFunctions > 0) usage.visibility = DescriptorVisibilities.PUBLIC
+        return usage
+    }
 }
+
+private val IrCall.mayBeRelaxed: Boolean
+    get() = intrinsicKind == IntrinsicKind.MOCK &&
+        argument("relaxed")?.let { (it as? IrConst)?.value != false } == true

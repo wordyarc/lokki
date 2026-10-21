@@ -2,7 +2,11 @@ package io.lokki.compiler.ir.generate
 
 import io.lokki.compiler.ir.LokkiSymbols
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
+import org.jetbrains.kotlin.descriptors.ClassKind
+import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
+import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
+import org.jetbrains.kotlin.ir.builders.irBoolean
 import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irCallConstructor
 import org.jetbrains.kotlin.ir.builders.irGetObjectValue
@@ -42,7 +46,12 @@ internal class RelaxedDefault(val key: String, val expression: IrBuilderWithScop
 internal class RelaxedDefaults(private val context: IrPluginContext, private val symbols: LokkiSymbols) {
     private val builtIns = context.irBuiltIns
 
-    fun of(type: IrType, parameterName: (IrTypeParameter) -> String): RelaxedDefault? {
+    fun of(
+        type: IrType,
+        parameterName: (IrTypeParameter) -> String,
+        child: ((IrSimpleType) -> RelaxedDefault?)?,
+        suggestsChainedMocks: Boolean,
+    ): RelaxedDefault? {
         val platform = type.hasAnnotation(StandardClassIds.Annotations.FlexibleNullability)
         if (type.isMarkedNullable() && !platform) return null
         val klass = when (val classifier = type.classifierOrNull) {
@@ -61,7 +70,9 @@ internal class RelaxedDefaults(private val context: IrPluginContext, private val
                 irCallConstructor(klass.owner.constructors.single { it.parameters.size == 1 }.symbol, emptyList())
                     .apply { arguments[0] = irInt(0) }
             }
-            else -> empty(klass.owner) ?: missing(type.description(parameterName))
+            else -> empty(klass.owner)
+                ?: child?.invoke(type as IrSimpleType)
+                ?: missing(type.description(parameterName), suggestsChainedMocks && klass.owner.isOpen)
         }
     }
 
@@ -111,12 +122,21 @@ internal class RelaxedDefaults(private val context: IrPluginContext, private val
         }
     }
 
-    private fun missing(description: String): RelaxedDefault =
-        RelaxedDefault("missing $description") {
-            irCallConstructor(symbols.noRelaxedDefault.constructors.single().symbol, emptyList())
-                .apply { arguments[0] = irString(description) }
+    private fun missing(description: String, mockable: Boolean = false): RelaxedDefault =
+        RelaxedDefault("missing $description $mockable") {
+            irCallConstructor(symbols.noRelaxedDefault.constructors.single().symbol, emptyList()).apply {
+                arguments[0] = irString(description)
+                arguments[1] = irBoolean(mockable)
+            }
         }
 }
+
+private val IrClass.isOpen: Boolean
+    get() = modality != Modality.FINAL && modality != Modality.SEALED && when (kind) {
+        ClassKind.INTERFACE -> true
+        ClassKind.CLASS -> constructors.any { !DescriptorVisibilities.isPrivate(it.visibility) }
+        else -> false
+    }
 
 private fun IrType.mentionsTypeParameters(): Boolean =
     classifierOrNull is IrTypeParameterSymbol ||

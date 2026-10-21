@@ -1,5 +1,6 @@
 package io.lokki.compiler.ir.generate
 
+import io.lokki.compiler.CHAINED_MOCKS
 import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.LokkiPluginKey
 import io.lokki.compiler.ir.FriendAwareFakeOverrides
@@ -7,6 +8,8 @@ import io.lokki.compiler.ir.LokkiSymbols
 import io.lokki.compiler.ir.collect.MockClassKey
 import io.lokki.compiler.ir.collect.MockClassUsage
 import io.lokki.compiler.ir.collect.MockForm
+import io.lokki.compiler.ir.collect.childMockedTypes
+import io.lokki.compiler.ir.collect.mockClassKey
 import io.lokki.compiler.ir.collect.mockedClass
 import io.lokki.compiler.ir.collect.mockedClassTypeParameters
 import io.lokki.compiler.ir.collect.referencedTypeParameters
@@ -79,6 +82,7 @@ import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.IrTypeSystemContextImpl
+import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.types.isMarkedNullable
 import org.jetbrains.kotlin.ir.types.isPrimitiveType
@@ -86,6 +90,7 @@ import org.jetbrains.kotlin.ir.types.isUnit
 import org.jetbrains.kotlin.ir.types.makeNullable
 import org.jetbrains.kotlin.ir.types.starProjectedType
 import org.jetbrains.kotlin.ir.types.typeOrFail
+import org.jetbrains.kotlin.ir.types.typeOrNull
 import org.jetbrains.kotlin.ir.util.addChild
 import org.jetbrains.kotlin.ir.util.addSimpleDelegatingConstructor
 import org.jetbrains.kotlin.ir.util.constructors
@@ -95,11 +100,13 @@ import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.defaultValueForType
 import org.jetbrains.kotlin.ir.util.erasedUpperBound
 import org.jetbrains.kotlin.ir.util.functions
+import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.ir.util.isLocal
 import org.jetbrains.kotlin.ir.util.isMethodOfAny
 import org.jetbrains.kotlin.ir.util.nonDispatchParameters
 import org.jetbrains.kotlin.ir.util.parentAsClass
+import org.jetbrains.kotlin.ir.util.patchDeclarationParents
 import org.jetbrains.kotlin.ir.util.primaryConstructor
 import org.jetbrains.kotlin.ir.util.substitute
 import org.jetbrains.kotlin.ir.visitors.IrVisitorVoid
@@ -119,8 +126,22 @@ internal class MockClassGenerator(
     private val anyConstructor = context.irBuiltIns.anyClass.owner.constructors.single()
     private val relaxedDefaults = RelaxedDefaults(context, symbols)
     private val memberDescriptions = MemberDescriptions(context, symbols)
+    private val instances = MockInstances(context, symbols)
 
-    fun generate(key: MockClassKey, usage: MockClassUsage): IrClass {
+    fun generate(file: IrFile, usages: Map<MockClassKey, MockClassUsage>): Map<MockClassKey, IrClass> {
+        val classes = FileClasses(file, usages, LinkedHashMap(), !file.hasAnnotation(CHAINED_MOCKS))
+        for ((key, usage) in usages.entries.sortedByDescending { it.value.relaxedChildren }) {
+            if (key !in classes.generated) generate(key, usage, classes, listOf(usage.mockedTypes.type))
+        }
+        return classes.generated
+    }
+
+    private fun generate(
+        key: MockClassKey,
+        usage: MockClassUsage,
+        classes: FileClasses,
+        path: List<IrSimpleType>,
+    ): IrClass {
         val mocked = usage.mockedTypes.type.mockedClass
         val form = usage.mockedTypes.form
         val mock = context.irFactory.buildClass {
@@ -130,6 +151,7 @@ internal class MockClassGenerator(
             origin = this@MockClassGenerator.origin
             visibility = if (mocked.isLocal) DescriptorVisibilities.LOCAL else usage.visibility
         }
+        classes.generated[key] = mock
         val parameters = usage.mockedTypes.type.referencedTypeParameters
         val ownParameters = parameters.indices.map { mock.addTypeParameter("T$it", context.irBuiltIns.anyNType) }
         val mockedType = usage.mockedTypes.type
@@ -203,7 +225,10 @@ internal class MockClassGenerator(
         original.implementOriginal(mock, forward, state, originals, ORIGINAL_BRANCH_BYTES)
         coOriginal.implementOriginal(mock, forward, state, coOriginals, CO_ORIGINAL_BRANCH_BYTES)
         val names = ownParameters.zip(parameters).associate { (own, parameter) -> own.symbol to parameter.owner.name }
-        relaxed.implementRelaxed(mock, members) { (names[it.symbol] ?: it.name).asString() }
+        val children = if (usage.relaxedChildren) Children(usage, classes, path) else null
+        relaxed.implementRelaxed(mock, members, children, classes.suggestsChainedMocks) {
+            (names[it.symbol] ?: it.name).asString()
+        }
         describe.implementDescribe(mock, members, key.file)
         usage.mockedTypes.classes.forEach { lookupTracker?.recordMockedTypeLookups(it, key.file) }
         return mock
@@ -440,10 +465,14 @@ internal class MockClassGenerator(
     private fun IrSimpleFunction.implementRelaxed(
         mock: IrClass,
         members: List<IrSimpleFunction>,
+        children: Children?,
+        suggestsChainedMocks: Boolean,
         parameterName: (IrTypeParameter) -> String,
     ) {
+        val child = children?.let { it::default }
         val defaults = members.withIndex().drop(METHODS_OF_ANY.size).mapNotNull { (index, member) ->
-            relaxedDefaults.of(member.returnType, parameterName)?.let { IndexedValue(index, it) }
+            relaxedDefaults.of(member.returnType, parameterName, child, suggestsChainedMocks)
+                ?.let { IndexedValue(index, it) }
         }
         val partSize = PART_BYTES / RELAXED_BRANCH_BYTES
         implementDispatcher(mock, defaults, partSize, otherwise = { irNull() }) { function, entries ->
@@ -451,6 +480,39 @@ internal class MockClassGenerator(
             entries.groupBy { it.value.key }.values.map { group ->
                 val conditions = group.map { irEquals(irGet(member), irInt(it.index)) }
                 irBranch(irAnyOf(conditions), group.first().value.expression(this))
+            }
+        }
+        patchDeclarationParents(mock)
+    }
+
+    private class FileClasses(
+        val file: IrFile,
+        val usages: Map<MockClassKey, MockClassUsage>,
+        val generated: MutableMap<MockClassKey, IrClass>,
+        val suggestsChainedMocks: Boolean,
+    )
+
+    private inner class Children(
+        private val usage: MockClassUsage,
+        private val classes: FileClasses,
+        private val path: List<IrSimpleType>,
+    ) {
+        fun default(type: IrSimpleType): RelaxedDefault? {
+            if (type.referencedTypeParameters.isNotEmpty()) return null
+            if (path.any { it.classOrNull == type.classOrNull && type.depth > it.depth }) return null
+            val types = type.childMockedTypes(classes.file) ?: return null
+            val key = types.mockClassKey(classes.file)
+            val child = classes.generated[key] ?: generate(
+                key,
+                classes.usages[key]?.also { it.relaxedChildren = true }
+                    ?: MockClassUsage(usage.firstCall, types, DescriptorVisibilities.PRIVATE, relaxedChildren = true),
+                classes,
+                path + types.type,
+            )
+            return RelaxedDefault("child ${key.typeKey}") {
+                irCallConstructor(symbols.childMock.constructors.single().symbol, emptyList()).apply {
+                    arguments[0] = with(instances) { irFactory(child, types) }
+                }
             }
         }
     }
@@ -623,6 +685,9 @@ private fun MockClassKey.mockClassName(mocked: IrClass, form: MockForm): Name {
     val kind = if (form == MockForm.Mock) "LokkiMock" else "LokkiSpy"
     return Name.identifier("${mocked.name}\$$kind\$$hash\$$filePart")
 }
+
+private val IrType.depth: Int
+    get() = 1 + ((this as? IrSimpleType)?.arguments.orEmpty().maxOfOrNull { it.typeOrNull?.depth ?: 0 } ?: 0)
 
 private val IrTypeParameter.erasure: IrType
     get() = erasedUpperBound.symbol.starProjectedType.makeNullable()

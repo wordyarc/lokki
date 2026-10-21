@@ -533,7 +533,7 @@ class MockStateTest {
     @Test
     fun testRelaxedMockWithoutDefaultFails() {
         val mock = TestMock("repo", FIND, flags = RELAXED)
-        mock.relaxed = { NoRelaxedDefault("Engine") }
+        mock.relaxed = { NoRelaxedDefault("Engine", mockable = false) }
         val state = mock.`lokki$state`
         val name = state.answer(TO_STRING, emptyArray())
 
@@ -680,7 +680,13 @@ class MockStateTest {
         assertEquals("a", state.answer(FIND_MEMBER, arrayOf(4, true)))
         assertEquals(3, records().size)
 
-        state.clear(answers = false, recordedCalls = false, verificationMarks = false, exclusionRules = true)
+        state.clear(
+            answers = false,
+            recordedCalls = false,
+            childMocks = false,
+            verificationMarks = false,
+            exclusionRules = true,
+        )
         find(4, true)
         assertEquals("$name.find(4, true)", records().last())
     }
@@ -712,18 +718,36 @@ class MockStateTest {
         state.markVerified(state.records())
         find(2, false)
 
-        state.clear(answers = false, recordedCalls = false, verificationMarks = true, exclusionRules = false)
+        state.clear(
+            answers = false,
+            recordedCalls = false,
+            childMocks = false,
+            verificationMarks = true,
+            exclusionRules = false,
+        )
         assertContains(
             assertFailsWith<AssertionError> { state.confirmVerified() }.message!!,
             "Verified call count: 0\nRecorded call count: 2",
         )
 
-        state.clear(answers = false, recordedCalls = true, verificationMarks = false, exclusionRules = false)
+        state.clear(
+            answers = false,
+            recordedCalls = true,
+            childMocks = false,
+            verificationMarks = false,
+            exclusionRules = false,
+        )
         assertEquals(emptyList(), records())
         state.confirmVerified()
         assertEquals("a", state.answer(FIND_MEMBER, arrayOf(3, true)))
 
-        state.clear(answers = true, recordedCalls = false, verificationMarks = false, exclusionRules = false)
+        state.clear(
+            answers = true,
+            recordedCalls = false,
+            childMocks = false,
+            verificationMarks = false,
+            exclusionRules = false,
+        )
         assertEquals(
             "no answer found for $name.find(4, true) among the configured answers: ()" + CALLED_FIND,
             assertFailsWith<LokkiException> { state.answer(FIND_MEMBER, arrayOf(4, true)) }.message,

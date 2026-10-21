@@ -143,6 +143,12 @@ public fun confirmVerified(vararg mocks: Any, clear: Boolean = false) {
     states.forEach { it.confirmVerified() }
     if (!clear) return
     for (state in states) {
-        state.clear(answers = false, recordedCalls = true, verificationMarks = true, exclusionRules = false)
+        state.clear(
+            answers = false,
+            recordedCalls = true,
+            childMocks = false,
+            verificationMarks = true,
+            exclusionRules = false,
+        )
     }
 }

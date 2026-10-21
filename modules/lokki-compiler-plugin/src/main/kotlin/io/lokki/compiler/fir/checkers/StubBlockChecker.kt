@@ -200,10 +200,15 @@ private class StubBlock(
         arguments: List<FirExpression>,
     ) {
         val matchers = receiver.scopeCalls()
-        if (matchers.singleOrNull() === receiver) {
-            report(receiver, LokkiDiagnostics.LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION)
-        } else if (!chainedMocks) {
-            matchers.forEach { report(it, LokkiDiagnostics.LOKKI_CHAINED_CALL_DISABLED) }
+        when {
+            matchers.singleOrNull() === receiver ->
+                report(receiver, LokkiDiagnostics.LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION)
+            !chainedMocks -> matchers.forEach { report(it, LokkiDiagnostics.LOKKI_CHAINED_CALL_DISABLED) }
+            else -> {
+                val linked = receiver.links().flatMap(::checkLink)
+                matchers.filter { it !in linked }
+                    .forEach { report(it, LokkiDiagnostics.LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION) }
+            }
         }
         val reason = notInterceptableReason(callee, receiver)
         val notRecorded = when (mode) {
@@ -222,6 +227,32 @@ private class StubBlock(
         }
         val first = firstArgument(call, callee, arguments)
         (listOfNotNull(call.extensionReceiver) + call.contextArguments + arguments).forEach { checkArgument(it, first) }
+    }
+
+    private fun checkLink(link: FirQualifiedAccessExpression): List<FirElement> {
+        val arguments = listOfNotNull(link.extensionReceiver) + link.contextArguments +
+            (link as? FirCall)?.arguments.orEmpty()
+        val matchers = arguments.flatMap { it.scopeCalls() }
+        if (matchers.isEmpty()) return matchers
+        val callee = link.calleeReference.toResolvedCallableSymbol() ?: return matchers
+        val reason = notInterceptableReason(callee, link.dispatchReceiver!!)
+            ?: "it is a member of 'Any'".takeIf { callee is FirNamedFunctionSymbol && callee.isMethodOfAny }
+        if (reason != null) {
+            notInterceptable(link, callee, reason)
+            return matchers
+        }
+        with(context) { link.resolvedType.childMockProblem() }?.let { (type, problem) ->
+            reporter.reportOn(
+                link.source,
+                LokkiDiagnostics.LOKKI_TYPE_NOT_MOCKABLE,
+                type,
+                "$problem. A matcher in a link of a call chain needs a child mock of its return type",
+                context,
+            )
+        }
+        val first = firstArgument(link, callee, (link as? FirCall)?.arguments.orEmpty())
+        arguments.forEach { checkArgument(it, first) }
+        return matchers
     }
 
     private fun firstArgument(
@@ -384,6 +415,18 @@ private fun FirStatement.unwrapped(block: FirAnonymousFunction): FirStatement {
         }
     }
 }
+
+private fun FirExpression.links(): List<FirQualifiedAccessExpression> =
+    when (val expression = unwrapArgument().unwrapSmartcastExpression()) {
+        is FirCheckNotNullCall -> expression.argument.links()
+        is FirTypeOperatorCall ->
+            if (expression.operation == FirOperation.AS) expression.argument.links() else emptyList()
+        is FirQualifiedAccessExpression -> {
+            val receiver = expression.dispatchReceiver
+            if (receiver == null) emptyList() else receiver.links() + expression
+        }
+        else -> emptyList()
+    }
 
 private fun FirExpression.slotPath(): List<FirBasedSymbol<*>>? =
     when (val expression = unwrapArgument().unwrapSmartcastExpression()) {

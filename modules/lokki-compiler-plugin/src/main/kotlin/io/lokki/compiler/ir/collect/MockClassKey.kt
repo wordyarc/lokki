@@ -39,6 +39,8 @@ import org.jetbrains.kotlin.ir.types.classOrFail
 import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.types.classifierOrNull
 import org.jetbrains.kotlin.ir.types.extractTypeParameters
+import org.jetbrains.kotlin.ir.types.makeNotNull
+import org.jetbrains.kotlin.ir.types.removeAnnotations
 import org.jetbrains.kotlin.ir.types.typeOrNull
 import org.jetbrains.kotlin.ir.types.typeWith
 import org.jetbrains.kotlin.ir.util.constructedClass
@@ -141,6 +143,12 @@ internal fun IrCall.notMockableReason(file: IrFile): String? {
         type.notMockableReason(file)?.let { return it }
     }
     return null
+}
+
+internal fun IrType.childMockedTypes(file: IrFile): MockedTypes? {
+    val type = makeNotNull().removeAnnotations()
+    if (type.notMockableReason(file) != null) return null
+    return MockedTypes((type as IrSimpleType).approximated()!!, emptyList(), MockForm.Mock)
 }
 
 internal fun MockedTypes.mockClassKey(file: IrFile): MockClassKey {

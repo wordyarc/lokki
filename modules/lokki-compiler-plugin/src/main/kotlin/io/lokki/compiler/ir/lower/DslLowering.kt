@@ -1,6 +1,5 @@
 package io.lokki.compiler.ir.lower
 
-import io.lokki.compiler.CHAINED_MOCKS
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.ir.LokkiSymbols
@@ -14,23 +13,20 @@ import io.lokki.compiler.ir.collect.notMockableReason
 import io.lokki.compiler.ir.collect.referencedTypeParameters
 import io.lokki.compiler.ir.collect.spiedInstance
 import io.lokki.compiler.ir.collect.temporary
-import io.lokki.compiler.ir.generate.INIT
+import io.lokki.compiler.ir.generate.MockInstances
 import io.lokki.compiler.ir.intrinsicKind
 import org.jetbrains.kotlin.backend.common.IrElementTransformerVoidWithContext
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
-import org.jetbrains.kotlin.ir.builders.irBlock
 import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irCallConstructor
 import org.jetbrains.kotlin.ir.builders.irCallOp
-import org.jetbrains.kotlin.ir.builders.irGet
-import org.jetbrains.kotlin.ir.builders.irGetObjectValue
+import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.builders.irIfThenElse
 import org.jetbrains.kotlin.ir.builders.irInt
 import org.jetbrains.kotlin.ir.builders.irNull
-import org.jetbrains.kotlin.ir.builders.irTemporary
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.expressions.IrBlock
@@ -39,15 +35,8 @@ import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrFunctionReference
-import org.jetbrains.kotlin.ir.expressions.impl.IrClassReferenceImpl
-import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
-import org.jetbrains.kotlin.ir.types.classOrFail
-import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.types.typeWith
-import org.jetbrains.kotlin.ir.util.defaultType
-import org.jetbrains.kotlin.ir.util.functions
-import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.ir.util.primaryConstructor
 import org.jetbrains.kotlin.ir.util.render
@@ -58,7 +47,8 @@ internal class DslLowering(
     private val file: IrFile,
     private val mocks: Map<MockClassKey, IrClass>,
 ) : IrElementTransformerVoidWithContext() {
-    private val stubBlocks = StubBlockLowering(context, symbols, file.hasAnnotation(CHAINED_MOCKS), ::unsupported)
+    private val instances = MockInstances(context, symbols)
+    private val stubBlocks = StubBlockLowering(context, symbols, file, mocks, instances, ::unsupported)
     private val verifiedNoCalls = HashSet<IrCall>()
 
     override fun visitCall(expression: IrCall): IrExpression {
@@ -114,25 +104,25 @@ internal class DslLowering(
             }
             val typeArguments = type.referencedTypeParameters.map { it.defaultType }
             val mockType = mock.typeWith(typeArguments)
-            fun irConstruct(arguments: List<IrExpression>) =
-                irCallConstructor(mock.primaryConstructor!!.symbol, typeArguments).apply {
-                    this.type = mockType
-                    arguments.forEachIndexed { index, argument -> this.arguments[index] = argument }
-                }
-            val instance = when (types.form) {
-                MockForm.Mock ->
-                    if (type.mockedClass.isInterface) irConstruct(listOf(spec)) else irAllocate(mockType, listOf(spec))
-                MockForm.Delegation -> {
-                    val arguments = listOf(call.spiedInstance!!, spec)
-                    if (type.mockedClass.isInterface) irConstruct(arguments) else irAllocate(mockType, arguments)
-                }
-                is MockForm.Construction -> {
-                    val instance = call.spiedInstance
-                    val temporary = instance?.temporary
-                    val spy = (temporary?.initializer ?: instance)?.replaceConstructorCall(mockType) { constructor ->
-                        irConstruct(constructor.arguments.filterNotNull() + spec)
-                    } ?: irConstruct(listOf(spec))
-                    if (temporary == null) spy else instance.also { temporary.initializer = spy }
+            val instance = with(instances) {
+                when (types.form) {
+                    MockForm.Mock -> irNewMock(mock, types, spec)
+                    MockForm.Delegation -> {
+                        val arguments = listOf(call.spiedInstance!!, spec)
+                        when {
+                            type.mockedClass.isInterface -> irConstruct(mock, typeArguments, arguments)
+                            else -> irAllocate(mockType, arguments)
+                        }
+                    }
+                    is MockForm.Construction -> {
+                        val instance = call.spiedInstance
+                        val temporary = instance?.temporary
+                        val constructed = temporary?.initializer ?: instance
+                        val spy = constructed?.replaceConstructorCall(mockType) { constructor ->
+                            irConstruct(mock, typeArguments, constructor.arguments.filterNotNull() + spec)
+                        } ?: irConstruct(mock, typeArguments, listOf(spec))
+                        if (temporary == null) spy else instance.also { temporary.initializer = spy }
+                    }
                 }
             }
             val block = call.argument("block") ?: return instance
@@ -171,30 +161,6 @@ internal class DslLowering(
             }
             else -> error("not a constructor call: ${render()}")
         }
-
-    private fun IrBuilderWithScope.irAllocate(type: IrSimpleType, init: List<IrExpression>): IrExpression = irBlock {
-        val mock = type.classOrFail.owner
-        val instance = irTemporary(
-            irCall(symbols.allocate.symbol, type, listOf(type)).apply {
-                arguments[0] = irGetObjectValue(symbols.instanceAllocator.defaultType, symbols.instanceAllocator.symbol)
-                val javaClass = symbols.javaClass.returnType.classOrFail.typeWith(type)
-                arguments[1] = irCall(symbols.javaClass.symbol, javaClass, listOf(type)).apply {
-                    arguments[0] = IrClassReferenceImpl(
-                        startOffset,
-                        endOffset,
-                        context.irBuiltIns.kClassClass.typeWith(type),
-                        mock.symbol,
-                        type,
-                    )
-                }
-            }
-        )
-        +irCall(mock.functions.single { it.name == INIT }).apply {
-            arguments[0] = irGet(instance)
-            init.forEachIndexed { index, argument -> arguments[index + 1] = argument }
-        }
-        +irGet(instance)
-    }
 
     private fun unsupported(element: IrElement, reason: String) {
         context.diagnosticReporter.at(element, file).report(LokkiDiagnostics.LOKKI_UNSUPPORTED, reason)

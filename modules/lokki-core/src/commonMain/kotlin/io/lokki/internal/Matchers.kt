@@ -17,14 +17,14 @@ internal object AnyMatcher : Matcher<Any?> {
 }
 
 @PublishedApi
-internal class EqMatcher(private val value: Any?) : Matcher<Any?> {
+internal class EqMatcher(internal val value: Any?) : Matcher<Any?> {
     override fun match(arg: Any?): Boolean = deepEquals(arg, value)
 
     override fun toString(): String = "eq(${value.toStr()})"
 }
 
 @PublishedApi
-internal class ArrayMatcher(private val elements: Array<Matcher<Any?>>) :
+internal class ArrayMatcher(internal val elements: Array<Matcher<Any?>>) :
     Matcher<Any?>, ReportingMatcher, CapturingMatcher {
     override fun match(arg: Any?): Boolean = match(arg, null)
 
@@ -266,6 +266,34 @@ internal fun Array<Matcher<Any?>>.capture(arguments: Array<Any?>) {
     }
 }
 
+internal fun equalTo(arguments: Array<Any?>): Array<Matcher<Any?>> = Array(arguments.size) { EqMatcher(arguments[it]) }
+
+internal fun Array<Matcher<Any?>>.isEquivalentTo(other: Array<Matcher<Any?>>): Boolean =
+    size == other.size && indices.all { this[it].isEquivalentTo(other[it]) }
+
+private fun Matcher<Any?>.isEquivalentTo(other: Matcher<Any?>): Boolean {
+    val left = equivalent()
+    val right = other.equivalent()
+    return when (left) {
+        is EqMatcher -> right is EqMatcher && deepEquals(left.value, right.value)
+        is ValueMatcher -> right is ValueMatcher && left.name == right.name && deepEquals(left.value, right.value)
+        is NamedMatcher -> right is NamedMatcher && left.name == right.name
+        is CompositeMatcher ->
+            right is CompositeMatcher && left.name == right.name && left.operands.isEquivalentTo(right.operands)
+        is ArrayMatcher -> right is ArrayMatcher && left.elements.isEquivalentTo(right.elements)
+        is VarargMatcher -> right is VarargMatcher && left.name == right.name &&
+            left.prefix.isEquivalentTo(right.prefix) && left.postfix.isEquivalentTo(right.postfix)
+        else -> left === right
+    }
+}
+
+private fun Matcher<Any?>.equivalent(): Matcher<Any?> =
+    when (this) {
+        is FilteredMatcher -> matcher.equivalent()
+        is EqMatcher, is ValueMatcher, is NamedMatcher, is CompositeMatcher, is ArrayMatcher, is VarargMatcher -> this
+        else -> AnyMatcher
+    }
+
 internal val Matcher<Any?>.capturesIntoSlot: Boolean
     get() = when (this) {
         is CaptureMatcher -> slot
@@ -282,7 +310,7 @@ private object LambdaMatcher : Matcher<Any?> {
     override fun toString(): String = "slotCapture()"
 }
 
-private class NamedMatcher(private val name: String, private val matches: (Any?) -> Boolean) : Matcher<Any?> {
+private class NamedMatcher(val name: String, private val matches: (Any?) -> Boolean) : Matcher<Any?> {
     override fun match(arg: Any?): Boolean = matches(arg)
 
     override fun toString(): String = name
@@ -303,8 +331,8 @@ private class FunctionMatcher(private val predicate: (Any?) -> Boolean) : Matche
 }
 
 private class ValueMatcher(
-    private val name: String,
-    private val value: Any?,
+    val name: String,
+    val value: Any?,
     private val matches: (Any?) -> Boolean,
 ) : Matcher<Any?> {
     override fun match(arg: Any?): Boolean = matches(arg)
@@ -337,8 +365,8 @@ private class FilteredMatcher(val matcher: Matcher<Any?>, private val accepts: (
 }
 
 private class CompositeMatcher(
-    private val name: String,
-    private val operands: Array<Matcher<Any?>>,
+    val name: String,
+    val operands: Array<Matcher<Any?>>,
     private val matches: (Any?, MutableList<AssertionError>?) -> Boolean,
 ) : Matcher<Any?>, ReportingMatcher, CapturingMatcher {
     override fun match(arg: Any?): Boolean = matches(arg, null)
@@ -353,12 +381,12 @@ private class CompositeMatcher(
 }
 
 private class VarargMatcher(
-    private val name: String,
+    val name: String,
     private val all: Boolean,
     private val accepts: (Any?) -> Boolean,
     private val matcher: VarargScope.(Any?) -> Boolean,
-    private val prefix: Array<Matcher<Any?>>,
-    private val postfix: Array<Matcher<Any?>>,
+    val prefix: Array<Matcher<Any?>>,
+    val postfix: Array<Matcher<Any?>>,
 ) : Matcher<Any?>, ReportingMatcher, CapturingMatcher {
     fun between(prefix: Array<Matcher<Any?>>, postfix: Array<Matcher<Any?>>): VarargMatcher =
         VarargMatcher(name, all, accepts, matcher, prefix, postfix)

@@ -2,26 +2,33 @@
 // RENDER_IR_DIAGNOSTICS_FULL_TEXT
 
 @file:ChainedMocks
+@file:Suppress("LOKKI_TYPE_NOT_MOCKABLE", "LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION")
 
 package sample
 
 import io.lokki.ChainedMocks
 import io.lokki.every
-import io.lokki.excludeRecords
 import io.lokki.verify
 
 interface Door {
     fun open(): Boolean
 }
 
-interface Car {
-    fun door(index: Int): Door
+open class Locked private constructor() {
+    open fun open(): Boolean = false
 }
 
-fun test(car: Car) {
-    every { car.<!LOKKI_UNSUPPORTED!>door(any())<!>.open() } returns true
-    verify { car.<!LOKKI_UNSUPPORTED!>door(any())<!>.open() }
-    excludeRecords { car.<!LOKKI_UNSUPPORTED!>door(any())<!>.open() }
+interface Car {
+    fun door(index: Int): Door
+    fun locked(index: Int): Locked
+}
 
-    every { car.door(1).open() } returns true
+fun pick(index: Int): Car = TODO()
+
+fun test(car: Car) {
+    every { car.<!LOKKI_UNSUPPORTED!>locked(any())<!>.open() } returns true
+    verify { car.<!LOKKI_UNSUPPORTED!>locked(any())<!>.open() }
+    every { <!LOKKI_UNSUPPORTED!>pick(any())<!>.door(1).open() } returns true
+
+    every { car.door(any()).open() } returns true
 }

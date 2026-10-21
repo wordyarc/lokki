@@ -80,8 +80,8 @@ fun box(): String {
     if (afterChain.endsWith(HINT) || !afterChain.startsWith("no answer found for $name.speed()")) {
         return "Fail after chain: $afterChain"
     }
-    val chainedFile = message { stubInChainedFile(car) }
-    if (chainedFile.endsWith(HINT) || !chainedFile.startsWith(unanswered)) return "Fail chained file: $chainedFile"
+    stubInChainedFile(car)
+    if (!car.door(1).open() || !"${car.door(1)}".startsWith("Door(child of #")) return "Fail chained file"
 
     val door = mock<Door>()
     every { car.door(1) } returns door

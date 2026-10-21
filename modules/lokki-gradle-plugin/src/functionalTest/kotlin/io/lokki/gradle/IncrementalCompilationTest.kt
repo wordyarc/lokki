@@ -571,6 +571,105 @@ class IncrementalCompilationTest {
         assertEquals(setOf("CarTest.kt"), project.compiledSources(":compileTestKotlin"))
     }
 
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testNewMemberOfChildMockTypeInMain(gradle: GradleUnderTest) {
+        val project = jvmProject(gradle)
+        project.write(
+            "src/main/kotlin/sample/Door.kt",
+            declaration("interface Door", "fun open(): Boolean", "fun knock()"),
+        )
+        project.write("src/main/kotlin/sample/Car.kt", declaration("interface Car", "fun door(index: Int): Door"))
+        project.write("src/main/kotlin/sample/Driver.kt", exercise("Door", "knock()"))
+        project.write(
+            "src/test/kotlin/sample/CarTest.kt",
+            """
+            @file:ChainedMocks
+
+            package sample
+
+            import io.lokki.ChainedMocks
+            import io.lokki.LokkiException
+            import io.lokki.every
+            import io.lokki.mock
+            import kotlin.test.Test
+            import kotlin.test.assertEquals
+            import kotlin.test.assertFailsWith
+
+            class CarTest {
+                @Test
+                fun childMockHasNoAnswer() {
+                    val car = mock<Car>()
+                    every { car.door(1).open() } returns true
+
+                    val exception = assertFailsWith<LokkiException> { exercise(car.door(1)) }
+                    val child = Regex("(?s)\\(child of #\\d+#\\d+\\)\\.(\\w+)\\(.*")
+                    val member = exception.message?.replace(child, ".${'$'}1")
+                    assertEquals("no answer found for ${'$'}{exercisedMember()}", member)
+                }
+            }
+            """,
+        )
+        project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
+        val child = "sample.Door\$LokkiMock\$065a5592\$CarTestKt"
+
+        project.build("test")
+        assertEquals(setOf("open()", "knock()"), project.mockedMethods("test", child))
+
+        project.write(
+            "src/main/kotlin/sample/Door.kt",
+            declaration("interface Door", "fun open(): Boolean", "fun knock()", "fun close()"),
+        )
+        project.write("src/main/kotlin/sample/Driver.kt", exercise("Door", "close()"))
+        val result = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
+        assertEquals(setOf("CarTest.kt"), project.compiledSources(":compileTestKotlin"))
+        assertEquals(setOf("open()", "knock()", "close()"), project.mockedMethods("test", child))
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testNewMemberOfRelaxedChildTypeInMain(gradle: GradleUnderTest) {
+        val project = jvmProject(gradle)
+        project.write("src/main/kotlin/sample/Door.kt", declaration("interface Door", "fun knock()"))
+        project.write("src/main/kotlin/sample/Car.kt", declaration("interface Car", "fun door(index: Int): Door"))
+        project.write("src/main/kotlin/sample/Driver.kt", exercise("Door", "knock()"))
+        project.write(
+            "src/test/kotlin/sample/CarTest.kt",
+            """
+            @file:ChainedMocks
+
+            package sample
+
+            import io.lokki.ChainedMocks
+            import io.lokki.mock
+            import kotlin.test.Test
+            import kotlin.test.assertEquals
+
+            class CarTest {
+                @Test
+                fun relaxedChildAnswersWithTheDefault() {
+                    assertEquals(Unit, exercise(mock<Car>(relaxed = true).door(1)))
+                }
+            }
+            """,
+        )
+        project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
+        val child = "sample.Door\$LokkiMock\$065a5592\$CarTestKt"
+
+        project.build("test")
+        assertEquals(setOf("knock()"), project.mockedMethods("test", child))
+
+        project.write("src/main/kotlin/sample/Door.kt", declaration("interface Door", "fun knock()", "fun close()"))
+        project.write("src/main/kotlin/sample/Driver.kt", exercise("Door", "close()"))
+        val result = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
+        assertEquals(setOf("CarTest.kt"), project.compiledSources(":compileTestKotlin"))
+        assertEquals(setOf("knock()", "close()"), project.mockedMethods("test", child))
+    }
+
     private fun engine(parameters: String, description: String): String =
         """
         package sample

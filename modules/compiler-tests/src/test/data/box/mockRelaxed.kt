@@ -104,6 +104,9 @@ private fun missing(block: () -> Any?): String =
 private fun noDefault(type: String, call: String): String =
     "relaxed mock has no default for $type returned by $call; stub the call"
 
+private fun noChild(type: String, call: String): String =
+    noDefault(type, call) + " or annotate the file that creates the mock with @file:ChainedMocks"
+
 fun box(): String {
     val defaults = mock<Defaults>(relaxed = true)
     val values = listOf(
@@ -161,11 +164,11 @@ fun box(): String {
     )
     val expectedMessages = listOf(
         noDefault("Nothing", "Defaults.nothing()"),
-        noDefault("Engine", "Defaults.engine(1)"),
+        noChild("Engine", "Defaults.engine(1)"),
         noDefault("Color", "Defaults.color()"),
         noDefault("Code", "Defaults.code()"),
         noDefault("Result<String>", "Defaults.result()"),
-        noDefault("Any", "Defaults.any()"),
+        noChild("Any", "Defaults.any()"),
         noDefault("Pair<String, List<Int?>>", "Defaults.pairs()"),
         noDefault("type parameter R", "Defaults.convert()"),
         noDefault("Array<R>", "Defaults.converted()"),
@@ -205,7 +208,7 @@ fun box(): String {
     if (java.names().javaClass != ArrayList::class.java || !java.names().add("x")) return "Fail Java list"
     if (java.array().javaClass != Array<String>::class.java) return "Fail Java array"
     val thread = missing { java.thread() }
-    if (thread != noDefault("Thread", "JavaDefaults.thread()")) return "Fail Java message: $thread"
+    if (thread != noChild("Thread", "JavaDefaults.thread()")) return "Fail Java message: $thread"
 
     return "OK"
 }

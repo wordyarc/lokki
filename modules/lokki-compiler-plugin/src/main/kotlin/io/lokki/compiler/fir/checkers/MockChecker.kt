@@ -163,6 +163,20 @@ internal object MockChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
 }
 
 context(context: CheckerContext)
+internal fun ConeKotlinType.childMockProblem(): Pair<String, String>? {
+    val type = when (val expanded = fullyExpandedType().lowerBoundIfFlexible()) {
+        is ConeDefinitelyNotNullType -> expanded.original
+        else -> expanded
+    }
+    if (type is ConeTypeParameterType) return type.lookupTag.name.asString() to "it is a type parameter"
+    val mocked = type.toRegularClassSymbol(context.session) ?: return type.renderReadable() to "it is not a class"
+    val reason = mocked.notMockableReason()
+        ?: (type as? ConeClassLikeType)?.irreplaceableStarProjection(mocked)
+        ?: return null
+    return mocked.displayName to reason
+}
+
+context(context: CheckerContext)
 private fun FirRegularClassSymbol.notMockableReason(): String? =
     when {
         classKind == ClassKind.OBJECT -> "it is an object"

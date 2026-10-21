@@ -13,7 +13,7 @@ class LokkiIrGenerationExtension(private val lookupTracker: LookupTracker?) : Ir
         val symbols = LokkiSymbols(pluginContext)
         val generator = MockClassGenerator(pluginContext, symbols, lookupTracker)
         for (file in moduleFragment.files) {
-            val mocks = file.collectMockClasses().mapValues { (key, usage) -> generator.generate(key, usage) }
+            val mocks = generator.generate(file, file.collectMockClasses())
             file.transform(DslLowering(pluginContext, symbols, file, mocks), null)
         }
     }

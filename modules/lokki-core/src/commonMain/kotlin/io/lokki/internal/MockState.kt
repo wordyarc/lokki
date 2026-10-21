@@ -14,7 +14,9 @@ import kotlin.coroutines.intrinsics.startCoroutineUninterceptedOrReturn
 
 @PublishedApi
 internal class MockState(private val owner: Any, spec: MockSpec, internal val descriptor: MockDescriptor) {
-    internal val name = "${descriptor.name}(${spec.name.orEmpty()}#${MockIds.next()})"
+    private val label = "${spec.name.orEmpty()}#${MockIds.next()}"
+
+    internal val name = "${descriptor.name}($label)"
 
     private val flags = spec.flags
 
@@ -30,6 +32,8 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
 
     @Volatile
     private var capture: DefaultsCapture? = null
+
+    private val children = ArrayList<Child>()
 
     fun answer(member: Int, arguments: Array<Any?>): Any? =
         respond(member, arguments, { mock.`lokki$original`(member, arguments) }) { answer, call ->
@@ -49,6 +53,9 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
 
     fun <T> stub(key: String, matchers: Array<Matcher<Any?>>): StubScope<T> =
         PendingStub(this, descriptor.member(key), matchers)
+
+    fun link(key: String, matchers: Array<Matcher<Any?>>, stubs: Boolean, factory: (MockSpec) -> Any): Any =
+        linkedChild(descriptor.member(key), matchers, stubs, factory)
 
     fun exclude(key: String, matchers: Array<Matcher<Any?>>, current: Boolean = true) {
         val member = descriptor.member(key)
@@ -126,9 +133,16 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         )
     }
 
-    internal fun clear(answers: Boolean, recordedCalls: Boolean, verificationMarks: Boolean, exclusionRules: Boolean) {
+    internal fun clear(
+        answers: Boolean,
+        recordedCalls: Boolean,
+        childMocks: Boolean,
+        verificationMarks: Boolean,
+        exclusionRules: Boolean,
+    ) {
         synchronized(this) {
             if (answers) stubs = arrayOfNulls(descriptor.memberCount)
+            if (childMocks) children.clear()
             if (exclusionRules) exclusions = emptyArray()
         }
         synchronized(records) {
@@ -154,9 +168,13 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
             throw DefaultsCaptured()
         }
         val changesState = !Registration.isActive
+        val link = if (changesState) null else Registration.takeLink(this, member)
         val record = if (changesState && member > TO_STRING) record(member, arguments) else null
-        val stub = findStub(member, arguments)
-            ?: return if (answersWithOriginal(member)) original() else defaultAnswer(member, arguments, record)
+        val stub = findStub(member, arguments) ?: return when {
+            answersWithOriginal(member) -> original()
+            link?.factory != null -> linkedChild(member, equalTo(arguments), link.stubs, link.factory)
+            else -> defaultAnswer(member, arguments, record, link)
+        }
         if (changesState) stub.use(arguments)
         return when (val selected = stub.answer(advance = changesState)) {
             is ConstantAnswer -> selected.value
@@ -195,7 +213,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         return checkNotNull(capture.arguments) { "default arguments of member $member were not captured" }
     }
 
-    private fun defaultAnswer(member: Int, arguments: Array<Any?>, record: CallRecord?): Any? {
+    private fun defaultAnswer(member: Int, arguments: Array<Any?>, record: CallRecord?, link: Link?): Any? {
         when (member) {
             EQUALS -> return owner === arguments[0]
             HASH_CODE -> return identityHashCode(owner)
@@ -203,9 +221,11 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         }
         val message = if (flags and RELAXED != 0) {
             val value = relaxedAnswer(member)
+            if (value is ChildMock) return child(member, equalTo(arguments), value.factory)
             if (value !is NoRelaxedDefault) return value
+            val hint = if (value.mockable && link == null && !Registration.isChain) RELAXED_CHILD_HINT else ""
             "relaxed mock has no default for ${value.type} returned by " +
-                "${call(member, arguments.joinToString { it.toStr() })}; stub the call"
+                "${call(member, arguments.joinToString { it.toStr() })}; stub the call$hint"
         } else {
             if (flags and RELAX_UNIT_FUN != 0 && relaxedAnswer(member) === Unit) return Unit
             "no answer found for ${call(member, arguments.joinToString { it.toStr() })} " +
@@ -213,7 +233,42 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
                 "Called member: ${description(member).signature()}"
         }
         if (record != null) synchronized(records) { record.unanswered = true }
-        throw LokkiException(if (Registration.isChain) message + CHAIN_HINT else message)
+        throw LokkiException(
+            when {
+                link != null -> "$message\n$LINK_HINT: stub it first, a child mock cannot be created: ${link.problem}"
+                Registration.isChain -> "$message\n$LINK_HINT: stub it first or annotate the file with $CHAINED_MOCKS"
+                else -> message
+            }
+        )
+    }
+
+    private fun linkedChild(
+        member: Int,
+        matchers: Array<Matcher<Any?>>,
+        registers: Boolean,
+        factory: (MockSpec) -> Any,
+    ): Any {
+        val child = child(member, matchers, factory)
+        if (!registers) return child
+        synchronized(this) {
+            if (stubs[member]?.lastOrNull()?.answersWith(child, matchers) != true) {
+                register(member, StubEntry(matchers, listOf(ConstantAnswer(child))))
+            }
+        }
+        return child
+    }
+
+    private fun child(member: Int, matchers: Array<Matcher<Any?>>, factory: (MockSpec) -> Any): Any =
+        synchronized(this) {
+            children.find { it.member == member && it.matchers.isEquivalentTo(matchers) }?.mock
+                ?: factory(MockSpec(childName(), flags and (RELAXED or RELAX_UNIT_FUN)))
+                    .also { children += Child(member, matchers, it) }
+        }
+
+    private fun childName(): String {
+        val chained = CHILD_NAME.matchEntire(label) ?: return "child of $label"
+        val depth = chained.groupValues[2].ifEmpty { "1" }.toInt()
+        return "child^${depth + 1} of ${chained.groupValues[3]}"
     }
 
     private fun answersWithOriginal(member: Int): Boolean =
@@ -270,6 +325,12 @@ internal class StubEntry(private val matchers: Array<Matcher<Any?>>, answers: Li
         get() = matchers.joinToString()
 
     fun matches(arguments: Array<Any?>): Boolean = matchers.match(arguments)
+
+    fun answersWith(value: Any, matchers: Array<Matcher<Any?>>): Boolean {
+        val answers = answers
+        return answers.size == 1 && (answers[0] as? ConstantAnswer)?.value === value &&
+            this.matchers.isEquivalentTo(matchers)
+    }
 
     fun use(arguments: Array<Any?>) {
         if (!used) used = true
@@ -354,6 +415,8 @@ private class PendingStub<T>(
     }
 }
 
+private class Child(val member: Int, val matchers: Array<Matcher<Any?>>, val mock: Any)
+
 private class Exclusion(private val member: Int, private val matchers: Array<Matcher<Any?>>) {
     fun matches(member: Int, arguments: Array<Any?>): Boolean = member == this.member && matchers.match(arguments)
 }
@@ -373,5 +436,7 @@ private object MockIds {
 private const val EQUALS = 0
 private const val HASH_CODE = 1
 private const val TO_STRING = 2
-private const val CHAIN_HINT = "\nThe call is a link of a call chain in a stubbed or verified call: " +
-    "stub it first or annotate the file with @file:ChainedMocks"
+private const val LINK_HINT = "The call is a link of a call chain in a stubbed or verified call"
+private const val CHAINED_MOCKS = "@file:ChainedMocks"
+private const val RELAXED_CHILD_HINT = " or annotate the file that creates the mock with $CHAINED_MOCKS"
+private val CHILD_NAME = Regex("child(\\^(\\d+))? of (.+)")

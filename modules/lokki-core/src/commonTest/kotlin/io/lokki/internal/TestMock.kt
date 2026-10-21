@@ -21,7 +21,7 @@ internal class TestMock(
 
     var coOriginal: suspend (Int, Array<Any?>) -> Any? = `lokki$state`::noOriginal
 
-    var relaxed: (Int) -> Any? = { NoRelaxedDefault("Any") }
+    var relaxed: (Int) -> Any? = { NoRelaxedDefault("Any", mockable = false) }
 
     override fun `lokki$original`(member: Int, args: Array<Any?>): Any? = original(member, args)
 
