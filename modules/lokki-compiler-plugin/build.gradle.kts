@@ -1,4 +1,5 @@
 import lokki.buildlogic.COMPILER_PLUGIN_ID
+import lokki.buildlogic.MOCKABLE_OPTION
 
 plugins {
     id("lokki.kotlin-jvm")
@@ -13,6 +14,7 @@ dependencies {
 buildConfig {
     packageName("io.lokki.compiler")
     buildConfigField("COMPILER_PLUGIN_ID", COMPILER_PLUGIN_ID)
+    buildConfigField("MOCKABLE_OPTION", MOCKABLE_OPTION)
 }
 
 kotlin {

@@ -6,6 +6,8 @@ import org.gradle.api.provider.Provider
 
 const val COMPILER_PLUGIN_ID = "io.lokki.compiler"
 
+const val MOCKABLE_OPTION = "mockable"
+
 private val withoutPublicApi = setOf("compiler-tests", "lokki-compiler-plugin")
 
 private val jvmRuntime = setOf("lokki-junit5")

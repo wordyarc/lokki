@@ -13,8 +13,9 @@ import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 
 class LokkiIrGenerationExtension(private val lookupTracker: LookupTracker?) : IrGenerationExtension {
     override fun generate(moduleFragment: IrModuleFragment, pluginContext: IrPluginContext) {
-        moduleFragment.builtIns = pluginContext.irBuiltIns
         val symbols = LokkiSymbols(pluginContext)
+        if (!symbols.isRuntimeAvailable) return
+        moduleFragment.builtIns = pluginContext.irBuiltIns
         val generator = MockClassGenerator(pluginContext, symbols, lookupTracker)
         val staticInitializers = StaticInitializers(pluginContext, symbols)
         val fields = MockFieldInitializers(pluginContext, symbols, lookupTracker)

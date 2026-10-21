@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.diagnostics.rendering.CommonRenderers
 import org.jetbrains.kotlin.diagnostics.warning0
 import org.jetbrains.kotlin.diagnostics.warning1
 import org.jetbrains.kotlin.diagnostics.warning2
+import org.jetbrains.kotlin.diagnostics.warning3
 import org.jetbrains.kotlin.psi.KtElement
 
 internal object LokkiDiagnostics : KtDiagnosticsContainer() {
@@ -34,7 +35,7 @@ internal object LokkiDiagnostics : KtDiagnosticsContainer() {
     val LOKKI_WITH_ARG_PREDICATE_NOT_USED by warning1<KtElement, String>()
     val LOKKI_SLOT_READ_BEFORE_CAPTURE by error2<KtElement, String, String>()
     val LOKKI_CONFLICTING_VERIFY_ARGUMENTS by error2<KtElement, String, String>()
-    val LOKKI_FINAL_MEMBERS_NOT_MOCKED by warning2<KtElement, String, String>()
+    val LOKKI_FINAL_MEMBERS_NOT_MOCKED by warning3<KtElement, String, String, String>()
     val LOKKI_ABSTRACT_ORIGINAL_CALL by error2<KtElement, String, String>()
     val LOKKI_MISSING_COROUTINES_DEPENDENCY by error1<KtElement, String>()
     val LOKKI_REF_EQ_OF_VALUE_CLASS by error2<KtElement, String, String>()
@@ -161,7 +162,8 @@ private object LokkiDiagnosticRenderers : BaseDiagnosticRendererFactory() {
         map.put(
             LokkiDiagnostics.LOKKI_FINAL_MEMBERS_NOT_MOCKED,
             "The mock of ''{0}'' does not intercept its final members {1}: they run the original code on an " +
-                "instance created without a constructor. Make them open.",
+                "instance created without a constructor. {2}.",
+            CommonRenderers.STRING,
             CommonRenderers.STRING,
             CommonRenderers.STRING,
         )

@@ -1,5 +1,6 @@
 package io.lokki.compiler.test.services
 
+import io.lokki.compiler.LokkiConfigurationKeys
 import org.jetbrains.kotlin.cli.jvm.config.addJvmClasspathRoots
 import org.jetbrains.kotlin.config.AnalysisFlag
 import org.jetbrains.kotlin.config.AnalysisFlags
@@ -20,6 +21,7 @@ internal class LokkiEnvironmentConfigurator(testServices: TestServices) : Enviro
 
     override fun configureCompilerConfiguration(configuration: CompilerConfiguration, module: TestModule) {
         configuration.addJvmClasspathRoots(runtimeClasspath(module))
+        configuration.put(LokkiConfigurationKeys.MOCKABLE, module.directives[LokkiDirectives.MOCKABLE])
     }
 
     override fun provideAdditionalAnalysisFlags(

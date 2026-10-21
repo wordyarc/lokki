@@ -1,4 +1,5 @@
 import lokki.buildlogic.COMPILER_PLUGIN_ID
+import lokki.buildlogic.MOCKABLE_OPTION
 import lokki.buildlogic.LocationSystemProperty
 import lokki.buildlogic.functionalTestRepository
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
@@ -37,6 +38,7 @@ listOf("apiElements", "runtimeElements").forEach { name ->
 buildConfig {
     packageName("io.lokki.gradle")
     buildConfigField("COMPILER_PLUGIN_ID", COMPILER_PLUGIN_ID)
+    buildConfigField("MOCKABLE_OPTION", MOCKABLE_OPTION)
     buildConfigField("GROUP", group.toString())
     buildConfigField("VERSION", version.toString())
 }

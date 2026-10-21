@@ -554,6 +554,87 @@ class IncrementalCompilationTest {
         assertEquals(setOf("GarageTest.kt"), project.compiledSources(":compileTestKotlin"))
     }
 
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testFinalClassRemovedFromMockable(gradle: GradleUnderTest) {
+        val project = TestProject(projectDir, gradle)
+        project.write("build.gradle.kts", mockableBuildScript("sample.Engine"))
+        project.write("src/main/kotlin/sample/Engine.kt", declaration("class Engine", "fun start(): String = \"started\""))
+        project.write("src/main/kotlin/sample/Mechanic.kt", exercise("Engine", "start()"))
+        project.write("src/test/kotlin/sample/EngineTest.kt", mockTest("EngineTest", "Engine"))
+        project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
+        project.build("test")
+
+        project.write("build.gradle.kts", mockableBuildScript("sample.Gear"))
+        val failure = project.buildAndFail("test")
+
+        assertTrue("'sample.Engine' cannot be mocked: it is a final class" in failure.output, failure.output)
+
+        project.write("build.gradle.kts", mockableBuildScript("sample.Engine"))
+        project.build("test")
+
+        assertEquals(setOf("start()"), project.mockedMethods("test", ENGINE_MOCK))
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testOpenClassRemovedFromMockable(gradle: GradleUnderTest) {
+        val project = TestProject(projectDir, gradle)
+        project.write("build.gradle.kts", mockableBuildScript("sample.Engine"))
+        project.write(
+            "src/main/kotlin/sample/Engine.kt",
+            declaration("open class Engine", "fun start(): String = \"started\""),
+        )
+        project.write(
+            "src/test/kotlin/sample/EngineTest.kt",
+            """
+            package sample
+
+            import io.lokki.isMock
+            import io.lokki.mock
+            import kotlin.test.Test
+            import kotlin.test.assertTrue
+
+            class EngineTest {
+                @Test
+                fun createsMock() {
+                    assertTrue(isMock(mock<Engine>()))
+                }
+            }
+            """,
+        )
+        project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
+        project.build("test")
+        assertEquals(setOf("start()"), project.mockedMethods("test", ENGINE_MOCK))
+
+        project.write("build.gradle.kts", mockableBuildScript("sample.Gear"))
+        val result = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
+        assertEquals(setOf("EngineTest.kt"), project.compiledSources(":compileTestKotlin"))
+        assertEquals(emptySet(), project.mockedMethods("test", ENGINE_MOCK))
+    }
+
+    private fun mockableBuildScript(pattern: String): String =
+        """
+        plugins {
+            kotlin("jvm") version "$KOTLIN_VERSION"
+            id("io.lokki") version "$LOKKI_VERSION"
+        }
+
+        lokki {
+            mockable("$pattern")
+        }
+
+        testing {
+            suites {
+                named<JvmTestSuite>("test") {
+                    useKotlinTest("$KOTLIN_VERSION")
+                }
+            }
+        }
+        """
+
     private fun injectionProject(gradle: GradleUnderTest): TestProject {
         val project = jvmProject(gradle)
         project.write("src/main/kotlin/sample/Car.kt", declaration("interface Car", "fun drive(): String"))
@@ -960,4 +1041,5 @@ class IncrementalCompilationTest {
 }
 
 private const val MOCK_FIELDS_OWNER = "io.lokki.internal.MockFieldsOwner"
+private const val ENGINE_MOCK = "sample.Engine\$LokkiMock\$dabe4326\$EngineTestKt"
 private const val INIT_MOCK_FIELDS = "lokki\$initMockFields(int)"

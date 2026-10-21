@@ -23,6 +23,9 @@ import org.jetbrains.kotlin.util.OperatorNameConventions
 internal class LokkiSymbols(private val context: IrPluginContext) {
     private val finder = context.finderForBuiltins()
 
+    val isRuntimeAvailable: Boolean
+        get() = finder.findClass(ClassId(INTERNAL_PACKAGE, Name.identifier("GeneratedMock"))) != null
+
     val generatedMock by lazy { findClass(INTERNAL_PACKAGE, "GeneratedMock") }
     val state by lazy { generatedMock.properties.single { it.name.asString() == "lokki\$state" } }
     val original by lazy { generatedMock.function("lokki\$original") }

@@ -1,0 +1,13 @@
+/test.kt:60:23: warning: The mock of 'sample.Engine' does not intercept its final members 'code', 'countdown', 'doubled', 'id', 'revision', 'serial', 'twice': they run the original code on an instance created without a constructor. Make them open or add their classes to lokki { mockable(...) }.
+
+/test.kt:62:20: error: A call of 'id' cannot be intercepted: it is final.
+
+/test.kt:63:10: error: 'sample.Locked' cannot be mocked: it is a final class. Extract an interface, make the class and its members open, or add it to lokki { mockable(...) }.
+
+/test.kt:64:10: error: 'sample.Rpm' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+
+/test.kt:65:10: error: 'sample.Fuel' cannot be mocked: it is sealed.
+
+/test.kt:66:10: error: 'sample.Registry' cannot be mocked: it is an object.
+
+/test.kt:67:10: error: 'test.Window' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.

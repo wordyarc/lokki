@@ -139,6 +139,92 @@ class CompilationApplicabilityTest {
         assertFalse(project.dependsOnLokki("kotlinCompilerPluginClasspathJvmMain"))
     }
 
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testMockableMain(gradle: GradleUnderTest) {
+        val project = mockableProject(gradle, "\"sample.**\"")
+        project.write("src/main/kotlin/sample/Engine.kt", declaration("class Engine", "fun start(): String = \"started\""))
+        project.write(
+            "src/main/kotlin/sample/Registry.kt",
+            """
+            package sample
+
+            object Registry {
+                val engine = Engine()
+            }
+            """,
+        )
+        project.write(
+            "src/test/kotlin/sample/EngineTest.kt",
+            """
+            package sample
+
+            import io.lokki.every
+            import io.lokki.mock
+            import kotlin.test.Test
+            import kotlin.test.assertEquals
+
+            class EngineTest {
+                @Test
+                fun stubsFinalClassOfMain() {
+                    val engine = mock<Engine>()
+                    every { engine.start() } returns "mocked"
+                    assertEquals("mocked", engine.start())
+                    assertEquals("started", Registry.engine.start())
+                }
+            }
+            """,
+        )
+
+        val result = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
+        assertTrue(project.dependsOnLokki("kotlinCompilerPluginClasspathMain"))
+        assertFalse(project.dependsOnLokki("compileClasspath"))
+        assertFalse(project.dependsOnLokki("runtimeClasspath"))
+        val mainClasses = projectDir.resolve("build/classes/kotlin/main").walk().filter { it.extension == "class" }.toList()
+        assertEquals(setOf("Engine.class", "Registry.class"), mainClasses.mapTo(HashSet()) { it.name })
+        for (file in mainClasses) {
+            assertFalse("io/lokki" in file.readText(Charsets.ISO_8859_1), file.name)
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testInvalidMockablePattern(gradle: GradleUnderTest) {
+        val project = mockableProject(gradle, "\"sample.*\"")
+        project.write("src/main/kotlin/sample/Engine.kt", declaration("class Engine", "fun start(): String = \"started\""))
+
+        val result = project.buildAndFail("compileKotlin")
+
+        assertTrue("Invalid mockable pattern 'sample.*'" in result.output, result.output)
+    }
+
+    private fun mockableProject(gradle: GradleUnderTest, patterns: String): TestProject =
+        TestProject(projectDir, gradle).apply {
+            write(
+                "build.gradle.kts",
+                """
+                plugins {
+                    kotlin("jvm") version "$KOTLIN_VERSION"
+                    id("io.lokki") version "$LOKKI_VERSION"
+                }
+
+                lokki {
+                    mockable($patterns)
+                }
+
+                testing {
+                    suites {
+                        named<JvmTestSuite>("test") {
+                            useKotlinTest("$KOTLIN_VERSION")
+                        }
+                    }
+                }
+                """,
+            )
+        }
+
     private fun TestProject.dependsOnLokki(configuration: String): Boolean =
         "io.lokki:" in build("dependencies", "--configuration", configuration).output
 }

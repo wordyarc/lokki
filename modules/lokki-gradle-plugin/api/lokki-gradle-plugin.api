@@ -1,3 +1,8 @@
+public abstract class io/lokki/gradle/LokkiGradleExtension {
+	public fun <init> (Lorg/gradle/api/model/ObjectFactory;)V
+	public final fun mockable ([Ljava/lang/String;)V
+}
+
 public final class io/lokki/gradle/LokkiGradleSubplugin : org/jetbrains/kotlin/gradle/plugin/KotlinCompilerPluginSupportPlugin {
 	public fun <init> ()V
 	public synthetic fun apply (Ljava/lang/Object;)V

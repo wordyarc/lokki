@@ -6,6 +6,7 @@ import io.lokki.compiler.fir.displayName
 import io.lokki.compiler.fir.filePackage
 import io.lokki.compiler.fir.intrinsicKind
 import io.lokki.compiler.fir.isFinalType
+import io.lokki.compiler.fir.isFromFriendKotlinModule
 import io.lokki.compiler.fir.isVisibleToMock
 import org.jetbrains.kotlin.KtRealSourceElementKind
 import org.jetbrains.kotlin.KtSourceElement
@@ -36,6 +37,7 @@ import org.jetbrains.kotlin.fir.declarations.getTargetType
 import org.jetbrains.kotlin.fir.declarations.toAnnotationClassId
 import org.jetbrains.kotlin.fir.declarations.utils.isAbstract
 import org.jetbrains.kotlin.fir.declarations.utils.isFinal
+import org.jetbrains.kotlin.fir.declarations.utils.isInlineOrValue
 import org.jetbrains.kotlin.fir.declarations.utils.isInner
 import org.jetbrains.kotlin.fir.declarations.utils.modality
 import org.jetbrains.kotlin.fir.declarations.utils.visibility
@@ -240,11 +242,17 @@ private fun MockedType.check(interfaces: () -> List<Pair<FirExpression, ConeClas
     }
     val finalMembers = mocked.finalMembers()
     if (finalMembers.isNotEmpty()) {
+        val advice = if (mocked.isFromFriendKotlinModule) {
+            "Make them open or add their classes to lokki { mockable(...) }"
+        } else {
+            "Make them open"
+        }
         reporter.reportOn(
             source,
             LokkiDiagnostics.LOKKI_FINAL_MEMBERS_NOT_MOCKED,
             mocked.displayName,
             finalMembers.joinToString { "'$it'" },
+            advice,
         )
     }
     return true
@@ -271,7 +279,11 @@ private fun FirRegularClassSymbol.notMockableReason(): String? =
         classKind == ClassKind.ENUM_CLASS || classKind == ClassKind.ENUM_ENTRY -> "it is an enum class"
         classKind == ClassKind.ANNOTATION_CLASS -> "it is an annotation class"
         modality == Modality.SEALED -> "it is sealed"
-        isFinalType -> "it is a final class. Extract an interface or make the class and its members open"
+        isFinalType -> "it is a final class. " + if (isFromFriendKotlinModule && !isInlineOrValue) {
+            "Extract an interface, make the class and its members open, or add it to lokki { mockable(...) }"
+        } else {
+            "Extract an interface or make the class and its members open"
+        }
         classKind == ClassKind.CLASS && declaredMemberScope().getDeclaredConstructors().none { it.isVisibleToMock() } ->
             "none of its constructors is visible from this file"
         else -> missingSupertypes().takeIf { it.isNotEmpty() }?.let { supertypes ->

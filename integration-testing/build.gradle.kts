@@ -7,6 +7,10 @@ kotlin {
     jvmToolchain(libs.versions.jvm.toolchain.get().toInt())
 }
 
+lokki {
+    mockable("io.lokki.it.mockable.**")
+}
+
 testing {
     suites {
         named<JvmTestSuite>("test") {
