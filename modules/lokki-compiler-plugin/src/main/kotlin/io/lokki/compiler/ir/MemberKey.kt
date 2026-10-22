@@ -14,7 +14,6 @@ import org.jetbrains.kotlin.ir.types.IrTypeProjection
 import org.jetbrains.kotlin.ir.types.isMarkedNullable
 import org.jetbrains.kotlin.ir.util.isFromJava
 import org.jetbrains.kotlin.ir.util.kotlinFqName
-import org.jetbrains.kotlin.ir.util.parentAsClass
 import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.types.Variance
 
@@ -33,7 +32,7 @@ private fun IrSimpleFunction.roots(): List<IrSimpleFunction> =
 private val IrSimpleFunction.memberKey: String
     get() = buildString {
         val nullability = !isFromJava()
-        append(parentAsClass.kotlinFqName.asString()).append('#')
+        append(parent.kotlinFqName.asString()).append('#')
         val context = parameters.filter { it.kind == IrParameterKind.Context }
         if (context.isNotEmpty()) context.joinTo(this, ",", "context(", ")") { it.key(nullability) }
         if (typeParameters.isNotEmpty()) {

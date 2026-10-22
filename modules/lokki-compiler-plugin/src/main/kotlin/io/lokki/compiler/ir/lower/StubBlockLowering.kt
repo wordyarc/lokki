@@ -33,7 +33,9 @@ import org.jetbrains.kotlin.ir.types.makeNotNull
 import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.util.render
 import io.lokki.compiler.ir.LokkiSymbols
-import io.lokki.compiler.ir.ObjectRedirects
+import io.lokki.compiler.ir.ObjectRedirect
+import io.lokki.compiler.ir.Redirects
+import io.lokki.compiler.ir.StaticRedirect
 import io.lokki.compiler.ir.intrinsicKind
 import io.lokki.compiler.ir.irArrayOf
 import io.lokki.compiler.ir.memberKeys
@@ -129,7 +131,7 @@ internal class StubBlockLowering(
     private val file: IrFile,
     private val mocks: Map<MockClassKey, IrClass>,
     private val instances: MockInstances,
-    private val redirects: ObjectRedirects,
+    private val redirects: Redirects,
     private val unsupported: (IrElement, String) -> Unit,
 ) {
     private val chainedMocks = file.hasAnnotation(CHAINED_MOCKS)
@@ -326,8 +328,9 @@ internal class StubBlockLowering(
         verification: IrVariable? = null,
         stubs: Boolean = false,
     ): Registration? {
-        if (!chainedMocks && !stubbed.receiver.isIndependentOf(block.function)) {
-            return fail(stubbed.receiver, "The receiver of the stubbed or verified call must not use matchers")
+        val receiver = stubbed.receiver
+        if (!chainedMocks && receiver != null && !receiver.isIndependentOf(block.function)) {
+            return fail(receiver, "The receiver of the stubbed or verified call must not use matchers")
         }
         if (!stubbed.callsSuspend) return irEvaluatedRegistration(dsl, block, stubbed, verification, stubs)
         val anyN = context.irBuiltIns.anyNType
@@ -351,16 +354,24 @@ internal class StubBlockLowering(
         verification: IrVariable?,
         stubs: Boolean,
     ): Registration? {
-        val receiver = irTemporary(
-            when {
-                chainedMocks -> irLinks(dsl, block, stubbed.receiver, verification, stubs) ?: return null
-                stubbed.receiver.isChain -> irChain(dsl, stubbed.receiver.type) {
-                    irLinks(dsl, block, stubbed.receiver, verification, stubs) ?: return null
+        val receiver = stubbed.receiver?.let { receiver ->
+            irTemporary(
+                when {
+                    chainedMocks -> irLinks(dsl, block, receiver, verification, stubs) ?: return null
+                    receiver.isChain -> irChain(dsl, receiver.type) {
+                        irLinks(dsl, block, receiver, verification, stubs) ?: return null
+                    }
+                    else -> receiver
                 }
-                else -> stubbed.receiver
-            }
+            )
+        }
+        val state = irTemporary(
+            irStateOf(stubbed.call, receiver?.let(::irGet)) ?: return fail(
+                stubbed.call,
+                "'${stubbed.call.name}' has no interception point: lokki intercepts top-level functions and " +
+                    "properties of main compilations with lokki { mockable(...) }",
+            )
         )
-        val state = irTemporary(irStateOf(stubbed.call, irGet(receiver)))
         val matchers = irArguments(dsl, block, stubbed, receiver, state) ?: return null
         return Registration(state, keyOf(stubbed.call), matchers)
     }
@@ -369,7 +380,7 @@ internal class StubBlockLowering(
         dsl: IrCall,
         block: StubBlock,
         stubbed: StubbedCall,
-        receiver: IrVariable,
+        receiver: IrVariable?,
         state: IrVariable,
     ): IrExpression? {
         val call = stubbed.call
@@ -392,7 +403,7 @@ internal class StubBlockLowering(
             matchers[index] = irTemporary(matcher)
         }
         val defaults = if (capturesDefaults) {
-            call.dispatchReceiver = irGet(receiver)
+            if (receiver != null) call.dispatchReceiver = irGet(receiver)
             irTemporary(irCaptureDefaults(dsl, state, keyOf(call), stubbed, values))
         } else {
             null
@@ -443,7 +454,7 @@ internal class StubBlockLowering(
         }
         val call = link.call
         val parameters = call.symbol.owner.nonDispatchParameters
-        val head = irTemporary(irLinks(dsl, block, link.receiver, verification, stubs) ?: return null)
+        val head = irTemporary(irLinks(dsl, block, link.receiver!!, verification, stubs) ?: return null)
         val key = call.symbol.owner.memberKeys.first()
         if (link.arguments.any { it?.isIndependentOf(block.function) == false }) {
             return irMatchedLink(dsl, block, link, head, key, verification, stubs)
@@ -804,13 +815,17 @@ internal class StubBlockLowering(
     private fun keyOf(call: IrCall): String =
         redirects.member(call.symbol.owner)?.key ?: call.symbol.owner.memberKeys.first()
 
-    private fun IrBuilder.irStateOf(call: IrCall, receiver: IrExpression): IrExpression {
-        val member = redirects.member(call.symbol.owner) ?: return irStateOf(receiver)
+    private fun IrBuilder.irStateOf(call: IrCall, receiver: IrExpression?): IrExpression? {
+        val redirect = redirects.member(call.symbol.owner)?.redirect ?: return receiver?.let { irStateOf(it) }
+        val (of, target) = when (redirect) {
+            is ObjectRedirect -> symbols.redirectOf to receiver!!
+            is StaticRedirect -> symbols.staticRedirectOf to irString(redirect.key)
+        }
         return irCall(symbols.state.getter!!).apply {
-            arguments[0] = irCall(symbols.redirectOf).apply {
+            arguments[0] = irCall(of).apply {
                 arguments[0] = irGetObjectValue(symbols.redirects.defaultType, symbols.redirects.symbol)
-                arguments[1] = receiver
-                arguments[2] = irString(member.redirect.name)
+                arguments[1] = target
+                arguments[2] = irString(redirect.name)
             }
         }
     }

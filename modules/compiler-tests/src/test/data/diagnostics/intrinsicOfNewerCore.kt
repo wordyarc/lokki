@@ -6,16 +6,16 @@ package io.lokki.internal
 
 annotation class LokkiIntrinsic(val kind: Kind) {
     enum class Kind {
-        MOCK_STATIC,
+        MOCK_CONSTRUCTOR,
     }
 }
 
 // FILE: test.kt
 import io.lokki.internal.LokkiIntrinsic
 
-@LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK_STATIC)
-fun <T> mockStatic(value: T): T = value
+@LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK_CONSTRUCTOR)
+fun <T> mockConstructor(value: T): T = value
 
 fun test() {
-    <!LOKKI_UNSUPPORTED!>mockStatic("a")<!>
+    <!LOKKI_UNSUPPORTED!>mockConstructor("a")<!>
 }

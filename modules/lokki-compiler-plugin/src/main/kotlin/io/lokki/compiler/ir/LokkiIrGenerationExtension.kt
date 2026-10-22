@@ -25,7 +25,7 @@ class LokkiIrGenerationExtension(
         val generator = MockClassGenerator(pluginContext, symbols, lookupTracker)
         val staticInitializers = StaticInitializers(pluginContext, symbols)
         val fields = MockFieldInitializers(pluginContext, symbols, lookupTracker)
-        val redirects = ObjectRedirects(pluginContext)
+        val redirects = Redirects(pluginContext)
         fields.declare(moduleFragment)
         for (file in moduleFragment.files) {
             val mocks = generator.generate(file, file.collectMockClasses(redirects))

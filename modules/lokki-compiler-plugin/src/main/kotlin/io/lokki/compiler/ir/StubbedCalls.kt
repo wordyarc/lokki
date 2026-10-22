@@ -33,7 +33,7 @@ internal sealed interface Expected
 
 internal class StubbedCall(
     val call: IrCall,
-    val receiver: IrExpression,
+    val receiver: IrExpression?,
     val arguments: List<IrExpression?>,
     val order: List<Int>,
 ) : Expected {
@@ -41,7 +41,7 @@ internal class StubbedCall(
         get() = arguments.firstOrNull().isAllAny
 
     val callsSuspend: Boolean
-        get() = receiver.callsSuspend() || arguments.any { it?.callsSuspend() == true }
+        get() = receiver?.callsSuspend() == true || arguments.any { it?.callsSuspend() == true }
 }
 
 internal class NoCalls(val call: IrCall) : Expected {
@@ -104,7 +104,8 @@ internal fun IrExpression.memberCall(): StubbedCall? {
     val call = expression as? IrCall ?: return null
     fun frozenIndex(argument: IrExpression?) = frozen.indexOfFirst { it.symbol == (argument as? IrGetValue)?.symbol }
     fun IrExpression.thawed() = frozen.getOrNull(frozenIndex(this))?.initializer ?: this
-    val receiver = call.dispatchReceiver?.thawed() ?: return null
+    val receiver = call.dispatchReceiver?.thawed()
+    if (receiver == null && !call.symbol.owner.isTopLevel) return null
     val arguments = call.symbol.owner.nonDispatchParameters.map { call.arguments[it.indexInParameters] }
     return StubbedCall(
         call,
@@ -165,5 +166,5 @@ internal fun IrExpression.links(): List<StubbedCall> {
         this is IrCall && origin == IrStatementOrigin.EXCLEXCL -> return arguments[0]!!.links()
     }
     val link = memberCall()?.takeIf { it.call.symbol.owner.isLink } ?: return emptyList()
-    return link.receiver.links() + link
+    return link.receiver?.links().orEmpty() + link
 }

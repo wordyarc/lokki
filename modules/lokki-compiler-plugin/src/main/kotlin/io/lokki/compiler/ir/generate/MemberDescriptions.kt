@@ -4,6 +4,7 @@ import io.lokki.compiler.ir.LokkiSymbols
 import io.lokki.compiler.ir.irArrayOf
 import io.lokki.compiler.ir.isAccessibleFrom
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
+import org.jetbrains.kotlin.backend.jvm.ir.getJvmNameFromAnnotation
 import org.jetbrains.kotlin.ir.builders.IrBuilder
 import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irGetObjectValue
@@ -86,6 +87,7 @@ internal class MemberDescriptions(private val context: IrPluginContext, private 
 
 private val IrSimpleFunction.jvmName: String
     get() {
+        getJvmNameFromAnnotation()?.let { return it }
         val property = correspondingPropertySymbol?.owner ?: return name.asString()
         val name = property.name.asString()
         return if (property.getter == this) JvmAbi.getterName(name) else JvmAbi.setterName(name)

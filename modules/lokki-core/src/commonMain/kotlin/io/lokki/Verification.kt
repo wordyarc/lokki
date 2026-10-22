@@ -5,6 +5,8 @@ import io.lokki.internal.Matchers
 import io.lokki.internal.deepEquals
 import io.lokki.internal.window
 import io.lokki.internal.toStr
+import kotlin.reflect.KFunction
+import kotlin.reflect.KProperty
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_BLOCK)
 public fun verify(
@@ -137,6 +139,14 @@ public class CallCountCoVerificationScope internal constructor() {
     public operator fun IntRange.times(verifyBlock: suspend VerificationScope.() -> Any?): Unit =
         throw LokkiException("lokki compiler plugin is not applied to this compilation")
 }
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.STATIC_MOCKS)
+public fun confirmVerified(function: KFunction<*>, vararg functions: KFunction<*>, clear: Boolean = false): Unit =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.STATIC_MOCKS)
+public fun confirmVerified(property: KProperty<*>, vararg properties: KProperty<*>, clear: Boolean = false): Unit =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")
 
 public fun confirmVerified(vararg mocks: Any, clear: Boolean = false) {
     val window = window("confirmVerified", mocks)

@@ -47,6 +47,7 @@ internal object LokkiDiagnostics : KtDiagnosticsContainer() {
     val LOKKI_AMBIGUOUS_INJECTION by error2<KtElement, String, String>()
     val LOKKI_UNSUPPORTED_INJECTION by error2<KtElement, String, String>()
     val LOKKI_OBJECT_NOT_INTERCEPTABLE by error2<KtElement, String, String>()
+    val LOKKI_REFERENCE_NOT_LITERAL by error1<KtElement, String>()
 
     override fun getRendererFactory(): BaseDiagnosticRendererFactory = LokkiDiagnosticRenderers
 }
@@ -239,6 +240,12 @@ private object LokkiDiagnosticRenderers : BaseDiagnosticRendererFactory() {
             LokkiDiagnostics.LOKKI_OBJECT_NOT_INTERCEPTABLE,
             "Calls of ''{0}'' cannot be intercepted: {1}.",
             CommonRenderers.STRING,
+            CommonRenderers.STRING,
+        )
+        map.put(
+            LokkiDiagnostics.LOKKI_REFERENCE_NOT_LITERAL,
+            "An argument of ''{0}'' must be an unbound reference like ''::f'' or ''Type::f'': " +
+                "lokki chooses the interception point at compile time.",
             CommonRenderers.STRING,
         )
     }

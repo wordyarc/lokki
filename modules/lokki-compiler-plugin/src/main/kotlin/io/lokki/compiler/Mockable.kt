@@ -1,6 +1,7 @@
 package io.lokki.compiler
 
 import org.jetbrains.kotlin.config.CompilerConfigurationKey
+import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.isSubpackageOf
@@ -17,6 +18,9 @@ class Mockable(patterns: List<String>) {
 
     fun matches(classId: ClassId): Boolean =
         classId.asSingleFqName() in names || packages.any { classId.packageFqName.isSubpackageOf(it) }
+
+    fun matches(callableId: CallableId): Boolean =
+        callableId.asSingleFqName() in names || packages.any { callableId.packageName.isSubpackageOf(it) }
 }
 
 internal fun mockablePatternProblem(pattern: String): String? {

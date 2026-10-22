@@ -4,7 +4,7 @@ import io.lokki.LokkiException
 import io.lokki.LokkiScope
 
 @PublishedApi
-internal class ObjectRedirect(
+internal class Redirect(
     internal val target: Any,
     internal val name: String,
     internal val factory: (MockSpec) -> Any,
@@ -15,11 +15,11 @@ internal class ObjectRedirect(
 internal object Redirects {
     private val active = ArrayList<ActiveRedirect>()
 
-    fun mockObject(redirects: Array<ObjectRedirect>) {
+    fun mockObject(redirects: Array<Redirect>) {
         install(redirects)
     }
 
-    inline fun mockObject(redirects: Array<ObjectRedirect>, block: () -> Unit) {
+    inline fun mockObject(redirects: Array<Redirect>, block: () -> Unit) {
         val installed = install(redirects)
         try {
             block()
@@ -28,33 +28,40 @@ internal object Redirects {
         }
     }
 
-    fun install(redirects: Array<ObjectRedirect>): Any {
-        val scope = LokkiScope.requireCurrent("mockObject")
-        return redirects.mapNotNull { install(it, scope) }
+    fun mockStatic(redirects: Array<Redirect>) {
+        installStatic(redirects)
     }
+
+    inline fun mockStatic(redirects: Array<Redirect>, block: () -> Unit) {
+        val installed = installStatic(redirects)
+        try {
+            block()
+        } finally {
+            uninstall(installed)
+        }
+    }
+
+    fun install(redirects: Array<Redirect>): Any = install(redirects, "mockObject", OBJECT)
+
+    fun installStatic(redirects: Array<Redirect>): Any = install(redirects, "mockStatic", STATIC)
 
     fun uninstall(installed: Any) {
         @Suppress("UNCHECKED_CAST")
         for (redirect in installed as List<ActiveRedirect>) remove(redirect)
     }
 
-    fun of(target: Any, name: String): GeneratedMock {
-        val redirect = synchronized(this) { active.find { it.target === target } }
-        val current = LokkiScope.currentScope
-        if (redirect == null || current != null && !current.isWithin(redirect.scope)) {
-            throw LokkiException("$name is not mocked in the current scope; call mockObject($name)")
-        }
-        return redirect.mock
-    }
+    fun of(target: Any, name: String): GeneratedMock = of(target, name, "mockObject($name)")
 
-    internal fun find(target: Any): GeneratedMock? = synchronized(this) { active.find { it.target === target }?.mock }
+    fun ofStatic(target: Any, name: String): GeneratedMock = of(target, name, "mockStatic($name)")
 
-    internal fun unmock(targets: Array<out Any>) {
+    fun unmock(targets: Array<out Any>) {
         val scope = LokkiScope.currentScope ?: return
         for (target in targets) {
-            synchronized(this) { active.find { it.target === target && it.scope === scope } }?.let(::remove)
+            synchronized(this) { active.find { it.isFor(target) && it.scope === scope } }?.let(::remove)
         }
     }
+
+    internal fun find(target: Any): GeneratedMock? = synchronized(this) { active.find { it.isFor(target) }?.mock }
 
     internal fun unmockAll() {
         LokkiScope.currentScope?.let(::release)
@@ -64,9 +71,23 @@ internal object Redirects {
         synchronized(this) { active.filter { it.scope === scope } }.forEach(::remove)
     }
 
-    private fun install(redirect: ObjectRedirect, scope: LokkiScope): ActiveRedirect? =
+    private fun install(redirects: Array<Redirect>, function: String, kind: Int): Any {
+        val scope = LokkiScope.requireCurrent(function)
+        return redirects.mapNotNull { install(it, scope, kind) }
+    }
+
+    private fun of(target: Any, name: String, call: String): GeneratedMock {
+        val redirect = synchronized(this) { active.find { it.isFor(target) } }
+        val current = LokkiScope.currentScope
+        if (redirect == null || current != null && !current.isWithin(redirect.scope)) {
+            throw LokkiException("$name is not mocked in the current scope; call $call")
+        }
+        return redirect.mock
+    }
+
+    private fun install(redirect: Redirect, scope: LokkiScope, kind: Int): ActiveRedirect? =
         synchronized(this) {
-            val existing = active.find { it.target === redirect.target }
+            val existing = active.find { it.isFor(redirect.target) }
             when {
                 existing == null -> {}
                 existing.scope === scope -> active -= existing
@@ -76,7 +97,7 @@ internal object Redirects {
                         "serialize these tests with @ResourceLock or @Isolated"
                 )
             }
-            val mock = redirect.factory(MockSpec(null, SPY or OBJECT)) as GeneratedMock
+            val mock = redirect.factory(MockSpec(null, SPY or kind)) as GeneratedMock
             redirect.install(mock)
             ActiveRedirect(redirect.target, scope, mock, redirect.install).also { active += it }
         }
@@ -93,4 +114,6 @@ internal class ActiveRedirect(
     val scope: LokkiScope,
     val mock: GeneratedMock,
     val install: (Any?) -> Unit,
-)
+) {
+    fun isFor(other: Any): Boolean = target === other || target is String && target == other
+}

@@ -5,6 +5,8 @@ import io.lokki.internal.LokkiIntrinsic
 import io.lokki.internal.Redirects
 import io.lokki.internal.states
 import kotlin.reflect.KClass
+import kotlin.reflect.KFunction
+import kotlin.reflect.KProperty
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK)
 public inline fun <reified T : Any> mock(
@@ -46,6 +48,38 @@ public fun unmockObject(vararg objects: Any) {
     Redirects.unmock(objects)
 }
 
+@LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK_STATIC)
+public fun mockStatic(vararg functions: KFunction<*>): Unit =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK_STATIC)
+public fun mockStatic(vararg functions: KProperty<*>): Unit =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK_STATIC)
+public inline fun mockStatic(vararg functions: KFunction<*>, block: () -> Unit): Unit =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK_STATIC)
+public inline fun mockStatic(vararg functions: KProperty<*>, block: () -> Unit): Unit =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.STATIC_MOCKS)
+public fun unmockStatic(vararg functions: KFunction<*>): Unit =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.STATIC_MOCKS)
+public fun unmockStatic(vararg functions: KProperty<*>): Unit =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.STATIC_MOCKS)
+public fun clearStaticMock(vararg functions: KFunction<*>): Unit =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.STATIC_MOCKS)
+public fun clearStaticMock(vararg functions: KProperty<*>): Unit =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
 public fun unmockAll() {
     Redirects.unmockAll()
 }
@@ -77,7 +111,13 @@ public fun clearAllMocks(
     currentThreadOnly: Boolean = false,
 ) {
     val scope = LokkiScope.requireCurrent("clearAllMocks")
-    if (!regularMocks && !objectMocks) return
-    val states = scope.windowStates().filter { if (it.isObject) objectMocks else regularMocks }
+    if (!regularMocks && !objectMocks && !staticMocks) return
+    val states = scope.windowStates().filter {
+        when {
+            it.isObject -> objectMocks
+            it.isStatic -> staticMocks
+            else -> regularMocks
+        }
+    }
     scope.clearWindow(states, answers, recordedCalls, childMocks)
 }

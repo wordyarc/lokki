@@ -24,6 +24,9 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
     internal val isObject: Boolean
         get() = flags and OBJECT != 0
 
+    internal val isStatic: Boolean
+        get() = flags and STATIC != 0
+
     @Volatile
     private var stubs = arrayOfNulls<Array<StubEntry>>(descriptor.memberCount)
 

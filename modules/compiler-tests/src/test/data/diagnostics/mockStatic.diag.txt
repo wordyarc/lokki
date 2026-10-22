@@ -1,0 +1,27 @@
+/mockStatic.kt:26:16: error: Calls of 'local' cannot be intercepted: it is declared in this compilation, and only main compilations with lokki { mockable(...) } get interception points.
+
+/mockStatic.kt:27:16: error: Calls of 'doubled' cannot be intercepted: it is declared in this compilation, and only main compilations with lokki { mockable(...) } get interception points.
+
+/mockStatic.kt:28:16: error: Calls of 'now' cannot be intercepted: it is a member of 'test.Clock': mock the object with 'mockObject(Clock)'.
+
+/mockStatic.kt:29:16: error: Calls of 'f' cannot be intercepted: it is a member of 'test.Service': mock its instance with 'mock<T>()' or 'spy(...)'.
+
+/mockStatic.kt:30:16: error: Calls of 'currentTimeMillis' cannot be intercepted: it is a static member of a Java class, which lokki does not intercept.
+
+/mockStatic.kt:31:16: error: Calls of 'isBlank' cannot be intercepted: it has no interception points: add it, its file or its package to lokki { mockable(...) } of the module that declares it.
+
+/mockStatic.kt:32:16: error: An argument of 'mockStatic' must be an unbound reference like '::f' or 'Type::f': lokki chooses the interception point at compile time.
+
+/mockStatic.kt:33:16: error: An argument of 'mockStatic' must be an unbound reference like '::f' or 'Type::f': lokki chooses the interception point at compile time.
+
+/mockStatic.kt:34:16: error: An argument of 'mockStatic' must be an unbound reference like '::f' or 'Type::f': lokki chooses the interception point at compile time.
+
+/mockStatic.kt:35:18: error: An argument of 'unmockStatic' must be an unbound reference like '::f' or 'Type::f': lokki chooses the interception point at compile time.
+
+/mockStatic.kt:36:21: error: Calls of 'local' cannot be intercepted: it is declared in this compilation, and only main compilations with lokki { mockable(...) } get interception points.
+
+/mockStatic.kt:37:21: error: Calls of 'local' cannot be intercepted: it is declared in this compilation, and only main compilations with lokki { mockable(...) } get interception points.
+
+/mockStatic.kt:37:30: error: An argument of 'confirmVerified' must be an unbound reference like '::f' or 'Type::f': lokki chooses the interception point at compile time.
+
+/mockStatic.kt:38:13: error: A call of 'local' cannot be intercepted: it is not a member.

@@ -9,6 +9,7 @@ import io.lokki.confirmVerified
 import io.lokki.every
 import io.lokki.junit5.LokkiExtension
 import io.lokki.mock
+import io.lokki.mockStatic
 import io.lokki.spy
 import io.lokki.verify
 import org.junit.jupiter.api.extension.ExtendWith
@@ -135,6 +136,32 @@ class ClearMocksTest {
         assertEquals(3, child.op(1))
         verify(exactly = 1) { child.op(1) }
         assertSame(child, mockObj.child())
+    }
+
+    @Test
+    fun clearAll() {
+        val obj = spy(MockCls())
+        mockStatic(::topLevelFn)
+
+        val child = mockObj.child()
+
+        every { spyObj.op(1) } returns 11
+        every { topLevelFn() } returns 33
+        every { obj.op(4) } returns 44
+        every { child.op(5) } returns 55
+
+        assertEquals(11, spyObj.op(1))
+        assertEquals(33, topLevelFn())
+        assertEquals(44, obj.op(4))
+        assertEquals(55, child.op(5))
+
+        clearAllMocks()
+
+        assertEquals(2, spyObj.op(1))
+        assertEquals(55, topLevelFn())
+        assertEquals(5, obj.op(4))
+        assertEquals(0, child.op(5))
+        assertNotSame(child, mockObj.child())
     }
 
     @Test

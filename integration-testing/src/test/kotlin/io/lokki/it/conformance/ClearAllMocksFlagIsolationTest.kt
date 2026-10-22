@@ -5,6 +5,7 @@ import io.lokki.every
 import io.lokki.junit5.LokkiExtension
 import io.lokki.mock
 import io.lokki.mockObject
+import io.lokki.mockStatic
 import io.lokki.spy
 import io.lokki.unmockAll
 import org.junit.jupiter.api.AfterEach
@@ -52,6 +53,20 @@ class ClearAllMocksFlagIsolationTest {
 
         assertEquals(10, mock.value())
         assertEquals(0, obj.value())
+    }
+
+    @Test
+    fun `staticMocks flag only clears static mocks`() {
+        val mock = mock<Target>(relaxed = true)
+        mockStatic(::flagTestTopLevel)
+
+        every { mock.value() } returns 10
+        every { flagTestTopLevel() } returns 99
+
+        clearAllMocks(regularMocks = false, objectMocks = false, staticMocks = true, constructorMocks = false)
+
+        assertEquals(10, mock.value())
+        assertEquals(0, flagTestTopLevel())
     }
 
     @Test

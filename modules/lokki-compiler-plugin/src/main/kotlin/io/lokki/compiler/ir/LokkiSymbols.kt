@@ -42,12 +42,19 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
     val link by lazy { generatedMock.companionObject()!!.function("link") }
     val childMock by lazy { findClass(INTERNAL_PACKAGE, "ChildMock") }
     val redirects by lazy { findClass(INTERNAL_PACKAGE, "Redirects") }
-    val mockObject by lazy { redirects.functions.single { it.name.asString() == "mockObject" && it.parameters.size == 2 } }
-    val mockObjectWithBlock by lazy {
-        redirects.functions.single { it.name.asString() == "mockObject" && it.parameters.size == 3 }
-    }
+    val mockObject by lazy { redirects.function("mockObject", parameters = 2) }
+    val mockObjectWithBlock by lazy { redirects.function("mockObject", parameters = 3) }
+    val mockStatic by lazy { redirects.function("mockStatic", parameters = 2) }
+    val mockStaticWithBlock by lazy { redirects.function("mockStatic", parameters = 3) }
     val redirectOf by lazy { redirects.function("of") }
-    val objectRedirect by lazy { findClass(INTERNAL_PACKAGE, "ObjectRedirect") }
+    val staticRedirectOf by lazy { redirects.function("ofStatic") }
+    val unmock by lazy { redirects.function("unmock") }
+    val redirect by lazy { findClass(INTERNAL_PACKAGE, "Redirect") }
+    val clearMocks by lazy { findFunction(PACKAGE, "clearMocks") }
+    val confirmVerified by lazy {
+        finder.findFunctions(CallableId(PACKAGE, Name.identifier("confirmVerified"))).map { it.owner }
+            .single { it.parameters.first().varargElementType != null }
+    }
     val mockFieldsOwner by lazy { findClass(INTERNAL_PACKAGE, "MockFieldsOwner") }
     val initMockFields by lazy { mockFieldsOwner.function("lokki\$initMockFields") }
 
@@ -161,6 +168,9 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
 }
 
 private fun IrClass.function(name: String): IrSimpleFunction = functions.single { it.name.asString() == name }
+
+private fun IrClass.function(name: String, parameters: Int): IrSimpleFunction =
+    functions.single { it.name.asString() == name && it.parameters.size == parameters }
 
 private val IrFunction.firstParameterClass: IrClass?
     get() = parameters.firstOrNull { it.kind == IrParameterKind.Regular }?.type?.erasedUpperBound

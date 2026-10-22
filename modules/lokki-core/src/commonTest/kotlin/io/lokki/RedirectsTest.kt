@@ -2,7 +2,8 @@ package io.lokki
 
 import io.lokki.internal.AnyMatcher
 import io.lokki.internal.GeneratedMock
-import io.lokki.internal.ObjectRedirect
+import io.lokki.internal.MockSpec
+import io.lokki.internal.Redirect
 import io.lokki.internal.Redirects
 import io.lokki.internal.TestMock
 import kotlin.test.Test
@@ -20,7 +21,7 @@ class RedirectsTest {
 
     private var installed: Any? = null
 
-    private val redirect = ObjectRedirect(clock, "Clock", { spec -> TestMock(spec.name, NOW, flags = spec.flags) }) {
+    private val redirect = Redirect(clock, "Clock", { spec -> TestMock(spec.name, NOW, flags = spec.flags) }) {
         installed = it
     }
 
@@ -125,6 +126,33 @@ class RedirectsTest {
             assertFailsWith<LokkiException> { now(regular) }
             clearAllMocks()
         }
+    }
+
+    @Test
+    fun testStaticRedirectIsFoundByAnEqualKey() {
+        val factory = { spec: MockSpec -> TestMock(spec.name, NOW, flags = spec.flags) }
+        val static = Redirect(buildString { append(NOW) }, "::now", factory) { installed = it }
+        assertEquals(
+            "no active LokkiScope for mockStatic(): use LokkiExtension or lokkiScope { }",
+            assertFailsWith<LokkiException> { Redirects.mockStatic(arrayOf(static)) }.message,
+        )
+        lokkiScope {
+            Redirects.mockStatic(arrayOf(static))
+            val mock = assertNotNull(installed) as TestMock
+            assertSame(mock, Redirects.ofStatic(NOW, "::now"))
+            assertTrue(mock.`lokki$state`.isStatic)
+            mock.`lokki$state`.stub<Int>(NOW, arrayOf(AnyMatcher)) returns 5
+            clearAllMocks(staticMocks = false)
+            assertEquals(5, now(mock))
+            clearAllMocks(regularMocks = false, objectMocks = false)
+            assertFailsWith<LokkiException> { now(mock) }
+            Redirects.unmock(arrayOf(NOW))
+            assertNull(installed)
+        }
+        assertEquals(
+            "::now is not mocked in the current scope; call mockStatic(::now)",
+            assertFailsWith<LokkiException> { Redirects.ofStatic(NOW, "::now") }.message,
+        )
     }
 
     private fun now(mock: TestMock, argument: Int = 1): Any? = mock.`lokki$state`.answer(NOW_MEMBER, arrayOf(argument))

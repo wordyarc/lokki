@@ -19,6 +19,8 @@ internal enum class IntrinsicKind {
     ADDITIONAL_INTERFACE,
     INJECT_MOCKS,
     MOCK_OBJECT,
+    MOCK_STATIC,
+    STATIC_MOCKS,
     UNKNOWN;
 
     companion object {

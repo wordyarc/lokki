@@ -6,9 +6,9 @@
 
 /unsupportedStubBlock.kt:56:11: error: The block of 'every' must be a single call of a mock member.
 
-/unsupportedStubBlock.kt:57:11: error: The block of 'every' must be a single call of a mock member.
+/unsupportedStubBlock.kt:57:13: error: 'top' has no interception point: lokki intercepts top-level functions and properties of main compilations with lokki { mockable(...) }.
 
-/unsupportedStubBlock.kt:58:11: error: The block of 'every' must be a single call of a mock member.
+/unsupportedStubBlock.kt:58:18: error: 'first' has no interception point: lokki intercepts top-level functions and properties of main compilations with lokki { mockable(...) }.
 
 /unsupportedStubBlock.kt:59:13: error: The receiver of the stubbed or verified call must not use matchers.
 

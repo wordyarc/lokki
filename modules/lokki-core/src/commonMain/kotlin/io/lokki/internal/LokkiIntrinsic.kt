@@ -20,5 +20,7 @@ public annotation class LokkiIntrinsic(val kind: Kind) {
         ADDITIONAL_INTERFACE,
         INJECT_MOCKS,
         MOCK_OBJECT,
+        MOCK_STATIC,
+        STATIC_MOCKS,
     }
 }

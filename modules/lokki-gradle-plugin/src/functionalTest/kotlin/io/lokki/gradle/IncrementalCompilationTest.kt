@@ -641,6 +641,52 @@ class IncrementalCompilationTest {
 
     @ParameterizedTest
     @EnumSource(GradleUnderTest::class)
+    fun testNewFunctionOfMockableFileInMain(gradle: GradleUnderTest) {
+        val project = TestProject(projectDir, gradle)
+        project.write("build.gradle.kts", mockableBuildScript("sample.**"))
+        project.write("src/main/kotlin/sample/Clock.kt", "package sample\n\nfun now(): Long = 1\n")
+        project.write("src/test/kotlin/sample/ClockTest.kt", STATIC_TEST)
+        project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
+        project.build("test")
+        assertEquals(setOf("now()"), project.mockedMethods("test", CLOCK_STATIC_MOCK))
+
+        project.write(
+            "src/main/kotlin/sample/Clock.kt",
+            "package sample\n\nfun now(): Long = 1\n\nfun zone(): String = \"UTC\"\n",
+        )
+        val result = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
+        assertEquals(setOf("ClockTest.kt"), project.compiledSources(":compileTestKotlin"))
+        assertEquals(setOf("now()", "zone()"), project.mockedMethods("test", CLOCK_STATIC_MOCK))
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testFunctionRemovedFromMockable(gradle: GradleUnderTest) {
+        val project = TestProject(projectDir, gradle)
+        project.write("build.gradle.kts", mockableBuildScript("sample.now"))
+        project.write("src/main/kotlin/sample/Clock.kt", "package sample\n\nfun now(): Long = 1\n")
+        project.write("src/test/kotlin/sample/ClockTest.kt", STATIC_TEST)
+        project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
+        project.build("test")
+
+        project.write("build.gradle.kts", mockableBuildScript("sample.Gear"))
+        val failure = project.buildAndFail("test")
+
+        val errors = failure.output.lines().filter { it.startsWith("e: ") && "ClockTest.kt" in it }
+        val noPoints = "Calls of 'now' cannot be intercepted: it has no interception points"
+        assertTrue(errors.any { noPoints in it }, failure.output)
+        assertTrue(errors.any { "A call of 'now' cannot be intercepted" in it }, failure.output)
+
+        project.write("build.gradle.kts", mockableBuildScript("sample.now"))
+        project.build("test")
+
+        assertEquals(setOf("now()"), project.mockedMethods("test", CLOCK_STATIC_MOCK))
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
     fun testOpenClassRemovedFromMockable(gradle: GradleUnderTest) {
         val project = TestProject(projectDir, gradle)
         project.write("build.gradle.kts", mockableBuildScript("sample.Engine"))
@@ -1123,6 +1169,28 @@ private const val OBJECT_TEST: String =
                 mockObject(Clock)
                 every { Clock.now() } returns 2
                 assertEquals(2, Clock.now())
+            }
+        }
+    }
+    """
+private const val CLOCK_STATIC_MOCK = "sample.ClockKt\$LokkiRedirect\$LokkiMock\$e4595751\$ClockTestKt"
+private const val STATIC_TEST: String =
+    """
+    package sample
+
+    import io.lokki.every
+    import io.lokki.lokkiScope
+    import io.lokki.mockStatic
+    import kotlin.test.Test
+    import kotlin.test.assertEquals
+
+    class ClockTest {
+        @Test
+        fun stubsFunction() {
+            lokkiScope {
+                mockStatic(::now)
+                every { now() } returns 2
+                assertEquals(2, now())
             }
         }
     }

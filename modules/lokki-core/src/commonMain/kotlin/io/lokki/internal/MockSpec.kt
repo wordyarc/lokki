@@ -8,3 +8,4 @@ internal const val RELAX_UNIT_FUN = 2
 internal const val SPY = 4
 internal const val DELEGATE = 8
 internal const val OBJECT = 16
+internal const val STATIC = 32

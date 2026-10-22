@@ -1,0 +1,9 @@
+/unsupportedMockStatic.kt:15:16: error: 'local' is not an unbound reference to a top-level function or property with interception points.
+
+/unsupportedMockStatic.kt:16:5: error: Pass references to 'mockStatic' directly, not as a spread array.
+
+/unsupportedMockStatic.kt:17:16: error: An argument of 'mockStatic' must be an unbound reference like '::f'.
+
+/unsupportedMockStatic.kt:18:18: error: 'local' is not an unbound reference to a top-level function or property with interception points.
+
+/unsupportedMockStatic.kt:19:13: error: 'local' has no interception point: lokki intercepts top-level functions and properties of main compilations with lokki { mockable(...) }.

@@ -12,6 +12,7 @@ import io.lokki.compiler.fir.intrinsicKind
 import io.lokki.compiler.fir.MemberInterception
 import io.lokki.compiler.fir.isFinalType
 import io.lokki.compiler.fir.objectInterception
+import io.lokki.compiler.fir.staticInterception
 import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
@@ -187,6 +188,8 @@ private class StubBlock(
                 notSingleCall(statement, "is not a call")
             callee.isStatic -> notInterceptable(call, callee, "it is static")
             receiver != null -> checkMemberCall(call, callee, receiver, arguments)
+            with(context) { callee.staticInterception() } == MemberInterception.Intercepted ->
+                checkArguments(call, callee, arguments)
             arguments.any { it.unwrapArgument() is FirAnonymousFunctionExpression } ->
                 notSingleCall(statement, "wraps the call into a lambda. Move the wrapping call outside the block")
             call.extensionReceiver != null ->
@@ -227,6 +230,14 @@ private class StubBlock(
                 context,
             )
         }
+        checkArguments(call, callee, arguments)
+    }
+
+    private fun checkArguments(
+        call: FirQualifiedAccessExpression,
+        callee: FirCallableSymbol<*>,
+        arguments: List<FirExpression>,
+    ) {
         val first = firstArgument(call, callee, arguments)
         (listOfNotNull(call.extensionReceiver) + call.contextArguments + arguments).forEach { checkArgument(it, first) }
     }

@@ -17,11 +17,13 @@ import org.jetbrains.kotlin.ir.util.parentAsClass
 
 internal fun IrBuilder.irArrayOf(elementType: IrType, elements: List<IrVarargElement>): IrExpression {
     val builtIns = context.irBuiltIns
-    val arrayType = builtIns.arrayClass.typeWith(elementType)
-    return irCall(builtIns.arrayOf, arrayType, listOf(elementType)).apply {
-        arguments[0] = IrVarargImpl(startOffset, endOffset, arrayType, elementType, elements)
+    return irCall(builtIns.arrayOf, builtIns.arrayClass.typeWith(elementType), listOf(elementType)).apply {
+        arguments[0] = irVararg(elementType, elements)
     }
 }
+
+internal fun IrBuilder.irVararg(elementType: IrType, elements: List<IrVarargElement>): IrExpression =
+    IrVarargImpl(startOffset, endOffset, context.irBuiltIns.arrayClass.typeWith(elementType), elementType, elements)
 
 internal fun IrBuilderWithScope.irHidden(symbols: LokkiSymbols, message: String): IrAnnotation =
     irAnnotation(symbols.deprecated).apply {

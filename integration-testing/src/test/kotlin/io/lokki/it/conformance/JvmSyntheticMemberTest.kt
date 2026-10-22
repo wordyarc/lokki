@@ -4,6 +4,8 @@ import io.lokki.every
 import io.lokki.lokkiScope
 import io.lokki.mock
 import io.lokki.mockObject
+import io.lokki.mockStatic
+import io.lokki.unmockStatic
 import io.lokki.verify
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -71,6 +73,21 @@ class JvmSyntheticMemberTest {
     }
 
     @Test
+    fun syntheticTopLevelFunctionIsStubbed() {
+        lokkiScope {
+            mockStatic(::syntheticTopLevelFunction)
+            try {
+                every { syntheticTopLevelFunction("in") } returns "out"
+
+                assertEquals("out", syntheticTopLevelFunction("in"))
+                verify { syntheticTopLevelFunction("in") }
+            } finally {
+                unmockStatic(::syntheticTopLevelFunction)
+            }
+        }
+    }
+
+    @Test
     fun syntheticJvmStaticFunctionIsStubbed() {
         lokkiScope {
             mockObject(SyntheticStaticHolder) {
@@ -78,6 +95,21 @@ class JvmSyntheticMemberTest {
 
                 assertEquals("out", SyntheticStaticHolder.compute("in"))
                 verify { SyntheticStaticHolder.compute("in") }
+            }
+        }
+    }
+
+    @Test
+    fun defaultArgumentsBridgeIsNotRecordedInsteadOfTheFunction() {
+        lokkiScope {
+            mockStatic(::functionWithDefaultArgument)
+            try {
+                every { functionWithDefaultArgument() } returns 99
+
+                assertEquals(99, functionWithDefaultArgument(5))
+                assertEquals(70, functionWithDefaultArgument(7))
+            } finally {
+                unmockStatic(::functionWithDefaultArgument)
             }
         }
     }

@@ -53,6 +53,20 @@ object Shelf : Store<String> {
     override fun put(value: String): Int = value.length
 }
 
+object Sizes {
+    @JvmName("sizeOfInts")
+    fun size(xs: List<Int>): Int = xs.size
+
+    @JvmName("sizeOfStrings")
+    fun size(xs: List<String>): Int = xs.size
+
+    val List<Int>.first: Int
+        @JvmName("firstOfInts") get() = get(0)
+
+    val List<String>.first: Int
+        @JvmName("firstOfStrings") get() = get(0).length
+}
+
 fun service(): String = "${Clock.now()}-${Settings.create()}"
 
 // MODULE: test()(main)
@@ -79,6 +93,7 @@ import sample.Clock
 import sample.Empty
 import sample.Settings
 import sample.Shelf
+import sample.Sizes
 import sample.service
 
 fun <T> complete(block: suspend () -> T): T {
@@ -104,6 +119,7 @@ fun box(): String {
     if (Clock.now() != 1L || isMock(Clock)) return "Fail: the scope did not remove the redirect"
     lokkiScope { scopes() }?.let { return it }
     lokkiScope { companion() }?.let { return it }
+    lokkiScope { jvmNames() }?.let { return it }
     return lokkiScope { block() } ?: "OK"
 }
 
@@ -207,6 +223,22 @@ private fun companion(): String? {
     if (Settings().read() != "sport") return "Fail: a read of a companion property inside its class"
     every { Settings.create() } returns "mocked"
     if (Settings.create() != "mocked" || service() != "1-mocked") return "Fail: companion member"
+    return null
+}
+
+private fun jvmNames(): String? {
+    val sizes = Sizes::class.java
+    sizes.getDeclaredMethod("sizeOfInts\$lokkiOriginal", List::class.java)
+    sizes.getDeclaredMethod("firstOfStrings\$lokkiGet", List::class.java)
+    mockObject(Sizes)
+    every { Sizes.size(listOf(1)) } returns 9
+    every { Sizes.size(any<List<String>>()) } answers { callOriginal() + 10 }
+    if (Sizes.size(listOf(1)) != 9 || Sizes.size(listOf("a", "b")) != 12) return "Fail: overloads with @JvmName"
+    with(Sizes) {
+        every { listOf("abc").first } returns 7
+        if (listOf("abc").first != 7 || listOf(5).first != 5) return "Fail: accessors with @JvmName"
+    }
+    verify { Sizes.size(listOf(1)) }
     return null
 }
 

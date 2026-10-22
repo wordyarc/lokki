@@ -201,11 +201,19 @@ public final class io/lokki/MockKt {
 	public static synthetic fun clearAllMocks$default (ZZZZZZZZILjava/lang/Object;)V
 	public static final fun clearMocks (Ljava/lang/Object;[Ljava/lang/Object;ZZZZZ)V
 	public static synthetic fun clearMocks$default (Ljava/lang/Object;[Ljava/lang/Object;ZZZZZILjava/lang/Object;)V
+	public static final fun clearStaticMock ([Lkotlin/reflect/KFunction;)V
+	public static final fun clearStaticMock ([Lkotlin/reflect/KProperty;)V
 	public static final fun isMock (Ljava/lang/Object;)Z
 	public static final fun mockObject ([Ljava/lang/Object;)V
 	public static final fun mockObject ([Ljava/lang/Object;Lkotlin/jvm/functions/Function0;)V
+	public static final fun mockStatic ([Lkotlin/reflect/KFunction;)V
+	public static final fun mockStatic ([Lkotlin/reflect/KFunction;Lkotlin/jvm/functions/Function0;)V
+	public static final fun mockStatic ([Lkotlin/reflect/KProperty;)V
+	public static final fun mockStatic ([Lkotlin/reflect/KProperty;Lkotlin/jvm/functions/Function0;)V
 	public static final fun unmockAll ()V
 	public static final fun unmockObject ([Ljava/lang/Object;)V
+	public static final fun unmockStatic ([Lkotlin/reflect/KFunction;)V
+	public static final fun unmockStatic ([Lkotlin/reflect/KProperty;)V
 }
 
 public final class io/lokki/Ordering : java/lang/Enum {
@@ -272,7 +280,11 @@ public final class io/lokki/VerificationKt {
 	public static synthetic fun coVerifyOrder$default (ZLkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
 	public static final fun coVerifySequence (ZLkotlin/jvm/functions/Function2;)V
 	public static synthetic fun coVerifySequence$default (ZLkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
+	public static final fun confirmVerified (Lkotlin/reflect/KFunction;[Lkotlin/reflect/KFunction;Z)V
+	public static final fun confirmVerified (Lkotlin/reflect/KProperty;[Lkotlin/reflect/KProperty;Z)V
 	public static final fun confirmVerified ([Ljava/lang/Object;Z)V
+	public static synthetic fun confirmVerified$default (Lkotlin/reflect/KFunction;[Lkotlin/reflect/KFunction;ZILjava/lang/Object;)V
+	public static synthetic fun confirmVerified$default (Lkotlin/reflect/KProperty;[Lkotlin/reflect/KProperty;ZILjava/lang/Object;)V
 	public static synthetic fun confirmVerified$default ([Ljava/lang/Object;ZILjava/lang/Object;)V
 	public static final fun excludeRecords (ZLkotlin/jvm/functions/Function1;)V
 	public static synthetic fun excludeRecords$default (ZLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
@@ -354,8 +366,10 @@ public final class io/lokki/internal/LokkiIntrinsic$Kind : java/lang/Enum {
 	public static final field MATCHER Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field MOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field MOCK_OBJECT Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field MOCK_STATIC Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field RELAXED_MOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field SPY Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field STATIC_MOCKS Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field STUB_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field VERIFY_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field WAS_NOT_CALLED Lio/lokki/internal/LokkiIntrinsic$Kind;
@@ -466,17 +480,22 @@ public final class io/lokki/internal/NoRelaxedDefault {
 	public fun <init> (Ljava/lang/String;Z)V
 }
 
-public final class io/lokki/internal/ObjectRedirect {
+public final class io/lokki/internal/Redirect {
 	public fun <init> (Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)V
 }
 
 public final class io/lokki/internal/Redirects {
 	public static final field INSTANCE Lio/lokki/internal/Redirects;
-	public final fun install ([Lio/lokki/internal/ObjectRedirect;)Ljava/lang/Object;
-	public final fun mockObject ([Lio/lokki/internal/ObjectRedirect;)V
-	public final fun mockObject ([Lio/lokki/internal/ObjectRedirect;Lkotlin/jvm/functions/Function0;)V
+	public final fun install ([Lio/lokki/internal/Redirect;)Ljava/lang/Object;
+	public final fun installStatic ([Lio/lokki/internal/Redirect;)Ljava/lang/Object;
+	public final fun mockObject ([Lio/lokki/internal/Redirect;)V
+	public final fun mockObject ([Lio/lokki/internal/Redirect;Lkotlin/jvm/functions/Function0;)V
+	public final fun mockStatic ([Lio/lokki/internal/Redirect;)V
+	public final fun mockStatic ([Lio/lokki/internal/Redirect;Lkotlin/jvm/functions/Function0;)V
 	public final fun of (Ljava/lang/Object;Ljava/lang/String;)Lio/lokki/internal/GeneratedMock;
+	public final fun ofStatic (Ljava/lang/Object;Ljava/lang/String;)Lio/lokki/internal/GeneratedMock;
 	public final fun uninstall (Ljava/lang/Object;)V
+	public final fun unmock ([Ljava/lang/Object;)V
 }
 
 public final class io/lokki/internal/Registration {
