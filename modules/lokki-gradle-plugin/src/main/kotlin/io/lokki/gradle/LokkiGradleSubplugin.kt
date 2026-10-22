@@ -32,6 +32,7 @@ public class LokkiGradleSubplugin : KotlinCompilerPluginSupportPlugin {
             )
         }
         if (!kotlinCompilation.isTest()) {
+            project.warnIfPublished(kotlinCompilation)
             return project.lokki.mockable.map { patterns ->
                 patterns.map { SubpluginOption(BuildConfig.MOCKABLE_OPTION, it) }
             }
@@ -45,6 +46,21 @@ public class LokkiGradleSubplugin : KotlinCompilerPluginSupportPlugin {
 
 private val Project.lokki: LokkiGradleExtension
     get() = extensions.getByType(LokkiGradleExtension::class.java)
+
+private fun Project.warnIfPublished(compilation: KotlinCompilation<*>) {
+    pluginManager.withPlugin("maven-publish") {
+        if (providers.gradleProperty(MOCKABLE_PUBLICATION_NOWARN).orNull?.toBoolean() != true) {
+            logger.warn(
+                "lokki { mockable(...) } opens classes and adds interception points to objects and top-level functions " +
+                    "compiled by ${absoluteProjectPath(compilation.compileTaskProvider.name)}, and the project applies " +
+                    "maven-publish: its published artifacts contain this bytecode. To disable this warning, " +
+                    "set $MOCKABLE_PUBLICATION_NOWARN=true in gradle.properties."
+            )
+        }
+    }
+}
+
+private const val MOCKABLE_PUBLICATION_NOWARN = "lokki.mockablePublication.nowarn"
 
 private fun KotlinCompilation<*>.isTest(): Boolean =
     name in TEST_COMPILATION_NAMES || name in target.project.testSuiteSourceSetNames()

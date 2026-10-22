@@ -179,6 +179,7 @@ class CompilationApplicabilityTest {
         val result = project.build("test")
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
+        assertFalse(PUBLICATION_WARNING in result.output, result.output)
         assertTrue(project.dependsOnLokki("kotlinCompilerPluginClasspathMain"))
         assertFalse(project.dependsOnLokki("compileClasspath"))
         assertFalse(project.dependsOnLokki("runtimeClasspath"))
@@ -203,7 +204,26 @@ class CompilationApplicabilityTest {
         assertTrue("Invalid mockable pattern 'sample.*'" in result.output, result.output)
     }
 
-    private fun mockableProject(gradle: GradleUnderTest, patterns: String): TestProject =
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testPublishedMockableMain(gradle: GradleUnderTest) {
+        val project = mockableProject(gradle, "\"sample.**\"", "`maven-publish`")
+        project.write("src/main/kotlin/sample/Engine.kt", declaration("class Engine", "fun start(): String = \"started\""))
+
+        val suppressed = project.build("compileKotlin", "-Plokki.mockablePublication.nowarn=true")
+
+        assertFalse(PUBLICATION_WARNING in suppressed.output, suppressed.output)
+
+        val warned = project.build("compileKotlin")
+
+        assertTrue(
+            "lokki { mockable(...) } opens classes and adds interception points to objects and top-level functions " +
+                "compiled by :compileKotlin, $PUBLICATION_WARNING" in warned.output,
+            warned.output,
+        )
+    }
+
+    private fun mockableProject(gradle: GradleUnderTest, patterns: String, vararg plugins: String): TestProject =
         TestProject(projectDir, gradle).apply {
             write(
                 "build.gradle.kts",
@@ -211,6 +231,7 @@ class CompilationApplicabilityTest {
                 plugins {
                     kotlin("jvm") version "$KOTLIN_VERSION"
                     id("io.lokki") version "$LOKKI_VERSION"
+                    ${plugins.joinToString("; ")}
                 }
 
                 lokki {
@@ -231,3 +252,5 @@ class CompilationApplicabilityTest {
     private fun TestProject.dependsOnLokki(configuration: String): Boolean =
         "io.lokki:" in build("dependencies", "--configuration", configuration).output
 }
+
+private const val PUBLICATION_WARNING = "and the project applies maven-publish: its published artifacts contain this bytecode."
