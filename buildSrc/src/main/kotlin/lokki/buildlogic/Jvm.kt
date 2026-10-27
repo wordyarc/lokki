@@ -1,6 +1,5 @@
 package lokki.buildlogic
 
-import org.gradle.api.JavaVersion
 import org.gradle.api.Project
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.compile.JavaCompile
@@ -10,12 +9,13 @@ import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmCompilerOptions
 
-internal fun Project.targetJvm(compilerOptions: KotlinJvmCompilerOptions, target: String) {
+internal fun Project.targetJvm(compilerOptions: KotlinJvmCompilerOptions) {
+    val target = version("jvm-target")
     extensions.configure<JavaPluginExtension> {
         toolchain.languageVersion.set(JavaLanguageVersion.of(version("jvm-toolchain")))
     }
     tasks.withType<JavaCompile>().configureEach {
-        options.release.set(JavaVersion.toVersion(target).majorVersion.toInt())
+        options.release.set(target.toInt())
     }
     compilerOptions.jvmTarget.set(JvmTarget.fromTarget(target))
     compilerOptions.freeCompilerArgs.add("-Xjdk-release=$target")

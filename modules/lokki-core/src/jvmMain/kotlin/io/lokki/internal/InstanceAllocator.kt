@@ -1,10 +1,13 @@
 package io.lokki.internal
 
 import io.lokki.LokkiException
+import sun.misc.Unsafe
 
 @PublishedApi
 internal object InstanceAllocator {
-    private val unsafe = runCatching(::Unsafe)
+    private val unsafe = runCatching {
+        Unsafe::class.java.getDeclaredField("theUnsafe").apply { isAccessible = true }.get(null) as Unsafe
+    }
 
     fun <T> allocate(type: Class<T>): T {
         val unsafe = unsafe.getOrElse { e ->
@@ -16,12 +19,4 @@ internal object InstanceAllocator {
         }
         return type.cast(unsafe.allocateInstance(type))
     }
-}
-
-private class Unsafe {
-    private val unsafeClass = Class.forName("sun.misc.Unsafe")
-    private val instance = unsafeClass.getDeclaredField("theUnsafe").apply { isAccessible = true }.get(null)
-    private val allocateInstance = unsafeClass.getMethod("allocateInstance", Class::class.java)
-
-    fun allocateInstance(type: Class<*>): Any = allocateInstance.invoke(instance, type)
 }

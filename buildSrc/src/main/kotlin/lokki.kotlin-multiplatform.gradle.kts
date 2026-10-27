@@ -1,6 +1,5 @@
 import lokki.buildlogic.abiCheckEnabled
 import lokki.buildlogic.targetJvm
-import lokki.buildlogic.version
 import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
 
 plugins {
@@ -13,7 +12,7 @@ kotlin {
     }
 
     jvm {
-        targetJvm(compilerOptions, version("jvm-target-runtime"))
+        targetJvm(compilerOptions)
     }
 
     if (abiCheckEnabled) {

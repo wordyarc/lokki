@@ -1,8 +1,7 @@
 [versions]
 # -- JVM compatibility --------------------------------------------------------
 jvm-toolchain = "25"
-jvm-target-runtime = "1.8"
-jvm-target-tooling = "17"
+jvm-target = "17"
 
 # -- Gradle compatibility -----------------------------------------------------
 gradle-min-version = "8.11.1"

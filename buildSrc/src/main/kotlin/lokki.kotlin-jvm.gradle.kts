@@ -1,5 +1,4 @@
 import lokki.buildlogic.abiCheckEnabled
-import lokki.buildlogic.jvmTarget
 import lokki.buildlogic.targetJvm
 import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
 
@@ -8,7 +7,7 @@ plugins {
 }
 
 kotlin {
-    targetJvm(compilerOptions, jvmTarget)
+    targetJvm(compilerOptions)
 
     if (abiCheckEnabled) {
         explicitApi()
