@@ -1,5 +1,8 @@
+@file:OptIn(ExperimentalLokkiApi::class)
+
 package sample
 
+import io.lokki.ExperimentalLokkiApi
 import io.lokki.LokkiException
 import io.lokki.MatcherScope
 import io.lokki.Runs
@@ -97,6 +100,23 @@ fun box(): String {
     val suspended = failure { worker.later { suspendCoroutine<Unit> { } } }
     if (suspended != "coInvoke suspended; a matcher must complete without suspension") {
         return "Fail: suspension in coInvoke: $suspended"
+    }
+
+    seen.clear()
+    every { worker.map(3, invokeWith(30)) } returns 8
+    if (worker.map(3) { seen += it; "z" } != 8 || seen != listOf(30)) return "Fail: invokeWith: $seen"
+    every { worker.value(invokeWith<Int, Unit>(6)) } returns "invokeWith"
+    val invokeWithDescription = failure { worker.value("text") }
+    if ("Worker.value(invokeWith(6))" !in invokeWithDescription) {
+        return "Fail: description of invokeWith: $invokeWithDescription"
+    }
+
+    loaded.clear()
+    every { worker.later(coInvokeWith(11)) } returns 9
+    if (worker.later { loaded += it } != 9 || loaded != listOf(11)) return "Fail: coInvokeWith: $loaded"
+    val coInvokeWithSuspended = failure { worker.later { suspendCoroutine<Unit> { } } }
+    if (coInvokeWithSuspended != "coInvokeWith suspended; a matcher must complete without suspension") {
+        return "Fail: suspension in coInvokeWith: $coInvokeWithSuspended"
     }
 
     return "OK"

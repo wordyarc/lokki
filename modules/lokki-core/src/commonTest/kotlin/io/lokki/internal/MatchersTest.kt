@@ -220,7 +220,9 @@ class MatchersTest {
     @Test
     fun testInvokeCallsTheArgumentAndMatchesAnyValue() {
         val received = mutableListOf<String>()
-        val matcher = Matchers.invoke(arrayOf<Any?>("a", 2)) { callback: (String, Int) -> Unit -> callback("a", 2) }
+        val matcher = Matchers.invoke("invoke", arrayOf<Any?>("a", 2)) { callback: (String, Int) -> Unit ->
+            callback("a", 2)
+        }
 
         assertTrue(matcher.match({ name: String, count: Int -> received += name.repeat(count) }))
         assertTrue(matcher.match(null))
@@ -231,7 +233,7 @@ class MatchersTest {
     @Test
     fun testCoInvokeFailsOnSuspension() {
         val received = mutableListOf<Int>()
-        val matcher = Matchers.coInvoke(arrayOf(1)) { callback: suspend (Int) -> Unit -> callback(1) }
+        val matcher = Matchers.coInvoke("coInvoke", arrayOf(1)) { callback: suspend (Int) -> Unit -> callback(1) }
 
         assertTrue(matcher.match(suspend { value: Int -> received += answer(value) }))
         val suspension = assertFailsWith<LokkiException> { matcher.match(suspend { _: Int -> suspended() }) }

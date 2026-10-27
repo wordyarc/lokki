@@ -145,13 +145,13 @@ internal object Matchers {
     fun captureCoroutine(): Matcher<Any?> = LambdaMatcher
 
     @Suppress("UNCHECKED_CAST")
-    fun invoke(arguments: Array<out Any?>, invocation: (Nothing) -> Unit): Matcher<Any?> =
-        InvokeMatcher("invoke", arguments, invocation as (Any?) -> Unit)
+    fun invoke(name: String, arguments: Array<out Any?>, invocation: (Nothing) -> Unit): Matcher<Any?> =
+        InvokeMatcher(name, arguments, invocation as (Any?) -> Unit)
 
     @Suppress("UNCHECKED_CAST")
-    fun coInvoke(arguments: Array<out Any?>, invocation: suspend (Nothing) -> Unit): Matcher<Any?> {
+    fun coInvoke(name: String, arguments: Array<out Any?>, invocation: suspend (Nothing) -> Unit): Matcher<Any?> {
         val coInvocation = invocation as suspend (Any?) -> Unit
-        return InvokeMatcher("coInvoke", arguments) { complete("coInvoke") { coInvocation(it) } }
+        return InvokeMatcher(name, arguments) { complete(name) { coInvocation(it) } }
     }
 
     fun array(elements: Array<Matcher<Any?>>): Matcher<Any?> = ArrayMatcher(elements)
