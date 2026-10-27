@@ -18,6 +18,7 @@ import org.jetbrains.kotlin.psi.KtElement
 internal object LokkiDiagnostics : KtDiagnosticsContainer() {
     val LOKKI_UNSUPPORTED by error1<KtElement, String>()
     val LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION by error0<KtElement>()
+    val LOKKI_INVOKE_MATCHER_SHADOWS_OPERATOR by error2<KtElement, String, String>()
     val LOKKI_STUB_BLOCK_NOT_LITERAL by error1<KtElement, String>()
     val LOKKI_STUB_BLOCK_NOT_SINGLE_CALL by error3<KtElement, String, String, String>()
     val LOKKI_NOT_INTERCEPTABLE by error2<KtElement, String, String>()
@@ -59,6 +60,13 @@ private object LokkiDiagnosticRenderers : BaseDiagnosticRendererFactory() {
             LokkiDiagnostics.LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION,
             "A matcher must be a whole argument of the stubbed or verified call, " +
                 "an operand of 'and', 'or', 'not' or an element of 'array'.",
+        )
+        map.put(
+            LokkiDiagnostics.LOKKI_INVOKE_MATCHER_SHADOWS_OPERATOR,
+            "''invoke'' here is the matcher of the matcher scope, which shadows the operator ''invoke'' of ''{0}''. " +
+                "Call the operator with an explicit receiver: ''this@{1}.invoke(...)''.",
+            CommonRenderers.STRING,
+            CommonRenderers.STRING,
         )
         map.put(
             LokkiDiagnostics.LOKKI_STUB_BLOCK_NOT_LITERAL,

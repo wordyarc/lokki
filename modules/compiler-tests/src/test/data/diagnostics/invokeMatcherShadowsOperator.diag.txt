@@ -1,0 +1,31 @@
+/invokeMatcherShadowsOperator.kt:19:13: error: 'invoke' here is the matcher of the matcher scope, which shadows the operator 'invoke' of 'UseCase'. Call the operator with an explicit receiver: 'this@stubbed.invoke(...)'.
+
+/invokeMatcherShadowsOperator.kt:23:29: error: 'invoke' here is the matcher of the matcher scope, which shadows the operator 'invoke' of 'UseCase'. Call the operator with an explicit receiver: 'this@mock.invoke(...)'.
+
+/invokeMatcherShadowsOperator.kt:24:30: error: 'invoke' here is the matcher of the matcher scope, which shadows the operator 'invoke' of 'UseCase'. Call the operator with an explicit receiver: 'this@with.invoke(...)'.
+
+/invokeMatcherShadowsOperator.kt:25:29: error: 'invoke' here is the matcher of the matcher scope, which shadows the operator 'invoke' of 'UseCase'. Call the operator with an explicit receiver: 'this@with.invoke(...)'.
+
+/invokeMatcherShadowsOperator.kt:26:28: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
+
+/invokeMatcherShadowsOperator.kt:27:21: error: Cannot infer type for type parameter 'T'. Specify it explicitly.
+
+/invokeMatcherShadowsOperator.kt:27:27: error: Cannot infer type for type parameter 'T'. Specify it explicitly.
+
+/invokeMatcherShadowsOperator.kt:27:29: error: 'invoke' here is the matcher of the matcher scope, which shadows the operator 'invoke' of 'UseCase'. Call the operator with an explicit receiver: 'this@mock.invoke(...)'.
+
+/invokeMatcherShadowsOperator.kt:27:29: error: Cannot infer type for type parameter 'A1'. Specify it explicitly.
+
+/invokeMatcherShadowsOperator.kt:27:29: error: Cannot infer type for type parameter 'R'. Specify it explicitly.
+
+/invokeMatcherShadowsOperator.kt:27:36: error: Cannot infer type for type parameter 'T'. Specify it explicitly.
+
+/invokeMatcherShadowsOperator.kt:28:5: error: Cannot infer type for type parameter 'R'. Specify it explicitly.
+
+/invokeMatcherShadowsOperator.kt:28:21: error: Cannot infer type for type parameter 'T'. Specify it explicitly.
+
+/invokeMatcherShadowsOperator.kt:28:27: error: Cannot infer type for type parameter 'T'. Specify it explicitly.
+
+/invokeMatcherShadowsOperator.kt:28:29: error: 'invoke' here is the matcher of the matcher scope, which shadows the operator 'invoke' of 'UseCase'. Call the operator with an explicit receiver: 'this@with.invoke(...)'.
+
+/invokeMatcherShadowsOperator.kt:28:29: error: Cannot infer type for type parameter 'R'. Specify it explicitly.

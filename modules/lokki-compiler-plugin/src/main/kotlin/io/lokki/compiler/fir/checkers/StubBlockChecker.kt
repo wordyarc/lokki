@@ -24,9 +24,13 @@ import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.analysis.checkers.MppCheckerKind
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.analysis.checkers.expression.FirFunctionCallChecker
+import org.jetbrains.kotlin.fir.analysis.checkers.unsubstitutedScope
 import org.jetbrains.kotlin.fir.declarations.FirAnonymousFunction
+import org.jetbrains.kotlin.fir.declarations.FirNamedFunction
+import org.jetbrains.kotlin.fir.declarations.FirRegularClass
 import org.jetbrains.kotlin.fir.declarations.utils.isInline
 import org.jetbrains.kotlin.fir.declarations.utils.isMethodOfAny
+import org.jetbrains.kotlin.fir.declarations.utils.isOperator
 import org.jetbrains.kotlin.fir.declarations.utils.isStatic
 import org.jetbrains.kotlin.fir.declarations.utils.modality
 import org.jetbrains.kotlin.fir.expressions.FirAnonymousFunctionExpression
@@ -58,6 +62,7 @@ import org.jetbrains.kotlin.fir.expressions.resolvedArgumentMapping
 import org.jetbrains.kotlin.fir.expressions.unwrapArgument
 import org.jetbrains.kotlin.fir.expressions.unwrapSmartcastExpression
 import org.jetbrains.kotlin.fir.references.toResolvedCallableSymbol
+import org.jetbrains.kotlin.fir.resolve.defaultType
 import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
 import org.jetbrains.kotlin.fir.resolve.toRegularClassSymbol
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
@@ -68,11 +73,15 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirLocalPropertySymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirValueParameterSymbol
+import org.jetbrains.kotlin.fir.types.ConeKotlinType
+import org.jetbrains.kotlin.fir.types.coneType
+import org.jetbrains.kotlin.fir.types.renderReadable
 import org.jetbrains.kotlin.fir.types.resolvedType
 import org.jetbrains.kotlin.fir.visitors.FirVisitorVoid
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.util.OperatorNameConventions
 
 internal object StubBlockChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
     context(context: CheckerContext, reporter: DiagnosticReporter)
@@ -214,7 +223,7 @@ private class StubBlock(
                 receiver.isScope() -> checkNoCalls(call)
             call.takesScope() -> when {
                 !receiver.isScope() || callee.intrinsicKind(session) == IntrinsicKind.MATCHER ->
-                    report(statement, LokkiDiagnostics.LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION)
+                    matcherInCallPosition(statement)
                 else -> notInterceptable(
                     call,
                     callee,
@@ -247,8 +256,7 @@ private class StubBlock(
     ) {
         val matchers = receiver.scopeCalls()
         when {
-            matchers.singleOrNull() === receiver ->
-                report(receiver, LokkiDiagnostics.LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION)
+            matchers.singleOrNull() === receiver -> matcherInCallPosition(receiver)
             !chainedMocks -> matchers.forEach { report(it, LokkiDiagnostics.LOKKI_CHAINED_CALL_DISABLED) }
             else -> {
                 val linked = receiver.links().flatMap(::checkLink)
@@ -400,6 +408,48 @@ private class StubBlock(
         }
     }
 
+    private fun matcherInCallPosition(matcher: FirElement) {
+        val operator = (matcher as? FirFunctionCall)?.shadowedInvoke()
+            ?: return report(matcher, LokkiDiagnostics.LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION)
+        reporter.reportOn(
+            matcher.source,
+            LokkiDiagnostics.LOKKI_INVOKE_MATCHER_SHADOWS_OPERATOR,
+            operator.type.renderReadable(),
+            operator.label,
+            context,
+        )
+    }
+
+    private fun FirFunctionCall.shadowedInvoke(): ImplicitReceiver? {
+        val callee = calleeReference.toResolvedCallableSymbol() ?: return null
+        if (callee.name != OperatorNameConventions.INVOKE || explicitReceiver != null) return null
+        if (callee.intrinsicKind(session) != IntrinsicKind.MATCHER) return null
+        return context.containingElements.asReversed().firstNotNullOfOrNull { element ->
+            element.implicitReceiver()?.takeIf { it.type.hasOperatorInvoke() }
+        }
+    }
+
+    private fun FirElement.implicitReceiver(): ImplicitReceiver? =
+        when (this) {
+            is FirAnonymousFunction -> receiverParameter?.typeRef?.coneType?.let { type ->
+                label?.name?.let { ImplicitReceiver(type, it) }
+            }
+            is FirNamedFunction -> receiverParameter?.typeRef?.coneType?.let { ImplicitReceiver(it, name.asString()) }
+            is FirRegularClass -> ImplicitReceiver(symbol.defaultType(), name.asString())
+            else -> null
+        }
+
+    private fun ConeKotlinType.hasOperatorInvoke(): Boolean {
+        val symbol = fullyExpandedType(session).toRegularClassSymbol(session) ?: return false
+        var found = false
+        with(context) {
+            symbol.unsubstitutedScope().processFunctionsByName(OperatorNameConventions.INVOKE) {
+                found = found || it.isOperator
+            }
+        }
+        return found
+    }
+
     private fun misplacedMatchers(expression: FirExpression) {
         expression.scopeCalls().forEach { report(it, LokkiDiagnostics.LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION) }
     }
@@ -503,6 +553,8 @@ private fun FirExpression.slotPath(): List<FirBasedSymbol<*>>? =
         }
         else -> null
     }
+
+private class ImplicitReceiver(val type: ConeKotlinType, val label: String)
 
 private fun FirExpression.hasContextLambda(): Boolean =
     (unwrapArgument() as? FirAnonymousFunctionExpression)?.anonymousFunction?.contextParameters?.isNotEmpty() == true
