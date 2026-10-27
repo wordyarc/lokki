@@ -218,6 +218,29 @@ class MatchersTest {
     }
 
     @Test
+    fun testInvokeCallsTheArgumentAndMatchesAnyValue() {
+        val received = mutableListOf<String>()
+        val matcher = Matchers.invoke(arrayOf<Any?>("a", 2)) { callback: (String, Int) -> Unit -> callback("a", 2) }
+
+        assertTrue(matcher.match({ name: String, count: Int -> received += name.repeat(count) }))
+        assertTrue(matcher.match(null))
+        assertContentEquals(listOf("aa"), received)
+        assertEquals("invoke(a, 2)", matcher.toString())
+    }
+
+    @Test
+    fun testCoInvokeFailsOnSuspension() {
+        val received = mutableListOf<Int>()
+        val matcher = Matchers.coInvoke(arrayOf(1)) { callback: suspend (Int) -> Unit -> callback(1) }
+
+        assertTrue(matcher.match(suspend { value: Int -> received += answer(value) }))
+        val suspension = assertFailsWith<LokkiException> { matcher.match(suspend { _: Int -> suspended() }) }
+        assertEquals("coInvoke suspended; a matcher must complete without suspension", suspension.message)
+        assertContentEquals(listOf(1), received)
+        assertEquals("coInvoke(1)", matcher.toString())
+    }
+
+    @Test
     fun testSpreadMatchesEveryElementByValue() {
         val matcher = ArrayMatcher(arrayOf(AnyMatcher, *Matchers.spread(intArrayOf(2, 3))))
 

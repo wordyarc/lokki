@@ -1,0 +1,15 @@
+/withContext.kt:24:33: error: The block of 'withContext' must be a lambda literal.
+
+/withContext.kt:25:33: error: The block of 'withContext' must be a single call of a mock member, but it is empty.
+
+/withContext.kt:26:33: error: The block of 'withContext' must be a single call of a mock member, but it has several statements.
+
+/withContext.kt:27:35: error: The block of 'withContext' must be a single call of a mock member, but it compares values with an operator. Call 'equals' explicitly.
+
+/withContext.kt:28:45: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
+
+/withContext.kt:29:35: error: A matcher in the receiver of the stubbed or verified call needs chained mocks: stub or verify the call in the receiver separately, or annotate the file with @file:ChainedMocks.
+
+/withContext.kt:30:13: error: The block of 'every' must be a single call of a mock member, but it wraps the call into a lambda. Move the wrapping call outside the block or match its context with 'withContext'.
+
+/withContext.kt:31:34: error: The block of 'withContext' must be a single call of a mock member, but it is empty.

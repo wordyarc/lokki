@@ -1,6 +1,7 @@
 package io.lokki.compiler.fir.checkers
 
 import io.lokki.compiler.ALL_ANY
+import io.lokki.compiler.ARRAY
 import io.lokki.compiler.CAPTURE_MATCHERS
 import io.lokki.compiler.CHAINED_MOCKS
 import io.lokki.compiler.COMPOSITE_MATCHERS
@@ -14,6 +15,7 @@ import io.lokki.compiler.fir.isFinalType
 import io.lokki.compiler.fir.objectInterception
 import io.lokki.compiler.fir.staticInterception
 import org.jetbrains.kotlin.KtFakeSourceElementKind
+import org.jetbrains.kotlin.KtSourceElement
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.KtDiagnosticFactory0
@@ -114,6 +116,10 @@ private class StubBlock(
     private val scope = block.receiverParameter?.symbol
     private val action = mode.action
     private val chainedMocks = CHAINED_MOCKS in context.containingFileSymbol?.resolvedAnnotationClassIds.orEmpty()
+    private val contexts = HashSet<FirCallableSymbol<*>>()
+    private val contextSources = HashMap<FirElement, KtSourceElement?>()
+    private var blockName = function
+    private var requirement = if (mode == BlockMode.STUB) SINGLE_CALL else "consist of calls of mock members"
 
     fun check() {
         if (mode != BlockMode.EXCLUDE) checkSlotReads()
@@ -122,15 +128,45 @@ private class StubBlock(
             if (statements.isEmpty()) notSingleCall(block, "is empty") else statements.forEach(::checkStatement)
             return
         }
-        val statement = block.stubbedStatement() ?: return notSingleCall(
-            block,
-            if (block.body?.statements.isNullOrEmpty()) "is empty" else "has several statements",
+        checkSingleCall(block)
+    }
+
+    private fun checkSingleCall(lambda: FirAnonymousFunction) {
+        val statement = lambda.stubbedStatement() ?: return notSingleCall(
+            lambda,
+            if (lambda.body?.statements.isNullOrEmpty()) "is empty" else "has several statements",
         )
         if (statement.source?.kind is KtFakeSourceElementKind.ImplicitUnit) {
-            notSingleCall(block, "is empty")
+            notSingleCall(lambda, "is empty")
         } else {
             checkStatement(statement)
         }
+    }
+
+    private fun checkContextBlock(call: FirFunctionCall) {
+        val argument = call.arguments.lastOrNull()?.unwrapArgument() ?: return
+        val lambda = (argument as? FirAnonymousFunctionExpression)?.anonymousFunction ?: return reporter.reportOn(
+            argument.source,
+            LokkiDiagnostics.LOKKI_STUB_BLOCK_NOT_LITERAL,
+            WITH_CONTEXT,
+            context,
+        )
+        contexts += lambda.contextParameters.map { it.symbol }
+        lambda.accept(object : FirVisitorVoid() {
+            override fun visitElement(element: FirElement) {
+                if (element is FirQualifiedAccessExpression) {
+                    element.contextArguments.filter { it.isContextValue() }
+                        .forEach { contextSources[it] = element.source }
+                }
+                element.acceptChildren(this)
+            }
+        })
+        val (outerName, outerRequirement) = blockName to requirement
+        blockName = WITH_CONTEXT
+        requirement = SINGLE_CALL
+        checkSingleCall(lambda)
+        blockName = outerName
+        requirement = outerRequirement
     }
 
     private fun checkStatement(statement: FirStatement) {
@@ -152,6 +188,7 @@ private class StubBlock(
                 is FirQualifiedAccessExpression -> checkCall(statement, property, listOf(statement.rValue))
                 else -> notSingleCall(statement, "is not a call")
             }
+            statement is FirFunctionCall && statement.isContextBlock() -> checkContextBlock(statement)
             statement is FirFunctionCall -> checkCall(statement, statement, statement.arguments)
             statement is FirPropertyAccessExpression -> checkCall(statement, statement, emptyList())
             mode == BlockMode.VERIFY && statement.isLoop -> notSingleCall(
@@ -190,8 +227,12 @@ private class StubBlock(
             receiver != null -> checkMemberCall(call, callee, receiver, arguments)
             with(context) { callee.staticInterception() } == MemberInterception.Intercepted ->
                 checkArguments(call, callee, arguments)
-            arguments.any { it.unwrapArgument() is FirAnonymousFunctionExpression } ->
-                notSingleCall(statement, "wraps the call into a lambda. Move the wrapping call outside the block")
+            arguments.any { it.unwrapArgument() is FirAnonymousFunctionExpression } -> notSingleCall(
+                statement,
+                "wraps the call into a lambda. Move the wrapping call outside the block" +
+                    " or match its context with 'withContext'".takeIf { arguments.any { it.hasContextLambda() } }
+                        .orEmpty(),
+            )
             call.extensionReceiver != null ->
                 notInterceptable(call, callee, "it is an extension, not a member. $action the member it calls")
             else -> notInterceptable(call, callee, "it is not a member")
@@ -343,6 +384,7 @@ private class StubBlock(
         val expression = argument.unwrapArgument()
         when {
             expression is FirVarargArgumentsExpression -> expression.arguments.forEach { checkArgument(it, first) }
+            expression.isContextValue() -> {}
             expression is FirQualifiedAccessExpression && expression.takesScope() -> {
                 val matcher = expression.calleeReference.toResolvedCallableSymbol()
                     ?.takeIf { it.intrinsicKind(session) == IntrinsicKind.MATCHER }
@@ -351,7 +393,8 @@ private class StubBlock(
                     report(expression, LokkiDiagnostics.LOKKI_ALL_ANY_NOT_FIRST)
                 }
                 val operands = expression.operands().filterNot { it.isScope() }
-                operands.forEach { if (matcher in COMPOSITE_MATCHERS) checkArgument(it, first) else misplacedMatchers(it) }
+                val matchesOperands = matcher in COMPOSITE_MATCHERS || matcher == ARRAY
+                operands.forEach { if (matchesOperands) checkArgument(it, first) else misplacedMatchers(it) }
             }
             else -> misplacedMatchers(expression)
         }
@@ -365,7 +408,7 @@ private class StubBlock(
         val calls = ArrayList<FirElement>()
         accept(object : FirVisitorVoid() {
             override fun visitElement(element: FirElement) {
-                if (element.takesScope()) calls += element else element.acceptChildren(this)
+                if (element.takesScope() || element.isContextValue()) calls += element else element.acceptChildren(this)
             }
         })
         return calls
@@ -377,6 +420,13 @@ private class StubBlock(
     private fun FirQualifiedAccessExpression.operands(): List<FirExpression> =
         listOfNotNull(dispatchReceiver, extensionReceiver) + contextArguments + (this as? FirCall)?.arguments.orEmpty()
 
+    private fun FirFunctionCall.isContextBlock(): Boolean =
+        calleeReference.toResolvedCallableSymbol()?.intrinsicKind(session) == IntrinsicKind.WITH_CONTEXT &&
+            extensionReceiver.isScope()
+
+    private fun FirElement.isContextValue(): Boolean =
+        this is FirPropertyAccessExpression && calleeReference.toResolvedCallableSymbol() in contexts
+
     private fun FirExpression?.isScope(): Boolean {
         val receiver = this?.unwrapArgument()?.unwrapSmartcastExpression() as? FirThisReceiverExpression
         return scope != null && receiver?.calleeReference?.boundSymbol == scope
@@ -386,12 +436,10 @@ private class StubBlock(
         if (mode == BlockMode.STUB) ". Call '$member' explicitly" else ""
 
     private fun notSingleCall(element: FirElement, reason: String) {
-        val requirement =
-            if (mode == BlockMode.STUB) "be a single call of a mock member" else "consist of calls of mock members"
         reporter.reportOn(
             element.source ?: block.source,
             LokkiDiagnostics.LOKKI_STUB_BLOCK_NOT_SINGLE_CALL,
-            function,
+            blockName,
             requirement,
             reason,
             context,
@@ -404,7 +452,7 @@ private class StubBlock(
     }
 
     private fun report(element: FirElement, factory: KtDiagnosticFactory0) {
-        reporter.reportOn(element.source ?: block.source, factory, context)
+        reporter.reportOn(contextSources[element] ?: element.source ?: block.source, factory, context)
     }
 }
 
@@ -456,6 +504,9 @@ private fun FirExpression.slotPath(): List<FirBasedSymbol<*>>? =
         else -> null
     }
 
+private fun FirExpression.hasContextLambda(): Boolean =
+    (unwrapArgument() as? FirAnonymousFunctionExpression)?.anonymousFunction?.contextParameters?.isNotEmpty() == true
+
 private val FirStatement.isLoop: Boolean
     get() = this is FirLoop || this is FirBlock && statements.lastOrNull() is FirLoop
 
@@ -468,3 +519,5 @@ private val FirStatement.isCompoundAssignment: Boolean
 
 private val CAPTURING_SLOT = ClassId(FqName("io.lokki"), Name.identifier("CapturingSlot"))
 private val SLOT_READS = setOf("captured", "isCaptured", "isNull")
+private const val WITH_CONTEXT = "withContext"
+private const val SINGLE_CALL = "be a single call of a mock member"

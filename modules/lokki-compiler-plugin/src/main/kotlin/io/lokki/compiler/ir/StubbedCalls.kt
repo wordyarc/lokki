@@ -102,6 +102,7 @@ internal fun IrExpression.memberCall(): StubbedCall? {
         expression = expression.statements.last()
     }
     val call = expression as? IrCall ?: return null
+    if (call.intrinsicKind == IntrinsicKind.WITH_CONTEXT) return null
     fun frozenIndex(argument: IrExpression?) = frozen.indexOfFirst { it.symbol == (argument as? IrGetValue)?.symbol }
     fun IrExpression.thawed() = frozen.getOrNull(frozenIndex(this))?.initializer ?: this
     val receiver = call.dispatchReceiver?.thawed()

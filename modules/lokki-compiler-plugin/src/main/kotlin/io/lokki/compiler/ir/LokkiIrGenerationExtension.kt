@@ -6,6 +6,7 @@ import io.lokki.compiler.ir.collect.collectMockClasses
 import io.lokki.compiler.ir.generate.InterceptionPoints
 import io.lokki.compiler.ir.generate.MockClassGenerator
 import io.lokki.compiler.ir.generate.MockFieldInitializers
+import io.lokki.compiler.ir.lower.ContextBlocks
 import io.lokki.compiler.ir.lower.DslLowering
 import io.lokki.compiler.ir.lower.StaticInitializers
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
@@ -26,8 +27,10 @@ class LokkiIrGenerationExtension(
         val staticInitializers = StaticInitializers(pluginContext, symbols)
         val fields = MockFieldInitializers(pluginContext, symbols, lookupTracker)
         val redirects = Redirects(pluginContext)
+        val contextBlocks = ContextBlocks(pluginContext, symbols)
         fields.declare(moduleFragment)
         for (file in moduleFragment.files) {
+            file.transform(contextBlocks, null)
             val mocks = generator.generate(file, file.collectMockClasses(redirects))
             fields.implement(file, mocks)
             file.transform(DslLowering(pluginContext, symbols, file, mocks, redirects), null)

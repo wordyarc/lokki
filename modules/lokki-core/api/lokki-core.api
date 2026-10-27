@@ -83,6 +83,12 @@ public final class io/lokki/CapturingSlotKt {
 public abstract interface annotation class io/lokki/ChainedMocks : java/lang/annotation/Annotation {
 }
 
+public abstract interface annotation class io/lokki/DelicateLokkiApi : java/lang/annotation/Annotation {
+}
+
+public abstract interface annotation class io/lokki/ExperimentalLokkiApi : java/lang/annotation/Annotation {
+}
+
 public abstract interface annotation class io/lokki/InjectMocks : java/lang/annotation/Annotation {
 	public abstract fun lookupType ()Lio/lokki/InjectionLookupType;
 }
@@ -140,8 +146,55 @@ public abstract class io/lokki/MatcherScope {
 	public final fun anyIntVararg ()[I
 	public final fun anyLongVararg ()[J
 	public final fun anyShortVararg ()[S
+	public final fun coInvoke ()Lkotlin/jvm/functions/Function1;
+	public final fun coInvoke (Ljava/lang/Object;)Lkotlin/jvm/functions/Function2;
+	public final fun coInvoke (Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function3;
+	public final fun coInvoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function4;
+	public final fun coInvoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function5;
+	public final fun coInvoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function6;
+	public final fun coInvoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function7;
+	public final fun coInvoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function8;
+	public final fun coInvoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function9;
+	public final fun coInvoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function10;
+	public final fun coInvoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function11;
+	public final fun coInvoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function12;
+	public final fun coInvoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function13;
+	public final fun coInvoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function14;
+	public final fun coInvoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function15;
+	public final fun coInvoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function16;
+	public final fun coInvoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function17;
+	public final fun coInvoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function18;
+	public final fun coInvoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function19;
+	public final fun coInvoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function20;
+	public final fun coInvoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function21;
+	public final fun coInvoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function22;
+	public final fun coInvoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/FunctionN;
+	public final fun invoke ()Lkotlin/jvm/functions/Function0;
+	public final fun invoke (Ljava/lang/Object;)Lkotlin/jvm/functions/Function1;
+	public final fun invoke (Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function2;
+	public final fun invoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function3;
+	public final fun invoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function4;
+	public final fun invoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function5;
+	public final fun invoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function6;
+	public final fun invoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function7;
+	public final fun invoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function8;
+	public final fun invoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function9;
+	public final fun invoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function10;
+	public final fun invoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function11;
+	public final fun invoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function12;
+	public final fun invoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function13;
+	public final fun invoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function14;
+	public final fun invoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function15;
+	public final fun invoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function16;
+	public final fun invoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function17;
+	public final fun invoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function18;
+	public final fun invoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function19;
+	public final fun invoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function20;
+	public final fun invoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function21;
+	public final fun invoke (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function22;
 	public final fun matcherOf (Ljava/lang/Object;)Lio/lokki/Matcher;
 	public final fun pop ()Lio/lokki/Matcher;
+	public final fun pop (I)[Lio/lokki/Matcher;
 	public final fun push (Lio/lokki/Matcher;Lkotlin/reflect/KClass;)Ljava/lang/Object;
 	public final fun pushVararg (Lio/lokki/Matcher;Ljava/lang/Object;)Ljava/lang/Object;
 	public final fun varargAllBoolean (Lkotlin/jvm/functions/Function2;)[Z
@@ -373,6 +426,7 @@ public final class io/lokki/internal/LokkiIntrinsic$Kind : java/lang/Enum {
 	public static final field STUB_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field VERIFY_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field WAS_NOT_CALLED Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field WITH_CONTEXT Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static fun values ()[Lio/lokki/internal/LokkiIntrinsic$Kind;
@@ -389,6 +443,7 @@ public final class io/lokki/internal/Matchers {
 	public final fun anyIntVararg ()Lio/lokki/Matcher;
 	public final fun anyLongVararg ()Lio/lokki/Matcher;
 	public final fun anyShortVararg ()Lio/lokki/Matcher;
+	public final fun array ([Lio/lokki/Matcher;)Lio/lokki/Matcher;
 	public final fun capture (Lio/lokki/CapturingSlot;)Lio/lokki/Matcher;
 	public final fun capture (Ljava/util/List;)Lio/lokki/Matcher;
 	public final fun captureCoroutine ()Lio/lokki/Matcher;
@@ -396,6 +451,7 @@ public final class io/lokki/internal/Matchers {
 	public final fun captureNullable (Lio/lokki/CapturingSlot;)Lio/lokki/Matcher;
 	public final fun captureNullable (Ljava/util/List;)Lio/lokki/Matcher;
 	public final fun cmpEq (Ljava/lang/Comparable;)Lio/lokki/Matcher;
+	public final fun coInvoke ([Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
 	public final fun coMatch (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
 	public final fun coMatchNullable (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
 	public final fun coWithArg (Lkotlin/jvm/functions/Function3;)Lio/lokki/Matcher;
@@ -403,6 +459,7 @@ public final class io/lokki/internal/Matchers {
 	public final fun eq (Ljava/lang/Object;Z)Lio/lokki/Matcher;
 	public static synthetic fun eq$default (Lio/lokki/internal/Matchers;Ljava/lang/Object;ZILjava/lang/Object;)Lio/lokki/Matcher;
 	public final fun filtered (Lio/lokki/Matcher;Lkotlin/jvm/functions/Function1;)Lio/lokki/Matcher;
+	public final fun invoke ([Ljava/lang/Object;Lkotlin/jvm/functions/Function1;)Lio/lokki/Matcher;
 	public final fun isNull (Z)Lio/lokki/Matcher;
 	public static synthetic fun isNull$default (Lio/lokki/internal/Matchers;ZILjava/lang/Object;)Lio/lokki/Matcher;
 	public final fun less (Ljava/lang/Comparable;Z)Lio/lokki/Matcher;

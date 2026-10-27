@@ -98,6 +98,7 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
     val matcher by lazy { findClass(PACKAGE, "Matcher") }
     val matcherScope by lazy { findClass(PACKAGE, "MatcherScope") }
     val matcherOf by lazy { matcherScope.function("matcherOf") }
+    val any by lazy { matcherScope.function("any") }
     val registrationScope by lazy { findClass(INTERNAL_PACKAGE, "RegistrationScope") }
     val anyMatcher by lazy { findClass(INTERNAL_PACKAGE, "AnyMatcher") }
     val eqMatcher by lazy { findClass(INTERNAL_PACKAGE, "EqMatcher") }

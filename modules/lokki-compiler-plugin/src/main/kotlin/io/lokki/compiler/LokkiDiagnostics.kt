@@ -57,8 +57,8 @@ private object LokkiDiagnosticRenderers : BaseDiagnosticRendererFactory() {
         map.put(LokkiDiagnostics.LOKKI_UNSUPPORTED, "{0}.", CommonRenderers.STRING)
         map.put(
             LokkiDiagnostics.LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION,
-            "A matcher must be a whole argument of the stubbed or verified call " +
-                "or an operand of 'and', 'or', 'not'.",
+            "A matcher must be a whole argument of the stubbed or verified call, " +
+                "an operand of 'and', 'or', 'not' or an element of 'array'.",
         )
         map.put(
             LokkiDiagnostics.LOKKI_STUB_BLOCK_NOT_LITERAL,

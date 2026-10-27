@@ -17,6 +17,8 @@ interface Repo {
     fun String.width(padding: Int): Int
     fun names(vararg names: String): Int
     fun accept(scope: MatcherScope): Int
+    fun codes(codes: IntArray): Int
+    fun run(task: (Int) -> Unit): Int
 }
 
 fun MatcherScope.small(): Int = less(5)
@@ -53,6 +55,9 @@ fun test(repo: Repo) {
     every { repo.names("a", <!LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION!>any<String>()<!> + "b") } returns 1
     every { <!LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION!>repo.accept(this)<!> } returns 1
     with(repo) { every { <!LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION!>any<String>()<!>.plus("a").width(1) } returns 1 }
+    every { repo.codes(array(1, <!LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION!>any<Int>()<!> + 1)) } returns 1
+    every { repo.codes(intArrayOf(<!LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION!>any()<!>)) } returns 1
+    every { repo.run(invoke(<!LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION!>any()<!>)) } returns 1
 
     val ids = slot<Int>()
     every { repo.find(allAny(), any()) } returns "a"
@@ -69,6 +74,8 @@ fun test(repo: Repo) {
     every { repo.limit = any() } returns Unit
     every { repo.names("a", any(), *arrayOf("b")) } returns 1
     with(repo) { every { any<String>().width(more(1)) } returns 1 }
+    every { repo.codes(array(1, and(more(0), less(9)), *anyVararg<Int>())) } returns 1
+    every { repo.run(invoke(1)) } returns 1
 
     verify { repo.find(<!LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION!>any<Int>()<!> + 1) }
     verify {

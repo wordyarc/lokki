@@ -118,6 +118,10 @@ public abstract class MatcherScope internal constructor() {
         push(Matchers.typed<T>(Matchers.captureCoroutine()), T::class)
 
     @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <reified T : Any> array(vararg elements: Any?): T =
+        push(Matchers.typed<T>(Matchers.array(pop(elements.size))), T::class)
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
     public inline fun <reified T : Any> anyVararg(): Array<T> = pushVararg(Matchers.anyVararg<T>(), emptyArray())
 
     @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
@@ -224,6 +228,522 @@ public abstract class MatcherScope internal constructor() {
     public fun varargAnyDouble(matcher: VarargScope.(Double) -> Boolean): DoubleArray =
         pushVararg(Matchers.varargAnyDouble(matcher), DoubleArray(0))
 
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <R> invoke(): () -> R =
+        pushInvoke<() -> R> { it() }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, R> invoke(arg1: A1): (A1) -> R =
+        pushInvoke<(A1) -> R>(arg1) { it(arg1) }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, R> invoke(arg1: A1, arg2: A2): (A1, A2) -> R =
+        pushInvoke<(A1, A2) -> R>(arg1, arg2) { it(arg1, arg2) }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, R> invoke(arg1: A1, arg2: A2, arg3: A3): (A1, A2, A3) -> R =
+        pushInvoke<(A1, A2, A3) -> R>(arg1, arg2, arg3) { it(arg1, arg2, arg3) }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, R> invoke(arg1: A1, arg2: A2, arg3: A3, arg4: A4): (A1, A2, A3, A4) -> R =
+        pushInvoke<(A1, A2, A3, A4) -> R>(arg1, arg2, arg3, arg4) { it(arg1, arg2, arg3, arg4) }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, R> invoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5,
+    ): (A1, A2, A3, A4, A5) -> R =
+        pushInvoke<(A1, A2, A3, A4, A5) -> R>(arg1, arg2, arg3, arg4, arg5) { it(arg1, arg2, arg3, arg4, arg5) }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, A6, R> invoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6,
+    ): (A1, A2, A3, A4, A5, A6) -> R =
+        pushInvoke<(A1, A2, A3, A4, A5, A6) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6,
+        ) {
+            it(arg1, arg2, arg3, arg4, arg5, arg6)
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, A6, A7, R> invoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7,
+    ): (A1, A2, A3, A4, A5, A6, A7) -> R =
+        pushInvoke<(A1, A2, A3, A4, A5, A6, A7) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7,
+        ) {
+            it(arg1, arg2, arg3, arg4, arg5, arg6, arg7)
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, A6, A7, A8, R> invoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8,
+    ): (A1, A2, A3, A4, A5, A6, A7, A8) -> R =
+        pushInvoke<(A1, A2, A3, A4, A5, A6, A7, A8) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8,
+        ) {
+            it(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, A6, A7, A8, A9, R> invoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9,
+    ): (A1, A2, A3, A4, A5, A6, A7, A8, A9) -> R =
+        pushInvoke<(A1, A2, A3, A4, A5, A6, A7, A8, A9) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9,
+        ) {
+            it(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9)
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, R> invoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9, arg10: A10,
+    ): (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) -> R =
+        pushInvoke<(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10,
+        ) {
+            it(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10)
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, R> invoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9, arg10: A10,
+        arg11: A11,
+    ): (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) -> R =
+        pushInvoke<(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11,
+        ) {
+            it(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11)
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, R> invoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9, arg10: A10,
+        arg11: A11, arg12: A12,
+    ): (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) -> R =
+        pushInvoke<(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12,
+        ) {
+            it(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12)
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, R> invoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9, arg10: A10,
+        arg11: A11, arg12: A12, arg13: A13,
+    ): (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) -> R =
+        pushInvoke<(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13,
+        ) {
+            it(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13)
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, R> invoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9, arg10: A10,
+        arg11: A11, arg12: A12, arg13: A13, arg14: A14,
+    ): (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) -> R =
+        pushInvoke<(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14,
+        ) {
+            it(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14)
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, R> invoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9, arg10: A10,
+        arg11: A11, arg12: A12, arg13: A13, arg14: A14, arg15: A15,
+    ): (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) -> R =
+        pushInvoke<(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15,
+        ) {
+            it(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15)
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, R> invoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9, arg10: A10,
+        arg11: A11, arg12: A12, arg13: A13, arg14: A14, arg15: A15, arg16: A16,
+    ): (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) -> R =
+        pushInvoke<(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16,
+        ) {
+            it(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16)
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, R> invoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9, arg10: A10,
+        arg11: A11, arg12: A12, arg13: A13, arg14: A14, arg15: A15, arg16: A16, arg17: A17,
+    ): (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) -> R =
+        pushInvoke<(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16,
+            arg17,
+        ) {
+            it(
+                arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16,
+                arg17,
+            )
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, R> invoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9, arg10: A10,
+        arg11: A11, arg12: A12, arg13: A13, arg14: A14, arg15: A15, arg16: A16, arg17: A17, arg18: A18,
+    ): (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) -> R =
+        pushInvoke<(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16,
+            arg17, arg18,
+        ) {
+            it(
+                arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16,
+                arg17, arg18,
+            )
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, R> invoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9, arg10: A10,
+        arg11: A11, arg12: A12, arg13: A13, arg14: A14, arg15: A15, arg16: A16, arg17: A17, arg18: A18, arg19: A19,
+    ): (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) -> R =
+        pushInvoke<(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16,
+            arg17, arg18, arg19,
+        ) {
+            it(
+                arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16,
+                arg17, arg18, arg19,
+            )
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <
+        A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, R,
+    > invoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9, arg10: A10,
+        arg11: A11, arg12: A12, arg13: A13, arg14: A14, arg15: A15, arg16: A16, arg17: A17, arg18: A18, arg19: A19,
+        arg20: A20,
+    ): (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) -> R =
+        pushInvoke<(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16,
+            arg17, arg18, arg19, arg20,
+        ) {
+            it(
+                arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16,
+                arg17, arg18, arg19, arg20,
+            )
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <
+        A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, R,
+    > invoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9, arg10: A10,
+        arg11: A11, arg12: A12, arg13: A13, arg14: A14, arg15: A15, arg16: A16, arg17: A17, arg18: A18, arg19: A19,
+        arg20: A20, arg21: A21,
+    ): (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) -> R =
+        pushInvoke<
+            (
+                A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21,
+            ) -> R,
+        >(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16,
+            arg17, arg18, arg19, arg20, arg21,
+        ) {
+            it(
+                arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16,
+                arg17, arg18, arg19, arg20, arg21,
+            )
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <
+        A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A22, R,
+    > invoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9, arg10: A10,
+        arg11: A11, arg12: A12, arg13: A13, arg14: A14, arg15: A15, arg16: A16, arg17: A17, arg18: A18, arg19: A19,
+        arg20: A20, arg21: A21, arg22: A22,
+    ): (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A22) -> R =
+        pushInvoke<
+            (
+                A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A22,
+            ) -> R,
+        >(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16,
+            arg17, arg18, arg19, arg20, arg21, arg22,
+        ) {
+            it(
+                arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16,
+                arg17, arg18, arg19, arg20, arg21, arg22,
+            )
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <R> coInvoke(): suspend () -> R =
+        pushCoInvoke<suspend () -> R> { it() }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, R> coInvoke(arg1: A1): suspend (A1) -> R =
+        pushCoInvoke<suspend (A1) -> R>(arg1) { it(arg1) }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, R> coInvoke(arg1: A1, arg2: A2): suspend (A1, A2) -> R =
+        pushCoInvoke<suspend (A1, A2) -> R>(arg1, arg2) { it(arg1, arg2) }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, R> coInvoke(arg1: A1, arg2: A2, arg3: A3): suspend (A1, A2, A3) -> R =
+        pushCoInvoke<suspend (A1, A2, A3) -> R>(arg1, arg2, arg3) { it(arg1, arg2, arg3) }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, R> coInvoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4,
+    ): suspend (A1, A2, A3, A4) -> R =
+        pushCoInvoke<suspend (A1, A2, A3, A4) -> R>(arg1, arg2, arg3, arg4) { it(arg1, arg2, arg3, arg4) }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, R> coInvoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5,
+    ): suspend (A1, A2, A3, A4, A5) -> R =
+        pushCoInvoke<suspend (A1, A2, A3, A4, A5) -> R>(
+            arg1, arg2, arg3, arg4, arg5,
+        ) {
+            it(arg1, arg2, arg3, arg4, arg5)
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, A6, R> coInvoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6,
+    ): suspend (A1, A2, A3, A4, A5, A6) -> R =
+        pushCoInvoke<suspend (A1, A2, A3, A4, A5, A6) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6,
+        ) {
+            it(arg1, arg2, arg3, arg4, arg5, arg6)
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, A6, A7, R> coInvoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7,
+    ): suspend (A1, A2, A3, A4, A5, A6, A7) -> R =
+        pushCoInvoke<suspend (A1, A2, A3, A4, A5, A6, A7) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7,
+        ) {
+            it(arg1, arg2, arg3, arg4, arg5, arg6, arg7)
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, A6, A7, A8, R> coInvoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8,
+    ): suspend (A1, A2, A3, A4, A5, A6, A7, A8) -> R =
+        pushCoInvoke<suspend (A1, A2, A3, A4, A5, A6, A7, A8) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8,
+        ) {
+            it(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, A6, A7, A8, A9, R> coInvoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9,
+    ): suspend (A1, A2, A3, A4, A5, A6, A7, A8, A9) -> R =
+        pushCoInvoke<suspend (A1, A2, A3, A4, A5, A6, A7, A8, A9) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9,
+        ) {
+            it(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9)
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, R> coInvoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9, arg10: A10,
+    ): suspend (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) -> R =
+        pushCoInvoke<suspend (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10,
+        ) {
+            it(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10)
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, R> coInvoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9, arg10: A10,
+        arg11: A11,
+    ): suspend (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) -> R =
+        pushCoInvoke<suspend (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11,
+        ) {
+            it(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11)
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, R> coInvoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9, arg10: A10,
+        arg11: A11, arg12: A12,
+    ): suspend (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) -> R =
+        pushCoInvoke<suspend (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12,
+        ) {
+            it(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12)
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, R> coInvoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9, arg10: A10,
+        arg11: A11, arg12: A12, arg13: A13,
+    ): suspend (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) -> R =
+        pushCoInvoke<suspend (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13,
+        ) {
+            it(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13)
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, R> coInvoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9, arg10: A10,
+        arg11: A11, arg12: A12, arg13: A13, arg14: A14,
+    ): suspend (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) -> R =
+        pushCoInvoke<suspend (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14,
+        ) {
+            it(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14)
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, R> coInvoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9, arg10: A10,
+        arg11: A11, arg12: A12, arg13: A13, arg14: A14, arg15: A15,
+    ): suspend (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) -> R =
+        pushCoInvoke<suspend (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15,
+        ) {
+            it(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15)
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, R> coInvoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9, arg10: A10,
+        arg11: A11, arg12: A12, arg13: A13, arg14: A14, arg15: A15, arg16: A16,
+    ): suspend (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) -> R =
+        pushCoInvoke<suspend (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16,
+        ) {
+            it(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16)
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, R> coInvoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9, arg10: A10,
+        arg11: A11, arg12: A12, arg13: A13, arg14: A14, arg15: A15, arg16: A16, arg17: A17,
+    ): suspend (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) -> R =
+        pushCoInvoke<suspend (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16,
+            arg17,
+        ) {
+            it(
+                arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16,
+                arg17,
+            )
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, R> coInvoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9, arg10: A10,
+        arg11: A11, arg12: A12, arg13: A13, arg14: A14, arg15: A15, arg16: A16, arg17: A17, arg18: A18,
+    ): suspend (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) -> R =
+        pushCoInvoke<suspend (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) -> R>(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16,
+            arg17, arg18,
+        ) {
+            it(
+                arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16,
+                arg17, arg18,
+            )
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <
+        A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, R,
+    > coInvoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9, arg10: A10,
+        arg11: A11, arg12: A12, arg13: A13, arg14: A14, arg15: A15, arg16: A16, arg17: A17, arg18: A18, arg19: A19,
+    ): suspend (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) -> R =
+        pushCoInvoke<
+            suspend (
+                A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19,
+            ) -> R,
+        >(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16,
+            arg17, arg18, arg19,
+        ) {
+            it(
+                arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16,
+                arg17, arg18, arg19,
+            )
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <
+        A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, R,
+    > coInvoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9, arg10: A10,
+        arg11: A11, arg12: A12, arg13: A13, arg14: A14, arg15: A15, arg16: A16, arg17: A17, arg18: A18, arg19: A19,
+        arg20: A20,
+    ): suspend (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) -> R =
+        pushCoInvoke<
+            suspend (
+                A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20,
+            ) -> R,
+        >(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16,
+            arg17, arg18, arg19, arg20,
+        ) {
+            it(
+                arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16,
+                arg17, arg18, arg19, arg20,
+            )
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <
+        A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, R,
+    > coInvoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9, arg10: A10,
+        arg11: A11, arg12: A12, arg13: A13, arg14: A14, arg15: A15, arg16: A16, arg17: A17, arg18: A18, arg19: A19,
+        arg20: A20, arg21: A21,
+    ): suspend (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) -> R =
+        pushCoInvoke<
+            suspend (
+                A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21,
+            ) -> R,
+        >(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16,
+            arg17, arg18, arg19, arg20, arg21,
+        ) {
+            it(
+                arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16,
+                arg17, arg18, arg19, arg20, arg21,
+            )
+        }
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <
+        A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A22, R,
+    > coInvoke(
+        arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9, arg10: A10,
+        arg11: A11, arg12: A12, arg13: A13, arg14: A14, arg15: A15, arg16: A16, arg17: A17, arg18: A18, arg19: A19,
+        arg20: A20, arg21: A21, arg22: A22,
+    ): suspend (
+        A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A22,
+    ) -> R =
+        pushCoInvoke<
+            suspend (
+                A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A22,
+            ) -> R,
+        >(
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16,
+            arg17, arg18, arg19, arg20, arg21, arg22,
+        ) {
+            it(
+                arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16,
+                arg17, arg18, arg19, arg20, arg21, arg22,
+            )
+        }
+
     @PublishedApi
     internal fun <T> push(matcher: Matcher<Any?>, type: KClass<*>): T {
         frame += matcher
@@ -238,9 +758,24 @@ public abstract class MatcherScope internal constructor() {
     }
 
     @PublishedApi
+    internal inline fun <reified T> pushInvoke(vararg arguments: Any?, noinline invocation: (T) -> Unit): T =
+        push(Matchers.typed<T>(Matchers.invoke(arguments, invocation)), T::class)
+
+    @PublishedApi
+    internal inline fun <reified T> pushCoInvoke(vararg arguments: Any?, noinline invocation: suspend (T) -> Unit): T =
+        push(Matchers.typed<T>(Matchers.coInvoke(arguments, invocation)), T::class)
+
+    @PublishedApi
     internal fun pop(): Matcher<Any?> =
         frame.removeLastOrNull()
             ?: throw LokkiException("an operand of and, or, not in a matcher helper is not a matcher")
+
+    @PublishedApi
+    internal fun pop(count: Int): Array<Matcher<Any?>> {
+        if (frame.size < count) throw LokkiException("an element of array in a matcher helper is not a matcher")
+        val elements = frame.subList(frame.size - count, frame.size)
+        return elements.toTypedArray().also { elements.clear() }
+    }
 
     @PublishedApi
     internal fun matcherOf(value: Any?): Matcher<Any?> {
@@ -256,6 +791,40 @@ public abstract class MatcherScope internal constructor() {
 
 @LokkiDslMarker
 public class VarargScope internal constructor(public val position: Int, public val nArgs: Int)
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.WITH_CONTEXT)
+public inline fun <reified C1 : Any> MatcherScope.withContext(noinline stubBlock: context(C1) () -> Any?): Any? =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.WITH_CONTEXT)
+public inline fun <reified C1 : Any, reified C2 : Any> MatcherScope.withContext(
+    noinline stubBlock: context(C1, C2) () -> Any?,
+): Any? =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.WITH_CONTEXT)
+public inline fun <reified C1 : Any, reified C2 : Any, reified C3 : Any> MatcherScope.withContext(
+    noinline stubBlock: context(C1, C2, C3) () -> Any?,
+): Any? =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.WITH_CONTEXT)
+public inline fun <reified C1 : Any, reified C2 : Any, reified C3 : Any, reified C4 : Any> MatcherScope.withContext(
+    noinline stubBlock: context(C1, C2, C3, C4) () -> Any?,
+): Any? =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.WITH_CONTEXT)
+public inline fun <
+    reified C1 : Any,
+    reified C2 : Any,
+    reified C3 : Any,
+    reified C4 : Any,
+    reified C5 : Any,
+> MatcherScope.withContext(
+    noinline stubBlock: context(C1, C2, C3, C4, C5) () -> Any?,
+): Any? =
+    throw LokkiException("lokki compiler plugin is not applied to this compilation")
 
 private fun placeholder(type: KClass<*>): Any? =
     when (type) {

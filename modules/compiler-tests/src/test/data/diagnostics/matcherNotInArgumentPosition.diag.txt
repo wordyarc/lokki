@@ -1,53 +1,59 @@
-/matcherNotInArgumentPosition.kt:37:13: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/matcherNotInArgumentPosition.kt:39:13: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/matcherNotInArgumentPosition.kt:38:13: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/matcherNotInArgumentPosition.kt:40:13: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/matcherNotInArgumentPosition.kt:39:13: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/matcherNotInArgumentPosition.kt:41:13: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/matcherNotInArgumentPosition.kt:40:23: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/matcherNotInArgumentPosition.kt:42:23: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/matcherNotInArgumentPosition.kt:41:30: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/matcherNotInArgumentPosition.kt:43:30: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/matcherNotInArgumentPosition.kt:42:29: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/matcherNotInArgumentPosition.kt:44:29: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/matcherNotInArgumentPosition.kt:43:23: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/matcherNotInArgumentPosition.kt:45:23: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/matcherNotInArgumentPosition.kt:43:33: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/matcherNotInArgumentPosition.kt:45:33: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/matcherNotInArgumentPosition.kt:44:26: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/matcherNotInArgumentPosition.kt:46:26: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/matcherNotInArgumentPosition.kt:45:28: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/matcherNotInArgumentPosition.kt:47:28: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/matcherNotInArgumentPosition.kt:46:29: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/matcherNotInArgumentPosition.kt:48:29: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/matcherNotInArgumentPosition.kt:47:34: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/matcherNotInArgumentPosition.kt:49:34: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/matcherNotInArgumentPosition.kt:48:23: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/matcherNotInArgumentPosition.kt:50:23: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/matcherNotInArgumentPosition.kt:49:43: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/matcherNotInArgumentPosition.kt:51:43: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/matcherNotInArgumentPosition.kt:50:27: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/matcherNotInArgumentPosition.kt:52:27: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/matcherNotInArgumentPosition.kt:50:53: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/matcherNotInArgumentPosition.kt:52:53: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/matcherNotInArgumentPosition.kt:51:26: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/matcherNotInArgumentPosition.kt:53:26: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/matcherNotInArgumentPosition.kt:52:33: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/matcherNotInArgumentPosition.kt:54:33: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/matcherNotInArgumentPosition.kt:53:29: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/matcherNotInArgumentPosition.kt:55:29: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/matcherNotInArgumentPosition.kt:54:13: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/matcherNotInArgumentPosition.kt:56:13: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/matcherNotInArgumentPosition.kt:55:26: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/matcherNotInArgumentPosition.kt:57:26: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/matcherNotInArgumentPosition.kt:73:24: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/matcherNotInArgumentPosition.kt:58:33: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/matcherNotInArgumentPosition.kt:76:20: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/matcherNotInArgumentPosition.kt:59:35: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/matcherNotInArgumentPosition.kt:78:14: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/matcherNotInArgumentPosition.kt:60:29: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/matcherNotInArgumentPosition.kt:79:27: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/matcherNotInArgumentPosition.kt:80:24: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/matcherNotInArgumentPosition.kt:82:32: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/matcherNotInArgumentPosition.kt:83:20: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/matcherNotInArgumentPosition.kt:83:22: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/matcherNotInArgumentPosition.kt:85:14: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
+
+/matcherNotInArgumentPosition.kt:86:27: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
+
+/matcherNotInArgumentPosition.kt:89:32: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
+
+/matcherNotInArgumentPosition.kt:90:22: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.

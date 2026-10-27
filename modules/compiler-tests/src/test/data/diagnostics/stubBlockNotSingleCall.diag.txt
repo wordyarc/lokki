@@ -18,7 +18,7 @@
 
 /stubBlockNotSingleCall.kt:50:13: error: The block of 'every' must be a single call of a mock member, but it wraps the call into a lambda. Move the wrapping call outside the block.
 
-/stubBlockNotSingleCall.kt:51:13: error: The block of 'every' must be a single call of a mock member, but it wraps the call into a lambda. Move the wrapping call outside the block.
+/stubBlockNotSingleCall.kt:51:13: error: The block of 'every' must be a single call of a mock member, but it wraps the call into a lambda. Move the wrapping call outside the block or match its context with 'withContext'.
 
 /stubBlockNotSingleCall.kt:52:13: error: The block of 'every' must be a single call of a mock member, but it is a compound assignment, which reads and writes the property. Stub the setter with a plain assignment of a matcher.
 

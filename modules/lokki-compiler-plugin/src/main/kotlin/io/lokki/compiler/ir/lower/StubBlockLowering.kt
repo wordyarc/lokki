@@ -1,6 +1,8 @@
 package io.lokki.compiler.ir.lower
 
 import io.lokki.compiler.ALL_ANY
+import io.lokki.compiler.ARRAY
+import io.lokki.compiler.BLOCK_KINDS
 import io.lokki.compiler.CAPTURE_MATCHERS
 import io.lokki.compiler.COMPOSITE_MATCHERS
 import io.lokki.compiler.IntrinsicKind
@@ -26,6 +28,7 @@ import io.lokki.compiler.ir.isChain
 import io.lokki.compiler.ir.isLink
 import io.lokki.compiler.ir.memberCall
 import io.lokki.compiler.ir.stubbedCall
+import io.lokki.compiler.ir.unwrapped
 import io.lokki.compiler.ir.verifiedStatements
 import org.jetbrains.kotlin.ir.builders.irBoolean
 import org.jetbrains.kotlin.ir.declarations.IrFile
@@ -155,6 +158,12 @@ internal class StubBlockLowering(
     fun noCallsStatements(verify: IrCall): List<IrCall> =
         (verify.arguments.last() as? IrFunctionExpression)?.function?.blockStatements().orEmpty()
             .mapNotNull { it.noCalls()?.call }
+
+    fun contextStatements(dsl: IrCall): List<IrCall> {
+        if (dsl.intrinsicKind !in BLOCK_KINDS) return emptyList()
+        return (dsl.arguments.lastOrNull() as? IrFunctionExpression)?.function?.blockStatements().orEmpty()
+            .mapNotNull { statement -> (statement.unwrapped() as? IrCall)?.takeIf { it.isContextBlock } }
+    }
 
     private fun stub(every: IrCall, scope: Scope): IrExpression? {
         val block = every.stubBlock() ?: return null
@@ -687,14 +696,24 @@ internal class StubBlockLowering(
     ): IrExpression? {
         val arrayType = declared.type.erasedUpperBound
         if (argument !is IrVararg) return irMatcher(argument, arrayType, block)
-        val elementType = declared.varargElementType!!.erasedUpperBound
-        val spreadMatchers = argument.elements.filterIsInstance<IrSpreadElement>()
+        return irElementsMatcher(argument, declared.varargElementType!!.erasedUpperBound, arrayType, block, allAny)
+    }
+
+    private fun IrBlockBodyBuilder.irElementsMatcher(
+        argument: IrVararg?,
+        elementType: IrClass,
+        arrayType: IrClass,
+        block: StubBlock,
+        allAny: Boolean,
+    ): IrExpression? {
+        val parts = argument?.elements.orEmpty()
+        val spreadMatchers = parts.filterIsInstance<IrSpreadElement>()
             .filterNot { it.expression.isIndependentOf(block.function) }
         if (spreadMatchers.size > 1) {
             return fail(spreadMatchers[1].expression, "A vararg argument cannot contain more than one vararg matcher")
         }
         val spreadMatcher = spreadMatchers.singleOrNull()
-        val elements = argument.elements.map { element ->
+        val elements = parts.map { element ->
             when {
                 element !is IrSpreadElement ->
                     irMatcher(element as IrExpression, elementType, block, allAny) ?: return null
@@ -714,7 +733,7 @@ internal class StubBlockLowering(
                 arguments[0] = irArrayOf(matcherType, elements)
             }
         }
-        val position = argument.elements.indexOf(spreadMatcher)
+        val position = parts.indexOf(spreadMatcher)
         return irCall(symbols.matcherFactory(VARARG_OF)).apply {
             arguments[0] = irMatchers()
             arguments[1] = irArrayOf(matcherType, elements.subList(0, position))
@@ -761,6 +780,12 @@ internal class StubBlockLowering(
         val matcher = when (name) {
             in ANY_MATCHERS -> irAny()
             in COMPOSITE_MATCHERS -> irFactory(call) { irMatcher(it, declared, block) }
+            ARRAY -> {
+                val elements = call.symbol.owner.parameters.single { it.varargElementType != null }
+                val anyClass = context.irBuiltIns.anyClass.owner
+                val argument = call.arguments[elements.indexInParameters] as IrVararg?
+                irElementsMatcher(argument, anyClass, declared, block, allAny = false)
+            }
             else -> irFactory(call) { value ->
                 value.takeIf { it.isIndependentOf(block.function) }
                     ?: fail(value, "An argument of the matcher '$name' must not use matchers")
@@ -887,6 +912,9 @@ private class Registration(val state: IrVariable, val key: String, val matchers:
 private val IrCall.name: String
     get() = symbol.owner.name.asString()
 
+private val IrCall.isContextBlock: Boolean
+    get() = intrinsicKind == IntrinsicKind.WITH_CONTEXT
+
 private val IrExpression.isBuiltinMatcher: Boolean
     get() = this is IrCall && intrinsicKind == IntrinsicKind.MATCHER && symbol.owner.name.asString() in BUILTIN_MATCHERS
 
@@ -926,7 +954,7 @@ private const val VARARG_OF = "varargOf"
 private val ANY_MATCHERS = setOf("any", "anyNullable", ALL_ANY)
 private val COMPARISON_MATCHERS = setOf("cmpEq", "more", "less", "range")
 private val TYPED_MATCHERS =
-    setOf("any", "anyNullable", "match", "matchNullable", "coMatch", "coMatchNullable") +
+    setOf("any", "anyNullable", "match", "matchNullable", "coMatch", "coMatchNullable", ARRAY) +
         setOf("captureLambda", "captureCoroutine") + WITH_ARG_MATCHERS + COMPARISON_MATCHERS + CAPTURE_MATCHERS
 private val VARARG_MATCHERS =
     setOf("anyVararg", "varargAll", "varargAllNullable", "varargAny", "varargAnyNullable") +

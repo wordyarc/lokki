@@ -144,6 +144,18 @@ internal object Matchers {
 
     fun captureCoroutine(): Matcher<Any?> = LambdaMatcher
 
+    @Suppress("UNCHECKED_CAST")
+    fun invoke(arguments: Array<out Any?>, invocation: (Nothing) -> Unit): Matcher<Any?> =
+        InvokeMatcher("invoke", arguments, invocation as (Any?) -> Unit)
+
+    @Suppress("UNCHECKED_CAST")
+    fun coInvoke(arguments: Array<out Any?>, invocation: suspend (Nothing) -> Unit): Matcher<Any?> {
+        val coInvocation = invocation as suspend (Any?) -> Unit
+        return InvokeMatcher("coInvoke", arguments) { complete("coInvoke") { coInvocation(it) } }
+    }
+
+    fun array(elements: Array<Matcher<Any?>>): Matcher<Any?> = ArrayMatcher(elements)
+
     inline fun <reified T> ofType(): Matcher<Any?> = named("ofType(${T::class.simpleName})") { it is T }
 
     inline fun <reified T> typed(matcher: Matcher<Any?>): Matcher<Any?> = filtered(matcher) { it == null || it is T }
@@ -308,6 +320,19 @@ private object LambdaMatcher : Matcher<Any?> {
     override fun match(arg: Any?): Boolean = arg != null
 
     override fun toString(): String = "slotCapture()"
+}
+
+private class InvokeMatcher(
+    private val name: String,
+    private val arguments: Array<out Any?>,
+    private val invocation: (Any?) -> Unit,
+) : Matcher<Any?> {
+    override fun match(arg: Any?): Boolean {
+        if (arg != null) invocation(arg)
+        return true
+    }
+
+    override fun toString(): String = arguments.joinToString(prefix = "$name(", postfix = ")") { it.toStr() }
 }
 
 private class NamedMatcher(val name: String, private val matches: (Any?) -> Boolean) : Matcher<Any?> {

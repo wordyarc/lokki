@@ -28,6 +28,7 @@ import io.lokki.mock
 import io.lokki.verify
 import io.lokki.verifyCount
 import io.lokki.verifyOrder
+import io.lokki.withContext
 
 @JvmInline
 value class Id(val value: Int)
@@ -44,6 +45,8 @@ fun top(): String = ""
 fun Repo.first(): String = find(1)
 
 fun MatcherScope.anyId(): Id = any()
+
+fun MatcherScope.contextual(): Any? = <!LOKKI_UNSUPPORTED!>withContext<String> { top() }<!>
 
 fun VerificationScope.unused(repo: Repo): Int {
     <!LOKKI_UNSUPPORTED!>repo wasNot Called<!>
@@ -67,6 +70,7 @@ fun test(repo: Repo, nullable: Repo?, block: MatcherScope.() -> String, check: V
     every { repo.names(*<!LOKKI_UNSUPPORTED!>any()<!>) } returns 1
     every { repo.names(*anyVararg(), "a", *<!LOKKI_UNSUPPORTED!>varargAny { it.isEmpty() }<!>) } returns 1
     mock<Repo> { every { <!LOKKI_UNSUPPORTED!>toString()<!> } returns "a" }
+    every <!LOKKI_UNSUPPORTED!>{ withContext<String> { repo.find(1); repo.find(2) } }<!> returns "a"
     <!LOKKI_UNSUPPORTED!>coEvery { repo.find(1) } just Awaits<!>
     <!LOKKI_UNSUPPORTED!>coJustAwait { repo.find(1) }<!>
     val reference: (MatcherScope.() -> String) -> StubScope<String> = <!LOKKI_UNSUPPORTED!>::every<!>

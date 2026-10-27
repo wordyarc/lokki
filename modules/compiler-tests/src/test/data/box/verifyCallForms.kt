@@ -39,7 +39,7 @@ fun box(): String {
         every { set(any(), any()) } just Runs
         every { plusAssign(any()) } just Runs
         every { contains(any()) } returns true
-        every { invoke(any()) } returns 3
+        every { this@mock.invoke(any()) } returns 3
     }
     val other = mock<Shelf> { every { find(any()) } returns "e" }
 

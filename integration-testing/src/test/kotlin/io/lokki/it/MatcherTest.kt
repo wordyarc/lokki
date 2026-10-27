@@ -3,6 +3,8 @@ package io.lokki.it
 import io.lokki.LokkiException
 import io.lokki.every
 import io.lokki.mock
+import io.lokki.verify
+import io.lokki.withContext
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -29,5 +31,20 @@ class MatcherTest {
         assertEquals("song", player.play("a", 6))
         assertFailsWith<LokkiException> { player.play(1, 6) }
         assertFailsWith<LokkiException> { player.play("a", 6L) }
+    }
+
+    @Test
+    fun arrayInvokeAndContextMatchersReachMain() {
+        val scheduler = mock<Scheduler>()
+        every { scheduler.schedule(array(1, any()), invoke(5)) } returns 2
+        every { withContext<Tenant> { scheduler.owner(any()) } } returns "owner"
+        val planner = Planner(scheduler)
+        val ran = mutableListOf<Int>()
+
+        assertEquals(2, planner.plan(intArrayOf(1, 9)) { ran += it })
+        assertEquals(listOf(5), ran)
+        assertFailsWith<LokkiException> { planner.plan(intArrayOf(2, 9)) { ran += it } }
+        assertEquals("owner", with(Tenant("first")) { planner.ownerOf(3) })
+        verify { withContext<Tenant> { scheduler.owner(3) } }
     }
 }

@@ -21,6 +21,7 @@ internal enum class IntrinsicKind {
     MOCK_OBJECT,
     MOCK_STATIC,
     STATIC_MOCKS,
+    WITH_CONTEXT,
     UNKNOWN;
 
     companion object {
@@ -28,10 +29,13 @@ internal enum class IntrinsicKind {
     }
 }
 
+internal val BLOCK_KINDS = setOf(IntrinsicKind.STUB_BLOCK, IntrinsicKind.VERIFY_BLOCK, IntrinsicKind.EXCLUDE_BLOCK)
+
 internal val LOKKI_INTRINSIC = ClassId(FqName("io.lokki.internal"), Name.identifier("LokkiIntrinsic"))
 internal val CHAINED_MOCKS = ClassId(FqName("io.lokki"), Name.identifier("ChainedMocks"))
 
 internal const val ALL_ANY = "allAny"
+internal const val ARRAY = "array"
 internal val COMPOSITE_MATCHERS = setOf("and", "or", "not")
 internal val CAPTURE_MATCHERS = setOf("capture", "captureNullable")
 internal val WITH_ARG_MATCHERS = setOf("withArg", "withNullableArg", "coWithArg", "coWithNullableArg")

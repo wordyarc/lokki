@@ -1,8 +1,8 @@
 /dslScopeViolation.kt:16:34: error: 'fun <reified T> any(): T' cannot be called in this context with an implicit receiver. Use an explicit receiver if necessary.
 
-/dslScopeViolation.kt:16:34: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/dslScopeViolation.kt:16:34: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/dslScopeViolation.kt:17:34: error: A matcher must be a whole argument of the stubbed or verified call or an operand of 'and', 'or', 'not'.
+/dslScopeViolation.kt:17:34: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
 /dslScopeViolation.kt:21:27: error: 'fun <reified R> firstArg(): R' cannot be called in this context with an implicit receiver. Use an explicit receiver if necessary.
 

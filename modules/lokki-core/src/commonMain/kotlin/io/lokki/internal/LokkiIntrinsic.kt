@@ -22,5 +22,6 @@ public annotation class LokkiIntrinsic(val kind: Kind) {
         MOCK_OBJECT,
         MOCK_STATIC,
         STATIC_MOCKS,
+        WITH_CONTEXT,
     }
 }
