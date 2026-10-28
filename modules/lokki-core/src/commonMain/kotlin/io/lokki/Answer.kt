@@ -3,6 +3,7 @@ package io.lokki
 import io.lokki.internal.Abandoned
 import io.lokki.internal.GeneratedMock
 import io.lokki.internal.LokkiIntrinsic
+import io.lokki.internal.StubEntry
 import io.lokki.internal.toStr
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import kotlin.coroutines.intrinsics.startCoroutineUninterceptedOrReturn
@@ -14,11 +15,15 @@ public fun interface Answer<out T> {
     public suspend fun coAnswer(call: Call): T = answer(call)
 }
 
-public class Call internal constructor(public val invocation: Invocation, private val lambda: Int) {
+public class Call internal constructor(public val invocation: Invocation, private val stub: StubEntry) {
     public val retType: KClass<*>
         get() = invocation.method.returnType
 
+    public val matcher: InvocationMatcher
+        get() = stub.invocationMatcher(invocation.self, invocation.member)
+
     internal fun <F> capturedLambda(function: String, matcher: String): CapturingSlot<F> {
+        val lambda = stub.lambda
         if (lambda < 0) {
             throw LokkiException(
                 "$function() in the answer of ${invocation.describe()} needs $matcher() " +
@@ -32,13 +37,13 @@ public class Call internal constructor(public val invocation: Invocation, privat
 
 public class Invocation internal constructor(
     public val self: Any,
-    private val member: Int,
+    internal val member: Int,
     private val arguments: Array<Any?>,
 ) {
     public val method: MethodDescription
         get() = (self as GeneratedMock).`lokki$state`.description(member)
 
-    public val args: List<Any?> = ArgumentList(arguments)
+    public val args: List<Any?> = ReadOnlyList(arguments)
 
     internal fun callOriginal(): Any? {
         val mock = self as GeneratedMock
@@ -63,10 +68,26 @@ public class Invocation internal constructor(
         (self as GeneratedMock).`lokki$state`.call(member, arguments.joinToString { it.toStr() })
 }
 
+public class InvocationMatcher internal constructor(
+    public val self: Any,
+    private val member: Int,
+    matchers: Array<Matcher<Any?>>,
+) {
+    public val method: MethodDescription
+        get() = (self as GeneratedMock).`lokki$state`.description(member)
+
+    public val args: List<Matcher<Any?>> = ReadOnlyList(matchers)
+
+    override fun toString(): String = (self as GeneratedMock).`lokki$state`.call(member, args.joinToString())
+}
+
 @LokkiDslMarker
 public class AnswerScope<T> internal constructor(public val call: Call) {
     public val invocation: Invocation
         get() = call.invocation
+
+    public val matcher: InvocationMatcher
+        get() = call.matcher
 
     public val self: Any
         get() = invocation.self
@@ -108,9 +129,9 @@ public class AnswerScope<T> internal constructor(public val call: Call) {
     public suspend fun coCallOriginal(): T = invocation.coCallOriginal() as T
 }
 
-private class ArgumentList(private val arguments: Array<Any?>) : AbstractList<Any?>() {
+private class ReadOnlyList<E>(private val elements: Array<out E>) : AbstractList<E>() {
     override val size: Int
-        get() = arguments.size
+        get() = elements.size
 
-    override fun get(index: Int): Any? = arguments[index]
+    override fun get(index: Int): E = elements[index]
 }

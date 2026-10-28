@@ -30,6 +30,7 @@ public final class io/lokki/AnswerScope {
 	public final fun getArgs ()Ljava/util/List;
 	public final fun getCall ()Lio/lokki/Call;
 	public final fun getInvocation ()Lio/lokki/Invocation;
+	public final fun getMatcher ()Lio/lokki/InvocationMatcher;
 	public final fun getMethod ()Lio/lokki/MethodDescription;
 	public final fun getNArgs ()I
 	public final fun getNothing ()Ljava/lang/Void;
@@ -49,6 +50,7 @@ public final class io/lokki/Awaits {
 
 public final class io/lokki/Call {
 	public final fun getInvocation ()Lio/lokki/Invocation;
+	public final fun getMatcher ()Lio/lokki/InvocationMatcher;
 	public final fun getRetType ()Lkotlin/reflect/KClass;
 }
 
@@ -109,6 +111,13 @@ public final class io/lokki/Invocation {
 	public final fun getArgs ()Ljava/util/List;
 	public final fun getMethod ()Lio/lokki/MethodDescription;
 	public final fun getSelf ()Ljava/lang/Object;
+}
+
+public final class io/lokki/InvocationMatcher {
+	public final fun getArgs ()Ljava/util/List;
+	public final fun getMethod ()Lio/lokki/MethodDescription;
+	public final fun getSelf ()Ljava/lang/Object;
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class io/lokki/LokkiException : java/lang/RuntimeException {
@@ -552,8 +561,8 @@ public final class io/lokki/internal/MethodDescriptions {
 }
 
 public final class io/lokki/internal/MockDescriptor {
-	public fun <init> (Ljava/lang/String;[Ljava/lang/String;)V
-	public fun <init> (Ljava/lang/String;[Ljava/lang/String;[Ljava/lang/String;)V
+	public fun <init> (Ljava/lang/String;I[Ljava/lang/String;)V
+	public fun <init> (Ljava/lang/String;I[Ljava/lang/String;[Ljava/lang/String;)V
 }
 
 public abstract interface class io/lokki/internal/MockFieldsOwner {

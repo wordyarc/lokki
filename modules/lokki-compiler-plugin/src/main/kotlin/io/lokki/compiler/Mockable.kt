@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.name.isValidJavaFqName
 
 object LokkiConfigurationKeys {
     val MOCKABLE: CompilerConfigurationKey<List<String>> = CompilerConfigurationKey.create("lokki mockable")
+    val DEBUG: CompilerConfigurationKey<Boolean> = CompilerConfigurationKey.create("lokki debug")
 }
 
 class Mockable(patterns: List<String>) {

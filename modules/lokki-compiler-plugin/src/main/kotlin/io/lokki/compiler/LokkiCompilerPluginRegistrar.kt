@@ -18,7 +18,11 @@ class LokkiCompilerPluginRegistrar : CompilerPluginRegistrar() {
         val mockable = configuration.getList(LokkiConfigurationKeys.MOCKABLE).takeIf { it.isNotEmpty() }?.let(::Mockable)
         FirExtensionRegistrarAdapter.registerExtension(LokkiFirExtensionRegistrar(mockable))
         IrGenerationExtension.registerExtension(
-            LokkiIrGenerationExtension(mockable, configuration[CommonConfigurationKeys.LOOKUP_TRACKER])
+            LokkiIrGenerationExtension(
+                mockable,
+                configuration[CommonConfigurationKeys.LOOKUP_TRACKER],
+                configuration.getBoolean(LokkiConfigurationKeys.DEBUG),
+            )
         )
     }
 }

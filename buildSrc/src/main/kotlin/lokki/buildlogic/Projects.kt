@@ -8,6 +8,10 @@ const val COMPILER_PLUGIN_ID = "io.lokki.compiler"
 
 const val MOCKABLE_OPTION = "mockable"
 
+const val DEBUG_OPTION = "debug"
+
+const val LOKKI_ABI_VERSION = 1
+
 private val withoutPublicApi = setOf("compiler-tests", "lokki-compiler-plugin")
 
 internal val Project.abiCheckEnabled: Boolean

@@ -1,5 +1,6 @@
 package io.lokki.compiler.ir
 
+import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.Mockable
 import io.lokki.compiler.ir.collect.builtIns
 import io.lokki.compiler.ir.collect.collectMockClasses
@@ -13,12 +14,26 @@ import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.incremental.components.LookupTracker
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
+import org.jetbrains.kotlin.ir.util.dumpKotlinLike
 
 class LokkiIrGenerationExtension(
     private val mockable: Mockable?,
     private val lookupTracker: LookupTracker?,
+    private val debug: Boolean,
 ) : IrGenerationExtension {
     override fun generate(moduleFragment: IrModuleFragment, pluginContext: IrPluginContext) {
+        if (!debug) return lower(moduleFragment, pluginContext)
+        val dumps = moduleFragment.files.associateWith { it.dumpKotlinLike() }
+        lower(moduleFragment, pluginContext)
+        for ((file, before) in dumps) {
+            val after = file.dumpKotlinLike()
+            if (after != before) {
+                pluginContext.diagnosticReporter.report(LokkiDiagnostics.LOKKI_DEBUG, "${file.fileEntry.name}:\n$after")
+            }
+        }
+    }
+
+    private fun lower(moduleFragment: IrModuleFragment, pluginContext: IrPluginContext) {
         val symbols = LokkiSymbols(pluginContext)
         mockable?.let { InterceptionPoints(pluginContext, symbols, it).generate(moduleFragment) }
         if (!symbols.isRuntimeAvailable) return

@@ -1,5 +1,6 @@
 package io.lokki.compiler.ir.generate
 
+import io.lokki.compiler.BuildConfig
 import io.lokki.compiler.CHAINED_MOCKS
 import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.LokkiPluginKey
@@ -322,14 +323,15 @@ internal class MockClassGenerator(
         val keys = members.map { it.memberKeys }
         val aliases = keys.flatMap { memberKeys -> memberKeys.drop(1).flatMap { listOf(it, memberKeys.first()) } }
         val arrays = listOfNotNull(keys.map { it.first() }, aliases.takeIf { it.isNotEmpty() })
-        val constructor = symbols.mockDescriptor.constructors.single { it.parameters.size == arrays.size + 1 }
+        val constructor = symbols.mockDescriptor.constructors.single { it.parameters.size == arrays.size + 2 }
         descriptor.markSynthetic()
         descriptor.initializer = DeclarationIrBuilder(context, descriptor.symbol).run {
             irExprBody(
                 irCallConstructor(constructor.symbol, emptyList()).apply {
                     arguments[0] = irString(mockedClass.descriptorName)
+                    arguments[1] = irInt(BuildConfig.LOKKI_ABI_VERSION)
                     arrays.forEachIndexed { index, strings ->
-                        arguments[index + 1] = irArrayOf(context.irBuiltIns.stringType, strings.map(::irString))
+                        arguments[index + 2] = irArrayOf(context.irBuiltIns.stringType, strings.map(::irString))
                     }
                 }
             )

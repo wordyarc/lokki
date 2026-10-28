@@ -7,6 +7,7 @@ import io.lokki.compiler.fir.checkers.MockObjectChecker
 import io.lokki.compiler.fir.checkers.MockParameterChecker
 import io.lokki.compiler.fir.checkers.MockStaticChecker
 import io.lokki.compiler.fir.checkers.MockPropertyChecker
+import io.lokki.compiler.fir.checkers.RuntimeVersionChecker
 import io.lokki.compiler.fir.checkers.StubAnswerChecker
 import io.lokki.compiler.fir.checkers.StubBlockChecker
 import io.lokki.compiler.fir.checkers.VerificationChecker
@@ -32,6 +33,7 @@ class LokkiFirCheckersExtension(session: FirSession) : FirAdditionalCheckersExte
             MockChecker,
             MockObjectChecker,
             MockStaticChecker,
+            RuntimeVersionChecker,
             StubBlockChecker,
             StubAnswerChecker,
             VerificationChecker,

@@ -7,6 +7,7 @@ import org.jetbrains.kotlin.diagnostics.error0
 import org.jetbrains.kotlin.diagnostics.error1
 import org.jetbrains.kotlin.diagnostics.error2
 import org.jetbrains.kotlin.diagnostics.error3
+import org.jetbrains.kotlin.diagnostics.infoWithoutSource
 import org.jetbrains.kotlin.diagnostics.rendering.BaseDiagnosticRendererFactory
 import org.jetbrains.kotlin.diagnostics.rendering.CommonRenderers
 import org.jetbrains.kotlin.diagnostics.warning0
@@ -49,6 +50,8 @@ internal object LokkiDiagnostics : KtDiagnosticsContainer() {
     val LOKKI_UNSUPPORTED_INJECTION by error2<KtElement, String, String>()
     val LOKKI_OBJECT_NOT_INTERCEPTABLE by error2<KtElement, String, String>()
     val LOKKI_REFERENCE_NOT_LITERAL by error1<KtElement, String>()
+    val LOKKI_RUNTIME_TOO_OLD by error0<KtElement>()
+    val LOKKI_DEBUG by infoWithoutSource()
 
     override fun getRendererFactory(): BaseDiagnosticRendererFactory = LokkiDiagnosticRenderers
 }
@@ -256,5 +259,11 @@ private object LokkiDiagnosticRenderers : BaseDiagnosticRendererFactory() {
                 "lokki chooses the interception point at compile time.",
             CommonRenderers.STRING,
         )
+        map.put(
+            LokkiDiagnostics.LOKKI_RUNTIME_TOO_OLD,
+            "lokki-core on the classpath is older than the lokki compiler plugin needs: " +
+                "use the version of the lokki Gradle plugin for all io.lokki dependencies.",
+        )
+        map.put(LokkiDiagnostics.LOKKI_DEBUG, "{0}")
     }
 }

@@ -1,5 +1,8 @@
 public abstract class io/lokki/gradle/LokkiGradleExtension {
 	public fun <init> (Lorg/gradle/api/model/ObjectFactory;)V
+	public final fun getApplyToMain ()Lorg/gradle/api/provider/Property;
+	public final fun getDebug ()Lorg/gradle/api/provider/Property;
+	public final fun getRecordStackTraces ()Lorg/gradle/api/provider/Property;
 	public final fun mockable ([Ljava/lang/String;)V
 }
 

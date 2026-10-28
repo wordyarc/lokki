@@ -1,0 +1,9 @@
+/test.kt:25:5: error: lokki-core on the classpath is older than the lokki compiler plugin needs: use the version of the lokki Gradle plugin for all io.lokki dependencies.
+
+/test.kt:29:21: error: lokki-core on the classpath is older than the lokki compiler plugin needs: use the version of the lokki Gradle plugin for all io.lokki dependencies.
+
+/test.kt:30:9: error: lokki-core on the classpath is older than the lokki compiler plugin needs: use the version of the lokki Gradle plugin for all io.lokki dependencies.
+
+/test.kt:31:9: error: lokki-core on the classpath is older than the lokki compiler plugin needs: use the version of the lokki Gradle plugin for all io.lokki dependencies.
+
+/test.kt:32:9: error: lokki-core on the classpath is older than the lokki compiler plugin needs: use the version of the lokki Gradle plugin for all io.lokki dependencies.

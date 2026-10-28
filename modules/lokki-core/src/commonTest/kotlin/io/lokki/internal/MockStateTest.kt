@@ -264,6 +264,35 @@ class MockStateTest {
     }
 
     @Test
+    fun testMockOfNewerAbiIsRejected() {
+        val newer = LokkiAbi.VERSION + 1
+        val exception = assertFailsWith<LokkiException> {
+            MockState(owner, MockSpec(null, 0), MockDescriptor("Repo", newer, emptyArray()))
+        }
+
+        assertEquals(
+            "the mock of Repo was compiled by a newer lokki compiler plugin than lokki-core on the classpath: " +
+                "it needs ABI $newer, lokki-core has ABI ${LokkiAbi.VERSION}; " +
+                "use the version of the lokki Gradle plugin for all io.lokki dependencies",
+            exception.message,
+        )
+        MockState(owner, MockSpec(null, 0), MockDescriptor("Repo", LokkiAbi.VERSION - 1, emptyArray()))
+    }
+
+    @Test
+    fun testAnswerReceivesTheMatcherOfItsStub() {
+        val matchers = ArrayList<Any>()
+        state.stub<String>(FIND, arrayOf(EqMatcher(7), AnyMatcher)) answers { call ->
+            matchers += call.matcher
+            "$matcher ${matcher.args} ${matcher.method.name} ${matcher.self === owner} ${matcher === call.matcher}"
+        }
+
+        assertEquals("$name.find(eq(7), any()) [eq(7), any()] find true true", state.answer(FIND_MEMBER, arrayOf(7, true)))
+        state.answer(FIND_MEMBER, arrayOf(7, false))
+        assertSame(matchers[0], matchers[1])
+    }
+
+    @Test
     fun testSuspendCallIsAnsweredLikeOtherCalls() {
         state.stub<String>(FIND, arrayOf(EqMatcher(1), AnyMatcher)) returns "a"
         state.stub<String>(FIND, arrayOf(EqMatcher(2), AnyMatcher)) answers { "answered ${firstArg<Int>()}" }

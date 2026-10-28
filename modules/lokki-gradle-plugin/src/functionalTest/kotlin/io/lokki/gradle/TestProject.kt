@@ -8,21 +8,28 @@ import java.net.URLClassLoader
 val KOTLIN_VERSION: String = System.getProperty("lokki.test.kotlinVersion")
 val LOKKI_VERSION: String = System.getProperty("lokki.test.lokkiVersion")
 
-enum class GradleUnderTest(val version: String?, val javaHome: String?) {
-    CURRENT(null, null),
-    MINIMAL(System.getProperty("lokki.test.minGradleVersion"), System.getProperty("lokki.test.minGradleJavaHome")),
+enum class GradleUnderTest(val version: String?, val javaHome: String?, val agpVersion: String) {
+    CURRENT(null, null, System.getProperty("lokki.test.agpVersion")),
+    MINIMAL(
+        System.getProperty("lokki.test.minGradleVersion"),
+        System.getProperty("lokki.test.minGradleJavaHome"),
+        System.getProperty("lokki.test.minAgpVersion"),
+    ),
 }
 
 class TestProject(
     private val dir: File,
     private val gradle: GradleUnderTest,
     subprojects: List<String> = emptyList(),
+    android: Boolean = false,
 ) {
     private val buildReports = dir.resolve("build/reports/kotlin-build")
 
     init {
         val repositories = System.getProperty("lokki.test.repositories").split(File.pathSeparator)
-            .joinToString(separator = "; ", postfix = "; mavenCentral()") { "maven(\"${File(it).toURI()}\")" }
+            .map { "maven(\"${File(it).toURI()}\")" }
+            .plus(listOfNotNull("google()".takeIf { android }, "mavenCentral()"))
+            .joinToString("; ")
         val settings = listOf(
             "pluginManagement { repositories { $repositories } }",
             "dependencyResolutionManagement { repositories { $repositories } }",
@@ -37,6 +44,11 @@ class TestProject(
                 gradle.javaHome?.let { "org.gradle.java.home=$it" },
             ).joinToString("\n"),
         )
+        if (android) {
+            val sdk = File(System.getProperty("lokki.test.androidSdk"))
+            check(sdk.isDirectory) { "Android SDK not found at $sdk: set ANDROID_HOME" }
+            write("local.properties", "sdk.dir=${sdk.path}")
+        }
     }
 
     fun write(path: String, content: String) {

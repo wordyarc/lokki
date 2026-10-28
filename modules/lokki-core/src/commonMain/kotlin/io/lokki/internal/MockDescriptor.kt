@@ -6,10 +6,11 @@ import io.lokki.MethodDescription
 @PublishedApi
 internal class MockDescriptor(
     internal val name: String,
+    internal val abi: Int,
     private val keys: Array<String>,
     private val aliases: Array<String>,
 ) {
-    constructor(name: String, keys: Array<String>) : this(name, keys, emptyArray())
+    constructor(name: String, abi: Int, keys: Array<String>) : this(name, abi, keys, emptyArray())
 
     private val members by lazy {
         val members = HashMap<String, Int>()

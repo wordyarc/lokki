@@ -1,4 +1,5 @@
 import lokki.buildlogic.COMPILER_PLUGIN_ID
+import lokki.buildlogic.DEBUG_OPTION
 import lokki.buildlogic.MOCKABLE_OPTION
 import lokki.buildlogic.LocationSystemProperty
 import lokki.buildlogic.functionalTestRepository
@@ -39,8 +40,10 @@ buildConfig {
     packageName("io.lokki.gradle")
     buildConfigField("COMPILER_PLUGIN_ID", COMPILER_PLUGIN_ID)
     buildConfigField("MOCKABLE_OPTION", MOCKABLE_OPTION)
+    buildConfigField("DEBUG_OPTION", DEBUG_OPTION)
     buildConfigField("GROUP", group.toString())
     buildConfigField("VERSION", version.toString())
+    buildConfigField("KOTLIN_VERSION", libs.versions.kotlin.get())
 }
 
 gradlePlugin {
@@ -52,11 +55,14 @@ gradlePlugin {
     }
 }
 
-val publishedProjects = listOf(project, project(":lokki-compiler-plugin"), project(":lokki-core"))
+val publishedProjects = listOf(project, project(":lokki-compiler-plugin"), project(":lokki-core"), project(":lokki-junit5"))
 val functionalTestRepositories = publishedProjects.map { it.functionalTestRepository }
 val minGradleJavaLauncher = javaToolchains.launcherFor {
     languageVersion = JavaLanguageVersion.of(libs.versions.jvm.target.get())
 }
+val androidSdk = providers.environmentVariable("ANDROID_HOME")
+    .orElse(providers.environmentVariable("ANDROID_SDK_ROOT"))
+    .orElse(providers.systemProperty("user.home").map { "$it/Library/Android/sdk" })
 
 testing {
     suites {
@@ -88,7 +94,10 @@ testing {
                             minGradleJavaLauncher.map { it.metadata.installationPath.asFile.path },
                         )
                     )
+                    jvmArgumentProviders.add(LocationSystemProperty("lokki.test.androidSdk", androidSdk))
                     systemProperty("lokki.test.minGradleVersion", minGradleVersion)
+                    systemProperty("lokki.test.minAgpVersion", libs.versions.agp.min.get())
+                    systemProperty("lokki.test.agpVersion", libs.versions.agp.latest.get())
                     systemProperty("lokki.test.lokkiVersion", version.toString())
                     systemProperty("lokki.test.kotlinVersion", libs.versions.kotlin.get())
                 }

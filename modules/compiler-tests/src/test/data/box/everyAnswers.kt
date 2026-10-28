@@ -53,6 +53,13 @@ fun box(): String {
     }
     if (counter.add(4, "x") != "8x2") return "Fail: answers ${counter.add(4, "x")}"
 
+    every { counter.add(500, any()) } answers { call ->
+        "${matcher.toString().substringAfter(").")} ${matcher.args} ${matcher.method.name} " +
+            "${matcher.self === counter} ${matcher === call.matcher}"
+    }
+    val matched = counter.add(500, "x")
+    if (matched != "add(eq(500), any()) [eq(500), any()] add true true") return "Fail: matcher $matched"
+
     every { counter.add(100, any()) } returnsArgument 1
     if (counter.add(100, "label") != "label") return "Fail: returnsArgument"
     val outside = 2

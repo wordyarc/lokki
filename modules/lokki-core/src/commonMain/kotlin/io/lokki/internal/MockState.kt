@@ -5,6 +5,7 @@ import io.lokki.Answer
 import io.lokki.AnswerScope
 import io.lokki.Call
 import io.lokki.Invocation
+import io.lokki.InvocationMatcher
 import io.lokki.LokkiException
 import io.lokki.LokkiScope
 import io.lokki.Matcher
@@ -45,6 +46,13 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
     internal val scope: LokkiScope? = LokkiScope.owner()
 
     init {
+        if (descriptor.abi > LokkiAbi.VERSION) {
+            throw LokkiException(
+                "the mock of ${descriptor.name} was compiled by a newer lokki compiler plugin than lokki-core on " +
+                    "the classpath: it needs ABI ${descriptor.abi}, lokki-core has ABI ${LokkiAbi.VERSION}; " +
+                    "use the version of the lokki Gradle plugin for all io.lokki dependencies"
+            )
+        }
         scope?.adopt(this)
     }
 
@@ -214,7 +222,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
             is ConstantAnswer -> selected.value
             is ThrowingAnswer -> throw selected.exception
             is ArgumentAnswer -> arguments[selected.index]
-            else -> answer(selected, Call(Invocation(owner, member, arguments), stub.lambda))
+            else -> answer(selected, Call(Invocation(owner, member, arguments), stub))
         }
     }
 
@@ -365,8 +373,14 @@ internal class StubEntry(
     var used = false
         private set
 
+    @Volatile
+    private var invocationMatcher: InvocationMatcher? = null
+
     val arguments: String
         get() = matchers.joinToString()
+
+    fun invocationMatcher(self: Any, member: Int): InvocationMatcher =
+        invocationMatcher ?: InvocationMatcher(self, member, matchers).also { invocationMatcher = it }
 
     fun matches(arguments: Array<Any?>): Boolean = matchers.match(arguments)
 

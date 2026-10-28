@@ -120,6 +120,7 @@ internal object MockPropertyChecker : FirPropertyChecker(MppCheckerKind.Common) 
         val annotations = declaration.annotations.filter { it.fieldKind(session) != null }
         val inject = annotations.find { it.fieldKind(session) == IntrinsicKind.INJECT_MOCKS }
         val annotation = annotations.find { it !== inject } ?: inject ?: return
+        checkRuntimeVersion(annotation.source)
         val kind = annotation.fieldKind(session)!!
         val name = annotation.toAnnotationClassLikeSymbol(session)!!.name.asString()
         val parameter = declaration.correspondingValueParameterFromPrimaryConstructor

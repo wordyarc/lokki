@@ -10,7 +10,7 @@ class LokkiCommandLineProcessor : CommandLineProcessor {
     override val pluginId: String
         get() = BuildConfig.COMPILER_PLUGIN_ID
     override val pluginOptions: Collection<CliOption>
-        get() = listOf(MOCKABLE_OPTION)
+        get() = listOf(MOCKABLE_OPTION, DEBUG_OPTION)
 
     override fun processOption(option: AbstractCliOption, value: String, configuration: CompilerConfiguration) {
         when (option) {
@@ -18,6 +18,7 @@ class LokkiCommandLineProcessor : CommandLineProcessor {
                 mockablePatternProblem(value)?.let { throw CliOptionProcessingException(it) }
                 configuration.appendList(LokkiConfigurationKeys.MOCKABLE, value)
             }
+            DEBUG_OPTION -> configuration.put(LokkiConfigurationKeys.DEBUG, value.toBooleanStrict())
             else -> throw CliOptionProcessingException("Unknown option: ${option.optionName}")
         }
     }
@@ -29,4 +30,11 @@ private val MOCKABLE_OPTION = CliOption(
     "A package followed by '.**', a class or an annotation whose classes and their members become open",
     required = false,
     allowMultipleOccurrences = true,
+)
+
+private val DEBUG_OPTION = CliOption(
+    BuildConfig.DEBUG_OPTION,
+    "<true|false>",
+    "Report the code of every file that lokki changes as a Kotlin-like dump of its IR",
+    required = false,
 )

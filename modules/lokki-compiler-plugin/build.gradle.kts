@@ -1,4 +1,6 @@
 import lokki.buildlogic.COMPILER_PLUGIN_ID
+import lokki.buildlogic.DEBUG_OPTION
+import lokki.buildlogic.LOKKI_ABI_VERSION
 import lokki.buildlogic.MOCKABLE_OPTION
 
 plugins {
@@ -15,6 +17,8 @@ buildConfig {
     packageName("io.lokki.compiler")
     buildConfigField("COMPILER_PLUGIN_ID", COMPILER_PLUGIN_ID)
     buildConfigField("MOCKABLE_OPTION", MOCKABLE_OPTION)
+    buildConfigField("DEBUG_OPTION", DEBUG_OPTION)
+    buildConfigField("LOKKI_ABI_VERSION", LOKKI_ABI_VERSION)
 }
 
 kotlin {

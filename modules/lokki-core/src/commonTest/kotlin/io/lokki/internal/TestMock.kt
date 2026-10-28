@@ -15,7 +15,7 @@ internal class TestMock(
     private val keys = ANY_KEYS + keys
 
     override val `lokki$state`: MockState =
-        MockState(this, MockSpec(name, flags), MockDescriptor("Repo", this.keys, aliases))
+        MockState(this, MockSpec(name, flags), MockDescriptor("Repo", LokkiAbi.VERSION, this.keys, aliases))
 
     var original: (Int, Array<Any?>) -> Any? = `lokki$state`::noOriginal
 
