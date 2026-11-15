@@ -33,6 +33,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
 
     private val records = ArrayList<CallRecord>()
 
+    @Volatile
     private var waiters = emptyArray<RecordSignal>()
 
     @Volatile
@@ -57,14 +58,16 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
     }
 
     fun answer(member: Int, arguments: Array<Any?>): Any? =
-        respond(member, arguments, { mock.`lokki$original`(member, arguments) }) { answer, call ->
-            answer.answer(call)
-        }
+        respond(
+            member,
+            arguments,
+            { record -> returned(record, mock.`lokki$original`(member, arguments)) },
+        ) { answer, call, record -> returned(record, answer.answer(call)) }
 
     @Suppress("UNCHECKED_CAST")
     suspend fun <T> coAnswer(member: Int, arguments: Array<Any?>): T =
-        respond(member, arguments, { mock.`lokki$coOriginal`(member, arguments) }) { answer, call ->
-            answer.coAnswer(call)
+        respond(member, arguments, { mock.`lokki$coOriginal`(member, arguments) }) { answer, call, record ->
+            if (record == null) answer.coAnswer(call) else coReturned(record, answer, call)
         } as T
 
     fun noOriginal(member: Int, arguments: Array<Any?>): Any? {
@@ -201,8 +204,8 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
     private inline fun respond(
         member: Int,
         arguments: Array<Any?>,
-        original: () -> Any?,
-        answer: (Answer<Any?>, Call) -> Any?,
+        original: (CallRecord?) -> Any?,
+        answer: (Answer<Any?>, Call, CallRecord?) -> Any?,
     ): Any? {
         val capture = capture
         if (capture != null && capture.member == member && capture.thread === currentThread()) {
@@ -213,17 +216,34 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         val link = if (changesState) null else Registration.takeLink(this, member)
         val record = if (changesState && member > TO_STRING) record(member, arguments) else null
         val stub = findStub(member, arguments) ?: return when {
-            answersWithOriginal(member) -> original()
+            answersWithOriginal(member) -> original(record)
             link?.factory != null -> linkedChild(member, equalTo(arguments), link.stubs, link.factory)
             else -> defaultAnswer(member, arguments, record, link)
         }
         if (changesState) stub.use(arguments)
         return when (val selected = stub.answer(advance = changesState)) {
-            is ConstantAnswer -> selected.value
+            is ConstantAnswer -> {
+                val state = selected.state
+                if (record != null && state != null) returnedMock(record, state)
+                selected.value
+            }
             is ThrowingAnswer -> throw selected.exception
-            is ArgumentAnswer -> arguments[selected.index]
-            else -> answer(selected, Call(Invocation(owner, member, arguments), stub))
+            is ArgumentAnswer -> returned(record, arguments[selected.index])
+            else -> answer(selected, Call(Invocation(owner, member, arguments), stub), record)
         }
+    }
+
+    private suspend fun coReturned(record: CallRecord, answer: Answer<Any?>, call: Call): Any? =
+        returned(record, answer.coAnswer(call))
+
+    private fun returned(record: CallRecord?, value: Any?): Any? {
+        if (record != null && value is GeneratedMock) returnedMock(record, value.`lokki$state`)
+        return value
+    }
+
+    private fun returnedMock(record: CallRecord, state: MockState) {
+        record.result = state
+        for (waiter in waiters) waiter.signal()
     }
 
     private fun record(member: Int, arguments: Array<Any?>): CallRecord? {
@@ -263,7 +283,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         }
         val message = if (flags and RELAXED != 0) {
             val value = relaxedAnswer(member)
-            if (value is ChildMock) return child(member, equalTo(arguments), value.factory)
+            if (value is ChildMock) return returned(record, child(member, equalTo(arguments), value.factory))
             if (value !is NoRelaxedDefault) return value
             val hint = if (value.mockable && link == null && !Registration.isChain) RELAXED_CHILD_HINT else ""
             "relaxed mock has no default for ${value.type} returned by " +
@@ -348,6 +368,9 @@ internal class CallRecord(
     var verified = false
 
     var failure: LokkiException? = null
+
+    @Volatile
+    var result: MockState? = null
 
     val unanswered: Boolean
         get() = failure != null

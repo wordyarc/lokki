@@ -10,6 +10,8 @@ import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import kotlin.coroutines.intrinsics.startCoroutineUninterceptedOrReturn
 
 internal class ConstantAnswer(val value: Any?) : Answer<Any?> {
+    val state: MockState? = (value as? GeneratedMock)?.`lokki$state`
+
     override fun answer(call: Call): Any? = value
 }
 

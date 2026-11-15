@@ -16,7 +16,12 @@ internal class Verification(
     private val min = if (exactly != -1) exactly else atLeast
     private val max = if (exactly != -1) exactly else atMost
     private val expectations = ArrayList<Expectation>()
+    private val followers = ArrayList<Expectation>()
     private val uncalled = ArrayList<MockState>()
+    private var link: Expectation? = null
+
+    private val states: List<MockState>
+        get() = expectations.flatMap { it.states }.distinct()
 
     init {
         val problem = when {
@@ -42,14 +47,18 @@ internal class Verification(
 
     fun expect(state: MockState, key: String, matchers: Array<Matcher<Any?>>) {
         state.checkNotShared()
-        expectations += Expectation(state, state.descriptor.member(key), matchers, min, max)
+        expectations += follower(Expectation(state, key, lazyOf(matchers), min, max, takeLink()))
     }
 
     fun expectLink(receiver: Any?, key: String, matchers: (MockState) -> Array<Matcher<Any?>>) {
-        if (ordering == Ordering.UNORDERED && (inverse || min == 0)) return
+        val origin = takeLink()
         val state = (receiver as? GeneratedMock)?.`lokki$state` ?: return
         state.checkNotShared()
-        expectations += Expectation(state, state.descriptor.member(key), matchers(state), 1, Int.MAX_VALUE)
+        val expected = ordering != Ordering.UNORDERED || !inverse && min != 0
+        val arguments = if (expected) lazyOf(matchers(state)) else lazy(LazyThreadSafetyMode.NONE) { matchers(state) }
+        val link = follower(Expectation(state, key, arguments, 1, Int.MAX_VALUE, origin))
+        if (expected) expectations += link
+        this.link = link
     }
 
     fun expectNoCalls(mock: Any) {
@@ -91,11 +100,12 @@ internal class Verification(
     }
 
     private fun awaitCalls(deadline: Long): Outcome {
-        val states = expectations.map { it.state }.distinct()
         val signal = RecordSignal()
-        states.forEach { it.addWaiter(signal) }
+        val watched = HashSet<MockState>()
         try {
             while (true) {
+                follow()
+                for (state in states) if (watched.add(state)) state.addWaiter(signal)
                 val outcome = verifyCalls()
                 if (outcome.failure == null) return outcome
                 if (!signal.await(deadline)) {
@@ -104,17 +114,27 @@ internal class Verification(
                 }
             }
         } finally {
-            states.forEach { it.removeWaiter(signal) }
+            watched.forEach { it.removeWaiter(signal) }
         }
     }
 
-    private fun verifyCalls(): Outcome =
-        when (ordering) {
+    private fun verifyCalls(): Outcome {
+        follow()
+        return when (ordering) {
             Ordering.UNORDERED -> verifyUnordered()
             Ordering.ALL -> verifyAll()
             Ordering.ORDERED -> verifyOrder()
             Ordering.SEQUENCE -> verifySequence()
         }
+    }
+
+    private fun follow() {
+        followers.forEach { it.follow() }
+    }
+
+    private fun follower(expectation: Expectation): Expectation = expectation.also { if (it.follows) followers += it }
+
+    private fun takeLink(): Expectation? = link.also { link = null }
 
     private fun verifyUnordered(): Outcome {
         val matches = ArrayList<Match>()
@@ -158,8 +178,7 @@ internal class Verification(
         return failure(problem, calls, Lcs(calls, expectations))
     }
 
-    private fun involvedCalls(): List<CallRecord> =
-        expectations.map { it.state }.distinct().flatMap { it.records() }.sortedBy { it.sequenceNumber }
+    private fun involvedCalls(): List<CallRecord> = states.flatMap { it.records() }.sortedBy { it.sequenceNumber }
 
     private fun failure(problem: String, calls: List<CallRecord>, lcs: Lcs): Outcome {
         val matched = lcs.matches.mapTo(HashSet()) { it.expectation }
@@ -173,8 +192,7 @@ internal class Verification(
         if (failure == null) this else Outcome(matches, "$failure (timeout = $timeout ms)", assertions)
 
     private fun fail(message: String, assertions: List<FailedAssertion> = emptyList()): Nothing {
-        val states = (expectations.map { it.state } + uncalled).distinct()
-        val unanswered = states.flatMap { it.unansweredRecords() }.unansweredReport()
+        val unanswered = (states + uncalled).distinct().flatMap { it.unansweredRecords() }.unansweredReport()
         val error = AssertionError(unanswered + message + assertions.report())
         assertions.forEach { error.addSuppressed(it.error) }
         throw error
@@ -182,19 +200,33 @@ internal class Verification(
 }
 
 private class Expectation(
-    val state: MockState,
-    private val member: Int,
-    private val matchers: Array<Matcher<Any?>>,
+    private val state: MockState,
+    private val key: String,
+    matchers: Lazy<Array<Matcher<Any?>>>,
     private val min: Int,
     private val max: Int,
+    private val origin: Expectation?,
 ) {
+    private val member = state.descriptor.member(key)
+    private val matchers by matchers
     private val evaluations = LinkedHashMap<CallRecord, Evaluation>()
 
-    fun matches(call: CallRecord): Boolean = call.state === state && call.member == member && evaluation(call).all()
+    val follows: Boolean
+        get() = origin != null
+
+    var states = listOf(state)
+        private set
+
+    fun follow() {
+        if (origin != null) states = (listOf(state) + origin.returned()).distinct()
+    }
+
+    fun matches(call: CallRecord): Boolean =
+        call.state in states && call.member == member(call.state) && evaluation(call).all()
 
     fun verify(description: String): Outcome {
-        val calls = state.records()
-        val callsOfMember = calls.filter { it.member == member }
+        val calls = records()
+        val callsOfMember = calls.filter { it.member == member(it.state) }
         val only = callsOfMember.singleOrNull()
         val results = only?.let { call -> evaluation(call).let { BooleanArray(matchers.size, it::get) } }
         val matching = when {
@@ -227,8 +259,8 @@ private class Expectation(
                         "Call: $only${only.callSite()}"
                 }
                 0 in min..max -> null
-                else -> "$description. Only one matching call to ${state.name}/" +
-                    "${state.description(member).name} happened, but arguments are not matching:\n" +
+                else -> "$description. Only one matching call to ${only.state.name}/" +
+                    "${only.state.description(only.member).name} happened, but arguments are not matching:\n" +
                     "${difference(only, results)}${only.callSite()}"
             }
             matching.size in min..max -> null
@@ -246,6 +278,14 @@ private class Expectation(
     fun capture(record: CallRecord) {
         matchers.capture(record.arguments)
     }
+
+    private fun returned(): List<MockState> =
+        records().filter { it.member == member(it.state) && evaluation(it).all() }.mapNotNull { it.result }
+
+    private fun records(): List<CallRecord> =
+        states.singleOrNull()?.records() ?: states.flatMap { it.records() }.sortedBy { it.sequenceNumber }
+
+    private fun member(state: MockState): Int = if (state === this.state) member else state.descriptor.member(key)
 
     private fun evaluation(call: CallRecord): Evaluation = evaluations.getOrPut(call) { Evaluation(call) }
 

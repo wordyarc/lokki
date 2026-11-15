@@ -95,6 +95,22 @@ class VerifyInterfaceTest {
     }
 
     @Test
+    fun chainedCallIsVerifiedOnMockThatLinkReturnedToMain() {
+        val car = mock<Car>()
+        val first = mock<Radio>()
+        val second = mock<Radio>()
+        every { car.radio } returnsMany listOf(first, second)
+        every { first.tune(any(), any()) } returns "news"
+
+        Garage(car).news()
+
+        verify(exactly = 1) { car.radio.tune(101) }
+        assertFailsWith<AssertionError> { verify(exactly = 0) { car.radio.tune(101) } }
+        assertFailsWith<AssertionError> { verify(inverse = true) { car.radio.tune(101) } }
+        confirmVerified(car, first, second)
+    }
+
+    @Test
     fun verifiedCallsAreConfirmedAndCleared() {
         val car = mock<Car>()
         every { car.drive(any()) } returns "left"

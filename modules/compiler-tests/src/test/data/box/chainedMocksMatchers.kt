@@ -97,7 +97,18 @@ fun box(): String {
 
     excludeRecords { car.door(any()).knock(any()) }
     car.door(9).knock(1)
-    verify(exactly = 0) { car.door(any()).knock(any()) }
+    verify(exactly = 0) { car.door(any()).knock(1) }
+    verify { car.door(any()).knock(2) }
+    verify(exactly = 0) { car.door(more(1)).knock(2) }
+
+    val returned = mock<Car>()
+    every { returned.door(1) } returns door
+    every { door.open() } returns true
+    returned.door(1).open()
+    verify { returned.door(any()).open() }
+    if (failure { verify(exactly = 0) { returned.door(any()).open() } } == "no failure") {
+        return "Fail verify of a mock that a link with a matcher returned"
+    }
 
     val relaxed = mock<Car>(relaxed = true)
     every { relaxed.door(any()).open() } returns true

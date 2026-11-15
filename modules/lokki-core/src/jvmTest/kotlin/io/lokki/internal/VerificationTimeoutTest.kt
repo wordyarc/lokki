@@ -92,6 +92,29 @@ class VerificationTimeoutTest {
         }
     }
 
+    @Test
+    fun testVerificationWaitsForCallOfMockThatLinkReturnsLater() {
+        val house = TestMock("house", RING)
+        house.`lokki$state`.stub<Any>(RING, arrayOf(AnyMatcher)) answers {
+            TestMock("door", RING).also { it.`lokki$state`.stub<Unit>(RING, arrayOf(AnyMatcher)) just Runs }
+        }
+        later(50) {
+            val door = house.`lokki$state`.answer(RING_MEMBER, arrayOf(1)) as TestMock
+            Thread.sleep(50)
+            door.`lokki$state`.answer(RING_MEMBER, arrayOf(2))
+        }
+
+        val start = System.nanoTime()
+        val verification = Verification(timeout = 5_000)
+        GeneratedMock.withoutStateChanges {
+            verification.expectLink(house, RING) { arrayOf(EqMatcher(1)) }
+            val door = house.`lokki$state`.answer(RING_MEMBER, arrayOf(1)) as TestMock
+            verification.expect(door.`lokki$state`, RING, arrayOf(EqMatcher(2)))
+            verification.check()
+        }
+        assertTrue(System.nanoTime() - start < 4_000_000_000, "waited for the whole timeout")
+    }
+
     private fun later(millis: Long, block: () -> Unit) {
         thread {
             Thread.sleep(millis)
