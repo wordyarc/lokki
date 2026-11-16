@@ -2,7 +2,7 @@ package io.lokki.compiler.fir
 
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
-import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
+import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.canSeeInternalsOf
 import org.jetbrains.kotlin.fir.declarations.isJavaOrEnhancement
 import org.jetbrains.kotlin.fir.declarations.utils.isLocal
@@ -17,10 +17,8 @@ internal val FirRegularClassSymbol.isFinalType: Boolean
         else -> true
     }
 
-context(context: CheckerContext)
-internal val FirRegularClassSymbol.isFromFriendKotlinModule: Boolean
-    get() = !isJavaOrEnhancement && moduleData != context.session.moduleData &&
-        context.session.moduleData.canSeeInternalsOf(moduleData)
+internal fun FirRegularClassSymbol.isFromFriendKotlinModule(session: FirSession): Boolean =
+    !isJavaOrEnhancement && moduleData != session.moduleData && session.moduleData.canSeeInternalsOf(moduleData)
 
 internal val FirRegularClassSymbol.displayName: String
     get() = if (isLocal) name.asString() else classId.asFqNameString()

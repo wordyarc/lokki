@@ -2,6 +2,7 @@ package io.lokki.compiler
 
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
+import kotlin.coroutines.Continuation
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -57,14 +58,15 @@ class CoreContractTest {
         val ambiguous = CoreFunction.entries.filterNot { entry ->
             val declared = entry.owner.load().declaredMethods.count { method ->
                 !Modifier.isPrivate(method.modifiers) && method.declares(entry.functionName) &&
-                    (entry.valueParameters == null || method.parameterCount == entry.valueParameters)
+                    method.valueParameters == entry.valueParameters
             }
             declared == 1
         }
         assertTrue(
             ambiguous.isEmpty(),
             "lokki-core must declare each of $ambiguous once: the compiler plugin finds an entry point by its " +
-                "owner and name, so a new signature needs a new name",
+                "owner, name and the number of its parameters, so a new signature needs another number of " +
+                "parameters or a new name",
         )
     }
 
@@ -89,6 +91,9 @@ class CoreContractTest {
 
     private fun Method.declares(function: String): Boolean =
         name == function || name.startsWith("$function$") && COMPILER_SUFFIXES.none(name::endsWith)
+
+    private val Method.valueParameters: Int
+        get() = parameterTypes.count { it != Continuation::class.java }
 
     private fun methods(type: String): Set<String> = Class.forName(type).declaredMethods.mapTo(HashSet()) { it.name }
 

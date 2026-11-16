@@ -3,7 +3,7 @@ package io.lokki.compiler.fir
 import io.lokki.compiler.ABI_VERSION
 import io.lokki.compiler.CoreClass
 import org.jetbrains.kotlin.fir.FirSession
-import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
+import org.jetbrains.kotlin.fir.SessionAndScopeSessionHolder
 import org.jetbrains.kotlin.fir.caches.FirCache
 import org.jetbrains.kotlin.fir.caches.firCachesFactory
 import org.jetbrains.kotlin.fir.caches.getValue
@@ -22,8 +22,14 @@ internal class LokkiEnvironment(session: FirSession, val interceptionPoints: Boo
         ((version?.resolvedInitializer as? FirLiteralExpression)?.value as? Number)?.toInt() ?: 0
     }
 
-    val mockabilityProblems: FirCache<FirRegularClassSymbol, String?, CheckerContext> =
-        session.firCachesFactory.createCache { mocked, context -> with(context) { mocked.findMockabilityProblem() } }
+    val missingClassProblems: FirCache<FirRegularClassSymbol, String?, SessionAndScopeSessionHolder> =
+        session.firCachesFactory.createCache { type, holder -> with(holder) { type.findMissingClassesProblem() } }
+
+    val restrictions: FirCache<FirRegularClassSymbol, String?, Nothing?> =
+        session.firCachesFactory.createCache { mocked, _ -> mocked.findRestriction(session) }
+
+    val finalMembers: FirCache<FirRegularClassSymbol, List<String>, SessionAndScopeSessionHolder> =
+        session.firCachesFactory.createCache { mocked, holder -> with(holder) { mocked.findFinalMembers() } }
 }
 
 internal val FirSession.lokkiEnvironment: LokkiEnvironment by FirSession.sessionComponentAccessor()

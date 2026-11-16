@@ -2,6 +2,7 @@ package io.lokki.compiler.ir.generate
 
 import io.lokki.compiler.CoreConstructor
 import io.lokki.compiler.ir.LokkiIrContext
+import io.lokki.compiler.ir.collect.referencedTypeParameters
 import io.lokki.compiler.ir.renderReadable
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
@@ -80,7 +81,7 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
         val element = type.arguments.single().typeOrNull ?: builtIns.anyNType
         val elementClass = element.classOrNull
         val elementType = when {
-            !element.mentionsTypeParameters() -> element
+            element.referencedTypeParameters.isEmpty() -> element
             elementClass != null && elementClass != builtIns.arrayClass -> elementClass.starProjectedType
             else -> return missing(type.renderReadable(parameterName))
         }
@@ -137,7 +138,3 @@ private val IrClass.isOpen: Boolean
         ClassKind.CLASS -> constructors.any { !DescriptorVisibilities.isPrivate(it.visibility) }
         else -> false
     }
-
-private fun IrType.mentionsTypeParameters(): Boolean =
-    classifierOrNull is IrTypeParameterSymbol ||
-        (this as? IrSimpleType)?.arguments.orEmpty().any { it.typeOrNull?.mentionsTypeParameters() == true }

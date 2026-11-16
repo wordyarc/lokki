@@ -1,6 +1,5 @@
 package io.lokki.compiler.ir.generate
 
-import io.lokki.compiler.BuildConfig
 import io.lokki.compiler.CoreConstructor
 import io.lokki.compiler.CoreFunction
 import io.lokki.compiler.IntrinsicKind
@@ -11,7 +10,6 @@ import io.lokki.compiler.ir.collect.InjectedValue
 import io.lokki.compiler.ir.collect.Injection
 import io.lokki.compiler.ir.collect.MockClassKey
 import io.lokki.compiler.ir.collect.MockField
-import io.lokki.compiler.ir.collect.referencedTypeParameters
 import io.lokki.compiler.ir.collect.valueType
 import io.lokki.compiler.ir.irCompanionCall
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
@@ -48,7 +46,6 @@ import org.jetbrains.kotlin.ir.expressions.impl.IrVarargImpl
 import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.classOrNull
-import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.types.makeNotNull
 import org.jetbrains.kotlin.ir.types.makeNullable
 import org.jetbrains.kotlin.ir.types.typeOrNull
@@ -112,9 +109,8 @@ internal class MockInjections(lokki: LokkiIrContext) {
             val site = field.site!!
             val types = site.types
             val mock = mocks.getValue(site.key)
-            val typeArguments = types.type.referencedTypeParameters.map { it.defaultType }
-            val spec = irSpec(symbols, field.name, irInt(BuildConfig.FLAG_SPY))
-            return irConstruct(mock, typeArguments, arguments.filterNotNull() + spec)
+            val spec = irSpec(symbols, irString(field.name), irInt(types.form.spyFlags))
+            return irConstruct(mock, types.typeArguments, arguments.filterNotNull() + spec)
         }
         val typeArguments = type.arguments.map { it.typeOrNull ?: context.irBuiltIns.anyNType }
         return irCallConstructor(constructor.symbol, typeArguments).apply {

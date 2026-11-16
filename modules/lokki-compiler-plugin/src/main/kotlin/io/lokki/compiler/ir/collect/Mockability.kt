@@ -3,14 +3,11 @@ package io.lokki.compiler.ir.collect
 import io.lokki.compiler.NOT_CLASS_PROBLEM
 import io.lokki.compiler.TYPE_PARAMETER_PROBLEM
 import io.lokki.compiler.declarationKindProblem
+import io.lokki.compiler.fir.lokkiEnvironment
 import io.lokki.compiler.memberWithClasses
-import io.lokki.compiler.missingMemberClassesProblem
-import io.lokki.compiler.missingSupertypesProblem
 import io.lokki.compiler.ir.constructorCall
 import io.lokki.compiler.ir.inaccessibleClasses
-import io.lokki.compiler.ir.isMissing
 import io.lokki.compiler.ir.isVisibleFrom
-import io.lokki.compiler.ir.missingClasses
 import io.lokki.compiler.ir.packageFqName
 import io.lokki.compiler.ir.typeKey
 import io.lokki.compiler.ir.unwrapTemporary
@@ -18,6 +15,8 @@ import io.lokki.compiler.notInterfaceProblem
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
+import org.jetbrains.kotlin.fir.SessionAndScopeSessionHolder
+import org.jetbrains.kotlin.fir.lazy.Fir2IrLazyClass
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrConstructor
@@ -37,7 +36,6 @@ import org.jetbrains.kotlin.ir.util.constructedClass
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.getAllSuperclasses
 import org.jetbrains.kotlin.ir.util.getPackageFragment
-import org.jetbrains.kotlin.ir.util.isFakeOverride
 import org.jetbrains.kotlin.ir.util.isFromJava
 import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.ir.util.isLocal
@@ -49,7 +47,10 @@ import org.jetbrains.kotlin.ir.util.superClass
 import org.jetbrains.kotlin.load.java.JavaDescriptorVisibilities
 
 internal sealed interface MockSite {
-    class Mocked(val types: MockedTypes, val key: MockClassKey, val warning: MockProblem? = null) : MockSite
+    class Mocked(val types: MockedTypes, val warning: MockProblem? = null) : MockSite {
+        val key: MockClassKey
+            get() = types.key
+    }
 
     class Rejected(val problem: MockProblem) : MockSite
 }
@@ -176,8 +177,7 @@ internal class Mockability(private val file: IrFile) {
                     candidate.mockedClass in other.mockedClass.getAllSuperclasses())
             }
         }
-        val types = MockedTypes(type, extra.sortedBy { it.typeKey(emptyList()) }, form)
-        return MockSite.Mocked(types, types.key(file), warning)
+        return MockSite.Mocked(MockedTypes(type, extra.sortedBy { it.typeKey(emptyList()) }, form), warning)
     }
 
     fun child(type: IrType): MockSite.Mocked? {
@@ -188,14 +188,11 @@ internal class Mockability(private val file: IrFile) {
 
     fun childProblem(type: IrType): NotMockable? = problemOf(type.makeNotNull().removeAnnotations())
 
-    fun mock(type: IrSimpleType): MockSite.Mocked {
-        val types = MockedTypes(type, emptyList(), MockForm.Mock)
-        return MockSite.Mocked(types, types.key(file))
-    }
+    fun mock(type: IrSimpleType): MockSite.Mocked = MockSite.Mocked(MockedTypes(type, emptyList(), MockForm.Mock))
 
     private fun IrClass.problem(): ClassProblem? {
         val frontend = declarationKindProblem(kind, modality, isFromFriendKotlinModule && !isValue)
-            ?: missingSupertypes() ?: membersWithMissingClasses()
+            ?: missingClassesProblem()
         if (frontend != null) return ClassProblem(frontend, isFrontendRule = true)
         val reason = when {
             kind == ClassKind.CLASS && constructors.none { it.isVisibleFrom(file) } ->
@@ -210,11 +207,6 @@ internal class Mockability(private val file: IrFile) {
             val module = getPackageFragment().moduleDescriptor
             return !isFromJava() && module != file.moduleDescriptor && file.moduleDescriptor.shouldSeeInternalsOf(module)
         }
-
-    private fun IrClass.missingSupertypes(): String? {
-        val missing = getAllSuperclasses().filter { it.isMissing }.map { it.kotlinFqName.asString() }
-        return missing.takeIf { it.isNotEmpty() }?.let(::missingSupertypesProblem)
-    }
 
     private fun IrClass.hiddenAbstractMembers(): String? {
         val hidden = declarations.filterIsInstance<IrOverridableMember>()
@@ -232,14 +224,6 @@ internal class Mockability(private val file: IrFile) {
         if (uninherited.isEmpty()) return null
         return "a mock cannot implement its package-private abstract members that it inherits through a class of " +
             "another package: ${uninherited.quoted()}"
-    }
-
-    private fun IrClass.membersWithMissingClasses(): String? {
-        val members = (listOf(this) + getAllSuperclasses()).flatMap { it.simpleFunctions() }
-            .filterNot { it.isFakeOverride }
-            .mapNotNull { member -> member.withClasses(member.missingClasses) }
-            .toSortedSet()
-        return members.takeIf { it.isNotEmpty() }?.let(::missingMemberClassesProblem)
     }
 
     private fun IrClass.membersWithInaccessibleClasses(): String? {
@@ -271,6 +255,12 @@ internal class Mockability(private val file: IrFile) {
             .map { it.memberName }
             .distinct()
             .sorted()
+}
+
+private fun IrClass.missingClassesProblem(): String? {
+    val holder: SessionAndScopeSessionHolder = this as? Fir2IrLazyClass
+        ?: return superTypes.firstNotNullOfOrNull { it.classOrNull?.owner?.missingClassesProblem() }
+    return holder.session.lokkiEnvironment.missingClassProblems.getValue(fir.symbol, holder)
 }
 
 internal val IrClass.displayName: String

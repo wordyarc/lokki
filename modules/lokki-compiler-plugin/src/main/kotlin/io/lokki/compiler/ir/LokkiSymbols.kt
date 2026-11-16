@@ -127,14 +127,13 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
         finder.findClass(entry.id)?.owner ?: incompatible("it has no class '${entry.id.asFqNameString()}'")
 
     private fun find(entry: CoreFunction): IrSimpleFunction {
-        val candidates = this[entry.owner].functions.filter { function ->
-            function.name.asString() == entry.functionName &&
-                (entry.valueParameters == null || function.regularParameters == entry.valueParameters)
-        }.toList()
-        val arity = entry.valueParameters?.let { " with $it parameters" }.orEmpty()
+        val arity = entry.valueParameters
+        val candidates = this[entry.owner].functions
+            .filter { it.name.asString() == entry.functionName && it.regularParameters == arity }
+            .toList()
         return candidates.singleOrNull() ?: incompatible(
             "'${entry.owner.id.asFqNameString()}' declares ${candidates.size} functions " +
-                "'${entry.functionName}'$arity, and the compiler plugin needs exactly one"
+                "'${entry.functionName}' with $arity parameters, and the compiler plugin needs exactly one"
         )
     }
 

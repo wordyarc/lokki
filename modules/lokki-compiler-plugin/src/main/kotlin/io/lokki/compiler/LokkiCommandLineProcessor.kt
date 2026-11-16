@@ -5,6 +5,12 @@ import org.jetbrains.kotlin.compiler.plugin.CliOption
 import org.jetbrains.kotlin.compiler.plugin.CliOptionProcessingException
 import org.jetbrains.kotlin.compiler.plugin.CommandLineProcessor
 import org.jetbrains.kotlin.config.CompilerConfiguration
+import org.jetbrains.kotlin.config.CompilerConfigurationKey
+
+object LokkiConfigurationKeys {
+    val MOCKABLE: CompilerConfigurationKey<List<String>> = CompilerConfigurationKey.create("lokki mockable")
+    val DEBUG: CompilerConfigurationKey<Boolean> = CompilerConfigurationKey.create("lokki debug")
+}
 
 class LokkiCommandLineProcessor : CommandLineProcessor {
     override val pluginId: String

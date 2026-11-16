@@ -139,12 +139,13 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         relaxedChildren: Boolean,
         path: List<IrSimpleType>,
     ): IrClass {
+        val file = classes.file.ir
         val mocked = usage.mockedTypes.type.mockedClass
         val form = usage.mockedTypes.form
         val mock = context.irFactory.buildClass {
             startOffset = usage.firstUse.startOffset
             endOffset = usage.firstUse.endOffset
-            name = key.mockClassName(mocked, form)
+            name = file.mockClassName(key, mocked, form)
             origin = this@MockClassGenerator.origin
             visibility = if (mocked.isLocal) DescriptorVisibilities.LOCAL else usage.visibility
         }
@@ -155,12 +156,12 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
             .substitute(parameters.zip(ownParameters.map { it.defaultType }).toMap()) as IrSimpleType
         mock.superTypes = listOf(mockedType) + usage.mockedTypes.interfaces + symbols[CoreClass.GENERATED_MOCK].defaultType
         mock.createThisReceiverParameter()
-        if (mocked.isLocal) key.file.addAfter(mocked, mock) else key.file.addChild(mock)
+        if (mocked.isLocal) file.addAfter(mocked, mock) else file.addChild(mock)
         val constructor = when {
             form is MockForm.Construction -> mock.addSpyConstructor(mockedType, form)
             mocked.isInterface -> mock.addSpecConstructor(delegate = mockedType.takeIf { form == MockForm.Delegation })
             else -> {
-                mock.addUncalledConstructor(mockedType, key.file)
+                mock.addUncalledConstructor(mockedType, file)
                 null
             }
         }
@@ -218,8 +219,8 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         relaxed.implementRelaxed(mock, members, children, suggestsChainedMocks = !classes.file.chainedMocks) {
             (names[it.symbol] ?: it.name).asString()
         }
-        describe.implementDescribe(mock, members, key.file)
-        usage.mockedTypes.classes.forEach { lokki.lookupTracker?.recordMockedTypeLookups(it, key.file) }
+        describe.implementDescribe(mock, members, file)
+        usage.mockedTypes.classes.forEach { lokki.lookupTracker?.recordMockedTypeLookups(it, file) }
         return mock
     }
 
@@ -679,9 +680,9 @@ private fun IrFile.addAfter(local: IrClass, mock: IrClass) {
     })
 }
 
-private fun MockClassKey.mockClassName(mocked: IrClass, form: MockForm): Name {
-    val hash = typeKey.hashCode().toHexString()
-    val filePart = PackagePartClassUtils.getFilePartShortName(file.name)
+private fun IrFile.mockClassName(key: MockClassKey, mocked: IrClass, form: MockForm): Name {
+    val hash = key.typeKey.hashCode().toHexString()
+    val filePart = PackagePartClassUtils.getFilePartShortName(name)
     val kind = if (form == MockForm.Mock) "LokkiMock" else "LokkiSpy"
     return Name.identifier("${mocked.name}\$$kind\$$hash\$$filePart")
 }

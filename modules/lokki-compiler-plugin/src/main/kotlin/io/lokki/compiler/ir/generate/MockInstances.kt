@@ -1,5 +1,6 @@
 package io.lokki.compiler.ir.generate
 
+import io.lokki.compiler.BuildConfig
 import io.lokki.compiler.CoreClass
 import io.lokki.compiler.CoreConstructor
 import io.lokki.compiler.CoreFunction
@@ -7,9 +8,9 @@ import io.lokki.compiler.ir.LokkiSymbols
 import io.lokki.compiler.ir.buildLambda
 import io.lokki.compiler.ir.irGetObject
 import io.lokki.compiler.ir.toLambda
+import io.lokki.compiler.ir.collect.MockForm
 import io.lokki.compiler.ir.collect.MockedTypes
 import io.lokki.compiler.ir.collect.mockedClass
-import io.lokki.compiler.ir.collect.referencedTypeParameters
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
 import org.jetbrains.kotlin.ir.builders.declarations.addValueParameter
@@ -19,7 +20,6 @@ import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irCallConstructor
 import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.builders.irReturn
-import org.jetbrains.kotlin.ir.builders.irString
 import org.jetbrains.kotlin.ir.builders.irTemporary
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.expressions.IrBlock
@@ -29,7 +29,6 @@ import org.jetbrains.kotlin.ir.expressions.impl.IrClassReferenceImpl
 import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.classOrFail
-import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.types.typeWith
 import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.functions
@@ -37,9 +36,12 @@ import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.ir.util.primaryConstructor
 import org.jetbrains.kotlin.ir.util.render
 
-internal fun IrBuilderWithScope.irSpec(symbols: LokkiSymbols, name: String, flags: IrExpression): IrExpression =
+internal val MockForm.spyFlags: Int
+    get() = if (this == MockForm.Delegation) BuildConfig.FLAG_SPY or BuildConfig.FLAG_DELEGATE else BuildConfig.FLAG_SPY
+
+internal fun IrBuilderWithScope.irSpec(symbols: LokkiSymbols, name: IrExpression, flags: IrExpression): IrExpression =
     irCallConstructor(symbols[CoreConstructor.MOCK_SPEC].symbol, emptyList()).apply {
-        arguments[0] = irString(name)
+        arguments[0] = name
         arguments[1] = flags
     }
 
@@ -83,7 +85,7 @@ private fun IrBuilderWithScope.irInstance(
     types: MockedTypes,
     arguments: List<IrExpression>,
 ): IrExpression {
-    val typeArguments = types.type.referencedTypeParameters.map { it.defaultType }
+    val typeArguments = types.typeArguments
     return when {
         types.type.mockedClass.isInterface -> irConstruct(mock, typeArguments, arguments)
         else -> irAllocate(symbols, mock.typeWith(typeArguments), arguments)

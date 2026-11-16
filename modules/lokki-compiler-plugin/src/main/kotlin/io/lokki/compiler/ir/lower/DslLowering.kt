@@ -19,13 +19,14 @@ import io.lokki.compiler.ir.collect.MockClassKey
 import io.lokki.compiler.ir.collect.MockForm
 import io.lokki.compiler.ir.collect.MockSite
 import io.lokki.compiler.ir.collect.MockSites
-import io.lokki.compiler.ir.collect.referencedTypeParameters
 import io.lokki.compiler.ir.collect.spiedInstance
 import io.lokki.compiler.ir.generate.irConstruct
 import io.lokki.compiler.ir.generate.irDelegatingSpy
 import io.lokki.compiler.ir.generate.irFactory
 import io.lokki.compiler.ir.generate.irNewMock
+import io.lokki.compiler.ir.generate.irSpec
 import io.lokki.compiler.ir.generate.replaceConstructorCall
+import io.lokki.compiler.ir.generate.spyFlags
 import io.lokki.compiler.ir.intrinsicKind
 import io.lokki.compiler.ir.irArrayOf
 import io.lokki.compiler.ir.irGetObject
@@ -60,7 +61,6 @@ import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrFunctionReference
 import org.jetbrains.kotlin.ir.expressions.IrRichFunctionReference
-import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.types.makeNullable
 import org.jetbrains.kotlin.ir.types.typeWith
 import org.jetbrains.kotlin.ir.util.defaultType
@@ -146,16 +146,9 @@ internal class DslLowering(
             return call
         }
         return builder(call).run {
-            val flags = when {
-                kind == IntrinsicKind.MOCK -> irFlags(call)
-                types.form == MockForm.Delegation -> irInt(BuildConfig.FLAG_SPY or BuildConfig.FLAG_DELEGATE)
-                else -> irInt(BuildConfig.FLAG_SPY)
-            }
-            val spec = irCallConstructor(symbols[CoreConstructor.MOCK_SPEC].symbol, emptyList()).apply {
-                arguments[0] = call.argument(ParameterNames.NAME) ?: irNull()
-                arguments[1] = flags
-            }
-            val typeArguments = types.type.referencedTypeParameters.map { it.defaultType }
+            val flags = if (kind == IntrinsicKind.MOCK) irFlags(call) else irInt(types.form.spyFlags)
+            val spec = irSpec(symbols, call.argument(ParameterNames.NAME) ?: irNull(), flags)
+            val typeArguments = types.typeArguments
             val mockType = mock.typeWith(typeArguments)
             val instance = when (types.form) {
                 MockForm.Mock -> irNewMock(symbols, mock, types, spec)

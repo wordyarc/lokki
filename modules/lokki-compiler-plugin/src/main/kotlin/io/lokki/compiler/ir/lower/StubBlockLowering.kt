@@ -192,9 +192,9 @@ internal class StubBlockLowering(
     }
 
     private fun verify(verify: IrCall, kind: IntrinsicKind, scope: Scope): IrExpression? {
-        val block = verify.stubBlock() ?: return null
-        val expected = block.function.verifiedStatements()
-            ?: return fail(block.function, "The block of '${verify.name}' must consist of calls of mock members")
+        val unverified = verify.stubBlock() ?: return null
+        val expected = unverified.function.verifiedStatements()
+            ?: return fail(unverified.function, "The block of '${verify.name}' must consist of calls of mock members")
         expected.filterIsInstance<StubbedCall>().find { it.call.symbol.owner.isMethodOfAny() }?.let {
             val reason = "calls of equals, hashCode and toString cannot be verified"
             return fail(it.call, "'${it.call.name}' is not recorded: $reason")
@@ -203,7 +203,7 @@ internal class StubBlockLowering(
         val check = lambda(verify, builtIns.unitType)
         return builder(scope, verify).irBlock {
             val verification = irTemporary(irVerification(verify, kind))
-            block.verification = verification
+            val block = unverified.verifiedBy(verification)
             check.body = builder(check, verify).irBlockBody {
                 for (expectation in expected) {
                     when (expectation) {
@@ -789,15 +789,20 @@ internal class StubBlockLowering(
         }
 }
 
-private class StubBlock(val dsl: IrCall, val function: IrSimpleFunction, val stubs: Boolean) {
-    var verification: IrVariable? = null
-
+private class StubBlock(
+    val dsl: IrCall,
+    val function: IrSimpleFunction,
+    val stubs: Boolean,
+    val verification: IrVariable? = null,
+) {
     var scope: IrVariable? = null
 
     val receiverType: IrType
         get() = function.parameters.first { it.kind == IrParameterKind.ExtensionReceiver }.type
 
-    fun nested(): StubBlock = StubBlock(dsl, function, stubs).also { it.verification = verification }
+    fun nested(): StubBlock = StubBlock(dsl, function, stubs, verification)
+
+    fun verifiedBy(verification: IrVariable): StubBlock = StubBlock(dsl, function, stubs, verification)
 }
 
 private class Registration(val state: IrVariable, val key: String, val matchers: IrExpression)

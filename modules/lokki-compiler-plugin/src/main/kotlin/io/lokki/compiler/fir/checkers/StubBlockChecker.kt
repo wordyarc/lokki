@@ -108,6 +108,8 @@ private enum class BlockMode(val action: String) {
     EXCLUDE("Exclude"),
 }
 
+private class Requirement(val blockName: String, val text: String)
+
 private class StubBlock(
     private val function: String,
     private val mode: BlockMode,
@@ -123,20 +125,20 @@ private class StubBlock(
         CoreClass.CHAINED_MOCKS.id in context.containingFileSymbol?.resolvedAnnotationClassIds.orEmpty()
     private val contexts = HashSet<FirCallableSymbol<*>>()
     private val contextSources = HashMap<FirElement, KtSourceElement?>()
-    private var blockName = function
-    private var requirement = if (mode == BlockMode.STUB) SINGLE_CALL else "consist of calls of mock members"
 
     fun check() {
         if (mode != BlockMode.EXCLUDE) checkSlotReads()
-        if (mode != BlockMode.STUB) {
-            val statements = block.verifiedStatements()
-            if (statements.isEmpty()) notSingleCall(block, "is empty") else statements.forEach(::checkStatement)
-            return
+        if (mode == BlockMode.STUB) return Requirement(function, SINGLE_CALL).checkSingleCall(block)
+        val requirement = Requirement(function, "consist of calls of mock members")
+        val statements = block.verifiedStatements()
+        if (statements.isEmpty()) {
+            requirement.notSingleCall(block, "is empty")
+        } else {
+            statements.forEach { requirement.checkStatement(it) }
         }
-        checkSingleCall(block)
     }
 
-    private fun checkSingleCall(lambda: FirAnonymousFunction) {
+    private fun Requirement.checkSingleCall(lambda: FirAnonymousFunction) {
         val statement = lambda.stubbedStatement() ?: return notSingleCall(
             lambda,
             if (lambda.body?.statements.isNullOrEmpty()) "is empty" else "has several statements",
@@ -166,15 +168,10 @@ private class StubBlock(
                 element.acceptChildren(this)
             }
         })
-        val (outerName, outerRequirement) = blockName to requirement
-        blockName = WITH_CONTEXT
-        requirement = SINGLE_CALL
-        checkSingleCall(lambda)
-        blockName = outerName
-        requirement = outerRequirement
+        Requirement(WITH_CONTEXT, SINGLE_CALL).checkSingleCall(lambda)
     }
 
-    private fun checkStatement(statement: FirStatement) {
+    private fun Requirement.checkStatement(statement: FirStatement) {
         when {
             statement.isCompoundAssignment -> notSingleCall(
                 statement,
@@ -211,7 +208,11 @@ private class StubBlock(
         }
     }
 
-    private fun checkCall(statement: FirStatement, call: FirQualifiedAccessExpression, arguments: List<FirExpression>) {
+    private fun Requirement.checkCall(
+        statement: FirStatement,
+        call: FirQualifiedAccessExpression,
+        arguments: List<FirExpression>,
+    ) {
         val callee = call.calleeReference.toResolvedCallableSymbol() ?: return
         val receiver = call.dispatchReceiver?.unwrapSmartcastExpression()
         when {
@@ -481,12 +482,12 @@ private class StubBlock(
     private fun callExplicitly(member: String): String =
         if (mode == BlockMode.STUB) ". Call '$member' explicitly" else ""
 
-    private fun notSingleCall(element: FirElement, reason: String) {
+    private fun Requirement.notSingleCall(element: FirElement, reason: String) {
         reporter.reportOn(
             element.source ?: block.source,
             LokkiDiagnostics.LOKKI_STUB_BLOCK_NOT_SINGLE_CALL,
             blockName,
-            requirement,
+            text,
             reason,
             context,
         )

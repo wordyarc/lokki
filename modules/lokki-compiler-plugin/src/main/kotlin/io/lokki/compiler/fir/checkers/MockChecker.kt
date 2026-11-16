@@ -10,51 +10,41 @@ import io.lokki.compiler.fir.argument
 import io.lokki.compiler.fir.classifier
 import io.lokki.compiler.fir.displayName
 import io.lokki.compiler.fir.fieldKind
+import io.lokki.compiler.fir.finalMembers
 import io.lokki.compiler.fir.intrinsicKind
 import io.lokki.compiler.fir.isFromFriendKotlinModule
 import io.lokki.compiler.fir.mockabilityProblem
+import io.lokki.compiler.fir.restriction
 import io.lokki.compiler.linked
 import io.lokki.compiler.notInterfaceProblem
 import org.jetbrains.kotlin.KtRealSourceElementKind
 import org.jetbrains.kotlin.KtSourceElement
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
-import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.reportOn
-import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.analysis.checkers.MppCheckerKind
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.analysis.checkers.declaration.FirPropertyChecker
 import org.jetbrains.kotlin.fir.analysis.checkers.declaration.FirValueParameterChecker
-import org.jetbrains.kotlin.fir.analysis.checkers.unsubstitutedScope
-import org.jetbrains.kotlin.fir.canSeeInternalsOf
 import org.jetbrains.kotlin.fir.declarations.FirProperty
 import org.jetbrains.kotlin.fir.declarations.FirValueParameter
 import org.jetbrains.kotlin.fir.declarations.findArgumentByName
-import org.jetbrains.kotlin.fir.declarations.getStringArgument
 import org.jetbrains.kotlin.fir.declarations.getTargetType
-import org.jetbrains.kotlin.fir.declarations.toAnnotationClassId
 import org.jetbrains.kotlin.fir.declarations.toAnnotationClassLikeSymbol
 import org.jetbrains.kotlin.fir.declarations.utils.correspondingValueParameterFromPrimaryConstructor
-import org.jetbrains.kotlin.fir.declarations.utils.isFinal
 import org.jetbrains.kotlin.fir.declarations.utils.modality
-import org.jetbrains.kotlin.fir.declarations.utils.visibility
 import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
 import org.jetbrains.kotlin.fir.expressions.FirGetClassCall
 import org.jetbrains.kotlin.fir.expressions.FirVarargArgumentsExpression
 import org.jetbrains.kotlin.fir.expressions.arguments
 import org.jetbrains.kotlin.fir.expressions.unwrapArgument
-import org.jetbrains.kotlin.fir.moduleData
 import org.jetbrains.kotlin.fir.references.toResolvedCallableSymbol
 import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
-import org.jetbrains.kotlin.fir.resolve.lookupSuperTypes
 import org.jetbrains.kotlin.fir.resolve.toRegularClassSymbol
-import org.jetbrains.kotlin.fir.scopes.processAllCallables
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirConstructorSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.types.ConeDefinitelyNotNullType
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.fir.types.ConeTypeParameterType
@@ -66,10 +56,7 @@ import org.jetbrains.kotlin.fir.types.renderReadable
 import org.jetbrains.kotlin.fir.types.resolvedType
 import org.jetbrains.kotlin.fir.types.toConeTypeProjection
 import org.jetbrains.kotlin.fir.types.type
-import org.jetbrains.kotlin.fir.unwrapFakeOverrides
-import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.name.StandardClassIds
 
 context(context: CheckerContext, reporter: DiagnosticReporter)
 internal fun checkMock(call: FirFunctionCall, function: FirCallableSymbol<*>, kind: IntrinsicKind) {
@@ -181,12 +168,12 @@ private fun MockedType.check(interfaces: () -> Boolean): Boolean {
     }
     if (!interfaces()) return false
     if (kind == IntrinsicKind.SPY) return true
-    mocked.restriction(context.session)?.let { restriction ->
+    mocked.restriction()?.let { restriction ->
         reporter.reportOn(source, LokkiDiagnostics.LOKKI_RESTRICTED_TYPE, mocked.displayName, restriction)
     }
     val finalMembers = mocked.finalMembers()
     if (finalMembers.isNotEmpty()) {
-        val advice = if (mocked.isFromFriendKotlinModule) {
+        val advice = if (mocked.isFromFriendKotlinModule(context.session)) {
             "Make them open or add their classes to lokki { mockable(...) }"
         } else {
             "Make them open"
@@ -223,36 +210,6 @@ private fun FirExpression.constructedType(): ConeKotlinType? {
         constructed.classKind == ClassKind.CLASS && constructed.modality != Modality.FINAL &&
             constructed.modality != Modality.SEALED
     }
-}
-
-context(context: CheckerContext)
-private fun FirRegularClassSymbol.finalMembers(): List<String> {
-    if (classKind != ClassKind.CLASS) return emptyList()
-    val members = sortedSetOf<String>()
-    unsubstitutedScope().processAllCallables { member ->
-        val declaration = member.unwrapFakeOverrides()
-        if (member.isFinal && member.visibility != Visibilities.Private &&
-            context.session.moduleData.canSeeInternalsOf(declaration.moduleData)
-        ) {
-            members += member.name.asString()
-        }
-    }
-    return members.toList()
-}
-
-private fun FirRegularClassSymbol.restriction(session: FirSession): String? {
-    val supertypes = lookupSuperTypes(this, lookupInterfaces = true, deep = true, session)
-        .mapNotNull { it.toRegularClassSymbol(session) }
-    for (type in listOf(this) + supertypes) {
-        val annotation = type.resolvedAnnotationsWithArguments
-            .find { it.toAnnotationClassId(session)?.shortClassName == DO_NOT_MOCK }
-        if (annotation != null) {
-            val advice = annotation.getStringArgument(VALUE)?.trimEnd('.')
-            return "'${type.displayName}' is annotated with '$DO_NOT_MOCK'" + advice?.let { ": $it" }.orEmpty()
-        }
-        if (type.classId in RESTRICTED_TYPES) return "use a real '${type.displayName}' instead"
-    }
-    return null
 }
 
 context(context: CheckerContext, reporter: DiagnosticReporter)
@@ -312,11 +269,3 @@ private val INTERFACE_TYPE = Name.identifier(ParameterNames.INTERFACE_TYPE)
 private val ADDITIONAL_INTERFACE = IntrinsicKind.ADDITIONAL_INTERFACE
 private const val SPY_VAL_HINT =
     ". A 'val' can be a spy only with a constructor call of an open class as the initializer, such as 'val car = Car()'"
-private val DO_NOT_MOCK = Name.identifier("DoNotMock")
-private val VALUE = Name.identifier("value")
-private val RESTRICTED_TYPES = setOf(
-    StandardClassIds.Collection,
-    ClassId.fromString("java/util/HashMap"),
-    ClassId.fromString("java/io/File"),
-    ClassId.fromString("java/nio/file/Path"),
-)

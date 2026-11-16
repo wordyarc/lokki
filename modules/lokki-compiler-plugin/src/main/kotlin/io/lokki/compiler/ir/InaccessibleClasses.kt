@@ -2,10 +2,8 @@ package io.lokki.compiler.ir
 
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.ir.declarations.IrClass
-import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
-import org.jetbrains.kotlin.ir.declarations.lazy.IrLazyDeclarationBase
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.IrSimpleType
@@ -18,9 +16,6 @@ import org.jetbrains.kotlin.ir.util.getPackageFragment
 import org.jetbrains.kotlin.ir.util.nonDispatchParameters
 import org.jetbrains.kotlin.load.java.JavaDescriptorVisibilities
 import org.jetbrains.kotlin.name.FqName
-
-internal val IrSimpleFunction.missingClasses: List<IrClass>
-    get() = erasedClasses.filter { it.isMissing }
 
 internal fun IrSimpleFunction.inaccessibleClasses(file: IrFile): List<IrClass> =
     erasedClasses.filterNot { it.isAccessibleFrom(file) }
@@ -41,9 +36,6 @@ private fun IrType.erasedClasses(): List<IrClass> =
         is IrTypeParameterSymbol -> classifier.owner.superTypes.flatMap { it.erasedClasses() }
         else -> emptyList()
     }
-
-internal val IrClass.isMissing: Boolean
-    get() = origin == IrDeclarationOrigin.IR_EXTERNAL_DECLARATION_STUB && this !is IrLazyDeclarationBase
 
 internal val IrClass.packageFqName: FqName
     get() = getPackageFragment().packageFqName

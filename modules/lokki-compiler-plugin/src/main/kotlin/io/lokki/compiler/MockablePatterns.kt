@@ -1,16 +1,10 @@
 package io.lokki.compiler
 
-import org.jetbrains.kotlin.config.CompilerConfigurationKey
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.isSubpackageOf
 import org.jetbrains.kotlin.name.isValidJavaFqName
-
-object LokkiConfigurationKeys {
-    val MOCKABLE: CompilerConfigurationKey<List<String>> = CompilerConfigurationKey.create("lokki mockable")
-    val DEBUG: CompilerConfigurationKey<Boolean> = CompilerConfigurationKey.create("lokki debug")
-}
 
 internal class MockablePatterns(patterns: List<String>) {
     private val packages = patterns.filter { it.endsWith(SUBPACKAGES) }.map { FqName(it.removeSuffix(SUBPACKAGES)) }

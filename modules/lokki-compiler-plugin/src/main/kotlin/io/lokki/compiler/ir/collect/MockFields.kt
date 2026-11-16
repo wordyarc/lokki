@@ -44,14 +44,18 @@ internal class MockField(
         get() = problem == null && (inject != null || !isConstructedSpy)
 }
 
-internal class MockFields(val fields: Map<IrProperty, MockField>, val owners: Map<IrClass, ClassMockFields>)
+internal class MockFields(
+    val fields: Map<IrProperty, MockField>,
+    val owners: Map<IrClass, ClassMockFields>,
+    val annotatedParameters: List<IrValueParameter>,
+)
 
 internal class ClassMockFields(val fields: List<MockField>, val injected: List<MockField>)
 
 internal fun IrFile.collectMockFields(mockability: Mockability, typeSystem: IrTypeSystemContext): MockFields {
     val collector = MockFieldCollector(mockability, InjectionPlanner(this, typeSystem))
     acceptChildrenVoid(collector)
-    return MockFields(collector.fields, collector.owners)
+    return MockFields(collector.fields, collector.owners, collector.annotatedParameters)
 }
 
 private class MockFieldCollector(
@@ -60,6 +64,7 @@ private class MockFieldCollector(
 ) : IrVisitorVoid() {
     val fields = LinkedHashMap<IrProperty, MockField>()
     val owners = LinkedHashMap<IrClass, ClassMockFields>()
+    val annotatedParameters = ArrayList<IrValueParameter>()
 
     override fun visitElement(element: IrElement) {
         element.acceptChildrenVoid(this)
@@ -80,6 +85,11 @@ private class MockFieldCollector(
             declaration.annotated?.let { fields[declaration] = it.field(it.declarationProblem(), null, null) }
         }
         super.visitProperty(declaration)
+    }
+
+    override fun visitValueParameter(declaration: IrValueParameter) {
+        if (declaration.mockAnnotationName != null) annotatedParameters += declaration
+        super.visitValueParameter(declaration)
     }
 
     private fun resolve(owner: IrClass, annotated: List<Annotated>): ClassMockFields {
