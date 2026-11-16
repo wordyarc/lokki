@@ -3,6 +3,7 @@ package io.lokki.compiler.ir
 import io.lokki.compiler.BuildConfig
 import io.lokki.compiler.FILE_REDIRECT_SUFFIX
 import io.lokki.compiler.InterceptionMark
+import io.lokki.compiler.ParameterNames
 import io.lokki.compiler.REDIRECT
 import io.lokki.compiler.REDIRECT_PROPERTY
 import io.lokki.compiler.StaticInterception
@@ -18,18 +19,17 @@ import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrVararg
-import org.jetbrains.kotlin.ir.types.classFqName
 import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.util.classId
 import org.jetbrains.kotlin.ir.util.erasedUpperBound
-import org.jetbrains.kotlin.ir.util.isFileClass
 import org.jetbrains.kotlin.ir.util.isObject
+import org.jetbrains.kotlin.ir.util.isTopLevel
 import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.util.parentClassOrNull
+import org.jetbrains.kotlin.ir.util.simpleFunctions
 import org.jetbrains.kotlin.name.CallableId
-import org.jetbrains.kotlin.name.FqName
 
-internal class Redirects(private val context: IrPluginContext, file: IrFile) {
+internal class RedirectLookup(private val context: IrPluginContext, file: IrFile) {
     private val finder = context.finderForSource(file)
     private val objects = HashMap<IrClass, ObjectRedirect?>()
     private val statics = HashMap<IrDeclaration, StaticRedirect?>()
@@ -89,13 +89,7 @@ internal sealed class Redirect(val redirect: IrClass, val property: IrProperty) 
     abstract val name: String
 
     val members: List<IrSimpleFunction>
-        get() = redirect.declarations.flatMap { member ->
-            when (member) {
-                is IrSimpleFunction -> listOf(member)
-                is IrProperty -> listOfNotNull(member.getter, member.setter)
-                else -> emptyList()
-            }
-        }
+        get() = redirect.simpleFunctions()
 }
 
 internal class ObjectRedirect(
@@ -136,28 +130,19 @@ internal val IrClass.redirectedName: String?
         else -> null
     }
 
-internal val IrDeclaration.isTopLevel: Boolean
-    get() = when (val parent = parent) {
-        is IrPackageFragment -> true
-        is IrClass -> parent.isFileClass
-        else -> false
-    }
-
 internal val IrCall.mockedObjects: List<IrExpression>?
     get() {
-        val objects = arguments.firstOrNull() as? IrVararg ?: return emptyList()
+        val parameter = symbol.owner.parameters.firstOrNull { it.varargElementType != null }
+        val objects = parameter?.let { arguments[it.indexInParameters] } as? IrVararg ?: return emptyList()
         return objects.elements.map { it as? IrExpression ?: return null }
     }
 
 internal val IrCall.staticReferences: List<IrExpression>?
     get() = symbol.owner.parameters.flatMap { parameter ->
         val argument = arguments[parameter.indexInParameters] ?: return@flatMap emptyList()
-        val type = parameter.varargElementType ?: parameter.type
         when {
-            type.classFqName?.parent() != REFLECT_PACKAGE -> emptyList()
+            parameter.name.asString() !in ParameterNames.REFERENCES -> emptyList()
             argument is IrVararg -> argument.elements.map { it as? IrExpression ?: return null }
             else -> listOf(argument)
         }
     }
-
-private val REFLECT_PACKAGE = FqName("kotlin.reflect")

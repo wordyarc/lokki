@@ -55,6 +55,7 @@ internal object LokkiDiagnostics : KtDiagnosticsContainer() {
     val LOKKI_RUNTIME_TOO_OLD by error0<KtElement>()
     val LOKKI_DEBUG by SourcelessDiagnosticFactoryDelegateProvider(Severity.INFO, this)
     val LOKKI_CANNOT_START by errorWithoutSource()
+    val LOKKI_RUNTIME_INCOMPATIBLE by errorWithoutSource()
 
     override fun getRendererFactory(): BaseDiagnosticRendererFactory = LokkiDiagnosticRenderers
 }
@@ -269,5 +270,10 @@ private object LokkiDiagnosticRenderers : BaseDiagnosticRendererFactory() {
         )
         map.put(LokkiDiagnostics.LOKKI_DEBUG, "{0}")
         map.put(LokkiDiagnostics.LOKKI_CANNOT_START, "{0}")
+        map.put(
+            LokkiDiagnostics.LOKKI_RUNTIME_INCOMPATIBLE,
+            "lokki-core on the classpath does not match the lokki compiler plugin: {0}. " +
+                "Use the version of the lokki Gradle plugin for all io.lokki dependencies.",
+        )
     }
 }

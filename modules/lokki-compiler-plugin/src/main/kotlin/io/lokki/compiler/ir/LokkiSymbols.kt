@@ -1,6 +1,14 @@
 package io.lokki.compiler.ir
 
 import io.lokki.compiler.AWAIT_CANCELLATION
+import io.lokki.compiler.CoreClasses
+import io.lokki.compiler.CoreFunction
+import io.lokki.compiler.IncompatibleRuntimeException
+import io.lokki.compiler.LOKKI_PACKAGE
+import io.lokki.compiler.ORDERING
+import io.lokki.compiler.STATE_PROPERTY_NAME
+import io.lokki.compiler.internalClassId
+import io.lokki.compiler.publicClassId
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrConstructor
@@ -8,7 +16,6 @@ import org.jetbrains.kotlin.ir.declarations.IrEnumEntry
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
-import org.jetbrains.kotlin.ir.util.companionObject
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.erasedUpperBound
 import org.jetbrains.kotlin.ir.util.functions
@@ -25,86 +32,89 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
     private val finder = context.finderForBuiltins()
 
     val isRuntimeAvailable: Boolean
-        get() = finder.findClass(ClassId(INTERNAL_PACKAGE, Name.identifier("GeneratedMock"))) != null
+        get() = finder.findClass(CoreClasses.GENERATED_MOCK) != null
 
-    val generatedMock by lazy { findClass(INTERNAL_PACKAGE, "GeneratedMock") }
-    val state by lazy { generatedMock.properties.single { it.name.asString() == "lokki\$state" } }
-    val original by lazy { generatedMock.function("lokki\$original") }
-    val coOriginal by lazy { generatedMock.function("lokki\$coOriginal") }
-    val relaxed by lazy { generatedMock.function("lokki\$relaxed") }
-    val describe by lazy { generatedMock.function("lokki\$describe") }
-    val methodDescriptions by lazy { findClass(INTERNAL_PACKAGE, "MethodDescriptions") }
-    val methodDescription by lazy { methodDescriptions.function("of") }
-    val noRelaxedDefault by lazy { findClass(INTERNAL_PACKAGE, "NoRelaxedDefault") }
-    val of by lazy { generatedMock.companionObject()!!.function("of") }
-    val withoutStateChanges by lazy { generatedMock.companionObject()!!.function("withoutStateChanges") }
-    val evaluate by lazy { generatedMock.companionObject()!!.function("evaluate") }
-    val chain by lazy { generatedMock.companionObject()!!.function("chain") }
-    val link by lazy { generatedMock.companionObject()!!.function("link") }
-    val childMock by lazy { findClass(INTERNAL_PACKAGE, "ChildMock") }
-    val redirects by lazy { findClass(INTERNAL_PACKAGE, "Redirects") }
-    val mockObject by lazy { redirects.function("mockObject", parameters = 2) }
-    val mockObjectWithBlock by lazy { redirects.function("mockObject", parameters = 3) }
-    val mockStatic by lazy { redirects.function("mockStatic", parameters = 2) }
-    val mockStaticWithBlock by lazy { redirects.function("mockStatic", parameters = 3) }
-    val redirectOf by lazy { redirects.function("of") }
-    val staticRedirectOf by lazy { redirects.function("ofStatic") }
-    val unmock by lazy { redirects.function("unmock") }
-    val redirect by lazy { findClass(INTERNAL_PACKAGE, "Redirect") }
-    val clearMocks by lazy { findFunction(PACKAGE, "clearMocks") }
-    val confirmVerified by lazy {
-        finder.findFunctions(CallableId(PACKAGE, Name.identifier("confirmVerified"))).map { it.owner }
-            .single { it.parameters.first().varargElementType != null }
+    val generatedMock by lazy { coreClass(CoreClasses.GENERATED_MOCK) }
+    val state by lazy {
+        generatedMock.properties.singleOrNull { it.name.asString() == STATE_PROPERTY_NAME }
+            ?: incompatible("'${generatedMock.name}' has no property '$STATE_PROPERTY_NAME'")
     }
-    val mockFieldsOwner by lazy { findClass(INTERNAL_PACKAGE, "MockFieldsOwner") }
-    val initMockFields by lazy { mockFieldsOwner.function("lokki\$initMockFields") }
+    val original by lazy { function(CoreFunction.ORIGINAL) }
+    val coOriginal by lazy { function(CoreFunction.CO_ORIGINAL) }
+    val relaxed by lazy { function(CoreFunction.RELAXED) }
+    val describe by lazy { function(CoreFunction.DESCRIBE) }
+    val methodDescriptions by lazy { coreClass(CoreClasses.METHOD_DESCRIPTIONS) }
+    val methodDescription by lazy { function(CoreFunction.METHOD_DESCRIPTION) }
+    val noRelaxedDefault by lazy { coreClass(internalClassId("NoRelaxedDefault")) }
+    val of by lazy { function(CoreFunction.OF) }
+    val withoutStateChanges by lazy { function(CoreFunction.WITHOUT_STATE_CHANGES) }
+    val evaluate by lazy { function(CoreFunction.EVALUATE) }
+    val chain by lazy { function(CoreFunction.CHAIN) }
+    val link by lazy { function(CoreFunction.LINK) }
+    val childMock by lazy { coreClass(internalClassId("ChildMock")) }
+    val redirects by lazy { coreClass(CoreClasses.REDIRECTS) }
+    val mockObject by lazy { function(CoreFunction.MOCK_OBJECT) }
+    val mockObjectWithBlock by lazy { function(CoreFunction.MOCK_OBJECT_WITH_BLOCK) }
+    val mockStatic by lazy { function(CoreFunction.MOCK_STATIC) }
+    val mockStaticWithBlock by lazy { function(CoreFunction.MOCK_STATIC_WITH_BLOCK) }
+    val redirectOf by lazy { function(CoreFunction.REDIRECT_OF) }
+    val staticRedirectOf by lazy { function(CoreFunction.STATIC_REDIRECT_OF) }
+    val unmock by lazy { function(CoreFunction.UNMOCK) }
+    val redirect by lazy { coreClass(internalClassId("Redirect")) }
+    val clearMocks by lazy { publicFunction("clearMocks") { true } }
+    val confirmVerified by lazy {
+        publicFunction("confirmVerified") { it.parameters.first().varargElementType != null }
+    }
+    val mockFieldsOwner by lazy { coreClass(CoreClasses.MOCK_FIELDS_OWNER) }
+    val initMockFields by lazy { function(CoreFunction.INIT_MOCK_FIELDS) }
 
-    val lokkiException by lazy { findClass(PACKAGE, "LokkiException").primaryConstructor!! }
+    val lokkiException by lazy {
+        coreClass(publicClassId("LokkiException")).primaryConstructor
+            ?: incompatible("'LokkiException' has no primary constructor")
+    }
 
-    val staticInitializer by lazy { findClass(INTERNAL_PACKAGE, "StaticInitializer") }
-    val enterStaticInitializer by lazy { staticInitializer.function("enter") }
-    val exitStaticInitializer by lazy { staticInitializer.function("exit") }
+    val staticInitializer by lazy { coreClass(CoreClasses.STATIC_INITIALIZER) }
+    val enterStaticInitializer by lazy { function(CoreFunction.ENTER_STATIC_INITIALIZER) }
+    val exitStaticInitializer by lazy { function(CoreFunction.EXIT_STATIC_INITIALIZER) }
 
-    val mockDescriptor by lazy { findClass(INTERNAL_PACKAGE, "MockDescriptor") }
-    val mockSpec by lazy { findClass(INTERNAL_PACKAGE, "MockSpec") }
+    val mockDescriptor by lazy { coreClass(internalClassId("MockDescriptor")) }
+    val mockSpec by lazy { coreClass(internalClassId("MockSpec")) }
 
-    val instanceAllocator by lazy { findClass(INTERNAL_PACKAGE, "InstanceAllocator") }
-    val allocate by lazy { instanceAllocator.function("allocate") }
+    val instanceAllocator by lazy { coreClass(CoreClasses.INSTANCE_ALLOCATOR) }
+    val allocate by lazy { function(CoreFunction.ALLOCATE) }
 
-    val mockState by lazy { findClass(INTERNAL_PACKAGE, "MockState") }
-    val answer by lazy { mockState.function("answer") }
-    val coAnswer by lazy { mockState.function("coAnswer") }
-    val noOriginal by lazy { mockState.function("noOriginal") }
-    val stub by lazy { mockState.function("stub") }
-    val captureDefaults by lazy { mockState.function("captureDefaults") }
-    val coCaptureDefaults by lazy { mockState.function("coCaptureDefaults") }
-    val exclude by lazy { mockState.function("exclude") }
-    val mockStateLink by lazy { mockState.function("link") }
+    val mockState by lazy { coreClass(CoreClasses.MOCK_STATE) }
+    val answer by lazy { function(CoreFunction.ANSWER) }
+    val coAnswer by lazy { function(CoreFunction.CO_ANSWER) }
+    val noOriginal by lazy { function(CoreFunction.NO_ORIGINAL) }
+    val stub by lazy { function(CoreFunction.STUB) }
+    val captureDefaults by lazy { function(CoreFunction.CAPTURE_DEFAULTS) }
+    val coCaptureDefaults by lazy { function(CoreFunction.CO_CAPTURE_DEFAULTS) }
+    val exclude by lazy { function(CoreFunction.EXCLUDE) }
+    val mockStateLink by lazy { function(CoreFunction.MOCK_STATE_LINK) }
 
-    val stubScope by lazy { findClass(PACKAGE, "StubScope") }
-    val returns by lazy { stubScope.function("returns") }
-    val coAnswers by lazy { stubScope.function("coAnswers") }
-    val additionalAnswerScope by lazy { findClass(PACKAGE, "AdditionalAnswerScope") }
-    val coAndThen by lazy { additionalAnswerScope.function("coAndThen") }
-    val answerScope by lazy { findClass(PACKAGE, "AnswerScope") }
-    val call by lazy { findClass(PACKAGE, "Call") }
+    val stubScope by lazy { coreClass(CoreClasses.STUB_SCOPE) }
+    val returns by lazy { function(CoreFunction.RETURNS) }
+    val coAnswers by lazy { function(CoreFunction.CO_ANSWERS) }
+    val coAndThen by lazy { function(CoreFunction.CO_AND_THEN) }
+    val answerScope by lazy { coreClass(publicClassId("AnswerScope")) }
+    val call by lazy { coreClass(publicClassId("Call")) }
     val awaitCancellation by lazy { finder.findFunctions(AWAIT_CANCELLATION).singleOrNull()?.owner }
 
-    val verification by lazy { findClass(INTERNAL_PACKAGE, "Verification") }
-    val ordering by lazy { findClass(PACKAGE, "Ordering") }
-    val expect by lazy { verification.function("expect") }
-    val expectLink by lazy { verification.function("expectLink") }
-    val check by lazy { verification.function("check") }
+    val verification by lazy { coreClass(CoreClasses.VERIFICATION) }
+    val ordering by lazy { coreClass(ORDERING) }
+    val expect by lazy { function(CoreFunction.EXPECT) }
+    val expectLink by lazy { function(CoreFunction.EXPECT_LINK) }
+    val check by lazy { function(CoreFunction.CHECK) }
 
-    val matcher by lazy { findClass(PACKAGE, "Matcher") }
-    val matcherScope by lazy { findClass(PACKAGE, "MatcherScope") }
-    val matcherOf by lazy { matcherScope.function("matcherOf") }
-    val any by lazy { matcherScope.function("any") }
-    val registrationScope by lazy { findClass(INTERNAL_PACKAGE, "RegistrationScope") }
-    val anyMatcher by lazy { findClass(INTERNAL_PACKAGE, "AnyMatcher") }
-    val eqMatcher by lazy { findClass(INTERNAL_PACKAGE, "EqMatcher") }
-    val arrayMatcher by lazy { findClass(INTERNAL_PACKAGE, "ArrayMatcher") }
-    val matchers by lazy { findClass(INTERNAL_PACKAGE, "Matchers") }
+    val matcher by lazy { coreClass(publicClassId("Matcher")) }
+    val matcherOf by lazy { function(CoreFunction.MATCHER_OF) }
+    val any by lazy { function(CoreFunction.ANY) }
+    val registrationScope by lazy { coreClass(internalClassId("RegistrationScope")) }
+    val anyMatcher by lazy { coreClass(internalClassId("AnyMatcher")) }
+    val eqMatcher by lazy { coreClass(internalClassId("EqMatcher")) }
+    val arrayMatcher by lazy { coreClass(internalClassId("ArrayMatcher")) }
+    val matchers by lazy { coreClass(internalClassId("Matchers")) }
 
     val arrayGet by lazy { context.irBuiltIns.arrayClass.owner.function("get") }
     val intDiv by lazy {
@@ -144,24 +154,53 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
     }
 
     fun verificationOf(calls: IrClass): IrConstructor =
-        verification.constructors.single { it.firstParameterClass?.symbol == calls.symbol }
+        verification.constructors.singleOrNull { it.firstParameterClass?.symbol == calls.symbol }
+            ?: incompatible("'${verification.name}' has no constructor that takes '${calls.name}'")
 
     fun orderingEntry(name: String): IrEnumEntry =
-        ordering.declarations.filterIsInstance<IrEnumEntry>().single { it.name.asString() == name }
+        ordering.declarations.filterIsInstance<IrEnumEntry>().singleOrNull { it.name.asString() == name }
+            ?: incompatible("'${ordering.name}' has no entry '$name'")
 
     fun expectNoCalls(mocks: IrClass): IrSimpleFunction =
-        verification.functions.single {
+        verification.functions.singleOrNull {
             it.name.asString() == "expectNoCalls" && it.firstParameterClass?.symbol == mocks.symbol
-        }
+        } ?: incompatible("'${verification.name}' has no function 'expectNoCalls' that takes '${mocks.name}'")
 
-    fun matcherFactory(name: String): IrSimpleFunction = matchers.function(name)
+    fun matcherFactory(name: String): IrSimpleFunction =
+        matchers.functions.singleOrNull { it.name.asString() == name } ?: noMatcherFactory(name)
 
     fun matcherFactory(function: IrSimpleFunction): IrSimpleFunction {
         val factories = matchers.functions.filter { it.name == function.name }.toList()
-        return factories.singleOrNull() ?: factories.single { it.firstParameterClass == function.firstParameterClass }
+        return factories.singleOrNull()
+            ?: factories.singleOrNull { it.firstParameterClass == function.firstParameterClass }
+            ?: noMatcherFactory(function.name.asString())
     }
 
     fun javaUtilClass(name: String): IrClass = findClass(JAVA_UTIL_PACKAGE, name)
+
+    private fun coreClass(id: ClassId): IrClass =
+        finder.findClass(id)?.owner ?: incompatible("it has no class '${id.asFqNameString()}'")
+
+    private fun function(entry: CoreFunction): IrSimpleFunction {
+        val candidates = coreClass(entry.owner).functions.filter { function ->
+            function.name.asString() == entry.functionName &&
+                (entry.valueParameters == null || function.regularParameters == entry.valueParameters)
+        }.toList()
+        val arity = entry.valueParameters?.let { " with $it parameters" }.orEmpty()
+        return candidates.singleOrNull() ?: incompatible(
+            "'${entry.owner.asFqNameString()}' declares ${candidates.size} functions '${entry.functionName}'$arity, " +
+                "and the compiler plugin needs exactly one"
+        )
+    }
+
+    private fun publicFunction(name: String, matches: (IrSimpleFunction) -> Boolean): IrSimpleFunction =
+        finder.findFunctions(CallableId(LOKKI_PACKAGE, Name.identifier(name))).map { it.owner }.singleOrNull(matches)
+            ?: incompatible("'${LOKKI_PACKAGE.child(Name.identifier(name))}' is not a single function")
+
+    private fun noMatcherFactory(name: String): Nothing =
+        incompatible("'${matchers.name}' has no single factory of the matcher '$name'")
+
+    private fun incompatible(problem: String): Nothing = throw IncompatibleRuntimeException(problem)
 
     private fun findClass(packageName: FqName, name: String): IrClass =
         finder.findClass(ClassId(packageName, Name.identifier(name)))!!.owner
@@ -172,8 +211,8 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
 
 private fun IrClass.function(name: String): IrSimpleFunction = functions.single { it.name.asString() == name }
 
-private fun IrClass.function(name: String, parameters: Int): IrSimpleFunction =
-    functions.single { it.name.asString() == name && it.parameters.size == parameters }
+private val IrFunction.regularParameters: Int
+    get() = parameters.count { it.kind == IrParameterKind.Regular }
 
 private val IrFunction.firstParameterClass: IrClass?
     get() = parameters.firstOrNull { it.kind == IrParameterKind.Regular }?.type?.erasedUpperBound
@@ -184,5 +223,3 @@ private val COLLECTIONS_PACKAGE = FqName("kotlin.collections")
 private val SEQUENCES_PACKAGE = FqName("kotlin.sequences")
 private val JAVA_UTIL_PACKAGE = FqName("java.util")
 private val JVM_PACKAGE = FqName("kotlin.jvm")
-private val PACKAGE = FqName("io.lokki")
-private val INTERNAL_PACKAGE = FqName("io.lokki.internal")

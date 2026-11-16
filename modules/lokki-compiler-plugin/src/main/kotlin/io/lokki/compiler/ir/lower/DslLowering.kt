@@ -6,11 +6,10 @@ import io.lokki.compiler.ParameterNames
 import io.lokki.compiler.REFERABLE_KINDS
 import io.lokki.compiler.STUB_BLOCKS
 import io.lokki.compiler.VERIFY_BLOCKS
-import io.lokki.compiler.ir.IrDiagnostics
-import io.lokki.compiler.ir.LokkiSymbols
+import io.lokki.compiler.ir.FileContext
+import io.lokki.compiler.ir.LokkiIrContext
 import io.lokki.compiler.ir.ObjectRedirect
 import io.lokki.compiler.ir.Redirect
-import io.lokki.compiler.ir.Redirects
 import io.lokki.compiler.ir.StaticRedirect
 import io.lokki.compiler.ir.argument
 import io.lokki.compiler.ir.buildLambda
@@ -18,10 +17,12 @@ import io.lokki.compiler.ir.collect.MockClassKey
 import io.lokki.compiler.ir.collect.MockForm
 import io.lokki.compiler.ir.collect.MockSite
 import io.lokki.compiler.ir.collect.MockSites
-import io.lokki.compiler.ir.collect.Mockability
 import io.lokki.compiler.ir.collect.referencedTypeParameters
 import io.lokki.compiler.ir.collect.spiedInstance
-import io.lokki.compiler.ir.generate.MockInstances
+import io.lokki.compiler.ir.generate.irConstruct
+import io.lokki.compiler.ir.generate.irDelegatingSpy
+import io.lokki.compiler.ir.generate.irFactory
+import io.lokki.compiler.ir.generate.irNewMock
 import io.lokki.compiler.ir.generate.replaceConstructorCall
 import io.lokki.compiler.ir.intrinsicKind
 import io.lokki.compiler.ir.irArrayOf
@@ -33,7 +34,6 @@ import io.lokki.compiler.ir.staticReferences
 import io.lokki.compiler.ir.temporary
 import io.lokki.compiler.ir.toLambda
 import org.jetbrains.kotlin.backend.common.IrElementTransformerVoidWithContext
-import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
@@ -51,7 +51,6 @@ import org.jetbrains.kotlin.ir.builders.irNull
 import org.jetbrains.kotlin.ir.builders.irString
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
-import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrConst
@@ -67,18 +66,14 @@ import org.jetbrains.kotlin.ir.util.primaryConstructor
 import org.jetbrains.kotlin.ir.util.render
 
 internal class DslLowering(
-    private val context: IrPluginContext,
-    private val symbols: LokkiSymbols,
-    private val file: IrFile,
+    lokki: LokkiIrContext,
+    private val file: FileContext,
     private val sites: MockSites,
     private val mocks: Map<MockClassKey, IrClass>,
-    private val mockability: Mockability,
-    private val redirects: Redirects,
-    private val diagnostics: IrDiagnostics,
 ) : IrElementTransformerVoidWithContext() {
-    private val instances = MockInstances(context, symbols)
-    private val stubBlocks =
-        StubBlockLowering(context, symbols, file, mocks, instances, mockability, redirects, diagnostics)
+    private val context = lokki.pluginContext
+    private val symbols = lokki.symbols
+    private val stubBlocks = StubBlockLowering(lokki, file, mocks)
     private val verifiedNoCalls = HashSet<IrCall>()
     private val blockContexts = HashSet<IrCall>()
 
@@ -138,9 +133,9 @@ internal class DslLowering(
     private fun lowerMock(call: IrCall, kind: IntrinsicKind): IrExpression {
         val site = when (val site = sites.calls.getValue(call)) {
             is MockSite.Mocked -> site
-            is MockSite.Rejected -> return call.also { diagnostics.report(it, file, site.problem) }
+            is MockSite.Rejected -> return call.also { file.diagnostics.report(it, site.problem) }
         }
-        site.warning?.let { diagnostics.report(call, file, it) }
+        site.warning?.let { file.diagnostics.report(call, it) }
         val types = site.types
         val mock = mocks.getValue(site.key)
         val spied = call.spiedInstance?.temporary
@@ -162,19 +157,17 @@ internal class DslLowering(
             }
             val typeArguments = types.type.referencedTypeParameters.map { it.defaultType }
             val mockType = mock.typeWith(typeArguments)
-            val instance = with(instances) {
-                when (types.form) {
-                    MockForm.Mock -> irNewMock(mock, types, spec)
-                    MockForm.Delegation -> irDelegatingSpy(mock, types, call.spiedInstance!!, spec)
-                    is MockForm.Construction -> {
-                        val instance = call.spiedInstance
-                        val temporary = instance?.temporary
-                        val constructed = temporary?.initializer ?: instance
-                        val spy = constructed?.replaceConstructorCall(mockType) { constructor ->
-                            irConstruct(mock, typeArguments, constructor.arguments.filterNotNull() + spec)
-                        } ?: irConstruct(mock, typeArguments, listOf(spec))
-                        if (temporary == null) spy else instance.also { temporary.initializer = spy }
-                    }
+            val instance = when (types.form) {
+                MockForm.Mock -> irNewMock(symbols, mock, types, spec)
+                MockForm.Delegation -> irDelegatingSpy(symbols, mock, types, call.spiedInstance!!, spec)
+                is MockForm.Construction -> {
+                    val instance = call.spiedInstance
+                    val temporary = instance?.temporary
+                    val constructed = temporary?.initializer ?: instance
+                    val spy = constructed?.replaceConstructorCall(mockType) { constructor ->
+                        irConstruct(mock, typeArguments, constructor.arguments.filterNotNull() + spec)
+                    } ?: irConstruct(mock, typeArguments, listOf(spec))
+                    if (temporary == null) spy else instance.also { temporary.initializer = spy }
                 }
             }
             val block = call.argument(ParameterNames.BLOCK) ?: return instance
@@ -189,7 +182,7 @@ internal class DslLowering(
         val objects = call.mockedObjects
             ?: return call.also { unsupported(it, "Pass objects to 'mockObject' directly, not as a spread array") }
         val redirects = objects.map { argument ->
-            redirects.of(argument) ?: return call.also {
+            file.redirects.of(argument) ?: return call.also {
                 unsupported(argument, "'${argument.type.render()}' is not an object with interception points")
             }
         }
@@ -254,7 +247,7 @@ internal class DslLowering(
         val references = staticReferences
             ?: return null.also { unsupported(this, "Pass references to '$name' directly, not as a spread array") }
         return references.map { reference ->
-            redirects.static(reference) ?: return null.also {
+            file.redirects.static(reference) ?: return null.also {
                 val target = reference.referencedDeclaration?.name
                 val reason = when (target) {
                     null -> "An argument of '$name' must be an unbound reference like '::f'"
@@ -274,7 +267,7 @@ internal class DslLowering(
         }
 
     private fun IrBuilderWithScope.irRedirect(target: IrExpression, redirect: Redirect): IrExpression {
-        val site = mockability.mock(redirect.redirect.defaultType)
+        val site = file.mockability.mock(redirect.redirect.defaultType)
         val mock = mocks.getValue(site.key)
         val install = context.buildLambda(startOffset, endOffset, context.irBuiltIns.unitType)
         val value = install.addValueParameter("redirect", context.irBuiltIns.anyNType)
@@ -288,7 +281,7 @@ internal class DslLowering(
         return irCallConstructor(symbols.redirect.primaryConstructor!!.symbol, emptyList()).apply {
             arguments[0] = target
             arguments[1] = irString(redirect.name)
-            arguments[2] = with(instances) { irFactory(mock, site.types) }
+            arguments[2] = irFactory(symbols, mock, site.types)
             arguments[3] = install.toLambda(context.irBuiltIns)
         }
     }
@@ -312,7 +305,7 @@ internal class DslLowering(
         DeclarationIrBuilder(context, currentScope!!.scope.scopeOwnerSymbol, call.startOffset, call.endOffset)
 
     private fun unsupported(element: IrElement, reason: String) {
-        diagnostics.unsupported(element, file, reason)
+        file.diagnostics.unsupported(element, reason)
     }
 }
 

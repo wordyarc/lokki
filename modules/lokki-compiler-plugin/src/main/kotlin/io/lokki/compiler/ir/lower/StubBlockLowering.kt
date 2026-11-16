@@ -1,17 +1,15 @@
 package io.lokki.compiler.ir.lower
 
 import io.lokki.compiler.BLOCK_KINDS
-import io.lokki.compiler.CHAINED_MOCKS
 import io.lokki.compiler.CHILD_MOCK_NEEDED
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.MatcherNames
 import io.lokki.compiler.ParameterNames
 import io.lokki.compiler.VERIFICATION_ORDERINGS
-import io.lokki.compiler.ir.IrDiagnostics
-import io.lokki.compiler.ir.LokkiSymbols
+import io.lokki.compiler.ir.FileContext
+import io.lokki.compiler.ir.LokkiIrContext
 import io.lokki.compiler.ir.NoCalls
 import io.lokki.compiler.ir.ObjectRedirect
-import io.lokki.compiler.ir.Redirects
 import io.lokki.compiler.ir.StaticRedirect
 import io.lokki.compiler.ir.StubbedCall
 import io.lokki.compiler.ir.blockStatements
@@ -19,10 +17,9 @@ import io.lokki.compiler.ir.buildLambda
 import io.lokki.compiler.ir.callsSuspend
 import io.lokki.compiler.ir.collect.MockClassKey
 import io.lokki.compiler.ir.collect.MockedTypes
-import io.lokki.compiler.ir.collect.Mockability
 import io.lokki.compiler.ir.contains
 import io.lokki.compiler.ir.excludedCalls
-import io.lokki.compiler.ir.generate.MockInstances
+import io.lokki.compiler.ir.generate.irFactory
 import io.lokki.compiler.ir.intrinsicKind
 import io.lokki.compiler.ir.irArrayOf
 import io.lokki.compiler.ir.irCompanionCall
@@ -39,7 +36,6 @@ import io.lokki.compiler.ir.toLambda
 import io.lokki.compiler.ir.unwrapped
 import io.lokki.compiler.ir.verifiedStatements
 import io.lokki.compiler.ir.wrapped
-import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.builders.IrBlockBodyBuilder
@@ -62,7 +58,6 @@ import org.jetbrains.kotlin.ir.builders.irString
 import org.jetbrains.kotlin.ir.builders.irTemporary
 import org.jetbrains.kotlin.ir.builders.irUnit
 import org.jetbrains.kotlin.ir.declarations.IrClass
-import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.declarations.IrValueDeclaration
@@ -99,7 +94,6 @@ import org.jetbrains.kotlin.ir.util.deepCopyWithSymbols
 import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.defaultValueForType
 import org.jetbrains.kotlin.ir.util.erasedUpperBound
-import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.util.isMethodOfAny
 import org.jetbrains.kotlin.ir.util.isNullable
 import org.jetbrains.kotlin.ir.util.isSubclassOf
@@ -111,17 +105,14 @@ import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 
 internal class StubBlockLowering(
-    private val context: IrPluginContext,
-    private val symbols: LokkiSymbols,
-    private val file: IrFile,
+    lokki: LokkiIrContext,
+    private val file: FileContext,
     private val mocks: Map<MockClassKey, IrClass>,
-    private val instances: MockInstances,
-    private val mockability: Mockability,
-    private val redirects: Redirects,
-    private val diagnostics: IrDiagnostics,
 ) {
+    private val context = lokki.pluginContext
+    private val symbols = lokki.symbols
     private val builtIns = context.irBuiltIns
-    private val chainedMocks = file.hasAnnotation(CHAINED_MOCKS)
+    private val chainedMocks = file.chainedMocks
     private val matcherType = symbols.matcher.typeWith(builtIns.anyNType)
     private val matchersType = builtIns.arrayClass.typeWith(matcherType)
 
@@ -448,7 +439,7 @@ internal class StubBlockLowering(
             arguments[1] = irGet(head)
             arguments[2] = irString(key)
             arguments[3] = irBoolean(block.stubs)
-            arguments[4] = child?.let { (mock, types) -> with(instances) { irFactory(mock, types) } } ?: irNull()
+            arguments[4] = child?.let { (mock, types) -> irFactory(symbols, mock, types) } ?: irNull()
             arguments[5] = if (child == null) irString(childProblem(type)) else irNull()
             arguments[6] = evaluation.toLambda(builtIns)
         }
@@ -462,9 +453,9 @@ internal class StubBlockLowering(
     ): IrExpression? {
         val type = link.call.type
         val (mock, types) = childOf(type) ?: return null.also {
-            when (val problem = mockability.childProblem(type)) {
+            when (val problem = file.mockability.childProblem(type)) {
                 null -> fail(link.call, childProblem(type))
-                else -> diagnostics.report(link.call, file, problem.withReason("${problem.reason}. $CHILD_MOCK_NEEDED"))
+                else -> file.diagnostics.report(link.call, problem.withReason("${problem.reason}. $CHILD_MOCK_NEEDED"))
             }
         }
         val state = irTemporary(irStateOf(irGet(head)))
@@ -482,18 +473,18 @@ internal class StubBlockLowering(
             arguments[1] = irString(key)
             arguments[2] = irGet(matchers)
             arguments[3] = irBoolean(block.stubs)
-            arguments[4] = with(instances) { irFactory(mock, types) }
+            arguments[4] = irFactory(symbols, mock, types)
         }
         return irAs(child, type)
     }
 
     private fun childOf(type: IrType): Pair<IrClass, MockedTypes>? {
-        val site = mockability.child(type) ?: return null
+        val site = file.mockability.child(type) ?: return null
         return mocks[site.key]?.let { it to site.types }
     }
 
     private fun childProblem(type: IrType): String =
-        mockability.childProblem(type)?.message ?: "lokki generated no child mock class for '${type.render()}'"
+        file.mockability.childProblem(type)?.message ?: "lokki generated no child mock class for '${type.render()}'"
 
     private fun IrBuilder.irMatchersOf(dsl: IrCall, matchers: IrVariable): IrExpression {
         val function = lambda(dsl, matchersType)
@@ -572,7 +563,7 @@ internal class StubBlockLowering(
     }
 
     private fun fail(element: IrElement, reason: String): Nothing? {
-        diagnostics.unsupported(element, file, reason)
+        file.diagnostics.unsupported(element, reason)
         return null
     }
 
@@ -745,10 +736,10 @@ internal class StubBlockLowering(
     private fun IrBuilder.irAny(): IrExpression = irGetObject(symbols.anyMatcher)
 
     private fun keyOf(call: IrCall): String =
-        redirects.member(call.symbol.owner)?.key ?: call.symbol.owner.memberKeys.first()
+        file.redirects.member(call.symbol.owner)?.key ?: call.symbol.owner.memberKeys.first()
 
     private fun IrBuilder.irStateOf(call: IrCall, receiver: IrExpression?): IrExpression? {
-        val redirect = redirects.member(call.symbol.owner)?.redirect ?: return receiver?.let { irStateOf(it) }
+        val redirect = file.redirects.member(call.symbol.owner)?.redirect ?: return receiver?.let { irStateOf(it) }
         val (of, target) = when (redirect) {
             is ObjectRedirect -> symbols.redirectOf to receiver!!
             is StaticRedirect -> symbols.staticRedirectOf to irString(redirect.key)

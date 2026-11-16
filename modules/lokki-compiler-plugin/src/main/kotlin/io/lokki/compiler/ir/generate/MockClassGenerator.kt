@@ -1,15 +1,13 @@
 package io.lokki.compiler.ir.generate
 
 import io.lokki.compiler.BuildConfig
-import io.lokki.compiler.CHAINED_MOCKS
 import io.lokki.compiler.LokkiPluginKey
-import io.lokki.compiler.ir.FriendAwareFakeOverrides
-import io.lokki.compiler.ir.IrDiagnostics
-import io.lokki.compiler.ir.LokkiSymbols
+import io.lokki.compiler.ir.FileContext
+import io.lokki.compiler.ir.LokkiIrContext
+import io.lokki.compiler.ir.addFriendAwareFakeOverrides
 import io.lokki.compiler.ir.collect.MockClassKey
 import io.lokki.compiler.ir.collect.MockClassUsage
 import io.lokki.compiler.ir.collect.MockForm
-import io.lokki.compiler.ir.collect.Mockability
 import io.lokki.compiler.ir.collect.NotMockable
 import io.lokki.compiler.ir.collect.displayName
 import io.lokki.compiler.ir.collect.mockedClass
@@ -19,11 +17,9 @@ import io.lokki.compiler.ir.irArrayOf
 import io.lokki.compiler.ir.redirectedName
 import io.lokki.compiler.ir.isVisibleFrom
 import io.lokki.compiler.ir.memberKeys
-import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
-import org.jetbrains.kotlin.incremental.components.LookupTracker
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.builders.IrBlockBodyBuilder
 import org.jetbrains.kotlin.ir.builders.IrBuilder
@@ -80,11 +76,9 @@ import org.jetbrains.kotlin.ir.expressions.impl.IrCallImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrInstanceInitializerCallImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrThrowImpl
-import org.jetbrains.kotlin.ir.overrides.IrFakeOverrideBuilder
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
-import org.jetbrains.kotlin.ir.types.IrTypeSystemContext
 import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.types.isMarkedNullable
@@ -102,7 +96,6 @@ import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.defaultValueForType
 import org.jetbrains.kotlin.ir.util.erasedUpperBound
 import org.jetbrains.kotlin.ir.util.functions
-import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.ir.util.isLocal
 import org.jetbrains.kotlin.ir.util.isMethodOfAny
@@ -110,6 +103,7 @@ import org.jetbrains.kotlin.ir.util.nonDispatchParameters
 import org.jetbrains.kotlin.ir.util.parentAsClass
 import org.jetbrains.kotlin.ir.util.patchDeclarationParents
 import org.jetbrains.kotlin.ir.util.primaryConstructor
+import org.jetbrains.kotlin.ir.util.simpleFunctions
 import org.jetbrains.kotlin.ir.util.substitute
 import org.jetbrains.kotlin.ir.visitors.IrVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
@@ -118,27 +112,20 @@ import org.jetbrains.kotlin.load.kotlin.PackagePartClassUtils
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.util.OperatorNameConventions
 
-internal class MockClassGenerator(
-    private val context: IrPluginContext,
-    private val symbols: LokkiSymbols,
-    private val lookupTracker: LookupTracker?,
-    private val diagnostics: IrDiagnostics,
-    private val typeSystem: IrTypeSystemContext,
-) {
+internal class MockClassGenerator(private val lokki: LokkiIrContext) {
+    private val context = lokki.pluginContext
+    private val symbols = lokki.symbols
     private val origin = IrDeclarationOrigin.GeneratedByPlugin(LokkiPluginKey)
     private val anyConstructor = context.irBuiltIns.anyClass.owner.constructors.single()
     private val relaxedDefaults = RelaxedDefaults(context, symbols)
     private val memberDescriptions = MemberDescriptions(context, symbols)
-    private val instances = MockInstances(context, symbols)
 
-    fun generate(
-        file: IrFile,
-        usages: Map<MockClassKey, MockClassUsage>,
-        mockability: Mockability,
-    ): Map<MockClassKey, IrClass> {
-        val classes = FileClasses(usages, LinkedHashMap(), !file.hasAnnotation(CHAINED_MOCKS), mockability)
-        for ((key, usage) in usages.entries.sortedByDescending { it.value.relaxedChildren }) {
-            if (key !in classes.generated) generate(key, usage, classes, listOf(usage.mockedTypes.type))
+    fun generate(file: FileContext, usages: Map<MockClassKey, MockClassUsage>): Map<MockClassKey, IrClass> {
+        val classes = FileClasses(file, usages)
+        val (relaxedRoots, others) = usages.entries.partition { it.value.relaxedChildren }
+        for ((key, usage) in relaxedRoots + others) {
+            if (key in classes.generated) continue
+            generate(key, usage, classes, usage.relaxedChildren, listOf(usage.mockedTypes.type))
         }
         return classes.generated
     }
@@ -147,6 +134,7 @@ internal class MockClassGenerator(
         key: MockClassKey,
         usage: MockClassUsage,
         classes: FileClasses,
+        relaxedChildren: Boolean,
         path: List<IrSimpleType>,
     ): IrClass {
         val mocked = usage.mockedTypes.type.mockedClass
@@ -174,12 +162,10 @@ internal class MockClassGenerator(
                 null
             }
         }
-        IrFakeOverrideBuilder(typeSystem, FriendAwareFakeOverrides, emptyList())
-            .buildFakeOverridesForClassUsingOverriddenSymbols(mock, emptyMap(), compatibilityMode = false)
-            .forEach(mock::addChild)
+        mock.addFriendAwareFakeOverrides(lokki.typeSystem)
         if (usage.mockedTypes.interfaces.isNotEmpty()) {
             mock.inheritanceConflict()?.let { conflict ->
-                diagnostics.report(usage.firstUse, key.file, NotMockable(mocked.displayName, conflict))
+                classes.file.diagnostics.report(usage.firstUse, NotMockable(mocked.displayName, conflict))
             }
         }
 
@@ -190,14 +176,10 @@ internal class MockClassGenerator(
         val coOriginal = functions.single { symbols.coOriginal.symbol in it.overriddenSymbols }
         val relaxed = functions.single { symbols.relaxed.symbol in it.overriddenSymbols }
         val describe = functions.single { symbols.describe.symbol in it.overriddenSymbols }
-        val (methodsOfAny, declared) = mock.declarations.flatMap { member ->
-            when (member) {
-                original, coOriginal, relaxed, describe -> emptyList()
-                is IrSimpleFunction -> listOf(member)
-                is IrProperty -> if (member == stateProperty) emptyList() else listOfNotNull(member.getter, member.setter)
-                else -> emptyList()
-            }
-        }.partition { it.isMethodOfAny() }
+        val dispatchers = setOf(original, coOriginal, relaxed, describe)
+        val (methodsOfAny, declared) = mock.simpleFunctions()
+            .filter { it !in dispatchers && it.correspondingPropertySymbol != stateProperty.symbol }
+            .partition { it.isMethodOfAny() }
         val members = METHODS_OF_ANY.map { name -> methodsOfAny.single { it.name == name } } +
             declared.filter { it.modality != Modality.FINAL }
         val delegated = members.filter { form == MockForm.Delegation && it.delegatedTo(mocked) != null }.toSet()
@@ -230,12 +212,12 @@ internal class MockClassGenerator(
         original.implementOriginal(mock, forward, state, originals, ORIGINAL_BRANCH_BYTES)
         coOriginal.implementOriginal(mock, forward, state, coOriginals, CO_ORIGINAL_BRANCH_BYTES)
         val names = ownParameters.zip(parameters).associate { (own, parameter) -> own.symbol to parameter.owner.name }
-        val children = if (usage.relaxedChildren) Children(usage, classes, path) else null
-        relaxed.implementRelaxed(mock, members, children, classes.suggestsChainedMocks) {
+        val children = if (relaxedChildren) Children(usage, classes, path) else null
+        relaxed.implementRelaxed(mock, members, children, suggestsChainedMocks = !classes.file.chainedMocks) {
             (names[it.symbol] ?: it.name).asString()
         }
         describe.implementDescribe(mock, members, key.file)
-        usage.mockedTypes.classes.forEach { lookupTracker?.recordMockedTypeLookups(it, key.file) }
+        usage.mockedTypes.classes.forEach { lokki.lookupTracker?.recordMockedTypeLookups(it, key.file) }
         return mock
     }
 
@@ -505,12 +487,9 @@ internal class MockClassGenerator(
         patchDeclarationParents(mock)
     }
 
-    private class FileClasses(
-        val usages: Map<MockClassKey, MockClassUsage>,
-        val generated: MutableMap<MockClassKey, IrClass>,
-        val suggestsChainedMocks: Boolean,
-        val mockability: Mockability,
-    )
+    private class FileClasses(val file: FileContext, val usages: Map<MockClassKey, MockClassUsage>) {
+        val generated = LinkedHashMap<MockClassKey, IrClass>()
+    }
 
     private inner class Children(
         private val usage: MockClassUsage,
@@ -520,18 +499,15 @@ internal class MockClassGenerator(
         fun default(type: IrSimpleType): RelaxedDefault? {
             if (type.referencedTypeParameters.isNotEmpty()) return null
             if (path.any { it.classOrNull == type.classOrNull && type.depth > it.depth }) return null
-            val site = classes.mockability.child(type) ?: return null
+            val site = classes.file.mockability.child(type) ?: return null
             val (types, key) = site.types to site.key
-            val child = classes.generated[key] ?: generate(
-                key,
-                classes.usages[key]?.also { it.relaxedChildren = true }
-                    ?: MockClassUsage(usage.firstUse, types, DescriptorVisibilities.PRIVATE, relaxedChildren = true),
-                classes,
-                path + types.type,
-            )
+            val childUsage = classes.usages[key]
+                ?: MockClassUsage(usage.firstUse, types, DescriptorVisibilities.PRIVATE, relaxedChildren = true)
+            val child = classes.generated[key]
+                ?: generate(key, childUsage, classes, relaxedChildren = true, path + types.type)
             return RelaxedDefault("child ${key.typeKey}") {
-                irCallConstructor(symbols.childMock.constructors.single().symbol, emptyList()).apply {
-                    arguments[0] = with(instances) { irFactory(child, types) }
+                irCallConstructor(symbols.childMock.primaryConstructor!!.symbol, emptyList()).apply {
+                    arguments[0] = irFactory(symbols, child, types)
                 }
             }
         }

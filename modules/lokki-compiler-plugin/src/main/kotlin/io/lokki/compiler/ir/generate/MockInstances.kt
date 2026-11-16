@@ -7,7 +7,6 @@ import io.lokki.compiler.ir.toLambda
 import io.lokki.compiler.ir.collect.MockedTypes
 import io.lokki.compiler.ir.collect.mockedClass
 import io.lokki.compiler.ir.collect.referencedTypeParameters
-import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
 import org.jetbrains.kotlin.ir.builders.declarations.addValueParameter
@@ -35,77 +34,85 @@ import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.ir.util.primaryConstructor
 import org.jetbrains.kotlin.ir.util.render
 
-internal class MockInstances(private val context: IrPluginContext, private val symbols: LokkiSymbols) {
-    fun IrBuilderWithScope.irSpec(name: String, flags: IrExpression): IrExpression =
-        irCallConstructor(symbols.mockSpec.primaryConstructor!!.symbol, emptyList()).apply {
-            arguments[0] = irString(name)
-            arguments[1] = flags
-        }
+internal fun IrBuilderWithScope.irSpec(symbols: LokkiSymbols, name: String, flags: IrExpression): IrExpression =
+    irCallConstructor(symbols.mockSpec.primaryConstructor!!.symbol, emptyList()).apply {
+        arguments[0] = irString(name)
+        arguments[1] = flags
+    }
 
-    fun IrBuilderWithScope.irConstruct(
-        mock: IrClass,
-        typeArguments: List<IrType>,
-        arguments: List<IrExpression>,
-    ): IrExpression =
-        irCallConstructor(mock.primaryConstructor!!.symbol, typeArguments).apply {
-            type = mock.typeWith(typeArguments)
-            arguments.forEachIndexed { index, argument -> this.arguments[index] = argument }
-        }
+internal fun IrBuilderWithScope.irConstruct(
+    mock: IrClass,
+    typeArguments: List<IrType>,
+    arguments: List<IrExpression>,
+): IrExpression =
+    irCallConstructor(mock.primaryConstructor!!.symbol, typeArguments).apply {
+        type = mock.typeWith(typeArguments)
+        arguments.forEachIndexed { index, argument -> this.arguments[index] = argument }
+    }
 
-    fun IrBuilderWithScope.irAllocate(type: IrSimpleType, init: List<IrExpression>): IrExpression = irBlock {
-        val mock = type.classOrFail.owner
-        val instance = irTemporary(
-            irCall(symbols.allocate.symbol, type, listOf(type)).apply {
-                arguments[0] = irGetObject(symbols.instanceAllocator)
-                val javaClass = symbols.javaClass.returnType.classOrFail.typeWith(type)
-                arguments[1] = irCall(symbols.javaClass.symbol, javaClass, listOf(type)).apply {
-                    arguments[0] = IrClassReferenceImpl(
-                        startOffset,
-                        endOffset,
-                        context.irBuiltIns.kClassClass.typeWith(type),
-                        mock.symbol,
-                        type,
-                    )
-                }
+internal fun IrBuilderWithScope.irNewMock(
+    symbols: LokkiSymbols,
+    mock: IrClass,
+    types: MockedTypes,
+    spec: IrExpression,
+): IrExpression = irInstance(symbols, mock, types, listOf(spec))
+
+internal fun IrBuilderWithScope.irDelegatingSpy(
+    symbols: LokkiSymbols,
+    mock: IrClass,
+    types: MockedTypes,
+    instance: IrExpression,
+    spec: IrExpression,
+): IrExpression = irInstance(symbols, mock, types, listOf(instance, spec))
+
+internal fun IrBuilderWithScope.irFactory(symbols: LokkiSymbols, mock: IrClass, types: MockedTypes): IrExpression {
+    val factory = context.buildLambda(startOffset, endOffset, context.irBuiltIns.anyType)
+    val spec = factory.addValueParameter("spec", symbols.mockSpec.defaultType)
+    factory.body = DeclarationIrBuilder(context, factory.symbol, startOffset, endOffset).irBlockBody {
+        +irReturn(irNewMock(symbols, mock, types, irGet(spec)))
+    }
+    return factory.toLambda(context.irBuiltIns)
+}
+
+private fun IrBuilderWithScope.irInstance(
+    symbols: LokkiSymbols,
+    mock: IrClass,
+    types: MockedTypes,
+    arguments: List<IrExpression>,
+): IrExpression {
+    val typeArguments = types.type.referencedTypeParameters.map { it.defaultType }
+    return when {
+        types.type.mockedClass.isInterface -> irConstruct(mock, typeArguments, arguments)
+        else -> irAllocate(symbols, mock.typeWith(typeArguments), arguments)
+    }
+}
+
+private fun IrBuilderWithScope.irAllocate(
+    symbols: LokkiSymbols,
+    type: IrSimpleType,
+    init: List<IrExpression>,
+): IrExpression = irBlock {
+    val mock = type.classOrFail.owner
+    val instance = irTemporary(
+        irCall(symbols.allocate.symbol, type, listOf(type)).apply {
+            arguments[0] = irGetObject(symbols.instanceAllocator)
+            val javaClass = symbols.javaClass.returnType.classOrFail.typeWith(type)
+            arguments[1] = irCall(symbols.javaClass.symbol, javaClass, listOf(type)).apply {
+                arguments[0] = IrClassReferenceImpl(
+                    startOffset,
+                    endOffset,
+                    context.irBuiltIns.kClassClass.typeWith(type),
+                    mock.symbol,
+                    type,
+                )
             }
-        )
-        +irCall(mock.functions.single { it.name == INIT }).apply {
-            arguments[0] = irGet(instance)
-            init.forEachIndexed { index, argument -> arguments[index + 1] = argument }
         }
-        +irGet(instance)
+    )
+    +irCall(mock.functions.single { it.name == INIT }).apply {
+        arguments[0] = irGet(instance)
+        init.forEachIndexed { index, argument -> arguments[index + 1] = argument }
     }
-
-    fun IrBuilderWithScope.irNewMock(mock: IrClass, types: MockedTypes, spec: IrExpression): IrExpression {
-        val typeArguments = types.type.referencedTypeParameters.map { it.defaultType }
-        return when {
-            types.type.mockedClass.isInterface -> irConstruct(mock, typeArguments, listOf(spec))
-            else -> irAllocate(mock.typeWith(typeArguments), listOf(spec))
-        }
-    }
-
-    fun IrBuilderWithScope.irDelegatingSpy(
-        mock: IrClass,
-        types: MockedTypes,
-        instance: IrExpression,
-        spec: IrExpression,
-    ): IrExpression {
-        val typeArguments = types.type.referencedTypeParameters.map { it.defaultType }
-        val arguments = listOf(instance, spec)
-        return when {
-            types.type.mockedClass.isInterface -> irConstruct(mock, typeArguments, arguments)
-            else -> irAllocate(mock.typeWith(typeArguments), arguments)
-        }
-    }
-
-    fun IrBuilderWithScope.irFactory(mock: IrClass, types: MockedTypes): IrExpression {
-        val factory = context.buildLambda(startOffset, endOffset, context.irBuiltIns.anyType)
-        val spec = factory.addValueParameter("spec", symbols.mockSpec.defaultType)
-        factory.body = DeclarationIrBuilder(context, factory.symbol, startOffset, endOffset).irBlockBody {
-            +irReturn(irNewMock(mock, types, irGet(spec)))
-        }
-        return factory.toLambda(context.irBuiltIns)
-    }
+    +irGet(instance)
 }
 
 internal fun IrExpression.replaceConstructorCall(

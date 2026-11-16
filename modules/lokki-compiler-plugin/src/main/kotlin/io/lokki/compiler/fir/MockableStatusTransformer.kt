@@ -1,6 +1,6 @@
 package io.lokki.compiler.fir
 
-import io.lokki.compiler.Mockable
+import io.lokki.compiler.MockablePatterns
 import io.lokki.compiler.linked
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
@@ -37,7 +37,7 @@ import org.jetbrains.kotlin.fir.types.classId
 import org.jetbrains.kotlin.name.JvmStandardClassIds
 import org.jetbrains.kotlin.name.Name
 
-internal class MockableStatusTransformer(session: FirSession, private val mockable: Mockable) :
+internal class MockableStatusTransformer(session: FirSession, private val mockable: MockablePatterns) :
     FirStatusTransformerExtension(session) {
     private val annotated = mockable.names.takeIf { it.isNotEmpty() }?.let { names ->
         DeclarationPredicate.create { annotated(names) }

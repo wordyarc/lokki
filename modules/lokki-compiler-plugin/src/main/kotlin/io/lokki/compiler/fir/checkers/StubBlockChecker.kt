@@ -12,6 +12,8 @@ import io.lokki.compiler.VERIFICATION_ORDERINGS
 import io.lokki.compiler.VERIFY_BLOCKS
 import io.lokki.compiler.WITH_CONTEXT
 import io.lokki.compiler.fir.MemberInterception
+import io.lokki.compiler.fir.argument
+import io.lokki.compiler.fir.blockArgument
 import io.lokki.compiler.fir.displayName
 import io.lokki.compiler.fir.intrinsicKind
 import io.lokki.compiler.fir.isFinalType
@@ -62,7 +64,6 @@ import org.jetbrains.kotlin.fir.expressions.FirVariableAssignment
 import org.jetbrains.kotlin.fir.expressions.FirWhenExpression
 import org.jetbrains.kotlin.fir.expressions.argument
 import org.jetbrains.kotlin.fir.expressions.arguments
-import org.jetbrains.kotlin.fir.expressions.resolvedArgumentMapping
 import org.jetbrains.kotlin.fir.expressions.unwrapArgument
 import org.jetbrains.kotlin.fir.expressions.unwrapSmartcastExpression
 import org.jetbrains.kotlin.fir.references.toResolvedCallableSymbol
@@ -92,11 +93,7 @@ internal fun checkBlock(call: FirFunctionCall, function: FirCallableSymbol<*>, k
         in VERIFY_BLOCKS -> BlockMode.VERIFY
         else -> BlockMode.EXCLUDE
     }
-    val parameter = (function as? FirFunctionSymbol<*>)?.valueParameterSymbols?.lastOrNull() ?: return
-    val argument = call.resolvedArgumentMapping?.entries
-        ?.find { it.value.symbol == parameter }
-        ?.key?.unwrapArgument()
-        ?: return
+    val argument = call.blockArgument(function) ?: return
     val name = function.name.asString()
     val block = (argument as? FirAnonymousFunctionExpression)?.anonymousFunction
     if (block == null) {
@@ -323,7 +320,7 @@ private class StubBlock(
     ): FirExpression? {
         val parameter = (callee as? FirFunctionSymbol<*>)?.valueParameterSymbols?.firstOrNull()
         val regular = when (call) {
-            is FirCall -> call.resolvedArgumentMapping?.entries?.find { it.value.symbol == parameter }?.key
+            is FirCall -> parameter?.let { call.argument(it) }
             else -> arguments.firstOrNull()
         }
         val first = (call.contextArguments.firstOrNull() ?: call.extensionReceiver ?: regular)?.unwrapArgument()

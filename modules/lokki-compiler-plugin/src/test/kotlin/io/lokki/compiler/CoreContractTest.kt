@@ -1,5 +1,7 @@
 package io.lokki.compiler
 
+import java.lang.reflect.Method
+import java.lang.reflect.Modifier
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -44,6 +46,27 @@ class CoreContractTest {
         assertDeclared(listOf(LOOKUP_BY_NAME, LOOKUP_BY_TYPE), lookupTypes, "InjectionLookupType")
     }
 
+    @Test
+    fun testEntryPointsAreDeclaredOnce() {
+        val ambiguous = CoreFunction.entries.filterNot { entry ->
+            val nestedName = entry.owner.relativeClassName.asString().replace('.', '$')
+            val owner = Class.forName("${entry.owner.packageFqName.asString()}.$nestedName")
+            val declared = owner.declaredMethods.count { method ->
+                !Modifier.isPrivate(method.modifiers) && method.declares(entry.functionName) &&
+                    (entry.valueParameters == null || method.parameterCount == entry.valueParameters)
+            }
+            declared == 1
+        }
+        assertTrue(
+            ambiguous.isEmpty(),
+            "lokki-core must declare each of $ambiguous once: the compiler plugin finds an entry point by its " +
+                "owner and name, so a new signature needs a new name",
+        )
+    }
+
+    private fun Method.declares(function: String): Boolean =
+        name == function || name.startsWith("$function$") && COMPILER_SUFFIXES.none(name::endsWith)
+
     private fun methods(type: String): Set<String> = Class.forName(type).declaredMethods.mapTo(HashSet()) { it.name }
 
     private fun entries(type: String): Set<String> =
@@ -54,3 +77,5 @@ class CoreContractTest {
         assertTrue(missing.isEmpty(), "$owner of lokki-core do not declare $missing")
     }
 }
+
+private val COMPILER_SUFFIXES = listOf("\$default", "\$\$forInline")

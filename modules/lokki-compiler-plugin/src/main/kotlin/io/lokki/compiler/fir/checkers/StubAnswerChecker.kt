@@ -5,6 +5,7 @@ import io.lokki.compiler.AnswerNames
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.STUB_BLOCKS
+import io.lokki.compiler.fir.blockArgument
 import io.lokki.compiler.fir.classifier
 import io.lokki.compiler.fir.intrinsicKind
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
@@ -120,10 +121,10 @@ context(context: CheckerContext)
 private fun FirFunctionCall.stubBlock(): FirAnonymousFunction? {
     var receiver = explicitReceiver?.unwrapSmartcastExpression() as? FirFunctionCall
     while (receiver != null) {
-        receiver = when (receiver.calleeReference.toResolvedCallableSymbol()?.intrinsicKind(context.session)) {
+        val callee = receiver.calleeReference.toResolvedCallableSymbol() ?: return null
+        receiver = when (callee.intrinsicKind(context.session)) {
             in STUB_BLOCKS ->
-                return (receiver.arguments.firstOrNull()?.unwrapArgument() as? FirAnonymousFunctionExpression)
-                    ?.anonymousFunction
+                return (receiver.blockArgument(callee) as? FirAnonymousFunctionExpression)?.anonymousFunction
             IntrinsicKind.ANSWER, IntrinsicKind.AWAITS ->
                 receiver.explicitReceiver?.unwrapSmartcastExpression() as? FirFunctionCall
             else -> null

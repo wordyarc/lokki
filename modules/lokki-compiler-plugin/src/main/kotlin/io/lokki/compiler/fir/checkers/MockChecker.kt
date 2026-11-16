@@ -2,18 +2,18 @@ package io.lokki.compiler.fir.checkers
 
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiDiagnostics
+import io.lokki.compiler.ARRAY_OF
 import io.lokki.compiler.NOT_CLASS_PROBLEM
+import io.lokki.compiler.ParameterNames
 import io.lokki.compiler.TYPE_PARAMETER_PROBLEM
-import io.lokki.compiler.declarationKindProblem
+import io.lokki.compiler.fir.argument
 import io.lokki.compiler.fir.classifier
 import io.lokki.compiler.fir.displayName
 import io.lokki.compiler.fir.fieldKind
 import io.lokki.compiler.fir.intrinsicKind
 import io.lokki.compiler.fir.isFromFriendKotlinModule
+import io.lokki.compiler.fir.mockabilityProblem
 import io.lokki.compiler.linked
-import io.lokki.compiler.memberWithClasses
-import io.lokki.compiler.missingMemberClassesProblem
-import io.lokki.compiler.missingSupertypesProblem
 import io.lokki.compiler.notInterfaceProblem
 import org.jetbrains.kotlin.KtRealSourceElementKind
 import org.jetbrains.kotlin.KtSourceElement
@@ -38,7 +38,6 @@ import org.jetbrains.kotlin.fir.declarations.toAnnotationClassId
 import org.jetbrains.kotlin.fir.declarations.toAnnotationClassLikeSymbol
 import org.jetbrains.kotlin.fir.declarations.utils.correspondingValueParameterFromPrimaryConstructor
 import org.jetbrains.kotlin.fir.declarations.utils.isFinal
-import org.jetbrains.kotlin.fir.declarations.utils.isInlineOrValue
 import org.jetbrains.kotlin.fir.declarations.utils.modality
 import org.jetbrains.kotlin.fir.declarations.utils.visibility
 import org.jetbrains.kotlin.fir.expressions.FirExpression
@@ -46,27 +45,21 @@ import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
 import org.jetbrains.kotlin.fir.expressions.FirGetClassCall
 import org.jetbrains.kotlin.fir.expressions.FirVarargArgumentsExpression
 import org.jetbrains.kotlin.fir.expressions.arguments
-import org.jetbrains.kotlin.fir.expressions.resolvedArgumentMapping
 import org.jetbrains.kotlin.fir.expressions.unwrapArgument
 import org.jetbrains.kotlin.fir.moduleData
 import org.jetbrains.kotlin.fir.references.toResolvedCallableSymbol
 import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
 import org.jetbrains.kotlin.fir.resolve.lookupSuperTypes
 import org.jetbrains.kotlin.fir.resolve.toRegularClassSymbol
-import org.jetbrains.kotlin.fir.resolve.toSymbol
-import org.jetbrains.kotlin.fir.resolve.toTypeParameterSymbol
 import org.jetbrains.kotlin.fir.scopes.processAllCallables
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirConstructorSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
-import org.jetbrains.kotlin.fir.types.ConeClassLikeType
 import org.jetbrains.kotlin.fir.types.ConeDefinitelyNotNullType
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.fir.types.ConeTypeParameterType
 import org.jetbrains.kotlin.fir.types.coneType
 import org.jetbrains.kotlin.fir.types.contains
-import org.jetbrains.kotlin.fir.types.isNonPrimitiveArray
 import org.jetbrains.kotlin.fir.types.isNothing
 import org.jetbrains.kotlin.fir.types.lowerBoundIfFlexible
 import org.jetbrains.kotlin.fir.types.renderReadable
@@ -74,14 +67,13 @@ import org.jetbrains.kotlin.fir.types.resolvedType
 import org.jetbrains.kotlin.fir.types.toConeTypeProjection
 import org.jetbrains.kotlin.fir.types.type
 import org.jetbrains.kotlin.fir.unwrapFakeOverrides
-import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.StandardClassIds
 
 context(context: CheckerContext, reporter: DiagnosticReporter)
 internal fun checkMock(call: FirFunctionCall, function: FirCallableSymbol<*>, kind: IntrinsicKind) {
-    val instance = if (kind == IntrinsicKind.SPY) spiedInstance(call, function) else null
+    val instance = if (kind == IntrinsicKind.SPY) call.argument(ParameterNames.SPIED_INSTANCE) else null
     val argument = call.typeArguments.singleOrNull() ?: return
     val source = when {
         instance != null -> instance.source
@@ -101,11 +93,12 @@ internal object MockPropertyChecker : FirPropertyChecker(MppCheckerKind.Common) 
     context(context: CheckerContext, reporter: DiagnosticReporter)
     private fun inspect(declaration: FirProperty) {
         val session = context.session
-        val annotations = declaration.annotations.filter { it.fieldKind(session) != null }
-        val inject = annotations.find { it.fieldKind(session) == IntrinsicKind.INJECT_MOCKS }
-        val annotation = annotations.find { it !== inject } ?: inject ?: return
+        val kinds = declaration.annotations.mapNotNull { annotation ->
+            annotation.fieldKind(session)?.let { annotation to it }
+        }
+        val inject = kinds.find { (_, kind) -> kind == IntrinsicKind.INJECT_MOCKS }?.first
+        val (annotation, kind) = kinds.find { (candidate, _) -> candidate !== inject } ?: kinds.firstOrNull() ?: return
         checkRuntimeVersion(annotation.source)
-        val kind = annotation.fieldKind(session)!!
         val name = annotation.toAnnotationClassLikeSymbol(session)!!.name.asString()
         val parameter = declaration.correspondingValueParameterFromPrimaryConstructor
         if (parameter != null) {
@@ -181,7 +174,7 @@ private fun MockedType.check(interfaces: () -> Boolean): Boolean {
         return false
     }
     val mocked = type.takeUnless { it.isNothing }?.toRegularClassSymbol(context.session) ?: return false
-    val problem = mocked.problem()
+    val problem = mocked.mockabilityProblem()
     if (problem != null) {
         reporter.reportOn(source, LokkiDiagnostics.LOKKI_TYPE_NOT_MOCKABLE, mocked.displayName, problem)
         return false
@@ -217,66 +210,7 @@ internal fun ConeKotlinType.childMockProblem(): Pair<String, String>? {
     }
     if (type is ConeTypeParameterType) return type.classifier.name.asString() to TYPE_PARAMETER_PROBLEM
     val mocked = type.toRegularClassSymbol(context.session) ?: return type.renderReadable() to NOT_CLASS_PROBLEM
-    return mocked.problem()?.let { mocked.displayName to it }
-}
-
-context(context: CheckerContext)
-private fun FirRegularClassSymbol.problem(): String? =
-    declarationKindProblem(classKind, modality, suggestsMockable = isFromFriendKotlinModule && !isInlineOrValue)
-        ?: missingSupertypes().takeIf { it.isNotEmpty() }?.let(::missingSupertypesProblem)
-        ?: membersWithMissingClasses().takeIf { it.isNotEmpty() }?.let(::missingMemberClassesProblem)
-
-context(context: CheckerContext)
-private fun FirRegularClassSymbol.missingSupertypes(): List<String> =
-    lookupSuperTypes(this, lookupInterfaces = true, deep = true, context.session)
-        .filter { it.lookupTag.toSymbol(context.session) == null }
-        .map { it.lookupTag.classId.asFqNameString() }
-        .distinct()
-
-context(context: CheckerContext)
-private fun FirRegularClassSymbol.membersWithMissingClasses(): Set<String> {
-    val members = sortedSetOf<String>()
-    val supertypes = lookupSuperTypes(this, lookupInterfaces = true, deep = true, context.session)
-        .mapNotNull { it.toRegularClassSymbol(context.session) }
-    for (type in listOf(this) + supertypes) {
-        type.unsubstitutedScope().processAllCallables { member ->
-            val missing = member.erasedClasses().filter { it.lookupTag.toSymbol(context.session) == null }
-            if (missing.isNotEmpty()) {
-                val classes = missing.map { it.lookupTag.classId.asFqNameString() }
-                members += memberWithClasses(member.name.asString(), classes)
-            }
-        }
-    }
-    return members
-}
-
-context(context: CheckerContext)
-private fun FirCallableSymbol<*>.erasedClasses(): List<ConeClassLikeType> =
-    signatureTypes().flatMap { it.erasedClasses() }.distinctBy { it.lookupTag }
-
-private fun FirCallableSymbol<*>.signatureTypes(): List<ConeKotlinType> =
-    listOfNotNull(resolvedReturnType, resolvedReceiverType) +
-        contextParameterSymbols.map { it.resolvedReturnType } +
-        (this as? FirFunctionSymbol<*>)?.valueParameterSymbols.orEmpty().map { it.resolvedReturnType }
-
-context(context: CheckerContext)
-private fun ConeKotlinType.erasedClasses(): List<ConeClassLikeType> =
-    when (val type = lowerBoundIfFlexible()) {
-        is ConeClassLikeType -> when {
-            type.lookupTag.toSymbol(context.session) != null && type.isNonPrimitiveArray ->
-                type.typeArguments.single().type?.erasedClasses().orEmpty()
-            else -> listOf(type)
-        }
-        is ConeTypeParameterType ->
-            type.toTypeParameterSymbol(context.session)?.resolvedBounds.orEmpty().flatMap { it.coneType.erasedClasses() }
-        is ConeDefinitelyNotNullType -> type.original.erasedClasses()
-        else -> emptyList()
-    }
-
-private fun spiedInstance(call: FirFunctionCall, function: FirCallableSymbol<*>): FirExpression? {
-    val parameter = (function as? FirFunctionSymbol<*>)?.valueParameterSymbols?.find { it.name == SPIED_INSTANCE }
-        ?: return null
-    return call.resolvedArgumentMapping?.entries?.find { it.value.symbol == parameter }?.key
+    return mocked.mockabilityProblem()?.let { mocked.displayName to it }
 }
 
 context(context: CheckerContext)
@@ -323,9 +257,7 @@ private fun FirRegularClassSymbol.restriction(session: FirSession): String? {
 
 context(context: CheckerContext, reporter: DiagnosticReporter)
 private fun moreInterfaces(call: FirFunctionCall, function: FirCallableSymbol<*>): Boolean {
-    val parameter = (function as? FirFunctionSymbol<*>)?.valueParameterSymbols?.find { it.name == MORE_INTERFACES }
-        ?: return true
-    val argument = call.resolvedArgumentMapping?.entries?.find { it.value.symbol == parameter }?.key ?: return true
+    val argument = call.argument(ParameterNames.MORE_INTERFACES) ?: return true
     val dsl = function.name.asString()
     return interfaces(argument.interfaceArguments(), "An interface in 'moreInterfaces'", dsl, "'moreInterfaces'")
 }
@@ -335,7 +267,7 @@ private fun additionalInterface(property: FirProperty): Boolean {
     val annotation = property.annotations
         .find { it.toAnnotationClassLikeSymbol(context.session)?.intrinsicKind(context.session) == ADDITIONAL_INTERFACE }
         ?: return true
-    val type = annotation.findArgumentByName(TYPE) ?: return true
+    val type = annotation.findArgumentByName(INTERFACE_TYPE) ?: return true
     return interfaces(listOf(type), "The interface", "@AdditionalInterface", "'@AdditionalInterface'")
 }
 
@@ -355,7 +287,7 @@ private fun interfaces(elements: List<FirExpression>, subject: String, dsl: Stri
             continue
         }
         val symbol = target?.toRegularClassSymbol(context.session) ?: continue
-        val reason = if (symbol.classKind != ClassKind.INTERFACE) notInterfaceProblem(owner) else symbol.problem()
+        val reason = if (symbol.classKind != ClassKind.INTERFACE) notInterfaceProblem(owner) else symbol.mockabilityProblem()
         if (reason != null) {
             reporter.reportOn(element.source, LokkiDiagnostics.LOKKI_TYPE_NOT_MOCKABLE, symbol.displayName, reason)
             valid = false
@@ -376,13 +308,10 @@ private fun FirExpression.interfaceArguments(): List<FirExpression> =
         else -> listOf(expression)
     }
 
-private val MORE_INTERFACES = Name.identifier("moreInterfaces")
-private val TYPE = Name.identifier("type")
+private val INTERFACE_TYPE = Name.identifier(ParameterNames.INTERFACE_TYPE)
 private val ADDITIONAL_INTERFACE = IntrinsicKind.ADDITIONAL_INTERFACE
 private const val SPY_VAL_HINT =
     ". A 'val' can be a spy only with a constructor call of an open class as the initializer, such as 'val car = Car()'"
-private val SPIED_INSTANCE = Name.identifier("obj")
-private val ARRAY_OF = CallableId(StandardClassIds.BASE_KOTLIN_PACKAGE, Name.identifier("arrayOf"))
 private val DO_NOT_MOCK = Name.identifier("DoNotMock")
 private val VALUE = Name.identifier("value")
 private val RESTRICTED_TYPES = setOf(

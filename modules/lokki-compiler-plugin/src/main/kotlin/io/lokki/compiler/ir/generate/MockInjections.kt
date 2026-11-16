@@ -2,7 +2,7 @@ package io.lokki.compiler.ir.generate
 
 import io.lokki.compiler.BuildConfig
 import io.lokki.compiler.IntrinsicKind
-import io.lokki.compiler.ir.LokkiSymbols
+import io.lokki.compiler.ir.LokkiIrContext
 import io.lokki.compiler.ir.buildLambda
 import io.lokki.compiler.ir.collect.ClassMockFields
 import io.lokki.compiler.ir.collect.InjectedValue
@@ -12,11 +12,9 @@ import io.lokki.compiler.ir.collect.MockField
 import io.lokki.compiler.ir.collect.referencedTypeParameters
 import io.lokki.compiler.ir.collect.valueType
 import io.lokki.compiler.ir.irCompanionCall
-import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.irCatch
 import org.jetbrains.kotlin.backend.common.lower.irThrow
-import org.jetbrains.kotlin.incremental.components.LookupTracker
 import org.jetbrains.kotlin.ir.builders.IrBlockBodyBuilder
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
 import org.jetbrains.kotlin.ir.builders.declarations.buildVariable
@@ -59,12 +57,11 @@ import org.jetbrains.kotlin.ir.util.isNullable
 import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.name.Name
 
-internal class MockInjections(
-    private val context: IrPluginContext,
-    private val symbols: LokkiSymbols,
-    private val instances: MockInstances,
-    private val lookupTracker: LookupTracker?,
-) {
+internal class MockInjections(lokki: LokkiIrContext) {
+    private val context = lokki.pluginContext
+    private val symbols = lokki.symbols
+    private val lookupTracker = lokki.lookupTracker
+
     fun IrBlockBodyBuilder.irInjectMocks(
         owner: ClassMockFields,
         parent: IrDeclarationParent,
@@ -114,10 +111,8 @@ internal class MockInjections(
             val types = site.types
             val mock = mocks.getValue(site.key)
             val typeArguments = types.type.referencedTypeParameters.map { it.defaultType }
-            return with(instances) {
-                val spec = irSpec(field.name, irInt(BuildConfig.FLAG_SPY))
-                irConstruct(mock, typeArguments, arguments.filterNotNull() + spec)
-            }
+            val spec = irSpec(symbols, field.name, irInt(BuildConfig.FLAG_SPY))
+            return irConstruct(mock, typeArguments, arguments.filterNotNull() + spec)
         }
         val typeArguments = type.arguments.map { it.typeOrNull ?: context.irBuiltIns.anyNType }
         return irCallConstructor(constructor.symbol, typeArguments).apply {

@@ -1,0 +1,30 @@
+package io.lokki.compiler.ir
+
+import io.lokki.compiler.CHAINED_MOCKS
+import io.lokki.compiler.compat.CompilerCompat
+import io.lokki.compiler.ir.collect.MockFields
+import io.lokki.compiler.ir.collect.Mockability
+import io.lokki.compiler.ir.collect.collectMockFields
+import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
+import org.jetbrains.kotlin.incremental.components.LookupTracker
+import org.jetbrains.kotlin.ir.declarations.IrFile
+import org.jetbrains.kotlin.ir.types.IrTypeSystemContext
+import org.jetbrains.kotlin.ir.types.IrTypeSystemContextImpl
+import org.jetbrains.kotlin.ir.util.hasAnnotation
+
+internal class LokkiIrContext(
+    val pluginContext: IrPluginContext,
+    val compat: CompilerCompat,
+    val lookupTracker: LookupTracker?,
+) {
+    val symbols = LokkiSymbols(pluginContext)
+    val typeSystem: IrTypeSystemContext = IrTypeSystemContextImpl(pluginContext.irBuiltIns)
+}
+
+internal class FileContext(val ir: IrFile, lokki: LokkiIrContext) {
+    val chainedMocks: Boolean = ir.hasAnnotation(CHAINED_MOCKS)
+    val mockability = Mockability(ir)
+    val redirects = RedirectLookup(lokki.pluginContext, ir)
+    val diagnostics = IrDiagnostics(lokki, ir)
+    val fields: MockFields = ir.collectMockFields(mockability, lokki.typeSystem)
+}

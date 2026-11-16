@@ -4,17 +4,15 @@ import io.lokki.compiler.BuildConfig
 import io.lokki.compiler.FILE_REDIRECT_SUFFIX
 import io.lokki.compiler.INTERCEPTION_MARK
 import io.lokki.compiler.LokkiPluginKey
-import io.lokki.compiler.Mockable
+import io.lokki.compiler.MockablePatterns
 import io.lokki.compiler.REDIRECT
 import io.lokki.compiler.REDIRECT_PROPERTY
 import io.lokki.compiler.StaticInterception
-import io.lokki.compiler.compat.CompilerCompat
-import io.lokki.compiler.ir.FriendAwareFakeOverrides
-import io.lokki.compiler.ir.LokkiSymbols
+import io.lokki.compiler.ir.LokkiIrContext
+import io.lokki.compiler.ir.addFriendAwareFakeOverrides
 import io.lokki.compiler.ir.irGetObject
 import io.lokki.compiler.ir.irHidden
 import io.lokki.compiler.ir.ownKey
-import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.backend.jvm.ir.getJvmNameFromAnnotation
 import org.jetbrains.kotlin.backend.jvm.lower.getFileClassInfo
@@ -54,8 +52,6 @@ import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
-import org.jetbrains.kotlin.ir.overrides.IrFakeOverrideBuilder
-import org.jetbrains.kotlin.ir.types.IrTypeSystemContextImpl
 import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.types.makeNullable
 import org.jetbrains.kotlin.ir.util.addChild
@@ -77,14 +73,11 @@ import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.JvmStandardClassIds
 import org.jetbrains.kotlin.name.Name
 
-internal class InterceptionPoints(
-    private val context: IrPluginContext,
-    private val symbols: LokkiSymbols,
-    private val mockable: Mockable,
-    private val compat: CompilerCompat,
-) {
+internal class InterceptionPoints(private val lokki: LokkiIrContext, private val mockable: MockablePatterns) {
+    private val context = lokki.pluginContext
+    private val symbols = lokki.symbols
+    private val compat = lokki.compat
     private val origin = IrDeclarationOrigin.GeneratedByPlugin(LokkiPluginKey)
-    private val typeSystem = IrTypeSystemContextImpl(context.irBuiltIns)
 
     fun generate(module: IrModuleFragment) {
         if (!compat.registersClassesAsMetadataVisible) return
@@ -203,9 +196,7 @@ internal class InterceptionPoints(
     }
 
     private fun IrClass.complete() {
-        IrFakeOverrideBuilder(typeSystem, FriendAwareFakeOverrides, emptyList())
-            .buildFakeOverridesForClassUsingOverriddenSymbols(this, emptyMap(), compatibilityMode = false)
-            .forEach(::addChild)
+        addFriendAwareFakeOverrides(lokki.typeSystem)
         compat.registerClassAsMetadataVisible(context.metadataDeclarationRegistrar, this)
     }
 

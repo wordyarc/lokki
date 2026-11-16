@@ -1,6 +1,7 @@
 package io.lokki.compiler.fir.checkers
 
 import io.lokki.compiler.LokkiDiagnostics
+import io.lokki.compiler.fir.argument
 import io.lokki.compiler.fir.displayName
 import io.lokki.compiler.fir.interceptionProblem
 import org.jetbrains.kotlin.descriptors.ClassKind
@@ -10,7 +11,6 @@ import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
 import org.jetbrains.kotlin.fir.expressions.FirSpreadArgumentExpression
 import org.jetbrains.kotlin.fir.expressions.FirVarargArgumentsExpression
-import org.jetbrains.kotlin.fir.expressions.resolvedArgumentMapping
 import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
 import org.jetbrains.kotlin.fir.resolve.toRegularClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
@@ -21,8 +21,7 @@ import org.jetbrains.kotlin.fir.types.resolvedType
 context(context: CheckerContext, reporter: DiagnosticReporter)
 internal fun checkMockObject(call: FirFunctionCall, function: FirCallableSymbol<*>) {
     val parameter = (function as? FirFunctionSymbol<*>)?.valueParameterSymbols?.firstOrNull { it.isVararg } ?: return
-    val objects = call.resolvedArgumentMapping?.entries?.find { it.value.symbol == parameter }?.key
-        as? FirVarargArgumentsExpression ?: return
+    val objects = call.argument(parameter) as? FirVarargArgumentsExpression ?: return
     for (argument in objects.arguments) {
         if (argument is FirSpreadArgumentExpression) {
             reporter.reportOn(

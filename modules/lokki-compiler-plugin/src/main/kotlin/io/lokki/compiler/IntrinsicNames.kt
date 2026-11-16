@@ -5,15 +5,20 @@ import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 
-private val PACKAGE = FqName("io.lokki")
-private val INTERNAL_PACKAGE = FqName("io.lokki.internal")
+internal val LOKKI_PACKAGE = FqName("io.lokki")
+internal val LOKKI_INTERNAL_PACKAGE = FqName("io.lokki.internal")
 
-internal val LOKKI_INTRINSIC = ClassId(INTERNAL_PACKAGE, Name.identifier("LokkiIntrinsic"))
-internal val LOKKI_ABI = ClassId(INTERNAL_PACKAGE, Name.identifier("LokkiAbi"))
-internal val CHAINED_MOCKS = ClassId(PACKAGE, Name.identifier("ChainedMocks"))
-internal val CAPTURING_SLOT = ClassId(PACKAGE, Name.identifier("CapturingSlot"))
-internal val ORDERING = ClassId(PACKAGE, Name.identifier("Ordering"))
+internal fun publicClassId(name: String): ClassId = ClassId(LOKKI_PACKAGE, Name.identifier(name))
+
+internal fun internalClassId(name: String): ClassId = ClassId(LOKKI_INTERNAL_PACKAGE, Name.identifier(name))
+
+internal val LOKKI_INTRINSIC = internalClassId("LokkiIntrinsic")
+internal val LOKKI_ABI = internalClassId("LokkiAbi")
+internal val CHAINED_MOCKS = publicClassId("ChainedMocks")
+internal val CAPTURING_SLOT = publicClassId("CapturingSlot")
+internal val ORDERING = publicClassId("Ordering")
 internal val AWAIT_CANCELLATION = CallableId(FqName("kotlinx.coroutines"), Name.identifier("awaitCancellation"))
+internal val ARRAY_OF = CallableId(FqName("kotlin"), Name.identifier("arrayOf"))
 
 internal const val ABI_VERSION = "VERSION"
 internal const val UNORDERED = "UNORDERED"

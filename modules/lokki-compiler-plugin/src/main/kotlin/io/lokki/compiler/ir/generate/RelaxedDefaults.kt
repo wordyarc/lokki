@@ -35,6 +35,7 @@ import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.defaultValueForType
 import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.util.kotlinFqName
+import org.jetbrains.kotlin.ir.util.primaryConstructor
 import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.ir.util.substitute
 import org.jetbrains.kotlin.name.StandardClassIds
@@ -122,7 +123,7 @@ internal class RelaxedDefaults(private val context: IrPluginContext, private val
 
     private fun missing(description: String, mockable: Boolean = false): RelaxedDefault =
         RelaxedDefault("missing $description $mockable") {
-            irCallConstructor(symbols.noRelaxedDefault.constructors.single().symbol, emptyList()).apply {
+            irCallConstructor(symbols.noRelaxedDefault.primaryConstructor!!.symbol, emptyList()).apply {
                 arguments[0] = irString(description)
                 arguments[1] = irBoolean(mockable)
             }

@@ -1,11 +1,12 @@
 package io.lokki.compiler.ir.generate
 
 import io.lokki.compiler.BuildConfig
+import io.lokki.compiler.INIT_MOCK_FIELDS_NAME
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiPluginKey
 import io.lokki.compiler.ParameterNames
-import io.lokki.compiler.ir.IrDiagnostics
-import io.lokki.compiler.ir.LokkiSymbols
+import io.lokki.compiler.ir.FileContext
+import io.lokki.compiler.ir.LokkiIrContext
 import io.lokki.compiler.ir.argument
 import io.lokki.compiler.ir.collect.ClassMockFields
 import io.lokki.compiler.ir.collect.MockClassKey
@@ -16,11 +17,8 @@ import io.lokki.compiler.ir.collect.constructorParameter
 import io.lokki.compiler.ir.collect.mockAnnotationName
 import io.lokki.compiler.ir.collect.referencedTypeParameters
 import io.lokki.compiler.ir.irHidden
-import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
-import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
-import org.jetbrains.kotlin.incremental.components.LookupTracker
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
 import org.jetbrains.kotlin.ir.builders.declarations.addFunction
@@ -47,7 +45,6 @@ import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
-import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.types.makeNotNull
 import org.jetbrains.kotlin.ir.types.makeNullable
@@ -56,19 +53,16 @@ import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.functions
 import org.jetbrains.kotlin.ir.util.isFakeOverride
 import org.jetbrains.kotlin.ir.util.nonDispatchParameters
+import org.jetbrains.kotlin.ir.util.superClass
 import org.jetbrains.kotlin.ir.visitors.IrVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.name.Name
 
-internal class MockFieldInitializers(
-    private val context: IrPluginContext,
-    private val symbols: LokkiSymbols,
-    lookupTracker: LookupTracker?,
-    private val diagnostics: IrDiagnostics,
-) {
+internal class MockFieldInitializers(lokki: LokkiIrContext) {
+    private val context = lokki.pluginContext
+    private val symbols = lokki.symbols
     private val origin = IrDeclarationOrigin.GeneratedByPlugin(LokkiPluginKey)
-    private val instances = MockInstances(context, symbols)
-    private val injections = MockInjections(context, symbols, instances, lookupTracker)
+    private val injections = MockInjections(lokki)
     private val initializers = HashMap<IrClass, Initializer>()
 
     private class Initializer(val function: IrSimpleFunction, val inherited: IrSimpleFunctionSymbol?)
@@ -83,27 +77,29 @@ internal class MockFieldInitializers(
         }
     }
 
-    fun implement(file: IrFile, fields: MockFields, mocks: Map<MockClassKey, IrClass>) {
-        file.acceptChildrenVoid(object : IrVisitorVoid() {
+    fun implement(file: FileContext, mocks: Map<MockClassKey, IrClass>) {
+        val fields = file.fields
+        val diagnostics = file.diagnostics
+        file.ir.acceptChildrenVoid(object : IrVisitorVoid() {
             override fun visitElement(element: IrElement) {
                 element.acceptChildrenVoid(this)
             }
 
             override fun visitValueParameter(declaration: IrValueParameter) {
                 val annotation = declaration.mockAnnotationName ?: return
-                diagnostics.unsupported(declaration, file, "'@$annotation' on a parameter is not supported yet")
+                diagnostics.unsupported(declaration, "'@$annotation' on a parameter is not supported yet")
             }
         })
         for (field in fields.fields.values) {
             val problem = field.problem
             when {
-                problem == null -> field.site?.warning?.let { diagnostics.report(field.property, file, it) }
+                problem == null -> field.site?.warning?.let { diagnostics.report(field.property, it) }
                 field.property.constructorParameter?.mockAnnotationName == null ->
-                    diagnostics.report(field.property, file, problem)
+                    diagnostics.report(field.property, problem)
             }
         }
         for ((owner, owned) in fields.owners) {
-            initializers[owner]?.let { owner.implement(it, owned, file, mocks) }
+            initializers[owner]?.let { owner.implement(it, owned, file.ir, mocks) }
         }
         for (field in fields.fields.values) {
             if (field.problem == null && field.isConstructedSpy) field.constructSpy(mocks)
@@ -160,17 +156,15 @@ internal class MockFieldInitializers(
                 val backingField = field.property.backingField!!
                 val value = irGetField(irGet(self), backingField)
                 val current = irTemporary(value, irType = backingField.type.makeNullable())
-                val spec = with(instances) { irSpec(field.name, irFlags(field, types.form, flags)) }
-                val created = with(instances) {
-                    when (types.form) {
-                        MockForm.Mock -> irNewMock(mock, types, spec)
-                        MockForm.Delegation -> {
-                            val instance = irImplicitCast(irGet(current), backingField.type.makeNotNull())
-                            irDelegatingSpy(mock, types, instance, spec)
-                        }
-                        is MockForm.Construction ->
-                            irConstruct(mock, types.type.referencedTypeParameters.map { it.defaultType }, listOf(spec))
+                val spec = irSpec(symbols, field.name, irFlags(field, types.form, flags))
+                val created = when (types.form) {
+                    MockForm.Mock -> irNewMock(symbols, mock, types, spec)
+                    MockForm.Delegation -> {
+                        val instance = irImplicitCast(irGet(current), backingField.type.makeNotNull())
+                        irDelegatingSpy(symbols, mock, types, instance, spec)
                     }
+                    is MockForm.Construction ->
+                        irConstruct(mock, types.type.referencedTypeParameters.map { it.defaultType }, listOf(spec))
                 }
                 val assignment = irSetField(irGet(self), backingField, created)
                 val initialization = when (types.form) {
@@ -190,9 +184,9 @@ internal class MockFieldInitializers(
         val initializer = field.initializer!!
         val typeArguments = types.type.referencedTypeParameters.map { it.defaultType }
         DeclarationIrBuilder(context, field.symbol, initializer.startOffset, initializer.endOffset).run {
-            val spec = with(instances) { irSpec(name, irInt(BuildConfig.FLAG_SPY)) }
+            val spec = irSpec(symbols, name, irInt(BuildConfig.FLAG_SPY))
             initializer.expression = initializer.expression.replaceConstructorCall(mock.typeWith(typeArguments)) {
-                with(instances) { irConstruct(mock, typeArguments, it.arguments.filterNotNull() + spec) }
+                irConstruct(mock, typeArguments, it.arguments.filterNotNull() + spec)
             }
         }
     }
@@ -216,11 +210,7 @@ internal class MockFieldInitializers(
         if ((annotation.argument(name) as? IrConst)?.value == true) flag else 0
 }
 
-private fun IrClass.superclasses(): Sequence<IrClass> =
-    generateSequence(superclass()) { it.superclass() }
+private fun IrClass.superclasses(): Sequence<IrClass> = generateSequence(superClass) { it.superClass }
 
-private fun IrClass.superclass(): IrClass? =
-    superTypes.firstNotNullOfOrNull { type -> type.classOrNull?.owner?.takeIf { it.kind == ClassKind.CLASS } }
-
-private val INIT_MOCK_FIELDS = Name.identifier("lokki\$initMockFields")
+private val INIT_MOCK_FIELDS = Name.identifier(INIT_MOCK_FIELDS_NAME)
 private const val HIDDEN_MESSAGE = "Generated by lokki for @Mock, @RelaxedMock, @Spy and @InjectMocks properties"

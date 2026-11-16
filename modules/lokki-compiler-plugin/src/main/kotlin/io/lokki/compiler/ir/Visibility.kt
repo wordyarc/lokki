@@ -9,6 +9,9 @@ import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrOverridableDeclaration
 import org.jetbrains.kotlin.ir.declarations.moduleDescriptor
 import org.jetbrains.kotlin.ir.overrides.FakeOverrideBuilderStrategy
+import org.jetbrains.kotlin.ir.overrides.IrFakeOverrideBuilder
+import org.jetbrains.kotlin.ir.types.IrTypeSystemContext
+import org.jetbrains.kotlin.ir.util.addChild
 import org.jetbrains.kotlin.ir.util.getPackageFragment
 import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.load.java.JavaDescriptorVisibilities
@@ -39,7 +42,13 @@ internal fun IrDeclarationWithVisibility.isAccessibleOutsideHierarchy(
         else -> isVisibleFrom(file, visibility)
     }
 
-internal object FriendAwareFakeOverrides : FakeOverrideBuilderStrategy.BindToPrivateSymbols() {
+internal fun IrClass.addFriendAwareFakeOverrides(typeSystem: IrTypeSystemContext) {
+    IrFakeOverrideBuilder(typeSystem, FriendAwareFakeOverrides, emptyList())
+        .buildFakeOverridesForClassUsingOverriddenSymbols(this, emptyMap(), compatibilityMode = false)
+        .forEach(::addChild)
+}
+
+private object FriendAwareFakeOverrides : FakeOverrideBuilderStrategy.BindToPrivateSymbols() {
     override fun postProcessGeneratedFakeOverride(fakeOverride: IrOverridableDeclaration<*>, clazz: IrClass) {}
 
     override fun shouldSeeInternals(thisModule: ModuleDescriptor, memberModule: ModuleDescriptor): Boolean =

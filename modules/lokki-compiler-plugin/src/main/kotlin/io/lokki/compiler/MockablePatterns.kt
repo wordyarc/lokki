@@ -12,7 +12,7 @@ object LokkiConfigurationKeys {
     val DEBUG: CompilerConfigurationKey<Boolean> = CompilerConfigurationKey.create("lokki debug")
 }
 
-internal class Mockable(patterns: List<String>) {
+internal class MockablePatterns(patterns: List<String>) {
     private val packages = patterns.filter { it.endsWith(SUBPACKAGES) }.map { FqName(it.removeSuffix(SUBPACKAGES)) }
 
     val names: List<FqName> = patterns.filterNot { it.endsWith(SUBPACKAGES) }.map(::FqName)

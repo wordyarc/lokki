@@ -23,7 +23,6 @@ import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrConstructor
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrOverridableMember
-import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.declarations.moduleDescriptor
 import org.jetbrains.kotlin.ir.expressions.IrExpression
@@ -45,6 +44,8 @@ import org.jetbrains.kotlin.ir.util.isLocal
 import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.ir.util.resolveFakeOverrideMaybeAbstractOrFail
+import org.jetbrains.kotlin.ir.util.simpleFunctions
+import org.jetbrains.kotlin.ir.util.superClass
 import org.jetbrains.kotlin.load.java.JavaDescriptorVisibilities
 
 internal sealed interface MockSite {
@@ -223,11 +224,7 @@ internal class Mockability(private val file: IrFile) {
     }
 
     private fun IrClass.uninheritedAbstractMembers(): String? {
-        val superclasses = generateSequence(this) { type ->
-            type.superTypes.firstNotNullOfOrNull { supertype ->
-                supertype.classOrNull?.owner?.takeIf { it.kind == ClassKind.CLASS }
-            }
-        }.toList()
+        val superclasses = generateSequence(this) { it.superClass }.toList()
         val uninherited = superclasses.withIndex()
             .filter { (index, owner) -> superclasses.take(index).any { it.packageFqName != owner.packageFqName } }
             .flatMap { (_, owner) -> owner.declarations.filterIsInstance<IrOverridableMember>() }
@@ -238,7 +235,7 @@ internal class Mockability(private val file: IrFile) {
     }
 
     private fun IrClass.membersWithMissingClasses(): String? {
-        val members = (listOf(this) + getAllSuperclasses()).flatMap { it.memberFunctions }
+        val members = (listOf(this) + getAllSuperclasses()).flatMap { it.simpleFunctions() }
             .filterNot { it.isFakeOverride }
             .mapNotNull { member -> member.withClasses(member.missingClasses) }
             .toSortedSet()
@@ -246,7 +243,7 @@ internal class Mockability(private val file: IrFile) {
     }
 
     private fun IrClass.membersWithInaccessibleClasses(): String? {
-        val inaccessible = memberFunctions
+        val inaccessible = simpleFunctions()
             .filter { it.modality != Modality.FINAL && it.resolveFakeOverrideMaybeAbstractOrFail().isVisibleFrom(file) }
             .associateWith { it.inaccessibleClasses(file) }
             .filterValues { it.isNotEmpty() }
@@ -266,7 +263,7 @@ internal class Mockability(private val file: IrFile) {
     }
 
     private fun IrClass.unforwardableMembers(): List<String> =
-        memberFunctions
+        simpleFunctions()
             .filter { member ->
                 !DescriptorVisibilities.isPrivate(member.visibility) &&
                     (member.modality == Modality.FINAL || member.visibility in PROTECTED || !member.isVisibleFrom(file))
@@ -281,15 +278,6 @@ internal val IrClass.displayName: String
 
 private val IrClass.canBeSubclassed: Boolean
     get() = kind == ClassKind.CLASS && modality != Modality.FINAL && modality != Modality.SEALED
-
-private val IrClass.memberFunctions: List<IrSimpleFunction>
-    get() = declarations.flatMap { member ->
-        when (member) {
-            is IrSimpleFunction -> listOf(member)
-            is IrProperty -> listOfNotNull(member.getter, member.setter)
-            else -> emptyList()
-        }
-    }
 
 private val IrSimpleFunction.memberName: String
     get() = (correspondingPropertySymbol?.owner?.name ?: name).asString()
