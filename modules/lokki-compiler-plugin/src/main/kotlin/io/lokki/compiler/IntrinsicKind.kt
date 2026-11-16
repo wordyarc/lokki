@@ -57,4 +57,5 @@ internal val FIELD_KINDS =
 internal val ENTRY_POINTS =
     BLOCK_KINDS + STATIC_KINDS + setOf(IntrinsicKind.MOCK, IntrinsicKind.SPY, IntrinsicKind.MOCK_OBJECT)
 
-internal val REFERABLE_KINDS = setOf(IntrinsicKind.ANSWER, null)
+internal val IntrinsicKind?.isReferable: Boolean
+    get() = this == null || this == IntrinsicKind.ANSWER

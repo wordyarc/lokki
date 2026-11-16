@@ -1,8 +1,7 @@
 package io.lokki.compiler.fir.checkers
 
-import io.lokki.compiler.CAPTURING_SLOT
-import io.lokki.compiler.CHAINED_MOCKS
 import io.lokki.compiler.CHILD_MOCK_NEEDED
+import io.lokki.compiler.CoreClass
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.MatcherNames
@@ -120,7 +119,8 @@ private class StubBlock(
     private val session = context.session
     private val scope = block.receiverParameter?.symbol
     private val action = mode.action
-    private val chainedMocks = CHAINED_MOCKS in context.containingFileSymbol?.resolvedAnnotationClassIds.orEmpty()
+    private val chainedMocks =
+        CoreClass.CHAINED_MOCKS.id in context.containingFileSymbol?.resolvedAnnotationClassIds.orEmpty()
     private val contexts = HashSet<FirCallableSymbol<*>>()
     private val contextSources = HashMap<FirElement, KtSourceElement?>()
     private var blockName = function
@@ -350,7 +350,7 @@ private class StubBlock(
                     val callee = element.calleeReference.toResolvedCallableSymbol()
                     val name = callee?.name?.asString()
                     when {
-                        callee?.callableId?.classId == CAPTURING_SLOT && name in SLOT_READS ->
+                        callee?.callableId?.classId == CoreClass.CAPTURING_SLOT.id && name in SLOT_READS ->
                             element.dispatchReceiver?.slotPath(session)?.let { reads += element to it }
                         name in MatcherNames.CAPTURE && callee?.intrinsicKind(session) == IntrinsicKind.MATCHER ->
                             (element as? FirFunctionCall)?.arguments?.singleOrNull()?.slotPath(session)?.let(captured::add)

@@ -1,6 +1,7 @@
 package io.lokki.gradle
 
 import org.gradle.testkit.runner.TaskOutcome
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
@@ -91,27 +92,48 @@ class GradleOptionsTest {
 
     @ParameterizedTest
     @EnumSource(GradleUnderTest::class)
-    fun testNewerKotlin(gradle: GradleUnderTest) {
-        val project = TestProject(projectDir, gradle)
-        project.write(
-            "build.gradle.kts",
-            """
-            import org.jetbrains.kotlin.gradle.plugin.KotlinBasePlugin
+    fun testPreReleaseOfOldestKotlin(gradle: GradleUnderTest) {
+        val preRelease = "$MIN_KOTLIN_VERSION-RC"
+        val project = reportedKotlinVersionProject(gradle, preRelease)
 
-            plugins {
-                kotlin("jvm") version "$KOTLIN_VERSION" apply false
-                id("io.lokki") version "$LOKKI_VERSION"
-            }
+        val result = project.buildAndFail("help")
 
-            class NewerKotlin : KotlinBasePlugin {
-                override val pluginVersion: String = "$NEWER_KOTLIN"
-
-                override fun apply(project: Project) = Unit
-            }
-
-            apply<NewerKotlin>()
-            """,
+        assertContains(
+            result.output,
+            "lokki $LOKKI_VERSION requires Kotlin $MIN_KOTLIN_VERSION or newer, but the build uses Kotlin $preRelease",
         )
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testDevBuildOfOldestKotlin(gradle: GradleUnderTest) {
+        val project = reportedKotlinVersionProject(gradle, "$MIN_KOTLIN_VERSION-dev-1234")
+
+        val result = project.build("help")
+
+        assertFalse("requires Kotlin" in result.output, result.output)
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testReleaseOfLatestTestedPreRelease(gradle: GradleUnderTest) {
+        assumeTrue('-' in LATEST_TESTED_KOTLIN, "the latest tested Kotlin is a release")
+        val release = LATEST_TESTED_KOTLIN.substringBefore('-')
+        val project = reportedKotlinVersionProject(gradle, release)
+
+        val result = project.build("help")
+
+        assertContains(
+            result.output,
+            "lokki $LOKKI_VERSION is tested with Kotlin up to $LATEST_TESTED_KOTLIN, but the build uses Kotlin " +
+                release,
+        )
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testNewerKotlin(gradle: GradleUnderTest) {
+        val project = reportedKotlinVersionProject(gradle, NEWER_KOTLIN)
 
         val suppressed = project.build("help", "-Plokki.kotlinCompatibility.nowarn=true")
 
@@ -272,6 +294,29 @@ class GradleOptionsTest {
 
         assertFalse("Car\$LokkiMock\$08768170\$CarTestKt" in plain, plain)
     }
+
+    private fun reportedKotlinVersionProject(gradle: GradleUnderTest, kotlin: String): TestProject =
+        TestProject(projectDir, gradle).apply {
+            write(
+                "build.gradle.kts",
+                """
+                import org.jetbrains.kotlin.gradle.plugin.KotlinBasePlugin
+
+                plugins {
+                    kotlin("jvm") version "$KOTLIN_VERSION" apply false
+                    id("io.lokki") version "$LOKKI_VERSION"
+                }
+
+                class ReportedKotlin : KotlinBasePlugin {
+                    override val pluginVersion: String = "$kotlin"
+
+                    override fun apply(project: Project) = Unit
+                }
+
+                apply<ReportedKotlin>()
+                """,
+            )
+        }
 
     private fun kotlinVersionProject(gradle: GradleUnderTest, kotlin: String): TestProject =
         TestProject(projectDir, gradle).apply {

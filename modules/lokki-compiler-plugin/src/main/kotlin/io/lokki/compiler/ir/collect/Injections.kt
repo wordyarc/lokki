@@ -34,7 +34,7 @@ import org.jetbrains.kotlin.ir.util.resolveFakeOverrideMaybeAbstractOrFail
 import org.jetbrains.kotlin.ir.util.substitute
 import org.jetbrains.kotlin.name.Name
 
-internal class InjectionSource(val property: IrProperty, val type: IrType, val target: Int?) {
+internal class InjectionSource(val property: IrProperty, val type: IrType, val isInjected: Boolean) {
     val name: Name
         get() = property.name
 }
@@ -83,32 +83,33 @@ internal class InjectionProblem(val kind: Kind, val message: String) : Injection
     enum class Kind { UNRESOLVED, AMBIGUOUS, UNSUPPORTED }
 }
 
-internal class InjectionPlan(val order: List<Int>, val results: List<InjectionResult>)
+internal class InjectionPlan(val order: List<IrProperty>, val results: Map<IrProperty, InjectionResult>)
 
 internal class InjectionPlanner(private val file: IrFile, private val typeSystem: IrTypeSystemContext) {
     fun plan(owner: IrClass, requests: List<InjectionRequest>): InjectionPlan {
+        val injected = requests.mapTo(HashSet()) { it.property }
         val sources = ArrayList<InjectionSource>()
         for (property in owner.declarations.filterIsInstance<IrProperty>()) {
             val getter = property.getter ?: continue
             if (getter.parameters.any { it.kind == IrParameterKind.ExtensionReceiver }) continue
             val inherited = getter.resolveFakeOverrideMaybeAbstractOrFail()
             if (property.isFakeOverride && !inherited.isVisibleFrom(file)) continue
-            val target = requests.indexOfFirst { it.property == property }.takeIf { it >= 0 }
-            sources += InjectionSource(property, getter.returnType, target)
+            sources += InjectionSource(property, getter.returnType, property in injected)
         }
-        val results = requests.mapIndexedTo(ArrayList()) { index, request ->
-            Resolver(sources.filter { it.target != index }, target(request)).resolve()
+        val results = requests.associateTo(LinkedHashMap()) { request ->
+            request.property to Resolver(sources.filter { it.property != request.property }, target(request)).resolve()
         }
-        val order = ArrayList<Int>()
-        val pending = results.indices.filterTo(ArrayList()) { results[it] is Injection }
+        val order = ArrayList<IrProperty>()
+        val pending = results.filterValues { it is Injection }.keys.toMutableList()
         while (pending.isNotEmpty()) {
-            val next = pending.firstOrNull { index ->
-                (results[index] as Injection).dependencies().all { it in order || results[it] !is Injection }
+            val next = pending.firstOrNull { property ->
+                val dependencies = (results.getValue(property) as Injection).dependencies()
+                dependencies.all { it in order || results[it] !is Injection }
             }
             if (next == null) {
-                val names = pending.joinToString { "'${requests[it].property.name}'" }
-                for (index in pending) {
-                    results[index] = InjectionProblem(
+                val names = pending.joinToString { "'${it.name}'" }
+                for (property in pending) {
+                    results[property] = InjectionProblem(
                         InjectionProblem.Kind.UNRESOLVED,
                         "the constructors of the '@InjectMocks' properties $names need each other's objects",
                     )
@@ -288,7 +289,8 @@ internal val InjectedValue.sources: List<InjectionSource>
         InjectedValue.Default -> emptyList()
     }
 
-private fun Injection.dependencies(): List<Int> = arguments.flatMap { it.sources }.mapNotNull { it.target }
+private fun Injection.dependencies(): List<IrProperty> =
+    arguments.flatMap { it.sources }.filter { it.isInjected }.map { it.property }
 
 private fun IrType.listElement(): IrType? =
     (this as? IrSimpleType)?.takeIf { it.classFqName == StandardNames.FqNames.list }

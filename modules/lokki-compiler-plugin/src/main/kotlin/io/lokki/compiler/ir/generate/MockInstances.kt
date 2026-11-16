@@ -1,5 +1,8 @@
 package io.lokki.compiler.ir.generate
 
+import io.lokki.compiler.CoreClass
+import io.lokki.compiler.CoreConstructor
+import io.lokki.compiler.CoreFunction
 import io.lokki.compiler.ir.LokkiSymbols
 import io.lokki.compiler.ir.buildLambda
 import io.lokki.compiler.ir.irGetObject
@@ -35,7 +38,7 @@ import org.jetbrains.kotlin.ir.util.primaryConstructor
 import org.jetbrains.kotlin.ir.util.render
 
 internal fun IrBuilderWithScope.irSpec(symbols: LokkiSymbols, name: String, flags: IrExpression): IrExpression =
-    irCallConstructor(symbols.mockSpec.primaryConstructor!!.symbol, emptyList()).apply {
+    irCallConstructor(symbols[CoreConstructor.MOCK_SPEC].symbol, emptyList()).apply {
         arguments[0] = irString(name)
         arguments[1] = flags
     }
@@ -67,7 +70,7 @@ internal fun IrBuilderWithScope.irDelegatingSpy(
 
 internal fun IrBuilderWithScope.irFactory(symbols: LokkiSymbols, mock: IrClass, types: MockedTypes): IrExpression {
     val factory = context.buildLambda(startOffset, endOffset, context.irBuiltIns.anyType)
-    val spec = factory.addValueParameter("spec", symbols.mockSpec.defaultType)
+    val spec = factory.addValueParameter("spec", symbols[CoreClass.MOCK_SPEC].defaultType)
     factory.body = DeclarationIrBuilder(context, factory.symbol, startOffset, endOffset).irBlockBody {
         +irReturn(irNewMock(symbols, mock, types, irGet(spec)))
     }
@@ -94,8 +97,8 @@ private fun IrBuilderWithScope.irAllocate(
 ): IrExpression = irBlock {
     val mock = type.classOrFail.owner
     val instance = irTemporary(
-        irCall(symbols.allocate.symbol, type, listOf(type)).apply {
-            arguments[0] = irGetObject(symbols.instanceAllocator)
+        irCall(symbols[CoreFunction.ALLOCATE].symbol, type, listOf(type)).apply {
+            arguments[0] = irGetObject(symbols[CoreClass.INSTANCE_ALLOCATOR])
             val javaClass = symbols.javaClass.returnType.classOrFail.typeWith(type)
             arguments[1] = irCall(symbols.javaClass.symbol, javaClass, listOf(type)).apply {
                 arguments[0] = IrClassReferenceImpl(

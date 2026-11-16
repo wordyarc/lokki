@@ -1,10 +1,11 @@
 package io.lokki.compiler.ir.lower
 
+import io.lokki.compiler.CoreClass
+import io.lokki.compiler.CoreFunction
 import io.lokki.compiler.LokkiPluginKey
-import io.lokki.compiler.ir.LokkiSymbols
+import io.lokki.compiler.ir.LokkiIrContext
 import io.lokki.compiler.ir.contains
 import io.lokki.compiler.ir.irGetObject
-import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
@@ -28,7 +29,9 @@ import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 
-internal class StaticInitializers(private val context: IrPluginContext, private val symbols: LokkiSymbols) {
+internal class StaticInitializers(lokki: LokkiIrContext) {
+    private val context = lokki.pluginContext
+    private val symbols = lokki.symbols
     private val generated = IrDeclarationOrigin.GeneratedByPlugin(LokkiPluginKey)
 
     fun lower(file: IrFile) {
@@ -66,13 +69,13 @@ internal class StaticInitializers(private val context: IrPluginContext, private 
 
     private fun IrBuilderWithScope.irBracket(expression: IrExpression, type: IrType): IrExpression =
         irBlock(resultType = type) {
-            +irStaticInitializerCall(symbols.enterStaticInitializer)
-            +irTry(type, expression, emptyList(), irStaticInitializerCall(symbols.exitStaticInitializer))
+            +irStaticInitializerCall(CoreFunction.ENTER_STATIC_INITIALIZER)
+            +irTry(type, expression, emptyList(), irStaticInitializerCall(CoreFunction.EXIT_STATIC_INITIALIZER))
         }
 
-    private fun IrBuilderWithScope.irStaticInitializerCall(function: IrSimpleFunction): IrExpression =
-        irCall(function).apply {
-            arguments[0] = irGetObject(symbols.staticInitializer)
+    private fun IrBuilderWithScope.irStaticInitializerCall(function: CoreFunction): IrExpression =
+        irCall(symbols[function]).apply {
+            arguments[0] = irGetObject(symbols[CoreClass.STATIC_INITIALIZER])
         }
 
     private inner class DelegateLambdas : IrElementTransformerVoid() {

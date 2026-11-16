@@ -1,5 +1,6 @@
 package io.lokki.compiler.ir
 
+import io.lokki.compiler.BLOCK_KINDS
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.MatcherNames
 import io.lokki.compiler.STUB_BLOCKS
@@ -66,7 +67,7 @@ internal fun IrSimpleFunction.excludedCalls(): List<StubbedCall>? {
     return statements.map { it.stubbedCall() ?: return null }
 }
 
-internal fun IrSimpleFunction.blockStatements(): List<IrStatement> =
+private fun IrSimpleFunction.blockStatements(): List<IrStatement> =
     (body as? IrBlockBody)?.statements.orEmpty().filterNot { it.isUnit }
 
 private val IrStatement.isUnit: Boolean
@@ -77,10 +78,10 @@ private val IrStatement.isUnit: Boolean
 
 private fun IrStatement.stubbedCall(): StubbedCall? = (unwrapped() as? IrExpression)?.memberCall()
 
-internal fun IrStatement.noCalls(): NoCalls? =
+private fun IrStatement.noCalls(): NoCalls? =
     (unwrapped() as? IrCall)?.takeIf { it.intrinsicKind == IntrinsicKind.WAS_NOT_CALLED }?.let(::NoCalls)
 
-internal fun IrStatement.unwrapped(): IrStatement? {
+private fun IrStatement.unwrapped(): IrStatement? {
     var expression: IrStatement? = if (this is IrReturn) value else this
     while (true) {
         expression = (expression as? IrExpression)?.wrapped ?: return expression
@@ -137,6 +138,21 @@ internal fun IrCall.blockCalls(): List<StubbedCall> {
         in VERIFY_BLOCKS -> block.verifiedStatements().orEmpty().filterIsInstance<StubbedCall>()
         IntrinsicKind.EXCLUDE_BLOCK -> block.excludedCalls().orEmpty()
         else -> emptyList()
+    }
+}
+
+internal fun IrCall.blockStatementCalls(): List<IrCall> {
+    val kind = intrinsicKind
+    if (kind !in BLOCK_KINDS) return emptyList()
+    val block = (arguments.lastOrNull() as? IrFunctionExpression)?.function ?: return emptyList()
+    return block.blockStatements().mapNotNull { statement ->
+        (statement.unwrapped() as? IrCall)?.takeIf { call ->
+            when (call.intrinsicKind) {
+                IntrinsicKind.WITH_CONTEXT -> true
+                IntrinsicKind.WAS_NOT_CALLED -> kind in VERIFY_BLOCKS
+                else -> false
+            }
+        }
     }
 }
 

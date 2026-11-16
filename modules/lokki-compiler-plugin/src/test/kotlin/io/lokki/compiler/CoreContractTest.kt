@@ -47,11 +47,15 @@ class CoreContractTest {
     }
 
     @Test
+    fun testClassesAreDeclared() {
+        val missing = CoreClass.entries.filter { runCatching { it.load() }.isFailure }
+        assertTrue(missing.isEmpty(), "lokki-core does not declare $missing")
+    }
+
+    @Test
     fun testEntryPointsAreDeclaredOnce() {
         val ambiguous = CoreFunction.entries.filterNot { entry ->
-            val nestedName = entry.owner.relativeClassName.asString().replace('.', '$')
-            val owner = Class.forName("${entry.owner.packageFqName.asString()}.$nestedName")
-            val declared = owner.declaredMethods.count { method ->
+            val declared = entry.owner.load().declaredMethods.count { method ->
                 !Modifier.isPrivate(method.modifiers) && method.declares(entry.functionName) &&
                     (entry.valueParameters == null || method.parameterCount == entry.valueParameters)
             }
@@ -63,6 +67,25 @@ class CoreContractTest {
                 "owner and name, so a new signature needs a new name",
         )
     }
+
+    @Test
+    fun testConstructorsAreDeclaredOnce() {
+        val ambiguous = CoreConstructor.entries.filterNot { entry ->
+            val declared = entry.owner.load().declaredConstructors.count { constructor ->
+                !Modifier.isPrivate(constructor.modifiers) && !constructor.isSynthetic &&
+                    constructor.parameterCount == entry.valueParameters
+            }
+            declared == 1
+        }
+        assertTrue(
+            ambiguous.isEmpty(),
+            "lokki-core must declare each of $ambiguous once: the compiler plugin finds a constructor by its " +
+                "class and the number of its parameters, so a new signature needs another number of parameters",
+        )
+    }
+
+    private fun CoreClass.load(): Class<*> =
+        Class.forName("${id.packageFqName.asString()}.${id.relativeClassName.asString().replace('.', '$')}")
 
     private fun Method.declares(function: String): Boolean =
         name == function || name.startsWith("$function$") && COMPILER_SUFFIXES.none(name::endsWith)

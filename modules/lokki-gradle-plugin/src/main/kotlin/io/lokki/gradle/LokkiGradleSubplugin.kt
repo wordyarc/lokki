@@ -15,6 +15,9 @@ import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerPluginSupportPlugin
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.plugin.SubpluginArtifact
 import org.jetbrains.kotlin.gradle.plugin.SubpluginOption
+import org.jetbrains.kotlin.tooling.core.KotlinToolingVersion
+import org.jetbrains.kotlin.tooling.core.isDev
+import org.jetbrains.kotlin.tooling.core.toKotlinVersion
 
 public class LokkiGradleSubplugin : KotlinCompilerPluginSupportPlugin {
     override fun apply(target: Project) {
@@ -92,9 +95,9 @@ private fun Project.checkKotlinVersion() {
 }
 
 private fun Project.checkKotlinVersion(version: String) {
-    val used = version.toKotlinVersion() ?: return
-    val oldest = checkNotNull(BuildConfig.MIN_KOTLIN_VERSION.toKotlinVersion())
-    val latest = checkNotNull(BuildConfig.LATEST_TESTED_KOTLIN.toKotlinVersion())
+    val used = kotlinVersionOrNull(version) ?: return
+    val oldest = KotlinToolingVersion(BuildConfig.MIN_KOTLIN_VERSION)
+    val latest = KotlinToolingVersion(BuildConfig.LATEST_TESTED_KOTLIN)
     if (used < oldest) {
         throw GradleException(
             "lokki ${BuildConfig.VERSION} requires Kotlin ${BuildConfig.MIN_KOTLIN_VERSION} or newer, but the build " +
@@ -111,11 +114,9 @@ private fun Project.checkKotlinVersion(version: String) {
     }
 }
 
-private fun String.toKotlinVersion(): KotlinVersion? {
-    val (major, minor, patch) = substringBefore('-').split('.').map { it.toIntOrNull() ?: return null }
-        .takeIf { it.size == 3 }
-        ?: return null
-    return KotlinVersion(major, minor, patch)
+private fun kotlinVersionOrNull(version: String): KotlinToolingVersion? {
+    val parsed = runCatching { KotlinToolingVersion(version) }.getOrNull() ?: return null
+    return if (parsed.isDev) KotlinToolingVersion(parsed.toKotlinVersion()) else parsed
 }
 
 private fun KotlinCompilation<*>.warnAboutMockableBytecode() {

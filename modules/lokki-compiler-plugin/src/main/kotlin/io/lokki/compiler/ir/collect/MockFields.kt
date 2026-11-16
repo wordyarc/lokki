@@ -38,9 +38,7 @@ internal class MockField(
         get() = ((annotation.argument(ParameterNames.NAME) as? IrConst)?.value as? String)?.takeIf { it.isNotBlank() }
             ?: property.name.asString()
 
-    val isConstructedSpy: Boolean =
-        kind == IntrinsicKind.SPY && property.backingField?.initializer != null &&
-            site?.types?.form is MockForm.Construction
+    val isConstructedSpy: Boolean = property.constructsSpy(kind, site)
 
     val isInitialized: Boolean
         get() = problem == null && (inject != null || !isConstructedSpy)
@@ -89,7 +87,7 @@ private class MockFieldCollector(
         val targets = annotated.filter { it.inject != null && problems[it] == null }
         val plan = planner.plan(owner, targets.map { InjectionRequest(it.property, it.inject!!) })
         val fields = annotated.map { field ->
-            val result = plan.results.getOrNull(targets.indexOf(field))
+            val result = plan.results[field.property]
             val injection = result as? Injection
             val failed = (result as? InjectionProblem)?.let { FailedInjection(it, field.typeName) }
             val site = if (field.isMock && problems[field] == null && failed == null) {
@@ -101,7 +99,8 @@ private class MockFieldCollector(
             val mocked = site as? MockSite.Mocked
             field.field(problem ?: field.immutableProblem(mocked), mocked, injection)
         }
-        val injected = plan.order.map { fields[annotated.indexOf(targets[it])] }.filter { it.problem == null }
+        val byProperty = fields.associateBy { it.property }
+        val injected = plan.order.map(byProperty::getValue).filter { it.problem == null }
         return ClassMockFields(fields, injected)
     }
 
@@ -120,9 +119,7 @@ private class MockFieldCollector(
         }
 
     private fun Annotated.immutableProblem(site: MockSite.Mocked?): MockProblem? {
-        val constructed = kind == IntrinsicKind.SPY && property.backingField?.initializer != null &&
-            site?.types?.form is MockForm.Construction
-        if (inject != null || property.isVar || constructed) return null
+        if (inject != null || property.isVar || property.constructsSpy(kind, site)) return null
         return Unsupported("'@$annotationName' needs a 'lateinit var' or 'var' property")
     }
 
@@ -178,6 +175,9 @@ private val IrProperty.annotated: Annotated?
             ?: return null
         return Annotated(this, annotation, kind, inject)
     }
+
+private fun IrProperty.constructsSpy(kind: IntrinsicKind, site: MockSite.Mocked?): Boolean =
+    kind == IntrinsicKind.SPY && backingField?.initializer != null && site?.types?.form is MockForm.Construction
 
 internal val IrProperty.constructorParameter: IrValueParameter?
     get() = (backingField?.initializer?.expression as? IrGetValue)

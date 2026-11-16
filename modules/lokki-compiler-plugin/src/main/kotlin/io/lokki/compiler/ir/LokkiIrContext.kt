@@ -1,6 +1,6 @@
 package io.lokki.compiler.ir
 
-import io.lokki.compiler.CHAINED_MOCKS
+import io.lokki.compiler.CoreClass
 import io.lokki.compiler.compat.CompilerCompat
 import io.lokki.compiler.ir.collect.MockFields
 import io.lokki.compiler.ir.collect.Mockability
@@ -22,7 +22,7 @@ internal class LokkiIrContext(
 }
 
 internal class FileContext(val ir: IrFile, lokki: LokkiIrContext) {
-    val chainedMocks: Boolean = ir.hasAnnotation(CHAINED_MOCKS)
+    val chainedMocks: Boolean = ir.hasAnnotation(CoreClass.CHAINED_MOCKS.id)
     val mockability = Mockability(ir)
     val redirects = RedirectLookup(lokki.pluginContext, ir)
     val diagnostics = IrDiagnostics(lokki, ir)

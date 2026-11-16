@@ -1,13 +1,13 @@
 package io.lokki.compiler.ir.lower
 
 import io.lokki.compiler.BLOCK_KINDS
+import io.lokki.compiler.CoreFunction
 import io.lokki.compiler.IntrinsicKind
-import io.lokki.compiler.ir.LokkiSymbols
+import io.lokki.compiler.ir.LokkiIrContext
 import io.lokki.compiler.ir.contains
 import io.lokki.compiler.ir.intrinsicKind
 import io.lokki.compiler.ir.rewrap
 import io.lokki.compiler.ir.wrapped
-import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.irCall
@@ -23,8 +23,10 @@ import org.jetbrains.kotlin.ir.expressions.IrReturn
 import org.jetbrains.kotlin.ir.util.patchDeclarationParents
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 
-internal class ContextBlocks(private val context: IrPluginContext, private val symbols: LokkiSymbols) :
-    IrElementTransformerVoid() {
+internal class ContextBlocks(lokki: LokkiIrContext) : IrElementTransformerVoid() {
+    private val context = lokki.pluginContext
+    private val symbols = lokki.symbols
+
     override fun visitCall(expression: IrCall): IrExpression {
         if (expression.intrinsicKind in BLOCK_KINDS) {
             val block = (expression.arguments.lastOrNull() as? IrFunctionExpression)?.function
@@ -63,7 +65,8 @@ internal class ContextBlocks(private val context: IrPluginContext, private val s
             object : IrElementTransformerVoid() {
                 override fun visitGetValue(expression: IrGetValue): IrExpression {
                     if (expression.symbol !in contexts) return expression
-                    return builder.irCall(symbols.any.symbol, expression.type, listOf(expression.type)).apply {
+                    val any = symbols[CoreFunction.ANY].symbol
+                    return builder.irCall(any, expression.type, listOf(expression.type)).apply {
                         arguments[0] = builder.irGet(scope)
                     }
                 }

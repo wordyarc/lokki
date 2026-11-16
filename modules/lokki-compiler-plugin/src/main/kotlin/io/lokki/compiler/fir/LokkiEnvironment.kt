@@ -1,7 +1,7 @@
 package io.lokki.compiler.fir
 
 import io.lokki.compiler.ABI_VERSION
-import io.lokki.compiler.LOKKI_ABI
+import io.lokki.compiler.CoreClass
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.caches.FirCache
@@ -16,7 +16,8 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 internal class LokkiEnvironment(session: FirSession, val interceptionPoints: Boolean) :
     FirExtensionSessionComponent(session) {
     val runtimeAbi: Int by session.firCachesFactory.createLazyValue {
-        val abi = session.symbolProvider.getClassLikeSymbolByClassId(LOKKI_ABI) as? FirRegularClassSymbol
+        val abi = session.symbolProvider.getClassLikeSymbolByClassId(CoreClass.LOKKI_ABI.id)
+            as? FirRegularClassSymbol
         val version = abi?.declaredProperties(session)?.singleOrNull { it.name.asString() == ABI_VERSION }
         ((version?.resolvedInitializer as? FirLiteralExpression)?.value as? Number)?.toInt() ?: 0
     }

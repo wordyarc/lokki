@@ -1,8 +1,8 @@
 package io.lokki.compiler.fir.checkers
 
+import io.lokki.compiler.CoreClass
 import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.MatcherNames
-import io.lokki.compiler.ORDERING
 import io.lokki.compiler.ParameterNames
 import io.lokki.compiler.UNORDERED
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
@@ -113,7 +113,7 @@ private fun countProblem(exactly: Count, atLeast: Count, atMost: Count): Pair<Co
 
 private fun orderingProblem(ordering: FirExpression?, vararg counts: Pair<Count, String>): Pair<Count, String>? {
     val entry = (ordering as? FirQualifiedAccessExpression)?.calleeReference?.toResolvedEnumEntrySymbol() ?: return null
-    if (entry.callableId.classId != ORDERING || entry.name.asString() == UNORDERED) return null
+    if (entry.callableId.classId != CoreClass.ORDERING.id || entry.name.asString() == UNORDERED) return null
     val (count, name) = counts.firstOrNull { (count, _) -> count.isExplicit } ?: return null
     return count to "'$name' is only allowed with Ordering.$UNORDERED, but 'ordering' is Ordering.${entry.name}"
 }

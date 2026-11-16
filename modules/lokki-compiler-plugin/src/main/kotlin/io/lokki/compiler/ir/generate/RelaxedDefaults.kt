@@ -1,8 +1,8 @@
 package io.lokki.compiler.ir.generate
 
-import io.lokki.compiler.ir.LokkiSymbols
+import io.lokki.compiler.CoreConstructor
+import io.lokki.compiler.ir.LokkiIrContext
 import io.lokki.compiler.ir.renderReadable
-import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
@@ -35,14 +35,15 @@ import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.defaultValueForType
 import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.util.kotlinFqName
-import org.jetbrains.kotlin.ir.util.primaryConstructor
 import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.ir.util.substitute
 import org.jetbrains.kotlin.name.StandardClassIds
 
 internal class RelaxedDefault(val key: String, val expression: IrBuilderWithScope.() -> IrExpression)
 
-internal class RelaxedDefaults(private val context: IrPluginContext, private val symbols: LokkiSymbols) {
+internal class RelaxedDefaults(lokki: LokkiIrContext) {
+    private val context = lokki.pluginContext
+    private val symbols = lokki.symbols
     private val builtIns = context.irBuiltIns
 
     fun of(
@@ -123,7 +124,7 @@ internal class RelaxedDefaults(private val context: IrPluginContext, private val
 
     private fun missing(description: String, mockable: Boolean = false): RelaxedDefault =
         RelaxedDefault("missing $description $mockable") {
-            irCallConstructor(symbols.noRelaxedDefault.primaryConstructor!!.symbol, emptyList()).apply {
+            irCallConstructor(symbols[CoreConstructor.NO_RELAXED_DEFAULT].symbol, emptyList()).apply {
                 arguments[0] = irString(description)
                 arguments[1] = irBoolean(mockable)
             }

@@ -12,11 +12,6 @@ internal fun publicClassId(name: String): ClassId = ClassId(LOKKI_PACKAGE, Name.
 
 internal fun internalClassId(name: String): ClassId = ClassId(LOKKI_INTERNAL_PACKAGE, Name.identifier(name))
 
-internal val LOKKI_INTRINSIC = internalClassId("LokkiIntrinsic")
-internal val LOKKI_ABI = internalClassId("LokkiAbi")
-internal val CHAINED_MOCKS = publicClassId("ChainedMocks")
-internal val CAPTURING_SLOT = publicClassId("CapturingSlot")
-internal val ORDERING = publicClassId("Ordering")
 internal val AWAIT_CANCELLATION = CallableId(FqName("kotlinx.coroutines"), Name.identifier("awaitCancellation"))
 internal val ARRAY_OF = CallableId(FqName("kotlin"), Name.identifier("arrayOf"))
 

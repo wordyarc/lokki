@@ -52,9 +52,9 @@ internal class LokkiIrGenerationExtension(
         mockable?.let { InterceptionPoints(lokki, it).generate(moduleFragment) }
         if (!lokki.symbols.isRuntimeAvailable) return
         val generator = MockClassGenerator(lokki)
-        val staticInitializers = StaticInitializers(lokki.pluginContext, lokki.symbols)
+        val staticInitializers = StaticInitializers(lokki)
         val fieldInitializers = MockFieldInitializers(lokki)
-        val contextBlocks = ContextBlocks(lokki.pluginContext, lokki.symbols)
+        val contextBlocks = ContextBlocks(lokki)
         val files = moduleFragment.files.map { FileContext(it, lokki) }
         fieldInitializers.declare(files.map { it.fields })
         for (file in files) {

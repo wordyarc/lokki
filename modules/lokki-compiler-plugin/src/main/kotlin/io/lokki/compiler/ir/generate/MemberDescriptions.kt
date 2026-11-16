@@ -1,11 +1,12 @@
 package io.lokki.compiler.ir.generate
 
 import io.lokki.compiler.BuildConfig
-import io.lokki.compiler.ir.LokkiSymbols
+import io.lokki.compiler.CoreClass
+import io.lokki.compiler.CoreFunction
+import io.lokki.compiler.ir.LokkiIrContext
 import io.lokki.compiler.ir.irGetObject
 import io.lokki.compiler.ir.irArrayOf
 import io.lokki.compiler.ir.isAccessibleFrom
-import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.jvm.ir.getJvmNameFromAnnotation
 import org.jetbrains.kotlin.ir.builders.IrBuilder
 import org.jetbrains.kotlin.ir.builders.irCall
@@ -35,7 +36,9 @@ import org.jetbrains.kotlin.ir.util.resolveFakeOverrideMaybeAbstractOrFail
 import org.jetbrains.kotlin.load.java.JvmAbi
 import org.jetbrains.kotlin.name.StandardClassIds
 
-internal class MemberDescriptions(private val context: IrPluginContext, private val symbols: LokkiSymbols) {
+internal class MemberDescriptions(lokki: LokkiIrContext) {
+    private val context = lokki.pluginContext
+    private val symbols = lokki.symbols
     private val builtIns = context.irBuiltIns
     private val classClass = symbols.javaClass.returnType.classOrFail
 
@@ -56,8 +59,8 @@ internal class MemberDescriptions(private val context: IrPluginContext, private 
             flags = flags or BuildConfig.METHOD_FN_CALL
         }
         val parameters = member.nonDispatchParameters
-        return irCall(symbols.methodDescription).apply {
-            arguments[0] = irGetObject(symbols.methodDescriptions)
+        return irCall(symbols[CoreFunction.METHOD_DESCRIPTION]).apply {
+            arguments[0] = irGetObject(symbols[CoreClass.METHOD_DESCRIPTIONS])
             arguments[1] = irString(member.jvmName)
             arguments[2] = irJavaClass(returnType)
             arguments[3] = irInt(flags)

@@ -1,6 +1,9 @@
 package io.lokki.compiler.ir.generate
 
 import io.lokki.compiler.BuildConfig
+import io.lokki.compiler.CoreClass
+import io.lokki.compiler.CoreConstructor
+import io.lokki.compiler.CoreFunction
 import io.lokki.compiler.LokkiPluginKey
 import io.lokki.compiler.ir.FileContext
 import io.lokki.compiler.ir.LokkiIrContext
@@ -102,7 +105,6 @@ import org.jetbrains.kotlin.ir.util.isMethodOfAny
 import org.jetbrains.kotlin.ir.util.nonDispatchParameters
 import org.jetbrains.kotlin.ir.util.parentAsClass
 import org.jetbrains.kotlin.ir.util.patchDeclarationParents
-import org.jetbrains.kotlin.ir.util.primaryConstructor
 import org.jetbrains.kotlin.ir.util.simpleFunctions
 import org.jetbrains.kotlin.ir.util.substitute
 import org.jetbrains.kotlin.ir.visitors.IrVisitorVoid
@@ -117,8 +119,8 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
     private val symbols = lokki.symbols
     private val origin = IrDeclarationOrigin.GeneratedByPlugin(LokkiPluginKey)
     private val anyConstructor = context.irBuiltIns.anyClass.owner.constructors.single()
-    private val relaxedDefaults = RelaxedDefaults(context, symbols)
-    private val memberDescriptions = MemberDescriptions(context, symbols)
+    private val relaxedDefaults = RelaxedDefaults(lokki)
+    private val memberDescriptions = MemberDescriptions(lokki)
 
     fun generate(file: FileContext, usages: Map<MockClassKey, MockClassUsage>): Map<MockClassKey, IrClass> {
         val classes = FileClasses(file, usages)
@@ -151,7 +153,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         val ownParameters = parameters.indices.map { mock.addTypeParameter("T$it", context.irBuiltIns.anyNType) }
         val mockedType = usage.mockedTypes.type
             .substitute(parameters.zip(ownParameters.map { it.defaultType }).toMap()) as IrSimpleType
-        mock.superTypes = listOf(mockedType) + usage.mockedTypes.interfaces + symbols.generatedMock.defaultType
+        mock.superTypes = listOf(mockedType) + usage.mockedTypes.interfaces + symbols[CoreClass.GENERATED_MOCK].defaultType
         mock.createThisReceiverParameter()
         if (mocked.isLocal) key.file.addAfter(mocked, mock) else key.file.addChild(mock)
         val constructor = when {
@@ -172,10 +174,10 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         val stateProperty = mock.declarations.filterIsInstance<IrProperty>()
             .single { symbols.state.symbol in it.overriddenSymbols }
         val functions = mock.declarations.filterIsInstance<IrSimpleFunction>()
-        val original = functions.single { symbols.original.symbol in it.overriddenSymbols }
-        val coOriginal = functions.single { symbols.coOriginal.symbol in it.overriddenSymbols }
-        val relaxed = functions.single { symbols.relaxed.symbol in it.overriddenSymbols }
-        val describe = functions.single { symbols.describe.symbol in it.overriddenSymbols }
+        val original = functions.single { symbols[CoreFunction.ORIGINAL].symbol in it.overriddenSymbols }
+        val coOriginal = functions.single { symbols[CoreFunction.CO_ORIGINAL].symbol in it.overriddenSymbols }
+        val relaxed = functions.single { symbols[CoreFunction.RELAXED].symbol in it.overriddenSymbols }
+        val describe = functions.single { symbols[CoreFunction.DESCRIBE].symbol in it.overriddenSymbols }
         val dispatchers = setOf(original, coOriginal, relaxed, describe)
         val (methodsOfAny, declared) = mock.simpleFunctions()
             .filter { it !in dispatchers && it.correspondingPropertySymbol != stateProperty.symbol }
@@ -229,7 +231,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
             isPrimary = true
         }.apply {
             if (delegate != null) addValueParameter("delegate", delegate, MOCK_PARAMETER)
-            addValueParameter("spec", symbols.mockSpec.defaultType, MOCK_PARAMETER)
+            addValueParameter("spec", symbols[CoreClass.MOCK_SPEC].defaultType, MOCK_PARAMETER)
             body = DeclarationIrBuilder(context, symbol, startOffset, endOffset).irBlockBody {
                 +irDelegatingConstructorCall(anyConstructor)
                 +IrInstanceInitializerCallImpl(
@@ -259,7 +261,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
                     MOCK_PARAMETER,
                 ).apply { varargElementType = parameter.varargElementType?.substitute(substitution) }
             }
-        constructor.addValueParameter("spec", symbols.mockSpec.defaultType, MOCK_PARAMETER)
+        constructor.addValueParameter("spec", symbols[CoreClass.MOCK_SPEC].defaultType, MOCK_PARAMETER)
         constructor.body = DeclarationIrBuilder(context, constructor.symbol).irBlockBody {
             +irDelegatingConstructorCall(superConstructor).apply {
                 typeArguments.indices.forEach { index -> typeArguments[index] = superTypeArguments[index] }
@@ -313,7 +315,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
     private fun IrClass.addDescriptor(mockedClass: IrClass, members: List<IrSimpleFunction>): IrField {
         val descriptor = addField {
             name = DESCRIPTOR
-            type = symbols.mockDescriptor.defaultType
+            type = symbols[CoreClass.MOCK_DESCRIPTOR].defaultType
             origin = this@MockClassGenerator.origin
             visibility = DescriptorVisibilities.PRIVATE
             isStatic = true
@@ -322,7 +324,9 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         val keys = members.map { it.memberKeys }
         val aliases = keys.flatMap { memberKeys -> memberKeys.drop(1).flatMap { listOf(it, memberKeys.first()) } }
         val arrays = listOfNotNull(keys.map { it.first() }, aliases.takeIf { it.isNotEmpty() })
-        val constructor = symbols.mockDescriptor.constructors.single { it.parameters.size == arrays.size + 2 }
+        val constructor = symbols[
+            if (aliases.isEmpty()) CoreConstructor.MOCK_DESCRIPTOR else CoreConstructor.MOCK_DESCRIPTOR_WITH_ALIASES
+        ]
         descriptor.markSynthetic()
         descriptor.initializer = DeclarationIrBuilder(context, descriptor.symbol).run {
             irExprBody(
@@ -341,7 +345,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
     private fun IrProperty.implementState(mock: IrClass, isFinal: Boolean): IrField {
         materialize()
         val state = addBackingField {
-            type = symbols.mockState.defaultType
+            type = symbols[CoreClass.MOCK_STATE].defaultType
             this.isFinal = isFinal
         }
         state.markSynthetic()
@@ -369,7 +373,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
     private fun IrClass.addInit(state: IrField, descriptor: IrField, delegate: IrField?) {
         val init = addFunction(INIT.asString(), context.irBuiltIns.unitType, origin = origin)
         val instance = delegate?.let { init.addValueParameter("delegate", it.type, MOCK_PARAMETER) }
-        val spec = init.addValueParameter("spec", symbols.mockSpec.defaultType, MOCK_PARAMETER)
+        val spec = init.addValueParameter("spec", symbols[CoreClass.MOCK_SPEC].defaultType, MOCK_PARAMETER)
         init.markSynthetic()
         init.body = DeclarationIrBuilder(context, init.symbol).irBlockBody {
             val self = init.dispatchReceiverParameter!!
@@ -383,7 +387,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         spec: IrValueDeclaration,
         descriptor: IrField,
     ): IrExpression =
-        irCallConstructor(symbols.mockState.primaryConstructor!!.symbol, emptyList()).apply {
+        irCallConstructor(symbols[CoreConstructor.MOCK_STATE].symbol, emptyList()).apply {
             arguments[0] = irGet(self)
             arguments[1] = irGet(spec)
             arguments[2] = irGetField(null, descriptor)
@@ -415,8 +419,8 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
                 irGet(initialized)
             }
             val answer = when {
-                isSuspend -> irCall(symbols.coAnswer.symbol, returnType, listOf(returnType))
-                else -> irCall(symbols.answer)
+                isSuspend -> irCall(symbols[CoreFunction.CO_ANSWER].symbol, returnType, listOf(returnType))
+                else -> irCall(symbols[CoreFunction.ANSWER])
             }
             answer.arguments[0] = receiver
             answer.arguments[1] = irInt(member)
@@ -444,7 +448,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
             partSize,
             otherwise = { function ->
                 val (member, arguments) = function.nonDispatchParameters
-                irCall(symbols.noOriginal).apply {
+                irCall(symbols[CoreFunction.NO_ORIGINAL]).apply {
                     this.arguments[0] = irGetField(irGet(function.dispatchReceiverParameter!!), state)
                     this.arguments[1] = irGet(member)
                     this.arguments[2] = irGet(arguments)
@@ -506,7 +510,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
             val child = classes.generated[key]
                 ?: generate(key, childUsage, classes, relaxedChildren = true, path + types.type)
             return RelaxedDefault("child ${key.typeKey}") {
-                irCallConstructor(symbols.childMock.primaryConstructor!!.symbol, emptyList()).apply {
+                irCallConstructor(symbols[CoreConstructor.CHILD_MOCK].symbol, emptyList()).apply {
                     arguments[0] = irFactory(symbols, child, types)
                 }
             }
@@ -624,7 +628,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
             startOffset,
             endOffset,
             context.irBuiltIns.nothingType,
-            irCallConstructor(symbols.lokkiException.symbol, emptyList()).apply {
+            irCallConstructor(symbols[CoreConstructor.LOKKI_EXCEPTION].symbol, emptyList()).apply {
                 arguments[0] = irString(message)
                 arguments[1] = irNull()
             },

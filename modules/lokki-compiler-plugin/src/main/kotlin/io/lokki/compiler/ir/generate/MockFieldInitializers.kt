@@ -1,6 +1,8 @@
 package io.lokki.compiler.ir.generate
 
 import io.lokki.compiler.BuildConfig
+import io.lokki.compiler.CoreClass
+import io.lokki.compiler.CoreFunction
 import io.lokki.compiler.INIT_MOCK_FIELDS_NAME
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiPluginKey
@@ -124,8 +126,8 @@ internal class MockFieldInitializers(lokki: LokkiIrContext) {
             else -> superclasses().firstOrNull { it in owners }?.let { initializers.getValue(it).function.symbol }
         }
         if (inherited == null) {
-            function.overriddenSymbols = listOf(superFunction ?: symbols.initMockFields.symbol)
-            if (superFunction == null) superTypes += symbols.mockFieldsOwner.defaultType
+            function.overriddenSymbols = listOf(superFunction ?: symbols[CoreFunction.INIT_MOCK_FIELDS].symbol)
+            if (superFunction == null) superTypes += symbols[CoreClass.MOCK_FIELDS_OWNER].defaultType
         }
         function.annotations = listOf(DeclarationIrBuilder(context, function.symbol).irHidden(symbols, HIDDEN_MESSAGE))
         context.metadataDeclarationRegistrar.registerFunctionAsMetadataVisible(function)
@@ -171,7 +173,7 @@ internal class MockFieldInitializers(lokki: LokkiIrContext) {
                     MockForm.Delegation -> irIfThen(unit, irNotEquals(irGet(current), irNull()), assignment)
                     else -> assignment
                 }
-                +irIfThen(unit, irNotIs(irGet(current), symbols.generatedMock.defaultType), initialization)
+                +irIfThen(unit, irNotIs(irGet(current), symbols[CoreClass.GENERATED_MOCK].defaultType), initialization)
             }
             with(injections) { irInjectMocks(owned, function, self, file, mocks) }
         }

@@ -6,6 +6,7 @@ import io.lokki.compiler.ParameterNames
 import io.lokki.compiler.ir.FileContext
 import io.lokki.compiler.ir.argument
 import io.lokki.compiler.ir.blockCalls
+import io.lokki.compiler.ir.blockStatementCalls
 import io.lokki.compiler.ir.intrinsicKind
 import io.lokki.compiler.ir.links
 import io.lokki.compiler.ir.mockedObjects
@@ -34,16 +35,22 @@ internal class MockClassUsage(
     val relaxedChildren: Boolean,
 )
 
-internal class MockSites(val calls: Map<IrCall, MockSite>, val classes: Map<MockClassKey, MockClassUsage>)
+internal class MockSites(
+    val calls: Map<IrCall, MockSite>,
+    val classes: Map<MockClassKey, MockClassUsage>,
+    val blockStatementCalls: Set<IrCall>,
+)
 
 internal fun FileContext.collectMockSites(): MockSites {
     val collector = MockCollector(this)
     ir.acceptChildrenVoid(collector)
-    return MockSites(collector.calls, collector.usages())
+    return MockSites(collector.calls, collector.usages(), collector.blockStatementCalls)
 }
 
 private class MockCollector(private val file: FileContext) : IrVisitorVoid() {
     val calls = HashMap<IrCall, MockSite>()
+
+    val blockStatementCalls = HashSet<IrCall>()
 
     private val classes = LinkedHashMap<MockClassKey, Usage>()
 
@@ -96,6 +103,7 @@ private class MockCollector(private val file: FileContext) : IrVisitorVoid() {
             else -> emptyList()
         }
         for (redirect in redirected) add(expression, file.mockability.mock(redirect.redirect.defaultType))
+        blockStatementCalls += expression.blockStatementCalls()
         if (file.chainedMocks) {
             for (link in expression.blockCalls().flatMap { it.receiver?.links().orEmpty() }) {
                 file.mockability.child(link.call.type)?.let { add(link.call, it) }

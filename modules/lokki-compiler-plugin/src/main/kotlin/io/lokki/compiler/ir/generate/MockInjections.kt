@@ -1,6 +1,8 @@
 package io.lokki.compiler.ir.generate
 
 import io.lokki.compiler.BuildConfig
+import io.lokki.compiler.CoreConstructor
+import io.lokki.compiler.CoreFunction
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.ir.LokkiIrContext
 import io.lokki.compiler.ir.buildLambda
@@ -151,7 +153,7 @@ internal class MockInjections(lokki: LokkiIrContext) {
         return irBlock(resultType = read.type.makeNotNull()) {
             val value = irTemporary(read, irType = read.type.makeNullable())
             val message = "@InjectMocks: property '${source.name}' for $subject is null or not initialized"
-            val exception = irCallConstructor(symbols.lokkiException.symbol, emptyList()).apply {
+            val exception = irCallConstructor(symbols[CoreConstructor.LOKKI_EXCEPTION].symbol, emptyList()).apply {
                 arguments[0] = irString(message)
             }
             +irIfThen(context.irBuiltIns.unitType, irEqualsNull(irGet(value)), irThrow(exception))
@@ -209,6 +211,6 @@ internal class MockInjections(lokki: LokkiIrContext) {
         val block = context.buildLambda(startOffset, endOffset, context.irBuiltIns.unitType)
         block.parent = parent
         block.body = DeclarationIrBuilder(context, block.symbol, startOffset, endOffset).irBlockBody(body = body)
-        return irCompanionCall(symbols.withoutStateChanges, block)
+        return irCompanionCall(symbols[CoreFunction.WITHOUT_STATE_CHANGES], block)
     }
 }
