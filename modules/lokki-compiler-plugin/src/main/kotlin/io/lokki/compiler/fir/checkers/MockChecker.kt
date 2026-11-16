@@ -2,22 +2,17 @@ package io.lokki.compiler.fir.checkers
 
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiDiagnostics
+import io.lokki.compiler.fir.classifier
 import io.lokki.compiler.fir.displayName
+import io.lokki.compiler.fir.fieldKind
 import io.lokki.compiler.fir.filePackage
 import io.lokki.compiler.fir.intrinsicKind
 import io.lokki.compiler.fir.isFinalType
 import io.lokki.compiler.fir.isFromFriendKotlinModule
 import io.lokki.compiler.fir.isVisibleToMock
+import io.lokki.compiler.linked
 import org.jetbrains.kotlin.KtRealSourceElementKind
 import org.jetbrains.kotlin.KtSourceElement
-import org.jetbrains.kotlin.fir.analysis.checkers.declaration.FirPropertyChecker
-import org.jetbrains.kotlin.fir.analysis.checkers.declaration.FirValueParameterChecker
-import org.jetbrains.kotlin.fir.declarations.FirProperty
-import org.jetbrains.kotlin.fir.declarations.FirValueParameter
-import org.jetbrains.kotlin.fir.declarations.findArgumentByName
-import org.jetbrains.kotlin.fir.declarations.toAnnotationClassLikeSymbol
-import org.jetbrains.kotlin.fir.declarations.utils.correspondingValueParameterFromPrimaryConstructor
-import io.lokki.compiler.fir.fieldKind
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Visibilities
@@ -27,14 +22,21 @@ import org.jetbrains.kotlin.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.analysis.checkers.MppCheckerKind
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
+import org.jetbrains.kotlin.fir.analysis.checkers.declaration.FirPropertyChecker
+import org.jetbrains.kotlin.fir.analysis.checkers.declaration.FirValueParameterChecker
 import org.jetbrains.kotlin.fir.analysis.checkers.declaredMemberScope
 import org.jetbrains.kotlin.fir.analysis.checkers.expression.FirFunctionCallChecker
 import org.jetbrains.kotlin.fir.analysis.checkers.unsubstitutedScope
 import org.jetbrains.kotlin.fir.canSeeInternalsOf
+import org.jetbrains.kotlin.fir.declarations.FirProperty
 import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
+import org.jetbrains.kotlin.fir.declarations.FirValueParameter
+import org.jetbrains.kotlin.fir.declarations.findArgumentByName
 import org.jetbrains.kotlin.fir.declarations.getStringArgument
 import org.jetbrains.kotlin.fir.declarations.getTargetType
 import org.jetbrains.kotlin.fir.declarations.toAnnotationClassId
+import org.jetbrains.kotlin.fir.declarations.toAnnotationClassLikeSymbol
+import org.jetbrains.kotlin.fir.declarations.utils.correspondingValueParameterFromPrimaryConstructor
 import org.jetbrains.kotlin.fir.declarations.utils.isAbstract
 import org.jetbrains.kotlin.fir.declarations.utils.isFinal
 import org.jetbrains.kotlin.fir.declarations.utils.isInlineOrValue
@@ -56,6 +58,7 @@ import org.jetbrains.kotlin.fir.resolve.scope
 import org.jetbrains.kotlin.fir.resolve.substitution.substitutorByMap
 import org.jetbrains.kotlin.fir.resolve.toRegularClassSymbol
 import org.jetbrains.kotlin.fir.resolve.toSymbol
+import org.jetbrains.kotlin.fir.resolve.toTypeParameterSymbol
 import org.jetbrains.kotlin.fir.scopes.CallableCopyTypeCalculator
 import org.jetbrains.kotlin.fir.scopes.firOverrideChecker
 import org.jetbrains.kotlin.fir.scopes.getDeclaredConstructors
@@ -95,7 +98,10 @@ import org.jetbrains.kotlin.types.AbstractTypeChecker
 
 internal object MockChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
     context(context: CheckerContext, reporter: DiagnosticReporter)
-    override fun check(expression: FirFunctionCall) {
+    override fun check(expression: FirFunctionCall) = linked { inspect(expression) }
+
+    context(context: CheckerContext, reporter: DiagnosticReporter)
+    private fun inspect(expression: FirFunctionCall) {
         val function = expression.calleeReference.toResolvedCallableSymbol() ?: return
         val kind = function.intrinsicKind(context.session)
         if (kind != IntrinsicKind.MOCK && kind != IntrinsicKind.SPY) return
@@ -115,7 +121,10 @@ internal object MockChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
 
 internal object MockPropertyChecker : FirPropertyChecker(MppCheckerKind.Common) {
     context(context: CheckerContext, reporter: DiagnosticReporter)
-    override fun check(declaration: FirProperty) {
+    override fun check(declaration: FirProperty) = linked { inspect(declaration) }
+
+    context(context: CheckerContext, reporter: DiagnosticReporter)
+    private fun inspect(declaration: FirProperty) {
         val session = context.session
         val annotations = declaration.annotations.filter { it.fieldKind(session) != null }
         val inject = annotations.find { it.fieldKind(session) == IntrinsicKind.INJECT_MOCKS }
@@ -169,7 +178,10 @@ internal object MockPropertyChecker : FirPropertyChecker(MppCheckerKind.Common) 
 
 internal object MockParameterChecker : FirValueParameterChecker(MppCheckerKind.Common) {
     context(context: CheckerContext, reporter: DiagnosticReporter)
-    override fun check(declaration: FirValueParameter) {
+    override fun check(declaration: FirValueParameter) = linked { inspect(declaration) }
+
+    context(context: CheckerContext, reporter: DiagnosticReporter)
+    private fun inspect(declaration: FirValueParameter) {
         val session = context.session
         val annotation = declaration.annotations.find { it.fieldKind(session) != null } ?: return
         val name = annotation.toAnnotationClassLikeSymbol(session)!!.name.asString()
@@ -195,7 +207,7 @@ private fun MockedType.check(interfaces: () -> List<Pair<FirExpression, ConeClas
             LokkiDiagnostics.LOKKI_TYPE_ARGUMENT_NOT_CONCRETE,
             subject,
             dsl,
-            "'${type.lookupTag.name}' is a type parameter",
+            "'${type.classifier.name}' is a type parameter",
         )
         return false
     }
@@ -265,7 +277,7 @@ internal fun ConeKotlinType.childMockProblem(): Pair<String, String>? {
         is ConeDefinitelyNotNullType -> expanded.original
         else -> expanded
     }
-    if (type is ConeTypeParameterType) return type.lookupTag.name.asString() to "it is a type parameter"
+    if (type is ConeTypeParameterType) return type.classifier.name.asString() to "it is a type parameter"
     val mocked = type.toRegularClassSymbol(context.session) ?: return type.renderReadable() to "it is not a class"
     val reason = mocked.notMockableReason()
         ?: (type as? ConeClassLikeType)?.irreplaceableStarProjection(mocked)
@@ -344,12 +356,13 @@ private fun FirRegularClassSymbol.unforwardableMembers(): List<String> {
     return members.toList()
 }
 
+context(context: CheckerContext)
 private fun ConeClassLikeType.irreplaceableStarProjection(mocked: FirRegularClassSymbol): String? {
     val stars = mocked.typeParameterSymbols.filterIndexed { index, _ -> typeArguments.getOrNull(index) is ConeStarProjection }
     val parameter = stars.firstOrNull { star ->
         val bounds = star.resolvedBounds
         bounds.size > 1 ||
-            bounds.single().coneType.contains { it is ConeTypeParameterType && it.lookupTag.typeParameterSymbol in stars }
+            bounds.single().coneType.contains { it.toTypeParameterSymbol(context.session) in stars }
     } ?: return null
     return "the star projection for '${parameter.name}' cannot be replaced with the upper bound of '${parameter.name}'. " +
         "Specify the type argument"
@@ -448,7 +461,7 @@ private fun ConeKotlinType.erasedClasses(): List<ConeClassLikeType> =
             else -> listOf(type)
         }
         is ConeTypeParameterType ->
-            type.lookupTag.typeParameterSymbol.resolvedBounds.flatMap { it.coneType.erasedClasses() }
+            type.toTypeParameterSymbol(context.session)?.resolvedBounds.orEmpty().flatMap { it.coneType.erasedClasses() }
         is ConeDefinitelyNotNullType -> type.original.erasedClasses()
         else -> emptyList()
     }
@@ -518,7 +531,7 @@ private fun interfaces(
         val target = (element as? FirGetClassCall)?.getTargetType()?.fullyExpandedType()
         val notConcrete = when (target) {
             null -> "it is not a class literal such as 'Closeable::class'"
-            is ConeTypeParameterType -> "'${target.lookupTag.name}' is a type parameter"
+            is ConeTypeParameterType -> "'${target.classifier.name}' is a type parameter"
             else -> null
         }
         if (notConcrete != null) {

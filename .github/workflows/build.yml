@@ -26,3 +26,38 @@ jobs:
         if: success() || failure()
         with:
           report_paths: '**/build/test-results/*/TEST-*.xml'
+
+  kotlin:
+    runs-on: macos-latest
+    name: Kotlin ${{ matrix.kotlin }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - kotlin: '2.4.0'
+          - kotlin: '2.4.10'
+          - kotlin: '2.4.21'
+            compiler-tests: true
+          - kotlin: '2.5.0-RC'
+            compiler-tests: true
+
+    env:
+      KOTLIN: ${{ matrix.kotlin }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew -p integration-testing check --continue -Plokki.kotlin="$KOTLIN"
+      - if: matrix.compiler-tests
+        run: ./gradlew :compiler-tests:test --continue -Plokki.kotlin="$KOTLIN"
+
+      - uses: mikepenz/action-junit-report@v5
+        if: success() || failure()
+        with:
+          report_paths: '**/build/test-results/*/TEST-*.xml'

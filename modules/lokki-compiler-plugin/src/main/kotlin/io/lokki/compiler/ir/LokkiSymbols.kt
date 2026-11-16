@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.ir.util.companionObject
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.erasedUpperBound
 import org.jetbrains.kotlin.ir.util.functions
+import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.util.primaryConstructor
 import org.jetbrains.kotlin.ir.util.properties
 import org.jetbrains.kotlin.name.CallableId
@@ -131,14 +132,15 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
     val jvmDefaultWithoutCompatibility by lazy {
         finder.findConstructors(ClassId(JVM_PACKAGE, Name.identifier("JvmDefaultWithoutCompatibility"))).single()
     }
-    val deprecated by lazy { finder.findConstructors(ClassId(KOTLIN_PACKAGE, Name.identifier("Deprecated"))).single() }
+    val deprecated by lazy { finder.findConstructors(DEPRECATED).single() }
     val hiddenDeprecation by lazy {
         finder.findClass(ClassId(KOTLIN_PACKAGE, Name.identifier("DeprecationLevel")))!!.owner
             .declarations.filterIsInstance<IrEnumEntry>().single { it.name.asString() == "HIDDEN" }
     }
     val apply by lazy { finder.findFunctions(CallableId(KOTLIN_PACKAGE, Name.identifier("apply"))).single() }
     val javaClass by lazy {
-        finder.findProperties(CallableId(JVM_PACKAGE, Name.identifier("java"))).single().owner.getter!!
+        finder.findProperties(CallableId(JVM_PACKAGE, Name.identifier("java")))
+            .single { !it.owner.hasAnnotation(DEPRECATED) }.owner.getter!!
     }
 
     fun verificationOf(calls: IrClass): IrConstructor =
@@ -177,6 +179,7 @@ private val IrFunction.firstParameterClass: IrClass?
     get() = parameters.firstOrNull { it.kind == IrParameterKind.Regular }?.type?.erasedUpperBound
 
 private val KOTLIN_PACKAGE = FqName("kotlin")
+private val DEPRECATED = ClassId(KOTLIN_PACKAGE, Name.identifier("Deprecated"))
 private val COLLECTIONS_PACKAGE = FqName("kotlin.collections")
 private val SEQUENCES_PACKAGE = FqName("kotlin.sequences")
 private val JAVA_UTIL_PACKAGE = FqName("java.util")

@@ -1,6 +1,7 @@
 package io.lokki.compiler.fir
 
 import io.lokki.compiler.BuildConfig
+import io.lokki.compiler.INTERCEPTION_POINTS_KOTLIN
 import io.lokki.compiler.InterceptionMark
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
@@ -9,7 +10,6 @@ import org.jetbrains.kotlin.fir.declarations.utils.compilerPluginMetadata
 import org.jetbrains.kotlin.fir.declarations.utils.isConst
 import org.jetbrains.kotlin.fir.declarations.utils.isInline
 import org.jetbrains.kotlin.fir.declarations.utils.isLateInit
-import org.jetbrains.kotlin.fir.declarations.utils.isMethodOfAny
 import org.jetbrains.kotlin.fir.moduleData
 import org.jetbrains.kotlin.fir.resolve.getContainingClassSymbol
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
@@ -38,8 +38,8 @@ internal fun FirRegularClassSymbol.interceptionProblem(): String? {
         InterceptionMark.CURRENT -> null
         InterceptionMark.OTHER_FORMAT ->
             "has interception points of another version of lokki: rebuild the module that declares it"
-        InterceptionMark.ABSENT ->
-            "has no interception points: add it or its package to lokki { mockable(...) } of the module that " +
+        InterceptionMark.ABSENT -> missingInterceptionPoints()
+            ?: "has no interception points: add it or its package to lokki { mockable(...) } of the module that " +
                 "declares it"
     }
 }
@@ -51,7 +51,7 @@ internal fun FirCallableSymbol<*>.objectInterception(): MemberInterception {
     val reason = when {
         this is FirPropertySymbol && isConst -> "it is a constant, which is inlined at compile time"
         this is FirPropertySymbol && isLateInit -> "it is a lateinit property, whose getter lokki does not intercept"
-        this is FirNamedFunctionSymbol && isMethodOfAny -> "it is a member of 'Any'"
+        this is FirNamedFunctionSymbol && isMemberOfAny -> "it is a member of 'Any'"
         else -> owner.interceptionProblem()?.let { "'${owner.displayName}' $it" }
     }
     return when {
@@ -83,13 +83,18 @@ internal fun FirCallableSymbol<*>.staticInterception(): MemberInterception {
             InterceptionMark.CURRENT -> null
             InterceptionMark.OTHER_FORMAT ->
                 "it has interception points of another version of lokki: rebuild the module that declares it"
-            InterceptionMark.ABSENT ->
-                "it has no interception points: add it, its file or its package to lokki { mockable(...) } of the " +
-                    "module that declares it"
+            InterceptionMark.ABSENT -> missingInterceptionPoints()?.let { "it $it" }
+                ?: "it has no interception points: add it, its file or its package to lokki { mockable(...) } of " +
+                    "the module that declares it"
         }
     }
     return reason?.let(MemberInterception::NotIntercepted) ?: MemberInterception.Intercepted
 }
+
+context(context: CheckerContext)
+private fun missingInterceptionPoints(): String? =
+    "has no interception points: lokki generates them on Kotlin $INTERCEPTION_POINTS_KOTLIN or newer"
+        .takeUnless { context.session.compilerCapabilities.interceptionPoints }
 
 @OptIn(SymbolInternals::class)
 private fun FirBasedSymbol<*>.mark(): InterceptionMark =

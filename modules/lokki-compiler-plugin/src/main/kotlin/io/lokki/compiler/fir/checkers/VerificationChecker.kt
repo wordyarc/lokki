@@ -5,6 +5,7 @@ import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.REF_EQ_MATCHERS
 import io.lokki.compiler.WITH_ARG_MATCHERS
 import io.lokki.compiler.fir.intrinsicKind
+import io.lokki.compiler.linked
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.analysis.checkers.MppCheckerKind
@@ -39,7 +40,10 @@ import org.jetbrains.kotlin.util.OperatorNameConventions
 
 internal object VerificationChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
     context(context: CheckerContext, reporter: DiagnosticReporter)
-    override fun check(expression: FirFunctionCall) {
+    override fun check(expression: FirFunctionCall) = linked { inspect(expression) }
+
+    context(context: CheckerContext, reporter: DiagnosticReporter)
+    private fun inspect(expression: FirFunctionCall) {
         val function = expression.calleeReference.toResolvedCallableSymbol() ?: return
         val name = function.name.asString()
         when (function.intrinsicKind(context.session)) {

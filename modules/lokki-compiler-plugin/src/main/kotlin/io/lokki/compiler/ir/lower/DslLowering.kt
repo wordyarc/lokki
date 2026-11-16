@@ -2,6 +2,7 @@ package io.lokki.compiler.ir.lower
 
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiDiagnostics
+import io.lokki.compiler.compat.CompilerCompat
 import io.lokki.compiler.ir.LokkiSymbols
 import io.lokki.compiler.ir.ObjectRedirect
 import io.lokki.compiler.ir.Redirect
@@ -11,8 +12,10 @@ import io.lokki.compiler.ir.collect.MockedTypes
 import io.lokki.compiler.ir.irArrayOf
 import io.lokki.compiler.ir.irVararg
 import io.lokki.compiler.ir.mockedObjects
+import io.lokki.compiler.ir.referencedDeclaration
 import io.lokki.compiler.ir.staticReferences
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
+import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.declarations.addValueParameter
 import org.jetbrains.kotlin.ir.builders.declarations.buildFun
 import org.jetbrains.kotlin.ir.builders.irAs
@@ -21,8 +24,6 @@ import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.builders.irGetObjectValue
 import org.jetbrains.kotlin.ir.builders.irString
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
-import org.jetbrains.kotlin.ir.declarations.IrDeclarationWithName
-import org.jetbrains.kotlin.ir.expressions.IrCallableReference
 import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.expressions.impl.IrFunctionExpressionImpl
 import org.jetbrains.kotlin.ir.types.makeNullable
@@ -60,10 +61,12 @@ import org.jetbrains.kotlin.ir.builders.irInt
 import org.jetbrains.kotlin.ir.builders.irNull
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrFile
+import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrFunctionReference
+import org.jetbrains.kotlin.ir.expressions.IrRichFunctionReference
 import org.jetbrains.kotlin.ir.types.typeWith
 import org.jetbrains.kotlin.ir.util.primaryConstructor
 
@@ -73,6 +76,7 @@ internal class DslLowering(
     private val file: IrFile,
     private val mocks: Map<MockClassKey, IrClass>,
     private val redirects: Redirects,
+    private val compat: CompilerCompat,
 ) : IrElementTransformerVoidWithContext() {
     private val instances = MockInstances(context, symbols)
     private val stubBlocks = StubBlockLowering(context, symbols, file, mocks, instances, redirects, ::unsupported)
@@ -111,12 +115,23 @@ internal class DslLowering(
         }
     }
 
-    override fun visitFunctionReference(expression: IrFunctionReference): IrExpression {
-        val function = expression.symbol.owner
-        if (function.intrinsicKind !in REFERABLE) {
-            unsupported(expression, "'${function.name}' must be called directly: a reference to it is not supported")
+    override fun visitFunctionNew(declaration: IrFunction): IrStatement =
+        when (declaration.origin) {
+            IrDeclarationOrigin.ADAPTER_FOR_CALLABLE_REFERENCE -> declaration
+            else -> super.visitFunctionNew(declaration)
         }
-        return super.visitFunctionReference(expression)
+
+    override fun visitFunctionReference(expression: IrFunctionReference): IrExpression =
+        if (expression.checkReferable()) super.visitFunctionReference(expression) else expression
+
+    override fun visitRichFunctionReference(expression: IrRichFunctionReference): IrExpression =
+        if (expression.checkReferable()) super.visitRichFunctionReference(expression) else expression
+
+    private fun IrExpression.checkReferable(): Boolean {
+        val function = referencedDeclaration as? IrFunction ?: return true
+        if (function.intrinsicKind in REFERABLE) return true
+        unsupported(this, "'${function.name}' must be called directly: a reference to it is not supported")
+        return false
     }
 
     private fun lowerMock(call: IrCall): IrExpression {
@@ -231,7 +246,7 @@ internal class DslLowering(
             ?: return null.also { unsupported(this, "Pass references to '$name' directly, not as a spread array") }
         return references.map { reference ->
             redirects.static(reference) ?: return null.also {
-                val target = ((reference as? IrCallableReference<*>)?.symbol?.owner as? IrDeclarationWithName)?.name
+                val target = reference.referencedDeclaration?.name
                 val reason = when (target) {
                     null -> "An argument of '$name' must be an unbound reference like '::f'"
                     else -> "'$target' is not an unbound reference to a top-level function or property with " +
@@ -295,7 +310,8 @@ internal class DslLowering(
     }
 
     private fun unsupported(element: IrElement, reason: String) {
-        context.diagnosticReporter.at(element, file).report(LokkiDiagnostics.LOKKI_UNSUPPORTED, reason)
+        compat.diagnosticContext(context.diagnosticReporter, element, file)
+            .report(LokkiDiagnostics.LOKKI_UNSUPPORTED, reason)
     }
 }
 

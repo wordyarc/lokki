@@ -3,11 +3,13 @@ package io.lokki.compiler
 import org.jetbrains.kotlin.diagnostics.KtDiagnosticFactoryToRendererMap
 import org.jetbrains.kotlin.diagnostics.KtDiagnosticRenderers
 import org.jetbrains.kotlin.diagnostics.KtDiagnosticsContainer
+import org.jetbrains.kotlin.diagnostics.Severity
+import org.jetbrains.kotlin.diagnostics.SourcelessDiagnosticFactoryDelegateProvider
 import org.jetbrains.kotlin.diagnostics.error0
 import org.jetbrains.kotlin.diagnostics.error1
 import org.jetbrains.kotlin.diagnostics.error2
 import org.jetbrains.kotlin.diagnostics.error3
-import org.jetbrains.kotlin.diagnostics.infoWithoutSource
+import org.jetbrains.kotlin.diagnostics.errorWithoutSource
 import org.jetbrains.kotlin.diagnostics.rendering.BaseDiagnosticRendererFactory
 import org.jetbrains.kotlin.diagnostics.rendering.CommonRenderers
 import org.jetbrains.kotlin.diagnostics.warning0
@@ -51,7 +53,8 @@ internal object LokkiDiagnostics : KtDiagnosticsContainer() {
     val LOKKI_OBJECT_NOT_INTERCEPTABLE by error2<KtElement, String, String>()
     val LOKKI_REFERENCE_NOT_LITERAL by error1<KtElement, String>()
     val LOKKI_RUNTIME_TOO_OLD by error0<KtElement>()
-    val LOKKI_DEBUG by infoWithoutSource()
+    val LOKKI_DEBUG by SourcelessDiagnosticFactoryDelegateProvider(Severity.INFO, this)
+    val LOKKI_CANNOT_START by errorWithoutSource()
 
     override fun getRendererFactory(): BaseDiagnosticRendererFactory = LokkiDiagnosticRenderers
 }
@@ -265,5 +268,6 @@ private object LokkiDiagnosticRenderers : BaseDiagnosticRendererFactory() {
                 "use the version of the lokki Gradle plugin for all io.lokki dependencies.",
         )
         map.put(LokkiDiagnostics.LOKKI_DEBUG, "{0}")
+        map.put(LokkiDiagnostics.LOKKI_CANNOT_START, "{0}")
     }
 }

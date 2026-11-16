@@ -73,6 +73,7 @@ internal class MockField(
 
 internal val IrProperty.mockField: MockField?
     get() {
+        if (isFakeOverride) return null
         val kinds = annotations.mapNotNull { annotation ->
             annotation.annotationKind?.takeIf { it in FIELD_KINDS }?.let { annotation to it }
         }

@@ -8,19 +8,23 @@ import io.lokki.compiler.COMPOSITE_MATCHERS
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.ORDERED_VERIFY_BLOCKS
+import io.lokki.compiler.fir.MemberInterception
 import io.lokki.compiler.fir.displayName
 import io.lokki.compiler.fir.intrinsicKind
-import io.lokki.compiler.fir.MemberInterception
 import io.lokki.compiler.fir.isFinalType
+import io.lokki.compiler.fir.isMemberOfAny
 import io.lokki.compiler.fir.objectInterception
 import io.lokki.compiler.fir.staticInterception
+import io.lokki.compiler.linked
 import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.KtSourceElement
+import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.KtDiagnosticFactory0
 import org.jetbrains.kotlin.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.FirElement
+import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.analysis.checkers.MppCheckerKind
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.analysis.checkers.expression.FirFunctionCallChecker
@@ -29,7 +33,6 @@ import org.jetbrains.kotlin.fir.declarations.FirAnonymousFunction
 import org.jetbrains.kotlin.fir.declarations.FirNamedFunction
 import org.jetbrains.kotlin.fir.declarations.FirRegularClass
 import org.jetbrains.kotlin.fir.declarations.utils.isInline
-import org.jetbrains.kotlin.fir.declarations.utils.isMethodOfAny
 import org.jetbrains.kotlin.fir.declarations.utils.isOperator
 import org.jetbrains.kotlin.fir.declarations.utils.isStatic
 import org.jetbrains.kotlin.fir.declarations.utils.modality
@@ -72,6 +75,7 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirLocalPropertySymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirValueParameterSymbol
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.fir.types.coneType
@@ -85,7 +89,10 @@ import org.jetbrains.kotlin.util.OperatorNameConventions
 
 internal object StubBlockChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
     context(context: CheckerContext, reporter: DiagnosticReporter)
-    override fun check(expression: FirFunctionCall) {
+    override fun check(expression: FirFunctionCall) = linked { inspect(expression) }
+
+    context(context: CheckerContext, reporter: DiagnosticReporter)
+    private fun inspect(expression: FirFunctionCall) {
         val function = expression.calleeReference.toResolvedCallableSymbol() as? FirFunctionSymbol<*> ?: return
         val mode = when (function.intrinsicKind(context.session)) {
             IntrinsicKind.STUB_BLOCK -> BlockMode.STUB
@@ -272,7 +279,7 @@ private class StubBlock(
         }
         when {
             reason != null -> notInterceptable(call, callee, reason)
-            notRecorded != null && callee is FirNamedFunctionSymbol && callee.isMethodOfAny -> reporter.reportOn(
+            notRecorded != null && callee is FirNamedFunctionSymbol && callee.isMemberOfAny -> reporter.reportOn(
                 call.calleeReference.source ?: call.source,
                 notRecorded,
                 callee.name.asString(),
@@ -298,7 +305,7 @@ private class StubBlock(
         if (matchers.isEmpty()) return matchers
         val callee = link.calleeReference.toResolvedCallableSymbol() ?: return matchers
         val reason = notInterceptableReason(callee, link.dispatchReceiver!!)
-            ?: "it is a member of 'Any'".takeIf { callee is FirNamedFunctionSymbol && callee.isMethodOfAny }
+            ?: "it is a member of 'Any'".takeIf { callee is FirNamedFunctionSymbol && callee.isMemberOfAny }
         if (reason != null) {
             notInterceptable(link, callee, reason)
             return matchers
@@ -355,9 +362,9 @@ private class StubBlock(
                     val name = callee?.name?.asString()
                     when {
                         callee?.callableId?.classId == CAPTURING_SLOT && name in SLOT_READS ->
-                            element.dispatchReceiver?.slotPath()?.let { reads += element to it }
+                            element.dispatchReceiver?.slotPath(session)?.let { reads += element to it }
                         name in CAPTURE_MATCHERS && callee?.intrinsicKind(session) == IntrinsicKind.MATCHER ->
-                            (element as? FirFunctionCall)?.arguments?.singleOrNull()?.slotPath()?.let(captured::add)
+                            (element as? FirFunctionCall)?.arguments?.singleOrNull()?.slotPath(session)?.let(captured::add)
                     }
                 }
                 element.acceptChildren(this)
@@ -542,17 +549,20 @@ private fun FirExpression.links(): List<FirQualifiedAccessExpression> =
         else -> emptyList()
     }
 
-private fun FirExpression.slotPath(): List<FirBasedSymbol<*>>? =
+private fun FirExpression.slotPath(session: FirSession): List<FirBasedSymbol<*>>? =
     when (val expression = unwrapArgument().unwrapSmartcastExpression()) {
         is FirThisReceiverExpression -> expression.calleeReference.boundSymbol?.let(::listOf)
-        is FirResolvedQualifier -> expression.accessedObjectSymbol?.let(::listOf)
+        is FirResolvedQualifier -> expression.accessedObject(session)?.let(::listOf)
         is FirPropertyAccessExpression -> {
             val symbol = expression.calleeReference.toResolvedCallableSymbol() ?: return null
             val receivers = listOfNotNull(expression.dispatchReceiver, expression.extensionReceiver)
-            receivers.flatMap { it.slotPath() ?: return null } + symbol
+            receivers.flatMap { it.slotPath(session) ?: return null } + symbol
         }
         else -> null
     }
+
+private fun FirExpression.accessedObject(session: FirSession): FirRegularClassSymbol? =
+    resolvedType.toRegularClassSymbol(session)?.takeIf { it.classKind == ClassKind.OBJECT }
 
 private class ImplicitReceiver(val type: ConeKotlinType, val label: String)
 

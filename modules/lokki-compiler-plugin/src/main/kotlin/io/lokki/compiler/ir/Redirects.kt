@@ -16,8 +16,6 @@ import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
-import org.jetbrains.kotlin.ir.expressions.IrFunctionReference
-import org.jetbrains.kotlin.ir.expressions.IrPropertyReference
 import org.jetbrains.kotlin.ir.expressions.IrVararg
 import org.jetbrains.kotlin.ir.types.classFqName
 import org.jetbrains.kotlin.ir.types.classOrNull
@@ -40,11 +38,8 @@ internal class Redirects(private val context: IrPluginContext) {
     fun of(argument: IrExpression): ObjectRedirect? = argument.type.classOrNull?.owner?.let(::of)
 
     fun static(reference: IrExpression): StaticRedirect? =
-        when {
-            reference is IrFunctionReference && reference.arguments.all { it == null } ->
-                (reference.symbol.owner as? IrSimpleFunction)?.let(::static)
-            reference is IrPropertyReference && reference.arguments.all { it == null } ->
-                static(reference.symbol.owner)
+        when (val target = reference.referencedDeclaration.takeIf { reference.isUnboundReference }) {
+            is IrSimpleFunction, is IrProperty -> static(target)
             else -> null
         }
 

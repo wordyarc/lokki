@@ -93,18 +93,20 @@ private fun Project.checkKotlinVersion() {
 
 private fun Project.checkKotlinVersion(version: String) {
     val used = version.toKotlinVersion() ?: return
-    val supported = checkNotNull(BuildConfig.KOTLIN_VERSION.toKotlinVersion())
-    if (used < supported) {
+    val oldest = checkNotNull(BuildConfig.MIN_KOTLIN_VERSION.toKotlinVersion())
+    val latest = checkNotNull(BuildConfig.LATEST_TESTED_KOTLIN.toKotlinVersion())
+    if (used < oldest) {
         throw GradleException(
-            "lokki ${BuildConfig.VERSION} requires Kotlin ${BuildConfig.KOTLIN_VERSION}, but the build uses Kotlin " +
-                "$version: the lokki compiler plugin uses the compiler API of Kotlin ${BuildConfig.KOTLIN_VERSION}."
+            "lokki ${BuildConfig.VERSION} requires Kotlin ${BuildConfig.MIN_KOTLIN_VERSION} or newer, but the build " +
+                "uses Kotlin $version: the lokki compiler plugin has no adapter to its compiler API."
         )
     }
-    if (used > supported && providers.gradleProperty(KOTLIN_COMPATIBILITY_NOWARN).orNull?.toBoolean() != true) {
+    if (used > latest && providers.gradleProperty(KOTLIN_COMPATIBILITY_NOWARN).orNull?.toBoolean() != true) {
         logger.warn(
-            "lokki ${BuildConfig.VERSION} is built for Kotlin ${BuildConfig.KOTLIN_VERSION}, but the build uses " +
-                "Kotlin $version: if the lokki compiler plugin fails, use Kotlin ${BuildConfig.KOTLIN_VERSION} or a " +
-                "newer lokki. To disable this warning, set $KOTLIN_COMPATIBILITY_NOWARN=true in gradle.properties."
+            "lokki ${BuildConfig.VERSION} is tested with Kotlin up to ${BuildConfig.LATEST_TESTED_KOTLIN}, but the " +
+                "build uses Kotlin $version: if the lokki compiler plugin fails, use Kotlin " +
+                "${BuildConfig.LATEST_TESTED_KOTLIN} or a newer lokki. To disable this warning, set " +
+                "$KOTLIN_COMPATIBILITY_NOWARN=true in gradle.properties."
         )
     }
 }

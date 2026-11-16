@@ -5,7 +5,9 @@ import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.JUST_AWAIT_BLOCK
 import io.lokki.compiler.JUST_RUN_BLOCKS
 import io.lokki.compiler.LokkiDiagnostics
+import io.lokki.compiler.fir.classifier
 import io.lokki.compiler.fir.intrinsicKind
+import io.lokki.compiler.linked
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.FirElement
@@ -49,7 +51,10 @@ import org.jetbrains.kotlin.fir.visitors.FirVisitorVoid
 
 internal object StubAnswerChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
     context(context: CheckerContext, reporter: DiagnosticReporter)
-    override fun check(expression: FirFunctionCall) {
+    override fun check(expression: FirFunctionCall) = linked { inspect(expression) }
+
+    context(context: CheckerContext, reporter: DiagnosticReporter)
+    private fun inspect(expression: FirFunctionCall) {
         val function = expression.calleeReference.toResolvedCallableSymbol() ?: return
         val name = function.name.asString()
         when (function.intrinsicKind(context.session)) {
@@ -195,7 +200,7 @@ private fun FirFunctionCall.returnsResultOf(lambda: FirAnonymousFunction): Boole
         ?.find { (argument, _) -> (argument.unwrapArgument() as? FirAnonymousFunctionExpression)?.anonymousFunction === lambda }
         ?.value
     val returned = parameter?.returnTypeRef?.coneType?.typeArguments?.lastOrNull()?.type as? ConeTypeParameterType
-    return returned?.lookupTag == result.lookupTag
+    return returned?.classifier == result.classifier
 }
 
 private const val RETURNS_ARGUMENT = "returnsArgument"

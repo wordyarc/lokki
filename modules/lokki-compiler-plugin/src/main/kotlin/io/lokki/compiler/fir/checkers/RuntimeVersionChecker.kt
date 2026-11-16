@@ -4,6 +4,7 @@ import io.lokki.compiler.BuildConfig
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.fir.intrinsicKind
+import io.lokki.compiler.linked
 import org.jetbrains.kotlin.KtSourceElement
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.reportOn
@@ -24,7 +25,10 @@ import org.jetbrains.kotlin.name.Name
 
 internal object RuntimeVersionChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
     context(context: CheckerContext, reporter: DiagnosticReporter)
-    override fun check(expression: FirFunctionCall) {
+    override fun check(expression: FirFunctionCall) = linked { inspect(expression) }
+
+    context(context: CheckerContext, reporter: DiagnosticReporter)
+    private fun inspect(expression: FirFunctionCall) {
         val function = expression.calleeReference.toResolvedCallableSymbol() ?: return
         if (function.intrinsicKind(context.session) in ENTRY_POINTS) checkRuntimeVersion(expression.source)
     }

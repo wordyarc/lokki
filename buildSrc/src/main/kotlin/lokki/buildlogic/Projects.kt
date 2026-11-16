@@ -15,7 +15,7 @@ const val LOKKI_ABI_VERSION = 1
 private val withoutPublicApi = setOf("compiler-tests", "lokki-compiler-plugin")
 
 internal val Project.abiCheckEnabled: Boolean
-    get() = name !in withoutPublicApi
+    get() = name !in withoutPublicApi && !path.startsWith(COMPILER_COMPAT_PROJECT)
 
 val Project.functionalTestRepository: Provider<Directory>
     get() = layout.buildDirectory.dir("functional-test-repository")

@@ -7,6 +7,8 @@ internal val REDIRECT = Name.identifier("LokkiRedirect")
 internal val REDIRECT_PROPERTY = Name.identifier("lokki\$redirect")
 internal const val FILE_REDIRECT_SUFFIX = "\$LokkiRedirect"
 
+internal const val INTERCEPTION_POINTS_KOTLIN = "2.4.20"
+
 internal val INTERCEPTION_MARK = byteArrayOf(1)
 
 internal enum class InterceptionMark {

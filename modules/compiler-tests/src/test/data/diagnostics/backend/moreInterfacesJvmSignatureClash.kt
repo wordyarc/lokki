@@ -1,5 +1,3 @@
-// RUN_PIPELINE_TILL: BACKEND
-
 package sample
 
 import io.lokki.mock

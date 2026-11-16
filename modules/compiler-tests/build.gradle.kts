@@ -36,6 +36,7 @@ val kotlinxCoroutinesClasspath = configurations.resolvable("kotlinxCoroutinesCla
 
 dependencies {
     testFixturesApi(project(":lokki-compiler-plugin"))
+    testFixturesApi(platform(libs.junit.bom))
     testFixturesApi(libs.kotlin.test.junit5)
     testFixturesApi(libs.kotlin.test.framework)
     testFixturesApi(libs.kotlin.compiler)

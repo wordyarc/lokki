@@ -2,11 +2,30 @@ package io.lokki.gradle
 
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
+import org.junit.jupiter.api.Assumptions
 import java.io.File
 import java.net.URLClassLoader
 
 val KOTLIN_VERSION: String = System.getProperty("lokki.test.kotlinVersion")
+val MIN_KOTLIN_VERSION: String = System.getProperty("lokki.test.minKotlinVersion")
+val LATEST_TESTED_KOTLIN: String = System.getProperty("lokki.test.latestTestedKotlin")
+val TESTED_KOTLIN: List<String> = System.getProperty("lokki.test.testedKotlin").split(',')
 val LOKKI_VERSION: String = System.getProperty("lokki.test.lokkiVersion")
+
+const val INTERCEPTION_POINTS_KOTLIN: String = "2.4.20"
+
+val String.hasInterceptionPoints: Boolean
+    get() {
+        val (major, minor, patch) = substringBefore('-').split('.').map(String::toInt)
+        val (firstMajor, firstMinor, firstPatch) = INTERCEPTION_POINTS_KOTLIN.split('.').map(String::toInt)
+        return KotlinVersion(major, minor, patch) >= KotlinVersion(firstMajor, firstMinor, firstPatch)
+    }
+
+fun assumeInterceptionPoints() {
+    Assumptions.assumeTrue(KOTLIN_VERSION.hasInterceptionPoints) {
+        "Kotlin $KOTLIN_VERSION generates no interception points"
+    }
+}
 
 enum class GradleUnderTest(val version: String?, val javaHome: String?, val agpVersion: String) {
     CURRENT(null, null, System.getProperty("lokki.test.agpVersion")),
@@ -67,6 +86,11 @@ class TestProject(
             .forwardOutput()
         gradle.version?.let(runner::withGradleVersion)
         return runner
+    }
+
+    fun testCount(className: String): Int {
+        val report = dir.resolve("build/test-results/test/TEST-$className.xml").readText()
+        return Regex("""<testsuite [^>]*tests="(\d+)"[^>]*failures="0" errors="0"""").find(report)!!.groupValues[1].toInt()
     }
 
     fun compiledSources(task: String): Set<String> {

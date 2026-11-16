@@ -8,6 +8,7 @@ import io.lokki.compiler.Mockable
 import io.lokki.compiler.REDIRECT
 import io.lokki.compiler.REDIRECT_PROPERTY
 import io.lokki.compiler.StaticInterception
+import io.lokki.compiler.compat.CompilerCompat
 import io.lokki.compiler.ir.FriendAwareFakeOverrides
 import io.lokki.compiler.ir.LokkiSymbols
 import io.lokki.compiler.ir.irHidden
@@ -79,11 +80,13 @@ internal class InterceptionPoints(
     private val context: IrPluginContext,
     private val symbols: LokkiSymbols,
     private val mockable: Mockable,
+    private val compat: CompilerCompat,
 ) {
     private val origin = IrDeclarationOrigin.GeneratedByPlugin(LokkiPluginKey)
     private val typeSystem = IrTypeSystemContextImpl(context.irBuiltIns)
 
     fun generate(module: IrModuleFragment) {
+        if (!compat.registersClassesAsMetadataVisible) return
         val objects = module.files.flatMap { file -> file.declarations.flatMap(::objects) }
         objects.forEach(::generate)
         module.files.forEach(::generate)
@@ -202,7 +205,7 @@ internal class InterceptionPoints(
         IrFakeOverrideBuilder(typeSystem, FriendAwareFakeOverrides, emptyList())
             .buildFakeOverridesForClassUsingOverriddenSymbols(this, emptyMap(), compatibilityMode = false)
             .forEach(::addChild)
-        context.metadataDeclarationRegistrar.registerClassAsMetadataVisible(this)
+        compat.registerClassAsMetadataVisible(context.metadataDeclarationRegistrar, this)
     }
 
     private val IrSimpleFunction.isInterceptable: Boolean
@@ -279,7 +282,7 @@ internal class InterceptionPoints(
             }
         }
         property.annotations = listOf(DeclarationIrBuilder(context, property.symbol).irHidden(symbols, message))
-        context.metadataDeclarationRegistrar.registerPropertyAsMetadataVisible(property)
+        compat.registerPropertyAsMetadataVisible(context.metadataDeclarationRegistrar, property)
         return field
     }
 

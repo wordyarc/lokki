@@ -11,6 +11,13 @@ lokki {
     mockable("io.lokki.it.mockable.**", "io.lokki.it.conformance.**")
 }
 
+val interceptionPoints = libs.versions.kotlin.get().substringBefore('-').split('.').map(String::toInt)
+    .let { (major, minor, patch) -> KotlinVersion(major, minor, patch).isAtLeast(2, 4, 20) }
+
+sourceSets.test {
+    if (interceptionPoints) kotlin.srcDir("src/interceptionTest/kotlin")
+}
+
 testing {
     suites {
         named<JvmTestSuite>("test") {

@@ -3,6 +3,7 @@ package io.lokki.compiler.ir.generate
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.LokkiPluginKey
+import io.lokki.compiler.compat.CompilerCompat
 import io.lokki.compiler.ir.LokkiSymbols
 import io.lokki.compiler.ir.irHidden
 import io.lokki.compiler.ir.collect.MockClassKey
@@ -65,6 +66,7 @@ internal class MockFieldInitializers(
     private val context: IrPluginContext,
     private val symbols: LokkiSymbols,
     lookupTracker: LookupTracker?,
+    private val compat: CompilerCompat,
 ) {
     private val origin = IrDeclarationOrigin.GeneratedByPlugin(LokkiPluginKey)
     private val instances = MockInstances(context, symbols)
@@ -212,7 +214,8 @@ internal class MockFieldInitializers(
         if ((annotation.argument(name) as? IrConst)?.value == true) flag else 0
 
     private fun unsupported(element: IrElement, file: IrFile, reason: String) {
-        context.diagnosticReporter.at(element, file).report(LokkiDiagnostics.LOKKI_UNSUPPORTED, reason)
+        compat.diagnosticContext(context.diagnosticReporter, element, file)
+            .report(LokkiDiagnostics.LOKKI_UNSUPPORTED, reason)
     }
 }
 

@@ -2,7 +2,10 @@ import lokki.buildlogic.COMPILER_PLUGIN_ID
 import lokki.buildlogic.DEBUG_OPTION
 import lokki.buildlogic.MOCKABLE_OPTION
 import lokki.buildlogic.LocationSystemProperty
+import lokki.buildlogic.compilerApiBaseline
 import lokki.buildlogic.functionalTestRepository
+import lokki.buildlogic.latestTestedKotlin
+import lokki.buildlogic.testedKotlin
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
 plugins {
@@ -43,7 +46,8 @@ buildConfig {
     buildConfigField("DEBUG_OPTION", DEBUG_OPTION)
     buildConfigField("GROUP", group.toString())
     buildConfigField("VERSION", version.toString())
-    buildConfigField("KOTLIN_VERSION", libs.versions.kotlin.get())
+    buildConfigField("MIN_KOTLIN_VERSION", compilerApiBaseline)
+    buildConfigField("LATEST_TESTED_KOTLIN", latestTestedKotlin)
 }
 
 gradlePlugin {
@@ -100,6 +104,9 @@ testing {
                     systemProperty("lokki.test.agpVersion", libs.versions.agp.latest.get())
                     systemProperty("lokki.test.lokkiVersion", version.toString())
                     systemProperty("lokki.test.kotlinVersion", libs.versions.kotlin.get())
+                    systemProperty("lokki.test.minKotlinVersion", compilerApiBaseline)
+                    systemProperty("lokki.test.latestTestedKotlin", latestTestedKotlin)
+                    systemProperty("lokki.test.testedKotlin", testedKotlin.joinToString(","))
                 }
             }
         }

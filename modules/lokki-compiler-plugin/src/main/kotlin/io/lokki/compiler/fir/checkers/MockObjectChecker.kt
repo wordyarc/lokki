@@ -5,6 +5,7 @@ import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.fir.displayName
 import io.lokki.compiler.fir.interceptionProblem
 import io.lokki.compiler.fir.intrinsicKind
+import io.lokki.compiler.linked
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.reportOn
@@ -24,7 +25,10 @@ import org.jetbrains.kotlin.fir.types.resolvedType
 
 internal object MockObjectChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
     context(context: CheckerContext, reporter: DiagnosticReporter)
-    override fun check(expression: FirFunctionCall) {
+    override fun check(expression: FirFunctionCall) = linked { inspect(expression) }
+
+    context(context: CheckerContext, reporter: DiagnosticReporter)
+    private fun inspect(expression: FirFunctionCall) {
         val function = expression.calleeReference.toResolvedCallableSymbol() as? FirFunctionSymbol<*> ?: return
         if (function.intrinsicKind(context.session) != IntrinsicKind.MOCK_OBJECT) return
         val parameter = function.valueParameterSymbols.firstOrNull { it.isVararg } ?: return

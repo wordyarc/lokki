@@ -1,5 +1,3 @@
-// RUN_PIPELINE_TILL: BACKEND
-
 // FILE: first.kt
 package pAa
 

@@ -184,10 +184,8 @@ class CompilationApplicabilityTest {
         assertFalse(project.dependsOnLokki("compileClasspath"))
         assertFalse(project.dependsOnLokki("runtimeClasspath"))
         val mainClasses = projectDir.resolve("build/classes/kotlin/main").walk().filter { it.extension == "class" }.toList()
-        assertEquals(
-            setOf("Engine.class", "Registry.class", "Registry\$LokkiRedirect.class"),
-            mainClasses.mapTo(HashSet()) { it.name },
-        )
+        val redirect = listOfNotNull("Registry\$LokkiRedirect.class".takeIf { KOTLIN_VERSION.hasInterceptionPoints })
+        assertEquals(setOf("Engine.class", "Registry.class") + redirect, mainClasses.mapTo(HashSet()) { it.name })
         for (file in mainClasses) {
             assertFalse("io/lokki" in file.readText(Charsets.ISO_8859_1), file.name)
         }

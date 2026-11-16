@@ -4,6 +4,7 @@ import io.lokki.compiler.BuildConfig
 import io.lokki.compiler.CHAINED_MOCKS
 import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.LokkiPluginKey
+import io.lokki.compiler.compat.CompilerCompat
 import io.lokki.compiler.ir.FriendAwareFakeOverrides
 import io.lokki.compiler.ir.LokkiSymbols
 import io.lokki.compiler.ir.collect.MockClassKey
@@ -94,7 +95,6 @@ import org.jetbrains.kotlin.ir.types.starProjectedType
 import org.jetbrains.kotlin.ir.types.typeOrFail
 import org.jetbrains.kotlin.ir.types.typeOrNull
 import org.jetbrains.kotlin.ir.util.addChild
-import org.jetbrains.kotlin.ir.util.addSimpleDelegatingConstructor
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.copyTo
 import org.jetbrains.kotlin.ir.util.createThisReceiverParameter
@@ -122,6 +122,7 @@ internal class MockClassGenerator(
     private val context: IrPluginContext,
     private val symbols: LokkiSymbols,
     private val lookupTracker: LookupTracker?,
+    private val compat: CompilerCompat,
 ) {
     private val origin = IrDeclarationOrigin.GeneratedByPlugin(LokkiPluginKey)
     private val typeSystem = IrTypeSystemContextImpl(context.irBuiltIns)
@@ -175,7 +176,7 @@ internal class MockClassGenerator(
         if (usage.mockedTypes.interfaces.isNotEmpty()) {
             val conflict = mock.inheritanceConflict(mocked)
             if (conflict != null) {
-                context.diagnosticReporter.at(usage.firstUse, key.file)
+                compat.diagnosticContext(context.diagnosticReporter, usage.firstUse, key.file)
                     .report(LokkiDiagnostics.LOKKI_UNSUPPORTED, conflict)
             }
         }
@@ -237,9 +238,23 @@ internal class MockClassGenerator(
     }
 
     private fun IrClass.addSpecConstructor(delegate: IrType?): IrConstructor =
-        addSimpleDelegatingConstructor(anyConstructor, context.irBuiltIns, isPrimary = true).apply {
+        addConstructor {
+            startOffset = this@addSpecConstructor.startOffset
+            endOffset = this@addSpecConstructor.endOffset
+            origin = this@MockClassGenerator.origin
+            isPrimary = true
+        }.apply {
             if (delegate != null) addValueParameter("delegate", delegate, MOCK_PARAMETER)
             addValueParameter("spec", symbols.mockSpec.defaultType, MOCK_PARAMETER)
+            body = DeclarationIrBuilder(context, symbol, startOffset, endOffset).irBlockBody {
+                +irDelegatingConstructorCall(anyConstructor)
+                +IrInstanceInitializerCallImpl(
+                    startOffset,
+                    endOffset,
+                    this@addSpecConstructor.symbol,
+                    context.irBuiltIns.unitType,
+                )
+            }
         }
 
     private fun IrClass.addSpyConstructor(mockedType: IrSimpleType, form: MockForm.Construction): IrConstructor {

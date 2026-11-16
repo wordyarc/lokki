@@ -13,6 +13,7 @@ import io.lokki.compiler.fir.displayName
 import io.lokki.compiler.fir.fieldKind
 import io.lokki.compiler.fir.isAccessibleOutsideHierarchy
 import io.lokki.compiler.fir.isVisibleToMock
+import io.lokki.compiler.linked
 import io.lokki.compiler.plan
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
@@ -60,7 +61,10 @@ import org.jetbrains.kotlin.types.AbstractTypeChecker
 
 internal object InjectMocksChecker : FirRegularClassChecker(MppCheckerKind.Common) {
     context(context: CheckerContext, reporter: DiagnosticReporter)
-    override fun check(declaration: FirRegularClass) {
+    override fun check(declaration: FirRegularClass) = linked { inspect(declaration) }
+
+    context(context: CheckerContext, reporter: DiagnosticReporter)
+    private fun inspect(declaration: FirRegularClass) {
         val session = context.session
         val targets = declaration.symbol.declaredProperties(session).mapNotNull { property ->
             val kinds = property.resolvedAnnotationsWithArguments.associateWith { it.fieldKind(session) }

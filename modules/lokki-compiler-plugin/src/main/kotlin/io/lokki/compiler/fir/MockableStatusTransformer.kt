@@ -1,6 +1,7 @@
 package io.lokki.compiler.fir
 
 import io.lokki.compiler.Mockable
+import io.lokki.compiler.linked
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Visibilities
@@ -48,25 +49,28 @@ internal class MockableStatusTransformer(session: FirSession, private val mockab
 
     @OptIn(SymbolInternals::class)
     override fun needTransformStatus(declaration: FirDeclaration): Boolean =
-        when (declaration) {
-            is FirRegularClass -> declaration.isMockable()
-            is FirPropertyAccessor -> declaration.propertySymbol.fir.isOpenable()
-            is FirProperty -> declaration.isOpenable()
-            is FirNamedFunction -> declaration.isOpenable()
-            else -> false
+        linked {
+            when (declaration) {
+                is FirRegularClass -> declaration.isMockable()
+                is FirPropertyAccessor -> declaration.propertySymbol.fir.isOpenable()
+                is FirProperty -> declaration.isOpenable()
+                is FirNamedFunction -> declaration.isOpenable()
+                else -> false
+            }
         }
 
     @OptIn(SymbolInternals::class)
-    override fun transformStatus(status: FirDeclarationStatus, declaration: FirDeclaration): FirDeclarationStatus {
-        val explicitModality = when (declaration) {
-            is FirPropertyAccessor -> declaration.propertySymbol.fir.status.modality
-            else -> status.modality
+    override fun transformStatus(status: FirDeclarationStatus, declaration: FirDeclaration): FirDeclarationStatus =
+        linked {
+            val explicitModality = when (declaration) {
+                is FirPropertyAccessor -> declaration.propertySymbol.fir.status.modality
+                else -> status.modality
+            }
+            when (explicitModality) {
+                null -> status.copyWithNewDefaults(modality = Modality.OPEN, defaultModality = Modality.OPEN)
+                else -> status.copyWithNewDefaults(defaultModality = Modality.OPEN)
+            }
         }
-        return when (explicitModality) {
-            null -> status.copyWithNewDefaults(modality = Modality.OPEN, defaultModality = Modality.OPEN)
-            else -> status.copyWithNewDefaults(defaultModality = Modality.OPEN)
-        }
-    }
 
     private fun FirRegularClass.isMockable(): Boolean =
         !isJavaOrEnhancement && classKind == ClassKind.CLASS && !isInlineOrValue && !symbol.classId.isLocal &&

@@ -579,6 +579,7 @@ class IncrementalCompilationTest {
     @ParameterizedTest
     @EnumSource(GradleUnderTest::class)
     fun testNewMemberOfMockableObjectInMain(gradle: GradleUnderTest) {
+        assumeInterceptionPoints()
         val project = TestProject(projectDir, gradle)
         project.write("build.gradle.kts", mockableBuildScript("sample.Clock"))
         project.write("src/main/kotlin/sample/Clock.kt", declaration("object Clock", "fun now(): Long = 1"))
@@ -601,6 +602,7 @@ class IncrementalCompilationTest {
     @ParameterizedTest
     @EnumSource(GradleUnderTest::class)
     fun testObjectRemovedFromMockable(gradle: GradleUnderTest) {
+        assumeInterceptionPoints()
         val project = TestProject(projectDir, gradle)
         project.write("build.gradle.kts", mockableBuildScript("sample.Clock"))
         project.write("src/main/kotlin/sample/Clock.kt", declaration("object Clock", "fun now(): Long = 1"))
@@ -642,6 +644,7 @@ class IncrementalCompilationTest {
     @ParameterizedTest
     @EnumSource(GradleUnderTest::class)
     fun testNewFunctionOfMockableFileInMain(gradle: GradleUnderTest) {
+        assumeInterceptionPoints()
         val project = TestProject(projectDir, gradle)
         project.write("build.gradle.kts", mockableBuildScript("sample.**"))
         project.write("src/main/kotlin/sample/Clock.kt", "package sample\n\nfun now(): Long = 1\n")
@@ -664,6 +667,7 @@ class IncrementalCompilationTest {
     @ParameterizedTest
     @EnumSource(GradleUnderTest::class)
     fun testFunctionRemovedFromMockable(gradle: GradleUnderTest) {
+        assumeInterceptionPoints()
         val project = TestProject(projectDir, gradle)
         project.write("build.gradle.kts", mockableBuildScript("sample.now"))
         project.write("src/main/kotlin/sample/Clock.kt", "package sample\n\nfun now(): Long = 1\n")

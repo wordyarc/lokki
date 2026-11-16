@@ -6,6 +6,7 @@ import io.lokki.compiler.fir.MemberInterception
 import io.lokki.compiler.fir.displayName
 import io.lokki.compiler.fir.intrinsicKind
 import io.lokki.compiler.fir.staticInterception
+import io.lokki.compiler.linked
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.reportOn
@@ -28,7 +29,10 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 
 internal object MockStaticChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
     context(context: CheckerContext, reporter: DiagnosticReporter)
-    override fun check(expression: FirFunctionCall) {
+    override fun check(expression: FirFunctionCall) = linked { inspect(expression) }
+
+    context(context: CheckerContext, reporter: DiagnosticReporter)
+    private fun inspect(expression: FirFunctionCall) {
         val function = expression.calleeReference.toResolvedCallableSymbol() as? FirFunctionSymbol<*> ?: return
         val kind = function.intrinsicKind(context.session)
         if (kind != IntrinsicKind.MOCK_STATIC && kind != IntrinsicKind.STATIC_MOCKS) return

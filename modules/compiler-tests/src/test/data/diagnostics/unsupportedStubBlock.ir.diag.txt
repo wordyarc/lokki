@@ -42,7 +42,7 @@
 
 /unsupportedStubBlock.kt:76:71: error: 'every' must be called directly: a reference to it is not supported.
 
-/unsupportedStubBlock.kt:77:56: error: The block of 'every' must be a lambda literal.
+/unsupportedStubBlock.kt:77:56: error: 'every' must be called directly: a reference to it is not supported.
 
 /unsupportedStubBlock.kt:79:5: error: The block of 'verify' must be a lambda literal.
 

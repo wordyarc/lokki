@@ -84,15 +84,34 @@ class GradleOptionsTest {
 
         assertContains(
             result.output,
-            "lokki $LOKKI_VERSION requires Kotlin $KOTLIN_VERSION, but the build uses Kotlin $OLDER_KOTLIN: " +
-                "the lokki compiler plugin uses the compiler API of Kotlin $KOTLIN_VERSION.",
+            "lokki $LOKKI_VERSION requires Kotlin $MIN_KOTLIN_VERSION or newer, but the build uses Kotlin " +
+                "$OLDER_KOTLIN: the lokki compiler plugin has no adapter to its compiler API.",
         )
     }
 
     @ParameterizedTest
     @EnumSource(GradleUnderTest::class)
     fun testNewerKotlin(gradle: GradleUnderTest) {
-        val project = kotlinVersionProject(gradle, NEWER_KOTLIN)
+        val project = TestProject(projectDir, gradle)
+        project.write(
+            "build.gradle.kts",
+            """
+            import org.jetbrains.kotlin.gradle.plugin.KotlinBasePlugin
+
+            plugins {
+                kotlin("jvm") version "$KOTLIN_VERSION" apply false
+                id("io.lokki") version "$LOKKI_VERSION"
+            }
+
+            class NewerKotlin : KotlinBasePlugin {
+                override val pluginVersion: String = "$NEWER_KOTLIN"
+
+                override fun apply(project: Project) = Unit
+            }
+
+            apply<NewerKotlin>()
+            """,
+        )
 
         val suppressed = project.build("help", "-Plokki.kotlinCompatibility.nowarn=true")
 
@@ -102,8 +121,9 @@ class GradleOptionsTest {
 
         assertContains(
             warned.output,
-            "lokki $LOKKI_VERSION is built for Kotlin $KOTLIN_VERSION, but the build uses Kotlin $NEWER_KOTLIN: " +
-                "if the lokki compiler plugin fails, use Kotlin $KOTLIN_VERSION or a newer lokki. $NEWER_KOTLIN_WARNING",
+            "lokki $LOKKI_VERSION is tested with Kotlin up to $LATEST_TESTED_KOTLIN, but the build uses Kotlin " +
+                "$NEWER_KOTLIN: if the lokki compiler plugin fails, use Kotlin $LATEST_TESTED_KOTLIN or a newer " +
+                "lokki. $NEWER_KOTLIN_WARNING",
         )
     }
 
@@ -267,7 +287,7 @@ class GradleOptionsTest {
         }
 }
 
-private const val OLDER_KOTLIN = "2.4.10"
-private const val NEWER_KOTLIN = "2.4.21"
+private const val OLDER_KOTLIN = "2.3.21"
+private const val NEWER_KOTLIN = "9.0.0"
 private const val NEWER_KOTLIN_WARNING =
     "To disable this warning, set lokki.kotlinCompatibility.nowarn=true in gradle.properties."
