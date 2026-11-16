@@ -11,6 +11,7 @@ import io.lokki.compiler.StaticInterception
 import io.lokki.compiler.compat.CompilerCompat
 import io.lokki.compiler.ir.FriendAwareFakeOverrides
 import io.lokki.compiler.ir.LokkiSymbols
+import io.lokki.compiler.ir.irGetObject
 import io.lokki.compiler.ir.irHidden
 import io.lokki.compiler.ir.ownKey
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
@@ -322,7 +323,7 @@ internal class InterceptionPoints(
             +irReturn(
                 irCall(original.symbol, returnType, typeParameters.map { it.defaultType }).apply {
                     val values = nonDispatchParameters.map { irGet(it) }
-                    val receiver = target?.let { irGetObjectValue(it.defaultType, it.symbol) }
+                    val receiver = target?.let { irGetObject(it) }
                     (listOfNotNull(receiver) + values).forEachIndexed { index, value -> arguments[index] = value }
                 }
             )

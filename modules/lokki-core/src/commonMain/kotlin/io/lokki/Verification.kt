@@ -30,27 +30,27 @@ public fun coVerify(
     verifyBlock: suspend VerificationScope.() -> Any?,
 ): Unit = throw LokkiException("lokki compiler plugin is not applied to this compilation")
 
-@LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_BLOCK)
+@LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_ALL_BLOCK)
 public fun verifyAll(inverse: Boolean = false, verifyBlock: VerificationScope.() -> Any?): Unit =
     throw LokkiException("lokki compiler plugin is not applied to this compilation")
 
-@LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_BLOCK)
+@LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_ORDER_BLOCK)
 public fun verifyOrder(inverse: Boolean = false, verifyBlock: VerificationScope.() -> Any?): Unit =
     throw LokkiException("lokki compiler plugin is not applied to this compilation")
 
-@LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_BLOCK)
+@LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_SEQUENCE_BLOCK)
 public fun verifySequence(inverse: Boolean = false, verifyBlock: VerificationScope.() -> Any?): Unit =
     throw LokkiException("lokki compiler plugin is not applied to this compilation")
 
-@LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_BLOCK)
+@LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_ALL_BLOCK)
 public fun coVerifyAll(inverse: Boolean = false, verifyBlock: suspend VerificationScope.() -> Any?): Unit =
     throw LokkiException("lokki compiler plugin is not applied to this compilation")
 
-@LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_BLOCK)
+@LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_ORDER_BLOCK)
 public fun coVerifyOrder(inverse: Boolean = false, verifyBlock: suspend VerificationScope.() -> Any?): Unit =
     throw LokkiException("lokki compiler plugin is not applied to this compilation")
 
-@LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_BLOCK)
+@LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_SEQUENCE_BLOCK)
 public fun coVerifySequence(inverse: Boolean = false, verifyBlock: suspend VerificationScope.() -> Any?): Unit =
     throw LokkiException("lokki compiler plugin is not applied to this compilation")
 
@@ -140,11 +140,11 @@ public class CallCountCoVerificationScope internal constructor() {
         throw LokkiException("lokki compiler plugin is not applied to this compilation")
 }
 
-@LokkiIntrinsic(LokkiIntrinsic.Kind.STATIC_MOCKS)
+@LokkiIntrinsic(LokkiIntrinsic.Kind.CONFIRM_VERIFIED_STATIC)
 public fun confirmVerified(function: KFunction<*>, vararg functions: KFunction<*>, clear: Boolean = false): Unit =
     throw LokkiException("lokki compiler plugin is not applied to this compilation")
 
-@LokkiIntrinsic(LokkiIntrinsic.Kind.STATIC_MOCKS)
+@LokkiIntrinsic(LokkiIntrinsic.Kind.CONFIRM_VERIFIED_STATIC)
 public fun confirmVerified(property: KProperty<*>, vararg properties: KProperty<*>, clear: Boolean = false): Unit =
     throw LokkiException("lokki compiler plugin is not applied to this compilation")
 

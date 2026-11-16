@@ -104,7 +104,8 @@ fun box(): String {
 
     val locked = message { every { car.locked().open() } returns true }
     val lockedHint = "\nThe call is a link of a call chain in a stubbed or verified call: stub it first, " +
-        "a child mock cannot be created: 'sample.Locked' has no constructor visible to the mock"
+        "a child mock cannot be created: 'sample.Locked' cannot be mocked: none of its constructors is visible " +
+        "from this file"
     if (!locked.startsWith("no answer found for $car.locked()") || !locked.endsWith(lockedHint)) {
         return "Fail unmockable link: $locked"
     }

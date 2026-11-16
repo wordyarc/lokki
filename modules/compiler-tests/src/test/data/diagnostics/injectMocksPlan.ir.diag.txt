@@ -1,0 +1,23 @@
+/injectMocksPlan.kt:75:5: error: '@InjectMocks' cannot choose how to create 'sample.Listened': parameter 'listener' of 'Listened(listener: Listener)' matches several properties by type: 'first', 'second'. Name one of them 'listener' or create the object yourself.
+
+/injectMocksPlan.kt:78:5: error: '@InjectMocks' cannot choose how to create 'sample.Twins': several of its constructors with the most parameters can be called: 'Twins(repo: Repo)', 'Twins(clock: Clock)'.
+
+/injectMocksPlan.kt:81:5: error: '@InjectMocks' cannot choose how to create 'sample.Settable': its property 'listener' matches several properties by type: 'first', 'second'. Name one of them 'listener' or create the object yourself.
+
+/injectMocksPlan.kt:84:5: error: '@InjectMocks' cannot inject 'sample.Guarded': its property 'repo' would get 'repo', but it cannot be set from this class. Make the property and its setter visible or create the object yourself.
+
+/injectMocksPlan.kt:87:5: error: '@InjectMocks' cannot create 'sample.Hidden': it has no constructor visible from this class.
+
+/injectMocksPlan.kt:90:5: error: '@InjectMocks' cannot create 'sample.Repo': it is an interface.
+
+/injectMocksPlan.kt:93:5: error: '@InjectMocks' cannot create 'sample.Abstract': it is an abstract class.
+
+/injectMocksPlan.kt:96:5: error: '@InjectMocks' cannot create 'sample.Outer.Inner': it is an inner class.
+
+/injectMocksPlan.kt:99:5: error: '@InjectMocks' cannot create 'T': it is a type parameter.
+
+/injectMocksPlan.kt:102:5: error: '@InjectMocks' cannot create 'sample.First': the constructors of the '@InjectMocks' properties 'cycleFirst', 'cycleSecond' need each other's objects.
+
+/injectMocksPlan.kt:105:5: error: '@InjectMocks' cannot create 'sample.Second': the constructors of the '@InjectMocks' properties 'cycleFirst', 'cycleSecond' need each other's objects.
+
+/injectMocksPlan.kt:120:5: error: '@InjectMocks' cannot create 'sample.Service': no constructor can be called with the properties of this class: 'Service(repo: Repo, clock: Clock)' has no property for 'repo'.

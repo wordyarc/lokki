@@ -2,16 +2,16 @@ package io.lokki.compiler.ir.generate
 
 import io.lokki.compiler.BuildConfig
 import io.lokki.compiler.CHAINED_MOCKS
-import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.LokkiPluginKey
-import io.lokki.compiler.compat.CompilerCompat
 import io.lokki.compiler.ir.FriendAwareFakeOverrides
+import io.lokki.compiler.ir.IrDiagnostics
 import io.lokki.compiler.ir.LokkiSymbols
 import io.lokki.compiler.ir.collect.MockClassKey
 import io.lokki.compiler.ir.collect.MockClassUsage
 import io.lokki.compiler.ir.collect.MockForm
-import io.lokki.compiler.ir.collect.childMockedTypes
-import io.lokki.compiler.ir.collect.mockClassKey
+import io.lokki.compiler.ir.collect.Mockability
+import io.lokki.compiler.ir.collect.NotMockable
+import io.lokki.compiler.ir.collect.displayName
 import io.lokki.compiler.ir.collect.mockedClass
 import io.lokki.compiler.ir.collect.mockedClassTypeParameters
 import io.lokki.compiler.ir.collect.referencedTypeParameters
@@ -84,7 +84,7 @@ import org.jetbrains.kotlin.ir.overrides.IrFakeOverrideBuilder
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
-import org.jetbrains.kotlin.ir.types.IrTypeSystemContextImpl
+import org.jetbrains.kotlin.ir.types.IrTypeSystemContext
 import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.types.isMarkedNullable
@@ -122,17 +122,21 @@ internal class MockClassGenerator(
     private val context: IrPluginContext,
     private val symbols: LokkiSymbols,
     private val lookupTracker: LookupTracker?,
-    private val compat: CompilerCompat,
+    private val diagnostics: IrDiagnostics,
+    private val typeSystem: IrTypeSystemContext,
 ) {
     private val origin = IrDeclarationOrigin.GeneratedByPlugin(LokkiPluginKey)
-    private val typeSystem = IrTypeSystemContextImpl(context.irBuiltIns)
     private val anyConstructor = context.irBuiltIns.anyClass.owner.constructors.single()
     private val relaxedDefaults = RelaxedDefaults(context, symbols)
     private val memberDescriptions = MemberDescriptions(context, symbols)
     private val instances = MockInstances(context, symbols)
 
-    fun generate(file: IrFile, usages: Map<MockClassKey, MockClassUsage>): Map<MockClassKey, IrClass> {
-        val classes = FileClasses(file, usages, LinkedHashMap(), !file.hasAnnotation(CHAINED_MOCKS))
+    fun generate(
+        file: IrFile,
+        usages: Map<MockClassKey, MockClassUsage>,
+        mockability: Mockability,
+    ): Map<MockClassKey, IrClass> {
+        val classes = FileClasses(usages, LinkedHashMap(), !file.hasAnnotation(CHAINED_MOCKS), mockability)
         for ((key, usage) in usages.entries.sortedByDescending { it.value.relaxedChildren }) {
             if (key !in classes.generated) generate(key, usage, classes, listOf(usage.mockedTypes.type))
         }
@@ -174,10 +178,8 @@ internal class MockClassGenerator(
             .buildFakeOverridesForClassUsingOverriddenSymbols(mock, emptyMap(), compatibilityMode = false)
             .forEach(mock::addChild)
         if (usage.mockedTypes.interfaces.isNotEmpty()) {
-            val conflict = mock.inheritanceConflict(mocked)
-            if (conflict != null) {
-                compat.diagnosticContext(context.diagnosticReporter, usage.firstUse, key.file)
-                    .report(LokkiDiagnostics.LOKKI_UNSUPPORTED, conflict)
+            mock.inheritanceConflict()?.let { conflict ->
+                diagnostics.report(usage.firstUse, key.file, NotMockable(mocked.displayName, conflict))
             }
         }
 
@@ -504,10 +506,10 @@ internal class MockClassGenerator(
     }
 
     private class FileClasses(
-        val file: IrFile,
         val usages: Map<MockClassKey, MockClassUsage>,
         val generated: MutableMap<MockClassKey, IrClass>,
         val suggestsChainedMocks: Boolean,
+        val mockability: Mockability,
     )
 
     private inner class Children(
@@ -518,8 +520,8 @@ internal class MockClassGenerator(
         fun default(type: IrSimpleType): RelaxedDefault? {
             if (type.referencedTypeParameters.isNotEmpty()) return null
             if (path.any { it.classOrNull == type.classOrNull && type.depth > it.depth }) return null
-            val types = type.childMockedTypes(classes.file) ?: return null
-            val key = types.mockClassKey(classes.file)
+            val site = classes.mockability.child(type) ?: return null
+            val (types, key) = site.types to site.key
             val child = classes.generated[key] ?: generate(
                 key,
                 classes.usages[key]?.also { it.relaxedChildren = true }

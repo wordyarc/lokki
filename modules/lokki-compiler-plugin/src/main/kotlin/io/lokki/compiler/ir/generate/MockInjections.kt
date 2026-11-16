@@ -1,26 +1,24 @@
 package io.lokki.compiler.ir.generate
 
-import io.lokki.compiler.InjectedValue
-import io.lokki.compiler.Injection
+import io.lokki.compiler.BuildConfig
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.ir.LokkiSymbols
-import io.lokki.compiler.ir.collect.Injections
+import io.lokki.compiler.ir.buildLambda
+import io.lokki.compiler.ir.collect.ClassMockFields
+import io.lokki.compiler.ir.collect.InjectedValue
+import io.lokki.compiler.ir.collect.Injection
 import io.lokki.compiler.ir.collect.MockClassKey
 import io.lokki.compiler.ir.collect.MockField
-import io.lokki.compiler.ir.collect.injections
-import io.lokki.compiler.ir.collect.mockClassKey
-import io.lokki.compiler.ir.collect.mockedTypes
 import io.lokki.compiler.ir.collect.referencedTypeParameters
 import io.lokki.compiler.ir.collect.valueType
+import io.lokki.compiler.ir.irCompanionCall
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.irCatch
 import org.jetbrains.kotlin.backend.common.lower.irThrow
-import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.incremental.components.LookupTracker
 import org.jetbrains.kotlin.ir.builders.IrBlockBodyBuilder
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
-import org.jetbrains.kotlin.ir.builders.declarations.buildFun
 import org.jetbrains.kotlin.ir.builders.declarations.buildVariable
 import org.jetbrains.kotlin.ir.builders.irBlock
 import org.jetbrains.kotlin.ir.builders.irBlockBody
@@ -29,7 +27,6 @@ import org.jetbrains.kotlin.ir.builders.irCallConstructor
 import org.jetbrains.kotlin.ir.builders.irEqualsNull
 import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.builders.irGetField
-import org.jetbrains.kotlin.ir.builders.irGetObjectValue
 import org.jetbrains.kotlin.ir.builders.irIfThen
 import org.jetbrains.kotlin.ir.builders.irImplicitCast
 import org.jetbrains.kotlin.ir.builders.irInt
@@ -40,7 +37,6 @@ import org.jetbrains.kotlin.ir.builders.irString
 import org.jetbrains.kotlin.ir.builders.irTemporary
 import org.jetbrains.kotlin.ir.builders.irTry
 import org.jetbrains.kotlin.ir.declarations.IrClass
-import org.jetbrains.kotlin.ir.declarations.IrConstructor
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationParent
 import org.jetbrains.kotlin.ir.declarations.IrFile
@@ -48,8 +44,6 @@ import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.expressions.IrExpression
-import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
-import org.jetbrains.kotlin.ir.expressions.impl.IrFunctionExpressionImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrVarargImpl
 import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
@@ -62,10 +56,8 @@ import org.jetbrains.kotlin.ir.types.typeWith
 import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.isFakeOverride
 import org.jetbrains.kotlin.ir.util.isNullable
-import org.jetbrains.kotlin.ir.util.parentAsClass
 import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.name.SpecialNames
 
 internal class MockInjections(
     private val context: IrPluginContext,
@@ -74,42 +66,39 @@ internal class MockInjections(
     private val lookupTracker: LookupTracker?,
 ) {
     fun IrBlockBodyBuilder.irInjectMocks(
-        owner: IrClass,
+        owner: ClassMockFields,
         parent: IrDeclarationParent,
         self: IrValueParameter,
         file: IrFile,
         mocks: Map<MockClassKey, IrClass>,
     ) {
-        val injections = owner.injections(file)
-        for (target in injections.targets) {
-            val injected = target.property.valueType.classOrNull?.owner ?: continue
+        for (target in owner.fields) {
+            val injected = target.property.valueType.classOrNull?.owner?.takeIf { target.inject != null } ?: continue
             lookupTracker?.recordMockedTypeLookups(injected, file)
         }
-        val fields = injections.plan.order.map { injections.targets[it] }.filter { it.unsupportedReason(file) == null }
+        val fields = owner.injected
         val unit = context.irBuiltIns.unitType
-        for (field in fields.filter { !it.isConstructedSpy(file) }) {
+        for (field in fields.filter { !it.isConstructedSpy }) {
             val backingField = field.property.backingField!!
-            val created = irCreate(field, injections.injectionOf(field)!!, injections, self, file, mocks)
+            val created = irCreate(field, field.injection!!, self, mocks)
             val assignment = irSetField(irGet(self), backingField, created)
             +irIfThen(unit, irEqualsNull(irGetField(irGet(self), backingField)), assignment)
         }
         for (field in fields) {
-            val injection = injections.injectionOf(field)!!
+            val injection = field.injection!!
             if (injection.properties.isEmpty()) continue
             if (field.kind == IntrinsicKind.SPY) {
-                +irWithoutStateChanges(parent) { irInjectProperties(field, injection, injections, self) }
+                +irWithoutStateChanges(parent) { irInjectProperties(field, injection, self) }
             } else {
-                irInjectProperties(field, injection, injections, self)
+                irInjectProperties(field, injection, self)
             }
         }
     }
 
     private fun IrBuilderWithScope.irCreate(
         field: MockField,
-        injection: Injection<IrType, IrConstructor, IrProperty>,
-        injections: Injections,
+        injection: Injection,
         self: IrValueParameter,
-        file: IrFile,
         mocks: Map<MockClassKey, IrClass>,
     ): IrExpression {
         val type = field.property.valueType.makeNotNull() as IrSimpleType
@@ -118,14 +107,16 @@ internal class MockInjections(
         val arguments = parameters.indices.map { index ->
             val parameter = injection.constructor.parameters[index]
             val subject = "parameter '${parameter.name}' of '${type.render()}'"
-            irArgument(injection.arguments[index], parameter.type, injections, self, subject)
+            irArgument(injection.arguments[index], parameter.type, self, subject)
         }
         if (field.kind == IntrinsicKind.SPY) {
-            val types = field.mockedTypes(file)!!
-            val mock = mocks.getValue(types.mockClassKey(file))
+            val site = field.site!!
+            val types = site.types
+            val mock = mocks.getValue(site.key)
             val typeArguments = types.type.referencedTypeParameters.map { it.defaultType }
             return with(instances) {
-                irConstruct(mock, typeArguments, arguments.filterNotNull() + irSpec(field.name, irInt(SPY_FLAG)))
+                val spec = irSpec(field.name, irInt(BuildConfig.FLAG_SPY))
+                irConstruct(mock, typeArguments, arguments.filterNotNull() + spec)
             }
         }
         val typeArguments = type.arguments.map { it.typeOrNull ?: context.irBuiltIns.anyNType }
@@ -136,18 +127,17 @@ internal class MockInjections(
     }
 
     private fun IrBuilderWithScope.irArgument(
-        value: InjectedValue<IrType>,
+        value: InjectedValue,
         type: IrType,
-        injections: Injections,
         self: IrValueParameter,
         subject: String,
     ): IrExpression? =
         when (value) {
             InjectedValue.Default -> null
-            is InjectedValue.Single -> irRequired(injections.sources.getValue(value.source), type, self, subject)
+            is InjectedValue.Single -> irRequired(value.source.property, type, self, subject)
             is InjectedValue.All -> {
                 val element = (type as IrSimpleType).arguments.single().typeOrNull!!
-                val elements = value.sources.map { irRequired(injections.sources.getValue(it), element, self, subject) }
+                val elements = value.sources.map { irRequired(it.property, element, self, subject) }
                 irCall(symbols.listOf.symbol, context.irBuiltIns.listClass.typeWith(element), listOf(element)).apply {
                     val arrayType = context.irBuiltIns.arrayClass.typeWith(element)
                     arguments[0] = IrVarargImpl(startOffset, endOffset, arrayType, element, elements)
@@ -185,8 +175,7 @@ internal class MockInjections(
 
     private fun IrBlockBodyBuilder.irInjectProperties(
         field: MockField,
-        injection: Injection<IrType, IrConstructor, IrProperty>,
-        injections: Injections,
+        injection: Injection,
         self: IrValueParameter,
     ) {
         val unit = context.irBuiltIns.unitType
@@ -194,7 +183,7 @@ internal class MockInjections(
         val instance = irTemporary(irImplicitCast(target, field.property.valueType.makeNotNull()))
         for ((property, source) in injection.properties) {
             val injectable = property.declaration
-            val read = irRead(injections.sources.getValue(source), self)
+            val read = irRead(source.property, self)
             val value = irTemporary(read, irType = read.type.makeNullable())
             val current = irCall(injectable.getter!!.symbol, property.type).apply { arguments[0] = irGet(instance) }
             val existing = if (injectable.isLateinit) irUninitializedAsNull(current, property.type) else current
@@ -222,28 +211,9 @@ internal class MockInjections(
         parent: IrDeclarationParent,
         body: IrBlockBodyBuilder.() -> Unit,
     ): IrExpression {
-        val unit = context.irBuiltIns.unitType
-        val block = context.irFactory.buildFun {
-            startOffset = this@irWithoutStateChanges.startOffset
-            endOffset = this@irWithoutStateChanges.endOffset
-            origin = IrDeclarationOrigin.LOCAL_FUNCTION_FOR_LAMBDA
-            name = SpecialNames.ANONYMOUS
-            visibility = DescriptorVisibilities.LOCAL
-            returnType = unit
-        }
+        val block = context.buildLambda(startOffset, endOffset, context.irBuiltIns.unitType)
         block.parent = parent
         block.body = DeclarationIrBuilder(context, block.symbol, startOffset, endOffset).irBlockBody(body = body)
-        val function = symbols.withoutStateChanges
-        val companion = function.parentAsClass
-        return irCall(function.symbol, unit, listOf(unit)).apply {
-            arguments[0] = irGetObjectValue(companion.defaultType, companion.symbol)
-            arguments[1] = IrFunctionExpressionImpl(
-                startOffset,
-                endOffset,
-                context.irBuiltIns.functionN(0).typeWith(unit),
-                block,
-                IrStatementOrigin.LAMBDA,
-            )
-        }
+        return irCompanionCall(symbols.withoutStateChanges, block)
     }
 }

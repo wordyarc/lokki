@@ -6,13 +6,10 @@
 package sample
 
 import io.lokki.Mock
-import io.lokki.Spy
 
 interface Car
 
 class Bolt
-
-open class Engine(val power: Int)
 
 <!LOKKI_UNSUPPORTED!>@Mock
 lateinit var topLevel: Car<!>
@@ -28,7 +25,4 @@ class Fixture(<!LOKKI_UNSUPPORTED!>@Mock car: Car<!>) {
 
     <!LOKKI_UNSUPPORTED!>@Mock
     lateinit var bolt: Bolt<!>
-
-    <!LOKKI_UNSUPPORTED!>@Spy
-    lateinit var engine: Engine<!>
 }

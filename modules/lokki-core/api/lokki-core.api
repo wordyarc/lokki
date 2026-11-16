@@ -412,6 +412,9 @@ public abstract class io/lokki/VerificationScope : io/lokki/MatcherScope {
 	public final fun wasNot (Ljava/util/List;Lio/lokki/Called;)V
 }
 
+public final class io/lokki/internal/ActiveRedirect {
+}
+
 public final class io/lokki/internal/AnyMatcher : io/lokki/Matcher {
 	public static final field INSTANCE Lio/lokki/internal/AnyMatcher;
 	public fun match (Ljava/lang/Object;)Z
@@ -469,17 +472,24 @@ public final class io/lokki/internal/LokkiIntrinsic$Kind : java/lang/Enum {
 	public static final field ADDITIONAL_INTERFACE Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field ANSWER Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field AWAITS Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field CLEAR_STATIC_MOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field CONFIRM_VERIFIED_STATIC Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field EXCLUDE_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field INJECT_MOCKS Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field JUST_AWAIT_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field JUST_RUN_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field MATCHER Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field MOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field MOCK_OBJECT Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field MOCK_STATIC Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field RELAXED_MOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field SPY Lio/lokki/internal/LokkiIntrinsic$Kind;
-	public static final field STATIC_MOCKS Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field STUB_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field UNMOCK_STATIC Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field VERIFY_ALL_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field VERIFY_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field VERIFY_ORDER_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field VERIFY_SEQUENCE_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field WAS_NOT_CALLED Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field WITH_CONTEXT Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
@@ -598,15 +608,15 @@ public final class io/lokki/internal/Redirect {
 
 public final class io/lokki/internal/Redirects {
 	public static final field INSTANCE Lio/lokki/internal/Redirects;
-	public final fun install ([Lio/lokki/internal/Redirect;)Ljava/lang/Object;
-	public final fun installStatic ([Lio/lokki/internal/Redirect;)Ljava/lang/Object;
+	public final fun install ([Lio/lokki/internal/Redirect;)Ljava/util/List;
+	public final fun installStatic ([Lio/lokki/internal/Redirect;)Ljava/util/List;
 	public final fun mockObject ([Lio/lokki/internal/Redirect;)V
 	public final fun mockObject ([Lio/lokki/internal/Redirect;Lkotlin/jvm/functions/Function0;)V
 	public final fun mockStatic ([Lio/lokki/internal/Redirect;)V
 	public final fun mockStatic ([Lio/lokki/internal/Redirect;Lkotlin/jvm/functions/Function0;)V
 	public final fun of (Ljava/lang/Object;Ljava/lang/String;)Lio/lokki/internal/GeneratedMock;
 	public final fun ofStatic (Ljava/lang/Object;Ljava/lang/String;)Lio/lokki/internal/GeneratedMock;
-	public final fun uninstall (Ljava/lang/Object;)V
+	public final fun uninstall (Ljava/util/List;)V
 	public final fun unmock ([Ljava/lang/Object;)V
 }
 
@@ -639,8 +649,6 @@ public final class io/lokki/internal/Verification {
 	public fun <init> (Lio/lokki/Ordering;ZIIIJ)V
 	public synthetic fun <init> (Lio/lokki/Ordering;ZIIIJILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun <init> (Lkotlin/ranges/IntRange;)V
-	public synthetic fun <init> (ZIII)V
-	public synthetic fun <init> (ZIIIILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun check ()V
 	public final fun expect (Lio/lokki/internal/MockState;Ljava/lang/String;[Lio/lokki/Matcher;)V
 	public final fun expectLink (Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V

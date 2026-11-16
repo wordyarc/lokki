@@ -32,10 +32,6 @@ typealias Screw = Bolt
 
 typealias Vehicle = Car
 
-interface Node<T : Node<T>>
-
-interface Both<T> where T : CharSequence, T : Comparable<T>
-
 interface Pairs<A, B : List<A>>
 
 interface Ranged<T : Number>
@@ -56,9 +52,6 @@ fun test() {
     mock<<!REIFIED_TYPE_FORBIDDEN_SUBSTITUTION!>Nothing<!>>()
     val bolt: Bolt = <!LOKKI_TYPE_NOT_MOCKABLE!>mock()<!>
     val named = mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Bolt<!>>("bolt") { }
-    mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Node<*><!>>()
-    mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Both<*><!>>()
-    mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Pairs<*, *><!>>()
 
     mock<Car>()
     mock<Vehicle>()

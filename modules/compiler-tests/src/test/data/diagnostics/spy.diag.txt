@@ -1,23 +1,7 @@
 /test.kt:59:55: error: The type argument of 'spy' must be known at compile time, but 'T' is a type parameter.
 
-/test.kt:66:9: error: 'sample.Engine' cannot be mocked: none of its constructors can be called without arguments. Pass a constructor call to 'spy', such as 'spy(Engine(...))'.
+/test.kt:66:9: error: 'sample.Bolt' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
 
-/test.kt:67:9: error: 'sample.Outer.Inner' cannot be mocked: none of its constructors can be called without arguments. Pass a constructor call to 'spy', such as 'spy(Inner(...))'.
+/test.kt:74:9: error: 'sample.RealRepo' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
 
-/test.kt:68:9: error: 'sample.Bolt' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
-
-/test.kt:76:9: error: 'sample.RealRepo' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
-
-/test.kt:77:9: error: 'sample.Bolt' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
-
-/test.kt:79:9: warning: The spy of 'sample.Settings' delegates to an existing instance: calls that the instance makes on itself bypass the spy, and the spy is a different object. Pass a constructor call, such as 'spy(Settings(...))', to spy on the object itself.
-
-/test.kt:80:9: warning: The spy of 'sample.Settings' delegates to an existing instance: calls that the instance makes on itself bypass the spy, and the spy is a different object. Pass a constructor call, such as 'spy(Settings(...))', to spy on the object itself.
-
-/test.kt:81:9: error: A spy of 'sample.Pump' cannot delegate to an existing instance: it cannot forward 'pressure', 'prime', 'vent' to the instance, so they would run on an object created without a constructor. Pass a constructor call instead, such as 'spy(Pump(...))'.
-
-/test.kt:82:9: error: A spy of 'sample.Valve' cannot delegate to an existing instance: it cannot forward 'size' to the instance, so they would run on an object created without a constructor. Pass a constructor call instead, such as 'spy(Valve(...))'.
-
-/test.kt:83:9: error: A spy of 'lib.Gauge' cannot delegate to an existing instance: it cannot forward 'calibrate' to the instance, so they would run on an object created without a constructor. Pass a constructor call instead, such as 'spy(Gauge(...))'.
-
-/test.kt:84:31: warning: The spy of 'sample.Settings' delegates to an existing instance: calls that the instance makes on itself bypass the spy, and the spy is a different object. Pass a constructor call, such as 'spy(Settings(...))', to spy on the object itself.
+/test.kt:75:9: error: 'sample.Bolt' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.

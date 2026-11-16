@@ -15,10 +15,6 @@ interface Door {
     fun open(): Boolean
 }
 
-open class Locked private constructor() {
-    open fun open(): Boolean = false
-}
-
 interface Box<T> {
     fun get(index: Int): T
 }
@@ -30,7 +26,6 @@ abstract class Garage {
 interface Car {
     val doors: List<Door>
     fun door(index: Int): Door
-    fun locked(index: Int): Locked
     fun seat(row: Int, place: Int): Door
 }
 
@@ -45,7 +40,6 @@ fun <T : Door> test(car: Car, garage: Garage, box: Box<T>) {
     verify { car.door(any()).open() }
     excludeRecords { car.door(any()).open() }
 
-    every { <!LOKKI_TYPE_NOT_MOCKABLE!>car.locked(any())<!>.open() } returns true
     verify { <!LOKKI_TYPE_NOT_MOCKABLE!>box.get(any())<!>.open() }
     every { garage.<!LOKKI_NOT_INTERCEPTABLE!>door<!>(any()).open() } returns true
     every { car.door(1 + <!LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION!>any<Int>()<!>).open() } returns true

@@ -1,15 +1,7 @@
-/test.kt:34:51: error: The mocked type must be known at compile time, but 'T of sample.spyOf' is not a class.
+/unsupportedSpy.kt:14:51: error: 'T' cannot be mocked: it is a type parameter.
 
-/test.kt:39:5: error: The name of a spy must precede its constructor call or be a constant.
+/unsupportedSpy.kt:19:5: error: The name of a spy must precede its constructor call or be a constant.
 
-/test.kt:43:5: error: 'sample.Bolt' is final and cannot be mocked.
+/unsupportedSpy.kt:23:5: error: 'sample.Bolt' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
 
-/test.kt:44:5: error: 'sample.Engine' has no constructor that a spy can call without arguments.
-
-/test.kt:45:5: error: 'sample.Outer.Inner' has no constructor that a spy can call without arguments.
-
-/test.kt:46:5: error: 'sample.Bolt' is final and cannot be mocked.
-
-/test.kt:47:5: error: A spy of 'sample.Pump' cannot forward its members to the instance: 'prime', 'vent'.
-
-/test.kt:48:5: error: A spy of 'lib.Gauge' cannot forward its members to the instance: 'calibrate'.
+/unsupportedSpy.kt:24:5: error: 'sample.Bolt' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.

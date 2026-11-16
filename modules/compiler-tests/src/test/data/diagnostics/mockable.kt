@@ -3,6 +3,19 @@
 
 // MODULE: main
 // MOCKABLE: sample.**
+// FILE: aliased.kt
+package sample
+
+import kotlin.jvm.JvmField as Field
+
+class Aliased(@Field val code: String) {
+    @Field
+    val serial: String = "serial"
+
+    @field:Field
+    val tag: String = "tag"
+}
+
 // FILE: main.kt
 package sample
 
@@ -27,6 +40,11 @@ class Engine(@JvmField val code: String) {
     private fun secret(): Int = 1
 }
 
+class Tagged {
+    @field:JvmField
+    val tag: String = "tag"
+}
+
 final class Locked {
     fun open(): String = "locked"
 }
@@ -46,11 +64,13 @@ package test
 
 import io.lokki.every
 import io.lokki.mock
+import sample.Aliased
 import sample.Engine
 import sample.Fuel
 import sample.Locked
 import sample.Registry
 import sample.Rpm
+import sample.Tagged
 
 class Window {
     fun open(): String = "open"
@@ -60,6 +80,8 @@ fun test() {
     val engine = mock<<!LOKKI_FINAL_MEMBERS_NOT_MOCKED!>Engine<!>>()
     every { engine.start() } returns "mocked"
     every { engine.<!LOKKI_NOT_INTERCEPTABLE!>id<!>() } returns 2
+    mock<<!LOKKI_FINAL_MEMBERS_NOT_MOCKED!>Aliased<!>>()
+    mock<<!LOKKI_FINAL_MEMBERS_NOT_MOCKED!>Tagged<!>>()
     mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Locked<!>>()
     mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Rpm<!>>()
     mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Fuel<!>>()

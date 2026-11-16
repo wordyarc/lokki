@@ -1,31 +1,7 @@
-/injectMocks.kt:75:5: error: '@InjectMocks' cannot choose how to create 'sample.Listened': parameter 'listener' of 'Listened(listener: Listener)' matches several properties by type: 'first', 'second'. Name one of them 'listener' or create the object yourself.
+/injectMocks.kt:29:5: error: 'sample.Final' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
 
-/injectMocks.kt:78:5: error: '@InjectMocks' cannot choose how to create 'sample.Twins': several of its constructors with the most parameters can be called: 'Twins(repo: Repo)', 'Twins(clock: Clock)'.
+/injectMocks.kt:33:5: error: '@InjectMocks' cannot inject 'sample.Service': a property cannot have both '@InjectMocks' and '@Mock'.
 
-/injectMocks.kt:81:5: error: '@InjectMocks' cannot choose how to create 'sample.Settable': its property 'listener' matches several properties by type: 'first', 'second'. Name one of them 'listener' or create the object yourself.
+/injectMocks.kt:36:5: error: '@InjectMocks' needs a 'lateinit var' or 'var' property: lokki assigns the property after the object is constructed.
 
-/injectMocks.kt:84:5: error: '@InjectMocks' cannot inject 'sample.Guarded': its property 'repo' would get 'repo', but it cannot be set from this class. Make the property and its setter visible or create the object yourself.
-
-/injectMocks.kt:87:5: error: '@InjectMocks' cannot create 'sample.Hidden': it has no constructor visible from this class.
-
-/injectMocks.kt:90:5: error: '@InjectMocks' cannot create 'sample.Repo': it is an interface.
-
-/injectMocks.kt:93:5: error: '@InjectMocks' cannot create 'sample.Abstract': it is an abstract class.
-
-/injectMocks.kt:96:5: error: '@InjectMocks' cannot create 'sample.Outer.Inner': it is an inner class.
-
-/injectMocks.kt:99:5: error: '@InjectMocks' cannot create 'T': it is a type parameter.
-
-/injectMocks.kt:102:5: error: '@InjectMocks' cannot create 'sample.First': the constructors of the '@InjectMocks' properties 'cycleFirst', 'cycleSecond' need each other's objects.
-
-/injectMocks.kt:105:5: error: '@InjectMocks' cannot create 'sample.Second': the constructors of the '@InjectMocks' properties 'cycleFirst', 'cycleSecond' need each other's objects.
-
-/injectMocks.kt:113:5: error: 'sample.Final' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
-
-/injectMocks.kt:117:5: error: '@InjectMocks' cannot inject 'sample.Service': a property cannot have both '@InjectMocks' and '@Mock'.
-
-/injectMocks.kt:120:5: error: '@InjectMocks' needs a 'lateinit var' or 'var' property: lokki assigns the property after the object is constructed.
-
-/injectMocks.kt:131:5: error: '@InjectMocks' cannot create 'sample.Service': no constructor can be called with the properties of this class: 'Service(repo: Repo, clock: Clock)' has no property for 'repo'.
-
-/injectMocks.kt:138:18: error: '@InjectMocks' on a parameter is not supported yet: lokki initializes only properties declared in the class body. Declare a 'lateinit var' property instead.
+/injectMocks.kt:40:18: error: '@InjectMocks' on a parameter is not supported yet: lokki initializes only properties declared in the class body. Declare a 'lateinit var' property instead.

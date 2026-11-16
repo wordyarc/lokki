@@ -1,7 +1,9 @@
 package io.lokki.compiler.fir
 
+import io.lokki.compiler.FIELD_KINDS
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LOKKI_INTRINSIC
+import io.lokki.compiler.ParameterNames
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.declarations.extractEnumValueArgumentInfo
 import org.jetbrains.kotlin.fir.declarations.findArgumentByName
@@ -19,10 +21,7 @@ internal fun FirBasedSymbol<*>.intrinsicKind(session: FirSession): IntrinsicKind
     return IntrinsicKind.of(kind.enumEntryName.asString())
 }
 
-private val KIND = Name.identifier("kind")
+private val KIND = Name.identifier(ParameterNames.KIND)
 
 internal fun FirAnnotation.fieldKind(session: FirSession): IntrinsicKind? =
     toAnnotationClassLikeSymbol(session)?.intrinsicKind(session)?.takeIf { it in FIELD_KINDS }
-
-private val FIELD_KINDS =
-    setOf(IntrinsicKind.MOCK, IntrinsicKind.RELAXED_MOCK, IntrinsicKind.SPY, IntrinsicKind.INJECT_MOCKS)

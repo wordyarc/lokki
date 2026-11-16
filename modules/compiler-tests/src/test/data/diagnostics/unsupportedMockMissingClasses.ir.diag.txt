@@ -1,5 +1,5 @@
-/main.kt:43:5: error: 'lib.Plugin' or its supertypes declare members that refer to classes missing from the classpath: optional (dep.Missing).
+/main.kt:43:5: error: 'lib.Plugin' cannot be mocked: it or its supertypes declare members that refer to classes missing from the classpath: 'optional' (dep.Missing). Add the dependency with these classes to the test compilation and runtime, e.g. with 'testImplementation'.
 
-/main.kt:44:5: error: 'lib.Store' or its supertypes declare members that refer to classes missing from the classpath: current (dep.Missing).
+/main.kt:44:5: error: 'lib.Store' cannot be mocked: it or its supertypes declare members that refer to classes missing from the classpath: 'current' (dep.Missing). Add the dependency with these classes to the test compilation and runtime, e.g. with 'testImplementation'.
 
-/main.kt:45:5: error: 'lib.Subclass' has supertypes missing from the classpath: dep.MissingBase.
+/main.kt:45:5: error: 'lib.Subclass' cannot be mocked: its supertypes are missing from the classpath: dep.MissingBase. Add the dependency with these classes to the test compilation and runtime, e.g. with 'testImplementation'.

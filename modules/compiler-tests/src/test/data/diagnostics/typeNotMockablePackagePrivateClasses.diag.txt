@@ -1,13 +1,3 @@
-/main.kt:96:10: error: 'lib.Exchange' cannot be mocked: a mock cannot override its members that refer to package-private classes of another package: 'reply' (lib.Token), 'send' (lib.Token), 'sendAll' (lib.Token). Create the mock in a file of package 'lib'.
+/main.kt:102:10: warning: The mock of 'lib.Fixed' does not intercept its final members 'send': they run the original code on an instance created without a constructor. Make them open.
 
-/main.kt:97:10: error: 'lib.Bounded' cannot be mocked: a mock cannot override its members that refer to package-private classes of another package: 'save' (lib.Token). Create the mock in a file of package 'lib'.
-
-/main.kt:98:10: error: 'lib.Holder' cannot be mocked: a mock cannot override its members that refer to package-private classes of another package: 'use' (lib.Holder.Secret). Create the mock in a file of package 'lib'.
-
-/main.kt:99:10: error: 'lib.Channel' cannot be mocked: a mock cannot override its members that refer to package-private classes of another package: 'open' (lib.Token). Create the mock in a file of package 'lib'.
-
-/main.kt:100:45: error: 'lib.Channel' cannot be mocked: a mock cannot override its members that refer to package-private classes of another package: 'open' (lib.Token). Create the mock in a file of package 'lib'.
-
-/main.kt:101:10: warning: The mock of 'lib.Fixed' does not intercept its final members 'send': they run the original code on an instance created without a constructor. Make them open.
-
-/main.kt:102:10: warning: The mock of 'lib.Inherited' does not intercept its final members 'send': they run the original code on an instance created without a constructor. Make them open.
+/main.kt:103:10: warning: The mock of 'lib.Inherited' does not intercept its final members 'send': they run the original code on an instance created without a constructor. Make them open.

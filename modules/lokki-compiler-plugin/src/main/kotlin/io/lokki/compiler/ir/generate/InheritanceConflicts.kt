@@ -1,5 +1,6 @@
 package io.lokki.compiler.ir.generate
 
+import io.lokki.compiler.ir.renderReadable
 import io.lokki.compiler.ir.typeKey
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationWithName
@@ -16,17 +17,16 @@ import org.jetbrains.kotlin.ir.types.typeOrFail
 import org.jetbrains.kotlin.ir.util.erasedUpperBound
 import org.jetbrains.kotlin.ir.util.getAllSubstitutedSupertypes
 import org.jetbrains.kotlin.ir.util.isSubclassOf
-import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.util.parentAsClass
 import org.jetbrains.kotlin.ir.util.substitute
 
-internal fun IrClass.inheritanceConflict(mocked: IrClass): String? {
+internal fun IrClass.inheritanceConflict(): String? {
     val supertypes = getAllSubstitutedSupertypes(this).sortedBy { it.typeKey(emptyList()) }.groupBy { it.classOrFail }
     for ((supertype, types) in supertypes) {
-        val keys = types.map { it.typeKey(emptyList()) }.distinct()
-        if (keys.size > 1) {
-            return "The mock of '${mocked.kotlinFqName}' inherits '${supertype.owner.kotlinFqName}' with different " +
-                "type arguments: ${keys.joinToString(" and ") { "'$it'" }}"
+        val distinct = types.distinctBy { it.typeKey(emptyList()) }
+        if (distinct.size > 1) {
+            return "it would inherit '${supertype.owner.name}' with different type arguments: " +
+                distinct.joinToString(" and ") { "'${it.renderReadable()}'" }
         }
     }
     val arguments = supertypes.mapValues { (supertype, types) ->
@@ -39,9 +39,8 @@ internal fun IrClass.inheritanceConflict(mocked: IrClass): String? {
             else -> null
         } ?: continue
         val name = (member as IrDeclarationWithName).name
-        val owners = conflict.joinToString(" and ") { "'${it.parentAsClass.kotlinFqName}'" }
-        return "The mock of '${mocked.kotlinFqName}' cannot implement '$name' of $owners at once: " +
-            "their types are incompatible"
+        val owners = conflict.joinToString(" and ") { "'${it.parentAsClass.name}'" }
+        return "its member '$name' has incompatible types in $owners"
     }
     return null
 }

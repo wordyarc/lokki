@@ -64,19 +64,19 @@ public inline fun mockStatic(vararg functions: KFunction<*>, block: () -> Unit):
 public inline fun mockStatic(vararg functions: KProperty<*>, block: () -> Unit): Unit =
     throw LokkiException("lokki compiler plugin is not applied to this compilation")
 
-@LokkiIntrinsic(LokkiIntrinsic.Kind.STATIC_MOCKS)
+@LokkiIntrinsic(LokkiIntrinsic.Kind.UNMOCK_STATIC)
 public fun unmockStatic(vararg functions: KFunction<*>): Unit =
     throw LokkiException("lokki compiler plugin is not applied to this compilation")
 
-@LokkiIntrinsic(LokkiIntrinsic.Kind.STATIC_MOCKS)
+@LokkiIntrinsic(LokkiIntrinsic.Kind.UNMOCK_STATIC)
 public fun unmockStatic(vararg functions: KProperty<*>): Unit =
     throw LokkiException("lokki compiler plugin is not applied to this compilation")
 
-@LokkiIntrinsic(LokkiIntrinsic.Kind.STATIC_MOCKS)
+@LokkiIntrinsic(LokkiIntrinsic.Kind.CLEAR_STATIC_MOCK)
 public fun clearStaticMock(vararg functions: KFunction<*>): Unit =
     throw LokkiException("lokki compiler plugin is not applied to this compilation")
 
-@LokkiIntrinsic(LokkiIntrinsic.Kind.STATIC_MOCKS)
+@LokkiIntrinsic(LokkiIntrinsic.Kind.CLEAR_STATIC_MOCK)
 public fun clearStaticMock(vararg functions: KProperty<*>): Unit =
     throw LokkiException("lokki compiler plugin is not applied to this compilation")
 

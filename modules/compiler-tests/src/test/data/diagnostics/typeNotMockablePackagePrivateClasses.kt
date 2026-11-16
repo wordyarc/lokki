@@ -1,5 +1,6 @@
-// RUN_PIPELINE_TILL: FRONTEND
+// RUN_PIPELINE_TILL: FIR2IR
 // RENDER_DIAGNOSTICS_FULL_TEXT
+// RENDER_IR_DIAGNOSTICS_FULL_TEXT
 
 // FILE: lib/Token.java
 package lib;
@@ -93,10 +94,10 @@ import lib.Holder
 import lib.Inherited
 
 fun test() {
-    mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Exchange<!>>()
-    mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Bounded<!>>()
-    mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Holder<!>>()
-    mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Channel<!>>()
+    <!LOKKI_TYPE_NOT_MOCKABLE!>mock<Exchange>()<!>
+    <!LOKKI_TYPE_NOT_MOCKABLE!>mock<Bounded>()<!>
+    <!LOKKI_TYPE_NOT_MOCKABLE!>mock<Holder>()<!>
+    <!LOKKI_TYPE_NOT_MOCKABLE!>mock<Channel>()<!>
     mock<Runnable>(moreInterfaces = arrayOf(<!LOKKI_TYPE_NOT_MOCKABLE!>Channel::class<!>))
     mock<<!LOKKI_FINAL_MEMBERS_NOT_MOCKED!>Fixed<!>>()
     mock<<!LOKKI_FINAL_MEMBERS_NOT_MOCKED!>Inherited<!>>()

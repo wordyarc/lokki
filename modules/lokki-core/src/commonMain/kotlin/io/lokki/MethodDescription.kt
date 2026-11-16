@@ -1,5 +1,6 @@
 package io.lokki
 
+import io.lokki.internal.LokkiAbi
 import kotlin.reflect.KClass
 
 public class MethodDescription internal constructor(
@@ -62,8 +63,8 @@ public class MethodDescription internal constructor(
     }
 }
 
-internal const val RETURN_TYPE_NULLABLE = 1
-internal const val RETURNS_UNIT = 2
-internal const val RETURNS_NOTHING = 4
-internal const val SUSPEND = 8
-internal const val FN_CALL = 16
+internal const val RETURN_TYPE_NULLABLE = LokkiAbi.METHOD_RETURN_TYPE_NULLABLE
+internal const val RETURNS_UNIT = LokkiAbi.METHOD_RETURNS_UNIT
+internal const val RETURNS_NOTHING = LokkiAbi.METHOD_RETURNS_NOTHING
+internal const val SUSPEND = LokkiAbi.METHOD_SUSPEND
+internal const val FN_CALL = LokkiAbi.METHOD_FN_CALL

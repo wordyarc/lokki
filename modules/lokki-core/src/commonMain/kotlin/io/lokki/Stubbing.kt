@@ -11,15 +11,15 @@ public fun <T> every(stubBlock: MatcherScope.() -> T): StubScope<T> =
 public fun <T> coEvery(stubBlock: suspend MatcherScope.() -> T): StubScope<T> =
     throw LokkiException("lokki compiler plugin is not applied to this compilation")
 
-@LokkiIntrinsic(LokkiIntrinsic.Kind.STUB_BLOCK)
+@LokkiIntrinsic(LokkiIntrinsic.Kind.JUST_RUN_BLOCK)
 public fun justRun(stubBlock: MatcherScope.() -> Unit): AdditionalAnswerScope<Unit> =
     throw LokkiException("lokki compiler plugin is not applied to this compilation")
 
-@LokkiIntrinsic(LokkiIntrinsic.Kind.STUB_BLOCK)
+@LokkiIntrinsic(LokkiIntrinsic.Kind.JUST_RUN_BLOCK)
 public fun coJustRun(stubBlock: suspend MatcherScope.() -> Unit): AdditionalAnswerScope<Unit> =
     throw LokkiException("lokki compiler plugin is not applied to this compilation")
 
-@LokkiIntrinsic(LokkiIntrinsic.Kind.STUB_BLOCK)
+@LokkiIntrinsic(LokkiIntrinsic.Kind.JUST_AWAIT_BLOCK)
 public fun coJustAwait(stubBlock: suspend MatcherScope.() -> Unit): AdditionalAnswerScope<Unit> =
     throw LokkiException("lokki compiler plugin is not applied to this compilation")
 

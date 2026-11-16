@@ -1,5 +1,1 @@
-/unsupportedChainedMocks.kt:29:17: error: A matcher in a link of the call chain needs a child mock of its return type, but 'sample.Locked' has no constructor visible to the mock.
-
-/unsupportedChainedMocks.kt:30:18: error: A matcher in a link of the call chain needs a child mock of its return type, but 'sample.Locked' has no constructor visible to the mock.
-
-/unsupportedChainedMocks.kt:31:13: error: Chained mocks support matchers only in the arguments of a link of the call chain.
+/unsupportedChainedMocks.kt:23:13: error: Chained mocks support matchers only in the arguments of a link of the call chain.

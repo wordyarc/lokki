@@ -1,27 +1,29 @@
 package io.lokki.compiler
 
-import org.jetbrains.kotlin.name.CallableId
-import org.jetbrains.kotlin.name.ClassId
-import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.name.Name
-
 internal enum class IntrinsicKind {
     MOCK,
-    STUB_BLOCK,
-    MATCHER,
-    ANSWER,
-    VERIFY_BLOCK,
-    WAS_NOT_CALLED,
-    EXCLUDE_BLOCK,
-    AWAITS,
     SPY,
     RELAXED_MOCK,
     ADDITIONAL_INTERFACE,
     INJECT_MOCKS,
+    STUB_BLOCK,
+    JUST_RUN_BLOCK,
+    JUST_AWAIT_BLOCK,
+    VERIFY_BLOCK,
+    VERIFY_ALL_BLOCK,
+    VERIFY_ORDER_BLOCK,
+    VERIFY_SEQUENCE_BLOCK,
+    EXCLUDE_BLOCK,
+    WAS_NOT_CALLED,
+    WITH_CONTEXT,
+    MATCHER,
+    ANSWER,
+    AWAITS,
     MOCK_OBJECT,
     MOCK_STATIC,
-    STATIC_MOCKS,
-    WITH_CONTEXT,
+    UNMOCK_STATIC,
+    CLEAR_STATIC_MOCK,
+    CONFIRM_VERIFIED_STATIC,
     UNKNOWN;
 
     companion object {
@@ -29,26 +31,30 @@ internal enum class IntrinsicKind {
     }
 }
 
-internal val BLOCK_KINDS = setOf(IntrinsicKind.STUB_BLOCK, IntrinsicKind.VERIFY_BLOCK, IntrinsicKind.EXCLUDE_BLOCK)
+internal val STUB_BLOCKS =
+    setOf(IntrinsicKind.STUB_BLOCK, IntrinsicKind.JUST_RUN_BLOCK, IntrinsicKind.JUST_AWAIT_BLOCK)
 
-internal val LOKKI_INTRINSIC = ClassId(FqName("io.lokki.internal"), Name.identifier("LokkiIntrinsic"))
-internal val CHAINED_MOCKS = ClassId(FqName("io.lokki"), Name.identifier("ChainedMocks"))
-
-internal const val ALL_ANY = "allAny"
-internal const val ARRAY = "array"
-internal val COMPOSITE_MATCHERS = setOf("and", "or", "not")
-internal val CAPTURE_MATCHERS = setOf("capture", "captureNullable")
-internal val WITH_ARG_MATCHERS = setOf("withArg", "withNullableArg", "coWithArg", "coWithNullableArg")
-internal val REF_EQ_MATCHERS = setOf("refEq", "nrefEq")
-internal val JUST_RUN_BLOCKS = setOf("justRun", "coJustRun")
-internal val ORDERED_VERIFY_BLOCKS = mapOf(
-    "verifyAll" to "ALL",
-    "coVerifyAll" to "ALL",
-    "verifyOrder" to "ORDERED",
-    "coVerifyOrder" to "ORDERED",
-    "verifySequence" to "SEQUENCE",
-    "coVerifySequence" to "SEQUENCE",
+internal val VERIFICATION_ORDERINGS = mapOf(
+    IntrinsicKind.VERIFY_ALL_BLOCK to "ALL",
+    IntrinsicKind.VERIFY_ORDER_BLOCK to "ORDERED",
+    IntrinsicKind.VERIFY_SEQUENCE_BLOCK to "SEQUENCE",
 )
-internal const val JUST_AWAIT_BLOCK = "coJustAwait"
 
-internal val AWAIT_CANCELLATION = CallableId(FqName("kotlinx.coroutines"), Name.identifier("awaitCancellation"))
+internal val VERIFY_BLOCKS = VERIFICATION_ORDERINGS.keys + IntrinsicKind.VERIFY_BLOCK
+
+internal val BLOCK_KINDS = STUB_BLOCKS + VERIFY_BLOCKS + IntrinsicKind.EXCLUDE_BLOCK
+
+internal val STATIC_KINDS = setOf(
+    IntrinsicKind.MOCK_STATIC,
+    IntrinsicKind.UNMOCK_STATIC,
+    IntrinsicKind.CLEAR_STATIC_MOCK,
+    IntrinsicKind.CONFIRM_VERIFIED_STATIC,
+)
+
+internal val FIELD_KINDS =
+    setOf(IntrinsicKind.MOCK, IntrinsicKind.RELAXED_MOCK, IntrinsicKind.SPY, IntrinsicKind.INJECT_MOCKS)
+
+internal val ENTRY_POINTS =
+    BLOCK_KINDS + STATIC_KINDS + setOf(IntrinsicKind.MOCK, IntrinsicKind.SPY, IntrinsicKind.MOCK_OBJECT)
+
+internal val REFERABLE_KINDS = setOf(IntrinsicKind.ANSWER, null)

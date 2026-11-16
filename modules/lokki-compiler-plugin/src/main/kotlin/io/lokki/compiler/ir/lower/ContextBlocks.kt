@@ -2,12 +2,13 @@ package io.lokki.compiler.ir.lower
 
 import io.lokki.compiler.BLOCK_KINDS
 import io.lokki.compiler.IntrinsicKind
-import io.lokki.compiler.ir.CASTS
 import io.lokki.compiler.ir.LokkiSymbols
+import io.lokki.compiler.ir.contains
 import io.lokki.compiler.ir.intrinsicKind
+import io.lokki.compiler.ir.rewrap
+import io.lokki.compiler.ir.wrapped
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
-import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irGet
@@ -19,13 +20,8 @@ import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrFunctionExpression
 import org.jetbrains.kotlin.ir.expressions.IrGetValue
 import org.jetbrains.kotlin.ir.expressions.IrReturn
-import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
-import org.jetbrains.kotlin.ir.expressions.IrTypeOperatorCall
 import org.jetbrains.kotlin.ir.util.patchDeclarationParents
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
-import org.jetbrains.kotlin.ir.visitors.IrVisitorVoid
-import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
-import org.jetbrains.kotlin.ir.visitors.acceptVoid
 
 internal class ContextBlocks(private val context: IrPluginContext, private val symbols: LokkiSymbols) :
     IrElementTransformerVoid() {
@@ -41,10 +37,10 @@ internal class ContextBlocks(private val context: IrPluginContext, private val s
         if (this is IrExpression) withoutContext(block) else this
 
     private fun IrExpression.withoutContext(block: IrSimpleFunction): IrExpression {
+        val wrapped = wrapped
         when {
             this is IrReturn -> value = value.withoutContext(block)
-            this is IrTypeOperatorCall && operator in CASTS -> argument = argument.withoutContext(block)
-            this is IrCall && origin == IrStatementOrigin.EXCLEXCL -> arguments[0] = arguments[0]?.withoutContext(block)
+            wrapped != null -> rewrap(wrapped.withoutContext(block))
             this is IrCall && intrinsicKind == IntrinsicKind.WITH_CONTEXT -> return contextCall(block) ?: this
         }
         return this
@@ -60,7 +56,7 @@ internal class ContextBlocks(private val context: IrPluginContext, private val s
             statement is IrReturn && statement.returnTargetSymbol == lambda.symbol -> statement.value
             else -> statement as? IrExpression ?: return null
         }
-        if (value.returnsFrom(lambda)) return null
+        if (value.contains { it is IrReturn && it.returnTargetSymbol == lambda.symbol }) return null
         val contexts = lambda.parameters.filter { it.kind == IrParameterKind.Context }.map { it.symbol }.toSet()
         val builder = DeclarationIrBuilder(context, block.symbol, startOffset, endOffset)
         return value.transform(
@@ -75,15 +71,4 @@ internal class ContextBlocks(private val context: IrPluginContext, private val s
             null,
         ).also { it.patchDeclarationParents(block) }
     }
-}
-
-private fun IrExpression.returnsFrom(function: IrSimpleFunction): Boolean {
-    var found = false
-    acceptVoid(object : IrVisitorVoid() {
-        override fun visitElement(element: IrElement) {
-            found = found || element is IrReturn && element.returnTargetSymbol == function.symbol
-            if (!found) element.acceptChildrenVoid(this)
-        }
-    })
-    return found
 }

@@ -3,6 +3,7 @@ import lokki.buildlogic.COMPILER_COMPAT_SERVICE
 import lokki.buildlogic.COMPILER_PLUGIN_ID
 import lokki.buildlogic.ClasspathSystemProperty
 import lokki.buildlogic.DEBUG_OPTION
+import lokki.buildlogic.LOKKI_ABI_FLAGS
 import lokki.buildlogic.LOKKI_ABI_VERSION
 import lokki.buildlogic.MOCKABLE_OPTION
 import lokki.buildlogic.MergeCompilerCompatServices
@@ -49,6 +50,7 @@ buildConfig {
     buildConfigField("MOCKABLE_OPTION", MOCKABLE_OPTION)
     buildConfigField("DEBUG_OPTION", DEBUG_OPTION)
     buildConfigField("LOKKI_ABI_VERSION", LOKKI_ABI_VERSION)
+    LOKKI_ABI_FLAGS.forEach { (name, flag) -> buildConfigField(name, flag) }
     buildConfigField("VERSION", version.toString())
     buildConfigField("LATEST_TESTED_KOTLIN", latestTestedKotlin)
 }
@@ -96,6 +98,22 @@ val embeddableCompilerHost = configurations.detachedConfiguration(
 
 testing {
     suites {
+        named<JvmTestSuite>("test") {
+            useJUnitJupiter(libs.versions.junit.jupiter)
+
+            dependencies {
+                implementation(libs.kotlin.test.junit5)
+                implementation(project(":lokki-core"))
+                implementation("org.jetbrains.kotlin:kotlin-compiler:$compilerApiBaseline")
+            }
+
+            targets.configureEach {
+                testTask.configure {
+                    description = "Checks the names of lokki-core that the compiler plugin relies on"
+                }
+            }
+        }
+
         register<JvmTestSuite>("jarTest") {
             useJUnitJupiter(libs.versions.junit.jupiter)
 

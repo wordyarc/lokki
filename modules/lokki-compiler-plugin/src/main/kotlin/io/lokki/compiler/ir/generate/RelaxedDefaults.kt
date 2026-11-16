@@ -1,6 +1,7 @@
 package io.lokki.compiler.ir.generate
 
 import io.lokki.compiler.ir.LokkiSymbols
+import io.lokki.compiler.ir.renderReadable
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
@@ -20,9 +21,7 @@ import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.IrSimpleType
-import org.jetbrains.kotlin.ir.types.IrStarProjection
 import org.jetbrains.kotlin.ir.types.IrType
-import org.jetbrains.kotlin.ir.types.IrTypeProjection
 import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.types.classifierOrNull
 import org.jetbrains.kotlin.ir.types.defaultType
@@ -39,7 +38,6 @@ import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.ir.util.substitute
 import org.jetbrains.kotlin.name.StandardClassIds
-import org.jetbrains.kotlin.types.Variance
 
 internal class RelaxedDefault(val key: String, val expression: IrBuilderWithScope.() -> IrExpression)
 
@@ -72,7 +70,7 @@ internal class RelaxedDefaults(private val context: IrPluginContext, private val
             }
             else -> empty(klass.owner)
                 ?: child?.invoke(type as IrSimpleType)
-                ?: missing(type.description(parameterName), suggestsChainedMocks && klass.owner.isOpen)
+                ?: missing(type.renderReadable(parameterName), suggestsChainedMocks && klass.owner.isOpen)
         }
     }
 
@@ -82,7 +80,7 @@ internal class RelaxedDefaults(private val context: IrPluginContext, private val
         val elementType = when {
             !element.mentionsTypeParameters() -> element
             elementClass != null && elementClass != builtIns.arrayClass -> elementClass.starProjectedType
-            else -> return missing(type.description(parameterName))
+            else -> return missing(type.renderReadable(parameterName))
         }
         return RelaxedDefault("kotlin.Array<${elementType.render()}>") {
             irCall(builtIns.arrayOfNulls, builtIns.arrayClass.typeWith(elementType.makeNullable()), listOf(elementType))
@@ -141,26 +139,3 @@ private val IrClass.isOpen: Boolean
 private fun IrType.mentionsTypeParameters(): Boolean =
     classifierOrNull is IrTypeParameterSymbol ||
         (this as? IrSimpleType)?.arguments.orEmpty().any { it.typeOrNull?.mentionsTypeParameters() == true }
-
-private fun IrType.description(parameterName: (IrTypeParameter) -> String): String =
-    when (val classifier = classifierOrNull) {
-        is IrTypeParameterSymbol -> parameterName(classifier.owner)
-        is IrClassSymbol -> buildString {
-            generateSequence(classifier.owner) { it.parent as? IrClass }.toList().asReversed()
-                .joinTo(this, ".") { it.name.asString() }
-            val arguments = (this@description as? IrSimpleType)?.arguments.orEmpty()
-            if (arguments.isNotEmpty()) {
-                arguments.joinTo(this, ", ", "<", ">") { argument ->
-                    when (argument) {
-                        is IrStarProjection -> "*"
-                        is IrTypeProjection -> argument.variance.prefix + argument.type.description(parameterName)
-                    }
-                }
-            }
-            if (isMarkedNullable() && !hasAnnotation(StandardClassIds.Annotations.FlexibleNullability)) append('?')
-        }
-        else -> render()
-    }
-
-private val Variance.prefix: String
-    get() = if (this == Variance.INVARIANT) "" else "$label "

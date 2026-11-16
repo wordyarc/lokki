@@ -20,7 +20,7 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 
 internal sealed interface MemberInterception {
-    object NotObjectMember : MemberInterception
+    object NotApplicable : MemberInterception
 
     object Intercepted : MemberInterception
 
@@ -47,7 +47,7 @@ internal fun FirRegularClassSymbol.interceptionProblem(): String? {
 context(context: CheckerContext)
 internal fun FirCallableSymbol<*>.objectInterception(): MemberInterception {
     val owner = getContainingClassSymbol() as? FirRegularClassSymbol
-    if (owner == null || owner.classKind != ClassKind.OBJECT) return MemberInterception.NotObjectMember
+    if (owner == null || owner.classKind != ClassKind.OBJECT) return MemberInterception.NotApplicable
     val reason = when {
         this is FirPropertySymbol && isConst -> "it is a constant, which is inlined at compile time"
         this is FirPropertySymbol && isLateInit -> "it is a lateinit property, whose getter lokki does not intercept"
@@ -66,8 +66,8 @@ internal fun FirCallableSymbol<*>.objectInterception(): MemberInterception {
 
 context(context: CheckerContext)
 internal fun FirCallableSymbol<*>.staticInterception(): MemberInterception {
-    val id = callableId ?: return MemberInterception.NotObjectMember
-    if (id.classId != null || id.isLocal) return MemberInterception.NotObjectMember
+    val id = callableId ?: return MemberInterception.NotApplicable
+    if (id.classId != null || id.isLocal) return MemberInterception.NotApplicable
     val inline = if (this is FirPropertySymbol) getterSymbol?.isInline == true else isInline
     val reason = when {
         this is FirPropertySymbol && isConst -> "it is a constant, which is inlined at compile time"
@@ -94,7 +94,7 @@ internal fun FirCallableSymbol<*>.staticInterception(): MemberInterception {
 context(context: CheckerContext)
 private fun missingInterceptionPoints(): String? =
     "has no interception points: lokki generates them on Kotlin $INTERCEPTION_POINTS_KOTLIN or newer"
-        .takeUnless { context.session.compilerCapabilities.interceptionPoints }
+        .takeUnless { context.session.lokkiEnvironment.interceptionPoints }
 
 @OptIn(SymbolInternals::class)
 private fun FirBasedSymbol<*>.mark(): InterceptionMark =

@@ -15,21 +15,17 @@ import org.jetbrains.kotlin.ir.types.isMarkedNullable
 import org.jetbrains.kotlin.ir.util.isFromJava
 import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.util.render
-import org.jetbrains.kotlin.types.Variance
 
 internal val IrSimpleFunction.memberKeys: List<String>
-    get() = roots().map { it.memberKey }
+    get() = roots().map { it.ownKey }
 
 internal val IrSimpleFunction.root: IrSimpleFunction
     get() = roots().first()
 
-internal val IrSimpleFunction.ownKey: String
-    get() = memberKey
-
 private fun IrSimpleFunction.roots(): List<IrSimpleFunction> =
     if (overriddenSymbols.isEmpty()) listOf(this) else overriddenSymbols.flatMap { it.owner.roots() }.distinct()
 
-private val IrSimpleFunction.memberKey: String
+internal val IrSimpleFunction.ownKey: String
     get() = buildString {
         val nullability = !isFromJava()
         append(parent.kotlinFqName.asString()).append('#')
@@ -75,6 +71,3 @@ private val IrTypeParameter.position: Int
         is IrSimpleFunction -> (container.parent as? IrClass)?.typeParameters.orEmpty().size + index
         else -> index
     }
-
-private val Variance.prefix: String
-    get() = if (this == Variance.INVARIANT) "" else "$label "

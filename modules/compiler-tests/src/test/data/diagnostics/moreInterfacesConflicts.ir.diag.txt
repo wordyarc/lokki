@@ -1,0 +1,7 @@
+/moreInterfacesConflicts.kt:53:5: error: 'sample.IntId' cannot be mocked: its member 'id' has incompatible types in 'IntId' and 'StringId'.
+
+/moreInterfacesConflicts.kt:54:5: error: 'sample.Car' cannot be mocked: its member 'id' has incompatible types in 'IntId' and 'StringId'.
+
+/moreInterfacesConflicts.kt:55:5: error: 'sample.ValInt' cannot be mocked: its member 'size' has incompatible types in 'ValInt' and 'VarNumber'.
+
+/moreInterfacesConflicts.kt:56:5: error: 'sample.StringRepo' cannot be mocked: it would inherit 'Repo' with different type arguments: 'Repo<Int>' and 'Repo<String>'.

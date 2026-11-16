@@ -14,8 +14,6 @@ annotation class Marker
 
 sealed interface Shape
 
-interface Node<T : Node<T>>
-
 interface Repo<T>
 
 interface StringRepo : Repo<String>
@@ -66,13 +64,7 @@ fun test(type: KClass<*>, types: Array<KClass<*>>) {
     mock<Car>(moreInterfaces = arrayOf(<!LOKKI_TYPE_NOT_MOCKABLE!>Engine::class<!>))
     mock<Car>(moreInterfaces = arrayOf(<!LOKKI_TYPE_NOT_MOCKABLE!>Marker::class<!>))
     mock<Car>(moreInterfaces = arrayOf(<!LOKKI_TYPE_NOT_MOCKABLE!>Shape::class<!>))
-    mock<Car>(moreInterfaces = arrayOf(<!LOKKI_TYPE_NOT_MOCKABLE!>Node::class<!>))
     mock<Car>("car", false, <!LOKKI_TYPE_NOT_MOCKABLE!>Engine::class<!>)
-
-    mock<IntId>(moreInterfaces = arrayOf(<!LOKKI_TYPE_NOT_MOCKABLE!>StringId::class<!>))
-    mock<Car>(moreInterfaces = arrayOf(IntId::class, <!LOKKI_TYPE_NOT_MOCKABLE!>StringId::class<!>))
-    mock<ValInt>(moreInterfaces = arrayOf(<!LOKKI_TYPE_NOT_MOCKABLE!>VarNumber::class<!>))
-    mock<StringRepo>(moreInterfaces = arrayOf(<!LOKKI_TYPE_NOT_MOCKABLE!>IntRepo::class<!>))
 
     mock<IntId>(moreInterfaces = arrayOf(NumberId::class))
     mock<ValInt>(moreInterfaces = arrayOf(ValNumber::class))

@@ -10,6 +10,7 @@ import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationWithName
+import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrPackageFragment
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrProperty
@@ -28,8 +29,8 @@ import org.jetbrains.kotlin.ir.util.parentClassOrNull
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.FqName
 
-internal class Redirects(private val context: IrPluginContext) {
-    private val finder = context.finderForBuiltins()
+internal class Redirects(private val context: IrPluginContext, file: IrFile) {
+    private val finder = context.finderForSource(file)
     private val objects = HashMap<IrClass, ObjectRedirect?>()
     private val statics = HashMap<IrDeclaration, StaticRedirect?>()
 

@@ -1,13 +1,16 @@
 package io.lokki.compiler.fir.checkers
 
-import io.lokki.compiler.ALL_ANY
-import io.lokki.compiler.ARRAY
-import io.lokki.compiler.CAPTURE_MATCHERS
+import io.lokki.compiler.CAPTURING_SLOT
 import io.lokki.compiler.CHAINED_MOCKS
-import io.lokki.compiler.COMPOSITE_MATCHERS
+import io.lokki.compiler.CHILD_MOCK_NEEDED
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiDiagnostics
-import io.lokki.compiler.ORDERED_VERIFY_BLOCKS
+import io.lokki.compiler.MatcherNames
+import io.lokki.compiler.SLOT_READS
+import io.lokki.compiler.STUB_BLOCKS
+import io.lokki.compiler.VERIFICATION_ORDERINGS
+import io.lokki.compiler.VERIFY_BLOCKS
+import io.lokki.compiler.WITH_CONTEXT
 import io.lokki.compiler.fir.MemberInterception
 import io.lokki.compiler.fir.displayName
 import io.lokki.compiler.fir.intrinsicKind
@@ -25,9 +28,7 @@ import org.jetbrains.kotlin.diagnostics.KtDiagnosticFactory0
 import org.jetbrains.kotlin.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.FirSession
-import org.jetbrains.kotlin.fir.analysis.checkers.MppCheckerKind
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
-import org.jetbrains.kotlin.fir.analysis.checkers.expression.FirFunctionCallChecker
 import org.jetbrains.kotlin.fir.analysis.checkers.unsubstitutedScope
 import org.jetbrains.kotlin.fir.declarations.FirAnonymousFunction
 import org.jetbrains.kotlin.fir.declarations.FirNamedFunction
@@ -82,36 +83,26 @@ import org.jetbrains.kotlin.fir.types.coneType
 import org.jetbrains.kotlin.fir.types.renderReadable
 import org.jetbrains.kotlin.fir.types.resolvedType
 import org.jetbrains.kotlin.fir.visitors.FirVisitorVoid
-import org.jetbrains.kotlin.name.ClassId
-import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.util.OperatorNameConventions
 
-internal object StubBlockChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
-    context(context: CheckerContext, reporter: DiagnosticReporter)
-    override fun check(expression: FirFunctionCall) = linked { inspect(expression) }
-
-    context(context: CheckerContext, reporter: DiagnosticReporter)
-    private fun inspect(expression: FirFunctionCall) {
-        val function = expression.calleeReference.toResolvedCallableSymbol() as? FirFunctionSymbol<*> ?: return
-        val mode = when (function.intrinsicKind(context.session)) {
-            IntrinsicKind.STUB_BLOCK -> BlockMode.STUB
-            IntrinsicKind.VERIFY_BLOCK -> BlockMode.VERIFY
-            IntrinsicKind.EXCLUDE_BLOCK -> BlockMode.EXCLUDE
-            else -> return
-        }
-        val parameter = function.valueParameterSymbols.lastOrNull() ?: return
-        val argument = expression.resolvedArgumentMapping?.entries
-            ?.find { it.value.symbol == parameter }
-            ?.key?.unwrapArgument()
-            ?: return
-        val name = function.name.asString()
-        val block = (argument as? FirAnonymousFunctionExpression)?.anonymousFunction
-        if (block == null) {
-            reporter.reportOn(argument.source, LokkiDiagnostics.LOKKI_STUB_BLOCK_NOT_LITERAL, name)
-        } else {
-            StubBlock(name, mode, block, context, reporter).check()
-        }
+context(context: CheckerContext, reporter: DiagnosticReporter)
+internal fun checkBlock(call: FirFunctionCall, function: FirCallableSymbol<*>, kind: IntrinsicKind) {
+    val mode = when (kind) {
+        in STUB_BLOCKS -> BlockMode.STUB
+        in VERIFY_BLOCKS -> BlockMode.VERIFY
+        else -> BlockMode.EXCLUDE
+    }
+    val parameter = (function as? FirFunctionSymbol<*>)?.valueParameterSymbols?.lastOrNull() ?: return
+    val argument = call.resolvedArgumentMapping?.entries
+        ?.find { it.value.symbol == parameter }
+        ?.key?.unwrapArgument()
+        ?: return
+    val name = function.name.asString()
+    val block = (argument as? FirAnonymousFunctionExpression)?.anonymousFunction
+    if (block == null) {
+        reporter.reportOn(argument.source, LokkiDiagnostics.LOKKI_STUB_BLOCK_NOT_LITERAL, name)
+    } else {
+        StubBlock(name, mode, kind in VERIFICATION_ORDERINGS, block, context, reporter).check()
     }
 }
 
@@ -124,6 +115,7 @@ private enum class BlockMode(val action: String) {
 private class StubBlock(
     private val function: String,
     private val mode: BlockMode,
+    private val ordered: Boolean,
     private val block: FirAnonymousFunction,
     private val context: CheckerContext,
     private val reporter: DiagnosticReporter,
@@ -209,14 +201,14 @@ private class StubBlock(
             statement is FirPropertyAccessExpression -> checkCall(statement, statement, emptyList())
             mode == BlockMode.VERIFY && statement.isLoop -> notSingleCall(
                 statement,
-                when (function) {
-                    in ORDERED_VERIFY_BLOCKS -> "is a loop. Write out the calls in the expected order"
+                when {
+                    ordered -> "is a loop. Write out the calls in the expected order"
                     else -> "is a loop. Call 'verify' in the loop or verify one call with matchers and 'exactly'"
                 },
             )
             mode == BlockMode.VERIFY && statement is FirWhenExpression -> notSingleCall(
                 statement,
-                "is a condition. Call '${if (function in ORDERED_VERIFY_BLOCKS) function else "verify"}' in its branches",
+                "is a condition. Call '${if (ordered) function else "verify"}' in its branches",
             )
             else -> notSingleCall(statement, "is not a call")
         }
@@ -315,7 +307,7 @@ private class StubBlock(
                 link.source,
                 LokkiDiagnostics.LOKKI_TYPE_NOT_MOCKABLE,
                 type,
-                "$problem. A matcher in a link of a call chain needs a child mock of its return type",
+                "$problem. $CHILD_MOCK_NEEDED",
                 context,
             )
         }
@@ -363,7 +355,7 @@ private class StubBlock(
                     when {
                         callee?.callableId?.classId == CAPTURING_SLOT && name in SLOT_READS ->
                             element.dispatchReceiver?.slotPath(session)?.let { reads += element to it }
-                        name in CAPTURE_MATCHERS && callee?.intrinsicKind(session) == IntrinsicKind.MATCHER ->
+                        name in MatcherNames.CAPTURE && callee?.intrinsicKind(session) == IntrinsicKind.MATCHER ->
                             (element as? FirFunctionCall)?.arguments?.singleOrNull()?.slotPath(session)?.let(captured::add)
                     }
                 }
@@ -404,11 +396,11 @@ private class StubBlock(
                 val matcher = expression.calleeReference.toResolvedCallableSymbol()
                     ?.takeIf { it.intrinsicKind(session) == IntrinsicKind.MATCHER }
                     ?.name?.asString()
-                if (matcher == ALL_ANY && expression !== first) {
+                if (matcher == MatcherNames.ALL_ANY && expression !== first) {
                     report(expression, LokkiDiagnostics.LOKKI_ALL_ANY_NOT_FIRST)
                 }
                 val operands = expression.operands().filterNot { it.isScope() }
-                val matchesOperands = matcher in COMPOSITE_MATCHERS || matcher == ARRAY
+                val matchesOperands = matcher in MatcherNames.COMPOSITE || matcher == MatcherNames.ARRAY
                 operands.forEach { if (matchesOperands) checkArgument(it, first) else misplacedMatchers(it) }
             }
             else -> misplacedMatchers(expression)
@@ -529,24 +521,24 @@ private fun FirStatement.unwrapped(block: FirAnonymousFunction): FirStatement {
         statement = when {
             statement is FirReturnExpression && statement.target.labeledElement.symbol == block.symbol ->
                 statement.result
-            statement is FirTypeOperatorCall && statement.operation == FirOperation.AS -> statement.argument
-            statement is FirCheckNotNullCall -> statement.argument
-            statement is FirSmartCastExpression -> statement.originalExpression
-            else -> return statement
+            else -> statement.wrapped ?: return statement
         }
     }
 }
 
-private fun FirExpression.links(): List<FirQualifiedAccessExpression> =
-    when (val expression = unwrapArgument().unwrapSmartcastExpression()) {
-        is FirCheckNotNullCall -> expression.argument.links()
-        is FirTypeOperatorCall ->
-            if (expression.operation == FirOperation.AS) expression.argument.links() else emptyList()
-        is FirQualifiedAccessExpression -> {
-            val receiver = expression.dispatchReceiver
-            if (receiver == null) emptyList() else receiver.links() + expression
-        }
-        else -> emptyList()
+private fun FirExpression.links(): List<FirQualifiedAccessExpression> {
+    val expression = unwrapArgument()
+    expression.wrapped?.let { return it.links() }
+    val receiver = (expression as? FirQualifiedAccessExpression)?.dispatchReceiver ?: return emptyList()
+    return receiver.links() + expression
+}
+
+private val FirStatement.wrapped: FirExpression?
+    get() = when {
+        this is FirTypeOperatorCall && operation == FirOperation.AS -> argument
+        this is FirCheckNotNullCall -> argument
+        this is FirSmartCastExpression -> originalExpression
+        else -> null
     }
 
 private fun FirExpression.slotPath(session: FirSession): List<FirBasedSymbol<*>>? =
@@ -579,7 +571,4 @@ private val FirStatement.isCompoundAssignment: Boolean
         else -> false
     }
 
-private val CAPTURING_SLOT = ClassId(FqName("io.lokki"), Name.identifier("CapturingSlot"))
-private val SLOT_READS = setOf("captured", "isCaptured", "isNull")
-private const val WITH_CONTEXT = "withContext"
 private const val SINGLE_CALL = "be a single call of a mock member"

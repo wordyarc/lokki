@@ -37,10 +37,6 @@ internal class Verification(
         if (problem != null) throw LokkiException(problem)
     }
 
-    @Deprecated("Kept for code compiled by older versions of the lokki compiler plugin", level = DeprecationLevel.HIDDEN)
-    constructor(inverse: Boolean = false, atLeast: Int = 1, atMost: Int = Int.MAX_VALUE, exactly: Int = -1) :
-        this(Ordering.UNORDERED, inverse, atLeast, atMost, exactly)
-
     constructor(calls: Int) : this(atLeast = calls, atMost = calls)
 
     constructor(calls: IntRange) : this(atLeast = calls.first, atMost = calls.last)

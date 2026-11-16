@@ -1,26 +1,26 @@
 package io.lokki.compiler.ir.generate
 
+import io.lokki.compiler.BuildConfig
 import io.lokki.compiler.IntrinsicKind
-import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.LokkiPluginKey
-import io.lokki.compiler.compat.CompilerCompat
+import io.lokki.compiler.ParameterNames
+import io.lokki.compiler.ir.IrDiagnostics
 import io.lokki.compiler.ir.LokkiSymbols
-import io.lokki.compiler.ir.irHidden
+import io.lokki.compiler.ir.argument
+import io.lokki.compiler.ir.collect.ClassMockFields
 import io.lokki.compiler.ir.collect.MockClassKey
 import io.lokki.compiler.ir.collect.MockField
+import io.lokki.compiler.ir.collect.MockFields
 import io.lokki.compiler.ir.collect.MockForm
-import io.lokki.compiler.ir.collect.argument
+import io.lokki.compiler.ir.collect.constructorParameter
 import io.lokki.compiler.ir.collect.mockAnnotationName
-import io.lokki.compiler.ir.collect.mockClassKey
-import io.lokki.compiler.ir.collect.mockField
-import io.lokki.compiler.ir.collect.mockFields
-import io.lokki.compiler.ir.collect.mockedTypes
 import io.lokki.compiler.ir.collect.referencedTypeParameters
+import io.lokki.compiler.ir.irHidden
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
-import org.jetbrains.kotlin.incremental.components.LookupTracker
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
+import org.jetbrains.kotlin.incremental.components.LookupTracker
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
 import org.jetbrains.kotlin.ir.builders.declarations.addFunction
@@ -41,9 +41,7 @@ import org.jetbrains.kotlin.ir.builders.irTemporary
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrFile
-import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
-import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.expressions.IrConst
@@ -66,7 +64,7 @@ internal class MockFieldInitializers(
     private val context: IrPluginContext,
     private val symbols: LokkiSymbols,
     lookupTracker: LookupTracker?,
-    private val compat: CompilerCompat,
+    private val diagnostics: IrDiagnostics,
 ) {
     private val origin = IrDeclarationOrigin.GeneratedByPlugin(LokkiPluginKey)
     private val instances = MockInstances(context, symbols)
@@ -75,9 +73,9 @@ internal class MockFieldInitializers(
 
     private class Initializer(val function: IrSimpleFunction, val inherited: IrSimpleFunctionSymbol?)
 
-    fun declare(module: IrModuleFragment) {
-        val owners = module.files.flatMap { file ->
-            file.classes().filter { owner -> owner.mockFields.any { it.isInitialized(file) } }
+    fun declare(files: List<MockFields>) {
+        val owners = files.flatMap { fields ->
+            fields.owners.filterValues { owner -> owner.fields.any { it.isInitialized } }.keys
         }
         val ownerSet = owners.toSet()
         for (owner in owners.sortedBy { it.superclasses().count() }) {
@@ -85,8 +83,7 @@ internal class MockFieldInitializers(
         }
     }
 
-    fun implement(file: IrFile, mocks: Map<MockClassKey, IrClass>) {
-        val constructedSpies = ArrayList<MockField>()
+    fun implement(file: IrFile, fields: MockFields, mocks: Map<MockClassKey, IrClass>) {
         file.acceptChildrenVoid(object : IrVisitorVoid() {
             override fun visitElement(element: IrElement) {
                 element.acceptChildrenVoid(this)
@@ -94,28 +91,23 @@ internal class MockFieldInitializers(
 
             override fun visitValueParameter(declaration: IrValueParameter) {
                 val annotation = declaration.mockAnnotationName ?: return
-                unsupported(declaration, file, "'@$annotation' on a parameter is not supported yet")
-            }
-
-            override fun visitProperty(declaration: IrProperty) {
-                declaration.mockField?.let { field ->
-                    val reason = field.unsupportedReason(file)
-                    when {
-                        reason != null -> if (field.constructorParameter?.mockAnnotationName == null) {
-                            unsupported(declaration, file, reason)
-                        }
-                        field.isConstructedSpy(file) -> constructedSpies += field
-                    }
-                }
-                super.visitProperty(declaration)
-            }
-
-            override fun visitClass(declaration: IrClass) {
-                super.visitClass(declaration)
-                initializers[declaration]?.let { declaration.implement(it, file, mocks) }
+                diagnostics.unsupported(declaration, file, "'@$annotation' on a parameter is not supported yet")
             }
         })
-        for (spy in constructedSpies) spy.constructSpy(file, mocks)
+        for (field in fields.fields.values) {
+            val problem = field.problem
+            when {
+                problem == null -> field.site?.warning?.let { diagnostics.report(field.property, file, it) }
+                field.property.constructorParameter?.mockAnnotationName == null ->
+                    diagnostics.report(field.property, file, problem)
+            }
+        }
+        for ((owner, owned) in fields.owners) {
+            initializers[owner]?.let { owner.implement(it, owned, file, mocks) }
+        }
+        for (field in fields.fields.values) {
+            if (field.problem == null && field.isConstructedSpy) field.constructSpy(mocks)
+        }
     }
 
     private fun IrClass.declareInitializer(owners: Set<IrClass>): Initializer {
@@ -144,7 +136,12 @@ internal class MockFieldInitializers(
         return Initializer(function, superFunction)
     }
 
-    private fun IrClass.implement(initializer: Initializer, file: IrFile, mocks: Map<MockClassKey, IrClass>) {
+    private fun IrClass.implement(
+        initializer: Initializer,
+        owned: ClassMockFields,
+        file: IrFile,
+        mocks: Map<MockClassKey, IrClass>,
+    ) {
         val function = initializer.function
         val unit = context.irBuiltIns.unitType
         function.body = DeclarationIrBuilder(context, function.symbol).irBlockBody {
@@ -156,9 +153,10 @@ internal class MockFieldInitializers(
                     arguments[1] = irGet(flags)
                 }
             }
-            for (field in mockFields.filter { it.inject == null && it.isInitialized(file) }) {
-                val types = field.mockedTypes(file)!!
-                val mock = mocks.getValue(types.mockClassKey(file))
+            for (field in owned.fields.filter { it.inject == null && it.isInitialized }) {
+                val site = field.site!!
+                val types = site.types
+                val mock = mocks.getValue(site.key)
                 val backingField = field.property.backingField!!
                 val value = irGetField(irGet(self), backingField)
                 val current = irTemporary(value, irType = backingField.type.makeNullable())
@@ -181,18 +179,18 @@ internal class MockFieldInitializers(
                 }
                 +irIfThen(unit, irNotIs(irGet(current), symbols.generatedMock.defaultType), initialization)
             }
-            with(injections) { irInjectMocks(this@implement, function, self, file, mocks) }
+            with(injections) { irInjectMocks(owned, function, self, file, mocks) }
         }
     }
 
-    private fun MockField.constructSpy(file: IrFile, mocks: Map<MockClassKey, IrClass>) {
-        val types = mockedTypes(file)!!
-        val mock = mocks.getValue(types.mockClassKey(file))
+    private fun MockField.constructSpy(mocks: Map<MockClassKey, IrClass>) {
+        val types = site!!.types
+        val mock = mocks.getValue(site.key)
         val field = property.backingField!!
         val initializer = field.initializer!!
         val typeArguments = types.type.referencedTypeParameters.map { it.defaultType }
         DeclarationIrBuilder(context, field.symbol, initializer.startOffset, initializer.endOffset).run {
-            val spec = with(instances) { irSpec(name, irInt(SPY_FLAG)) }
+            val spec = with(instances) { irSpec(name, irInt(BuildConfig.FLAG_SPY)) }
             initializer.expression = initializer.expression.replaceConstructorCall(mock.typeWith(typeArguments)) {
                 with(instances) { irConstruct(mock, typeArguments, it.arguments.filterNotNull() + spec) }
             }
@@ -201,10 +199,14 @@ internal class MockFieldInitializers(
 
     private fun IrBuilderWithScope.irFlags(field: MockField, form: MockForm, flags: IrValueParameter): IrExpression =
         when (field.kind) {
-            IntrinsicKind.SPY -> irInt(if (form == MockForm.Delegation) SPY_FLAG or DELEGATE_FLAG else SPY_FLAG)
-            IntrinsicKind.RELAXED_MOCK -> irInt(RELAXED_FLAG)
+            IntrinsicKind.SPY -> when (form) {
+                MockForm.Delegation -> irInt(BuildConfig.FLAG_SPY or BuildConfig.FLAG_DELEGATE)
+                else -> irInt(BuildConfig.FLAG_SPY)
+            }
+            IntrinsicKind.RELAXED_MOCK -> irInt(BuildConfig.FLAG_RELAXED)
             else -> {
-                val own = field.flag("relaxed", RELAXED_FLAG) or field.flag("relaxUnitFun", RELAX_UNIT_FUN_FLAG)
+                val own = field.flag(ParameterNames.RELAXED, BuildConfig.FLAG_RELAXED) or
+                    field.flag(ParameterNames.RELAX_UNIT_FUN, BuildConfig.FLAG_RELAX_UNIT_FUN)
                 val intType = context.irBuiltIns.intType
                 if (own == 0) irGet(flags) else irCallOp(symbols.intOr.symbol, intType, irGet(flags), irInt(own))
             }
@@ -212,26 +214,6 @@ internal class MockFieldInitializers(
 
     private fun MockField.flag(name: String, flag: Int): Int =
         if ((annotation.argument(name) as? IrConst)?.value == true) flag else 0
-
-    private fun unsupported(element: IrElement, file: IrFile, reason: String) {
-        compat.diagnosticContext(context.diagnosticReporter, element, file)
-            .report(LokkiDiagnostics.LOKKI_UNSUPPORTED, reason)
-    }
-}
-
-private fun IrFile.classes(): List<IrClass> {
-    val classes = ArrayList<IrClass>()
-    acceptChildrenVoid(object : IrVisitorVoid() {
-        override fun visitElement(element: IrElement) {
-            element.acceptChildrenVoid(this)
-        }
-
-        override fun visitClass(declaration: IrClass) {
-            classes += declaration
-            super.visitClass(declaration)
-        }
-    })
-    return classes
 }
 
 private fun IrClass.superclasses(): Sequence<IrClass> =

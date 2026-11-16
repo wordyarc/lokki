@@ -1,9 +1,10 @@
 package io.lokki.compiler.ir
 
-import io.lokki.compiler.ALL_ANY
 import io.lokki.compiler.IntrinsicKind
+import io.lokki.compiler.MatcherNames
+import io.lokki.compiler.STUB_BLOCKS
+import io.lokki.compiler.VERIFY_BLOCKS
 import org.jetbrains.kotlin.descriptors.Modality
-import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
@@ -18,16 +19,11 @@ import org.jetbrains.kotlin.ir.expressions.IrGetObjectValue
 import org.jetbrains.kotlin.ir.expressions.IrGetValue
 import org.jetbrains.kotlin.ir.expressions.IrReturn
 import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
-import org.jetbrains.kotlin.ir.expressions.IrTypeOperator
-import org.jetbrains.kotlin.ir.expressions.IrTypeOperatorCall
 import org.jetbrains.kotlin.ir.expressions.IrVararg
 import org.jetbrains.kotlin.ir.types.isUnit
 import org.jetbrains.kotlin.ir.util.erasedUpperBound
 import org.jetbrains.kotlin.ir.util.isMethodOfAny
 import org.jetbrains.kotlin.ir.util.nonDispatchParameters
-import org.jetbrains.kotlin.ir.visitors.IrVisitorVoid
-import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
-import org.jetbrains.kotlin.ir.visitors.acceptVoid
 
 internal sealed interface Expected
 
@@ -86,11 +82,7 @@ internal fun IrStatement.noCalls(): NoCalls? =
 internal fun IrStatement.unwrapped(): IrStatement? {
     var expression: IrStatement? = if (this is IrReturn) value else this
     while (true) {
-        expression = when {
-            expression is IrTypeOperatorCall && expression.operator in CASTS -> expression.argument
-            expression is IrCall && expression.origin == IrStatementOrigin.EXCLEXCL -> expression.arguments[0]
-            else -> return expression
-        }
+        expression = (expression as? IrExpression)?.wrapped ?: return expression
     }
 }
 
@@ -125,47 +117,30 @@ internal val IrExpression.isChain: Boolean
 private val IrExpression?.isAllAny: Boolean
     get() = when (this) {
         is IrVararg -> (elements.firstOrNull() as? IrExpression).isAllAny
-        is IrCall -> intrinsicKind == IntrinsicKind.MATCHER && symbol.owner.name.asString() == ALL_ANY
+        is IrCall -> intrinsicKind == IntrinsicKind.MATCHER && symbol.owner.name.asString() == MatcherNames.ALL_ANY
         else -> false
     }
 
 internal fun IrExpression.callsSuspend(): Boolean {
-    var found = false
-    acceptVoid(object : IrVisitorVoid() {
-        override fun visitElement(element: IrElement) {
-            when {
-                found -> {}
-                element is IrCall && element.symbol.owner.isSuspend -> found = true
-                element is IrFunctionExpression && element.function.isSuspend -> {}
-                else -> element.acceptChildrenVoid(this)
-            }
-        }
-    })
-    return found
+    val suspending = find(
+        predicate = { it is IrCall && it.symbol.owner.isSuspend },
+        descend = { it !is IrFunctionExpression || !it.function.isSuspend },
+    )
+    return suspending != null
 }
-
-internal val CASTS = setOf(
-    IrTypeOperator.CAST,
-    IrTypeOperator.IMPLICIT_CAST,
-    IrTypeOperator.IMPLICIT_NOTNULL,
-    IrTypeOperator.IMPLICIT_COERCION_TO_UNIT,
-)
 
 internal fun IrCall.blockCalls(): List<StubbedCall> {
     val block = (arguments.lastOrNull() as? IrFunctionExpression)?.function ?: return emptyList()
     return when (intrinsicKind) {
-        IntrinsicKind.STUB_BLOCK -> listOfNotNull(block.stubbedCall())
-        IntrinsicKind.VERIFY_BLOCK -> block.verifiedStatements().orEmpty().filterIsInstance<StubbedCall>()
+        in STUB_BLOCKS -> listOfNotNull(block.stubbedCall())
+        in VERIFY_BLOCKS -> block.verifiedStatements().orEmpty().filterIsInstance<StubbedCall>()
         IntrinsicKind.EXCLUDE_BLOCK -> block.excludedCalls().orEmpty()
         else -> emptyList()
     }
 }
 
 internal fun IrExpression.links(): List<StubbedCall> {
-    when {
-        this is IrTypeOperatorCall && operator in CASTS -> return argument.links()
-        this is IrCall && origin == IrStatementOrigin.EXCLEXCL -> return arguments[0]!!.links()
-    }
+    wrapped?.let { return it.links() }
     val link = memberCall()?.takeIf { it.call.symbol.owner.isLink } ?: return emptyList()
     return link.receiver?.links().orEmpty() + link
 }

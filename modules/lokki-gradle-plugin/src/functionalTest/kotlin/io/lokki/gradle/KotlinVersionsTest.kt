@@ -68,7 +68,7 @@ class KotlinVersionsTest {
         val failure = project.buildAndFail("compileTestKotlin")
 
         val errors = failure.output.lines().filter { it.startsWith("e: ") }
-        assertTrue(errors.any { "BoltTest.kt:7:20 'sample.Bolt' is final and cannot be mocked." in it }, failure.output)
+        assertTrue(errors.any { "BoltTest.kt:7:20 'sample.Bolt' cannot be mocked: it is a final class." in it }, failure.output)
     }
 
     private fun project(kotlin: String): TestProject {

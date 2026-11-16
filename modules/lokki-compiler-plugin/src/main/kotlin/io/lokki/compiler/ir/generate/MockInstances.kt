@@ -1,32 +1,29 @@
 package io.lokki.compiler.ir.generate
 
 import io.lokki.compiler.ir.LokkiSymbols
+import io.lokki.compiler.ir.buildLambda
+import io.lokki.compiler.ir.irGetObject
+import io.lokki.compiler.ir.toLambda
 import io.lokki.compiler.ir.collect.MockedTypes
 import io.lokki.compiler.ir.collect.mockedClass
 import io.lokki.compiler.ir.collect.referencedTypeParameters
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
-import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
 import org.jetbrains.kotlin.ir.builders.declarations.addValueParameter
-import org.jetbrains.kotlin.ir.builders.declarations.buildFun
 import org.jetbrains.kotlin.ir.builders.irBlock
 import org.jetbrains.kotlin.ir.builders.irBlockBody
 import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irCallConstructor
 import org.jetbrains.kotlin.ir.builders.irGet
-import org.jetbrains.kotlin.ir.builders.irGetObjectValue
 import org.jetbrains.kotlin.ir.builders.irReturn
 import org.jetbrains.kotlin.ir.builders.irString
 import org.jetbrains.kotlin.ir.builders.irTemporary
 import org.jetbrains.kotlin.ir.declarations.IrClass
-import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.expressions.IrBlock
 import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
-import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.expressions.impl.IrClassReferenceImpl
-import org.jetbrains.kotlin.ir.expressions.impl.IrFunctionExpressionImpl
 import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.classOrFail
@@ -37,7 +34,6 @@ import org.jetbrains.kotlin.ir.util.functions
 import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.ir.util.primaryConstructor
 import org.jetbrains.kotlin.ir.util.render
-import org.jetbrains.kotlin.name.SpecialNames
 
 internal class MockInstances(private val context: IrPluginContext, private val symbols: LokkiSymbols) {
     fun IrBuilderWithScope.irSpec(name: String, flags: IrExpression): IrExpression =
@@ -60,7 +56,7 @@ internal class MockInstances(private val context: IrPluginContext, private val s
         val mock = type.classOrFail.owner
         val instance = irTemporary(
             irCall(symbols.allocate.symbol, type, listOf(type)).apply {
-                arguments[0] = irGetObjectValue(symbols.instanceAllocator.defaultType, symbols.instanceAllocator.symbol)
+                arguments[0] = irGetObject(symbols.instanceAllocator)
                 val javaClass = symbols.javaClass.returnType.classOrFail.typeWith(type)
                 arguments[1] = irCall(symbols.javaClass.symbol, javaClass, listOf(type)).apply {
                     arguments[0] = IrClassReferenceImpl(
@@ -103,22 +99,12 @@ internal class MockInstances(private val context: IrPluginContext, private val s
     }
 
     fun IrBuilderWithScope.irFactory(mock: IrClass, types: MockedTypes): IrExpression {
-        val specType = symbols.mockSpec.defaultType
-        val anyType = context.irBuiltIns.anyType
-        val factory = context.irFactory.buildFun {
-            startOffset = this@irFactory.startOffset
-            endOffset = this@irFactory.endOffset
-            origin = IrDeclarationOrigin.LOCAL_FUNCTION_FOR_LAMBDA
-            name = SpecialNames.ANONYMOUS
-            visibility = DescriptorVisibilities.LOCAL
-            returnType = anyType
-        }
-        val spec = factory.addValueParameter("spec", specType)
+        val factory = context.buildLambda(startOffset, endOffset, context.irBuiltIns.anyType)
+        val spec = factory.addValueParameter("spec", symbols.mockSpec.defaultType)
         factory.body = DeclarationIrBuilder(context, factory.symbol, startOffset, endOffset).irBlockBody {
             +irReturn(irNewMock(mock, types, irGet(spec)))
         }
-        val type = context.irBuiltIns.functionN(1).typeWith(specType, anyType)
-        return IrFunctionExpressionImpl(startOffset, endOffset, type, factory, IrStatementOrigin.LAMBDA)
+        return factory.toLambda(context.irBuiltIns)
     }
 }
 
@@ -135,8 +121,3 @@ internal fun IrExpression.replaceConstructorCall(
         }
         else -> error("not a constructor call: ${render()}")
     }
-
-internal const val RELAXED_FLAG = 1
-internal const val RELAX_UNIT_FUN_FLAG = 2
-internal const val SPY_FLAG = 4
-internal const val DELEGATE_FLAG = 8

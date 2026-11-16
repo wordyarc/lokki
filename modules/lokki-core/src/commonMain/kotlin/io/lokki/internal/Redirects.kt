@@ -41,13 +41,12 @@ internal object Redirects {
         }
     }
 
-    fun install(redirects: Array<Redirect>): Any = install(redirects, "mockObject", OBJECT)
+    fun install(redirects: Array<Redirect>): List<ActiveRedirect> = install(redirects, "mockObject", OBJECT)
 
-    fun installStatic(redirects: Array<Redirect>): Any = install(redirects, "mockStatic", STATIC)
+    fun installStatic(redirects: Array<Redirect>): List<ActiveRedirect> = install(redirects, "mockStatic", STATIC)
 
-    fun uninstall(installed: Any) {
-        @Suppress("UNCHECKED_CAST")
-        for (redirect in installed as List<ActiveRedirect>) remove(redirect)
+    fun uninstall(installed: List<ActiveRedirect>) {
+        installed.forEach(::remove)
     }
 
     fun of(target: Any, name: String): GeneratedMock = of(target, name, "mockObject($name)")
@@ -71,7 +70,7 @@ internal object Redirects {
         synchronized(this) { active.filter { it.scope === scope } }.forEach(::remove)
     }
 
-    private fun install(redirects: Array<Redirect>, function: String, kind: Int): Any {
+    private fun install(redirects: Array<Redirect>, function: String, kind: Int): List<ActiveRedirect> {
         val scope = LokkiScope.requireCurrent(function)
         return redirects.mapNotNull { install(it, scope, kind) }
     }
@@ -109,11 +108,12 @@ internal object Redirects {
     }
 }
 
-internal class ActiveRedirect(
-    val target: Any,
-    val scope: LokkiScope,
-    val mock: GeneratedMock,
-    val install: (Any?) -> Unit,
+@PublishedApi
+internal class ActiveRedirect internal constructor(
+    internal val target: Any,
+    internal val scope: LokkiScope,
+    internal val mock: GeneratedMock,
+    internal val install: (Any?) -> Unit,
 ) {
-    fun isFor(other: Any): Boolean = target === other || target is String && target == other
+    internal fun isFor(other: Any): Boolean = target === other || target is String && target == other
 }

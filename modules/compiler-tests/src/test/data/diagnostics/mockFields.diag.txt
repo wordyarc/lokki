@@ -12,20 +12,12 @@
 
 /mockFields.kt:60:5: warning: The mock of 'sample.Gearbox' does not intercept its final members 'gear': they run the original code on an instance created without a constructor. Make them open.
 
-/mockFields.kt:72:5: error: 'sample.Engine' cannot be mocked: none of its constructors can be called without arguments. Pass a constructor call to 'spy', such as 'spy(Engine(...))'.
+/mockFields.kt:72:5: error: '@Spy' needs a 'lateinit var' or 'var' property: lokki assigns the property after the object is constructed. A 'val' can be a spy only with a constructor call of an open class as the initializer, such as 'val car = Car()'.
 
-/mockFields.kt:76:26: warning: The spy of 'sample.Part' delegates to an existing instance: calls that the instance makes on itself bypass the spy, and the spy is a different object. Pass a constructor call, such as 'spy(Part(...))', to spy on the object itself.
+/mockFields.kt:88:5: error: '@Mock' on a parameter is not supported yet: lokki initializes only properties declared in the class body. Declare a 'lateinit var' property instead.
 
-/mockFields.kt:78:5: error: '@Spy' needs a 'lateinit var' or 'var' property: lokki assigns the property after the object is constructed. A 'val' can be a spy only with a constructor call of an open class as the initializer, such as 'val car = Car()'.
+/mockFields.kt:89:5: error: '@Mock' on a parameter is not supported yet: lokki initializes only properties declared in the class body. Declare a 'lateinit var' property instead.
 
-/mockFields.kt:79:34: warning: The spy of 'sample.Part' delegates to an existing instance: calls that the instance makes on itself bypass the spy, and the spy is a different object. Pass a constructor call, such as 'spy(Part(...))', to spy on the object itself.
+/mockFields.kt:90:5: error: '@Mock' on a parameter is not supported yet: lokki initializes only properties declared in the class body. Declare a 'lateinit var' property instead.
 
-/mockFields.kt:82:22: error: A spy of 'sample.Pump' cannot delegate to an existing instance: it cannot forward 'prime' to the instance, so they would run on an object created without a constructor. Pass a constructor call instead, such as 'spy(Pump(...))'.
-
-/mockFields.kt:97:5: error: '@Mock' on a parameter is not supported yet: lokki initializes only properties declared in the class body. Declare a 'lateinit var' property instead.
-
-/mockFields.kt:98:5: error: '@Mock' on a parameter is not supported yet: lokki initializes only properties declared in the class body. Declare a 'lateinit var' property instead.
-
-/mockFields.kt:99:5: error: '@Mock' on a parameter is not supported yet: lokki initializes only properties declared in the class body. Declare a 'lateinit var' property instead.
-
-/mockFields.kt:102:10: error: '@RelaxedMock' on a parameter is not supported yet: lokki initializes only properties declared in the class body. Declare a 'lateinit var' property instead.
+/mockFields.kt:93:10: error: '@RelaxedMock' on a parameter is not supported yet: lokki initializes only properties declared in the class body. Declare a 'lateinit var' property instead.

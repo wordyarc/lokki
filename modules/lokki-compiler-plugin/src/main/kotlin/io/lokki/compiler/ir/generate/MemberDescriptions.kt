@@ -1,13 +1,14 @@
 package io.lokki.compiler.ir.generate
 
+import io.lokki.compiler.BuildConfig
 import io.lokki.compiler.ir.LokkiSymbols
+import io.lokki.compiler.ir.irGetObject
 import io.lokki.compiler.ir.irArrayOf
 import io.lokki.compiler.ir.isAccessibleFrom
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.jvm.ir.getJvmNameFromAnnotation
 import org.jetbrains.kotlin.ir.builders.IrBuilder
 import org.jetbrains.kotlin.ir.builders.irCall
-import org.jetbrains.kotlin.ir.builders.irGetObjectValue
 import org.jetbrains.kotlin.ir.builders.irInt
 import org.jetbrains.kotlin.ir.builders.irString
 import org.jetbrains.kotlin.ir.declarations.IrFile
@@ -47,14 +48,16 @@ internal class MemberDescriptions(private val context: IrPluginContext, private 
         val returnType = member.returnType
         val platform = returnType.hasAnnotation(StandardClassIds.Annotations.FlexibleNullability)
         var flags = 0
-        if (returnType.isMarkedNullable() && !platform) flags = flags or RETURN_TYPE_NULLABLE
-        if (returnType.isUnit()) flags = flags or RETURNS_UNIT
-        if (returnType.isNothing()) flags = flags or RETURNS_NOTHING
-        if (member.isSuspend) flags = flags or SUSPEND
-        if (declaration.parentAsClass.isSubclassOf(builtIns.functionClass.owner)) flags = flags or FN_CALL
+        if (returnType.isMarkedNullable() && !platform) flags = flags or BuildConfig.METHOD_RETURN_TYPE_NULLABLE
+        if (returnType.isUnit()) flags = flags or BuildConfig.METHOD_RETURNS_UNIT
+        if (returnType.isNothing()) flags = flags or BuildConfig.METHOD_RETURNS_NOTHING
+        if (member.isSuspend) flags = flags or BuildConfig.METHOD_SUSPEND
+        if (declaration.parentAsClass.isSubclassOf(builtIns.functionClass.owner)) {
+            flags = flags or BuildConfig.METHOD_FN_CALL
+        }
         val parameters = member.nonDispatchParameters
         return irCall(symbols.methodDescription).apply {
-            arguments[0] = irGetObjectValue(symbols.methodDescriptions.defaultType, symbols.methodDescriptions.symbol)
+            arguments[0] = irGetObject(symbols.methodDescriptions)
             arguments[1] = irString(member.jvmName)
             arguments[2] = irJavaClass(returnType)
             arguments[3] = irInt(flags)
@@ -92,9 +95,3 @@ private val IrSimpleFunction.jvmName: String
         val name = property.name.asString()
         return if (property.getter == this) JvmAbi.getterName(name) else JvmAbi.setterName(name)
     }
-
-private const val RETURN_TYPE_NULLABLE = 1
-private const val RETURNS_UNIT = 2
-private const val RETURNS_NOTHING = 4
-private const val SUSPEND = 8
-private const val FN_CALL = 16

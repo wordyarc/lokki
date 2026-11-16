@@ -1,19 +1,16 @@
 package io.lokki.compiler.fir.checkers
 
 import io.lokki.compiler.AWAIT_CANCELLATION
+import io.lokki.compiler.AnswerNames
 import io.lokki.compiler.IntrinsicKind
-import io.lokki.compiler.JUST_AWAIT_BLOCK
-import io.lokki.compiler.JUST_RUN_BLOCKS
 import io.lokki.compiler.LokkiDiagnostics
+import io.lokki.compiler.STUB_BLOCKS
 import io.lokki.compiler.fir.classifier
 import io.lokki.compiler.fir.intrinsicKind
-import io.lokki.compiler.linked
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.FirElement
-import org.jetbrains.kotlin.fir.analysis.checkers.MppCheckerKind
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
-import org.jetbrains.kotlin.fir.analysis.checkers.expression.FirFunctionCallChecker
 import org.jetbrains.kotlin.fir.declarations.FirAnonymousFunction
 import org.jetbrains.kotlin.fir.declarations.FirAnonymousInitializer
 import org.jetbrains.kotlin.fir.declarations.FirFunction
@@ -49,80 +46,74 @@ import org.jetbrains.kotlin.fir.types.coneType
 import org.jetbrains.kotlin.fir.types.type
 import org.jetbrains.kotlin.fir.visitors.FirVisitorVoid
 
-internal object StubAnswerChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
-    context(context: CheckerContext, reporter: DiagnosticReporter)
-    override fun check(expression: FirFunctionCall) = linked { inspect(expression) }
-
-    context(context: CheckerContext, reporter: DiagnosticReporter)
-    private fun inspect(expression: FirFunctionCall) {
-        val function = expression.calleeReference.toResolvedCallableSymbol() ?: return
-        val name = function.name.asString()
-        when (function.intrinsicKind(context.session)) {
-            IntrinsicKind.STUB_BLOCK -> when {
-                name == JUST_AWAIT_BLOCK -> checkCoroutines(expression, name)
-                name !in JUST_RUN_BLOCKS && context.dropsValueOf(expression) -> reporter.reportOn(
-                    expression.calleeReference.source ?: expression.source,
-                    LokkiDiagnostics.LOKKI_STUB_WITHOUT_ANSWER,
-                    name,
-                )
-            }
-            IntrinsicKind.ANSWER -> when (name) {
-                RETURNS_ARGUMENT -> checkReturnsArgument(expression)
-                in ANSWER_BLOCKS -> checkOriginalCalls(expression)
-            }
-            IntrinsicKind.AWAITS -> checkCoroutines(expression, "$name Awaits")
-            else -> {}
-        }
-    }
-
-    context(context: CheckerContext, reporter: DiagnosticReporter)
-    private fun checkCoroutines(call: FirFunctionCall, name: String) {
-        val symbols = context.session.symbolProvider
-            .getTopLevelFunctionSymbols(AWAIT_CANCELLATION.packageName, AWAIT_CANCELLATION.callableName)
-        if (symbols.isNotEmpty()) return
-        reporter.reportOn(
+context(context: CheckerContext, reporter: DiagnosticReporter)
+internal fun checkStubAnswer(call: FirFunctionCall, function: FirCallableSymbol<*>, kind: IntrinsicKind) {
+    val name = function.name.asString()
+    when {
+        kind == IntrinsicKind.JUST_AWAIT_BLOCK -> checkCoroutines(call, name)
+        kind == IntrinsicKind.STUB_BLOCK && context.dropsValueOf(call) -> reporter.reportOn(
             call.calleeReference.source ?: call.source,
-            LokkiDiagnostics.LOKKI_MISSING_COROUTINES_DEPENDENCY,
+            LokkiDiagnostics.LOKKI_STUB_WITHOUT_ANSWER,
             name,
         )
     }
+}
 
-    context(context: CheckerContext, reporter: DiagnosticReporter)
-    private fun checkReturnsArgument(answer: FirFunctionCall) {
-        val argument = answer.arguments.singleOrNull()?.unwrapArgument() as? FirLiteralExpression ?: return
-        val index = (argument.value as? Number)?.toInt() ?: return
-        val (member, count) = answer.stubBlock()?.stubbedMember() ?: return
-        if (index in 0..<count) return
-        reporter.reportOn(
-            argument.source,
-            LokkiDiagnostics.LOKKI_RETURNS_ARGUMENT_OUT_OF_RANGE,
-            index,
-            member.name.asString(),
-            count,
-        )
+context(context: CheckerContext, reporter: DiagnosticReporter)
+internal fun checkAnswer(answer: FirFunctionCall, function: FirCallableSymbol<*>) {
+    when (function.name.asString()) {
+        AnswerNames.RETURNS_ARGUMENT -> checkReturnsArgument(answer)
+        in AnswerNames.BLOCKS -> checkOriginalCalls(answer)
     }
+}
 
-    context(context: CheckerContext, reporter: DiagnosticReporter)
-    private fun checkOriginalCalls(answer: FirFunctionCall) {
-        val lambda = answer.arguments.singleOrNull()?.unwrapArgument() as? FirAnonymousFunctionExpression
-        val block = lambda?.anonymousFunction
-        val scope = block?.receiverParameter?.symbol ?: return
-        val (member, _) = answer.stubBlock()?.stubbedMember() ?: return
-        if (!member.isAbstract) return
-        block.accept(object : FirVisitorVoid() {
-            override fun visitElement(element: FirElement) {
-                if (element is FirFunctionCall && element.isOriginalCallIn(scope)) {
-                    reporter.reportOn(
-                        element.calleeReference.source ?: element.source,
-                        LokkiDiagnostics.LOKKI_ABSTRACT_ORIGINAL_CALL,
-                        member.name.asString(),
-                        element.calleeReference.name.asString(),
-                    )
-                }
-                element.acceptChildren(this)
+context(context: CheckerContext, reporter: DiagnosticReporter)
+internal fun checkCoroutines(call: FirFunctionCall, name: String) {
+    val symbols = context.session.symbolProvider
+        .getTopLevelFunctionSymbols(AWAIT_CANCELLATION.packageName, AWAIT_CANCELLATION.callableName)
+    if (symbols.isNotEmpty()) return
+    reporter.reportOn(
+        call.calleeReference.source ?: call.source,
+        LokkiDiagnostics.LOKKI_MISSING_COROUTINES_DEPENDENCY,
+        name,
+    )
+}
+
+context(context: CheckerContext, reporter: DiagnosticReporter)
+private fun checkReturnsArgument(answer: FirFunctionCall) {
+    val argument = answer.arguments.singleOrNull()?.unwrapArgument() as? FirLiteralExpression ?: return
+    val index = (argument.value as? Number)?.toInt() ?: return
+    val (member, count) = answer.stubBlock()?.stubbedMember() ?: return
+    if (index in 0..<count) return
+    reporter.reportOn(
+        argument.source,
+        LokkiDiagnostics.LOKKI_RETURNS_ARGUMENT_OUT_OF_RANGE,
+        index,
+        member.name.asString(),
+        count,
+    )
+}
+
+context(context: CheckerContext, reporter: DiagnosticReporter)
+private fun checkOriginalCalls(answer: FirFunctionCall) {
+    val lambda = answer.arguments.singleOrNull()?.unwrapArgument() as? FirAnonymousFunctionExpression
+    val block = lambda?.anonymousFunction
+    val scope = block?.receiverParameter?.symbol ?: return
+    val (member, _) = answer.stubBlock()?.stubbedMember() ?: return
+    if (!member.isAbstract) return
+    block.accept(object : FirVisitorVoid() {
+        override fun visitElement(element: FirElement) {
+            if (element is FirFunctionCall && element.isOriginalCallIn(scope)) {
+                reporter.reportOn(
+                    element.calleeReference.source ?: element.source,
+                    LokkiDiagnostics.LOKKI_ABSTRACT_ORIGINAL_CALL,
+                    member.name.asString(),
+                    element.calleeReference.name.asString(),
+                )
             }
-        })
-    }
+            element.acceptChildren(this)
+        }
+    })
 }
 
 context(context: CheckerContext)
@@ -130,7 +121,7 @@ private fun FirFunctionCall.stubBlock(): FirAnonymousFunction? {
     var receiver = explicitReceiver?.unwrapSmartcastExpression() as? FirFunctionCall
     while (receiver != null) {
         receiver = when (receiver.calleeReference.toResolvedCallableSymbol()?.intrinsicKind(context.session)) {
-            IntrinsicKind.STUB_BLOCK ->
+            in STUB_BLOCKS ->
                 return (receiver.arguments.firstOrNull()?.unwrapArgument() as? FirAnonymousFunctionExpression)
                     ?.anonymousFunction
             IntrinsicKind.ANSWER, IntrinsicKind.AWAITS ->
@@ -145,7 +136,7 @@ context(context: CheckerContext)
 private fun FirFunctionCall.isOriginalCallIn(scope: FirBasedSymbol<*>): Boolean {
     val function = calleeReference.toResolvedCallableSymbol() ?: return false
     val receiver = dispatchReceiver?.unwrapSmartcastExpression() as? FirThisReceiverExpression ?: return false
-    return function.name.asString() in ORIGINAL_CALLS &&
+    return function.name.asString() in AnswerNames.ORIGINAL_CALLS &&
         function.intrinsicKind(context.session) == IntrinsicKind.ANSWER &&
         receiver.calleeReference.boundSymbol == scope
 }
@@ -202,7 +193,3 @@ private fun FirFunctionCall.returnsResultOf(lambda: FirAnonymousFunction): Boole
     val returned = parameter?.returnTypeRef?.coneType?.typeArguments?.lastOrNull()?.type as? ConeTypeParameterType
     return returned?.classifier == result.classifier
 }
-
-private const val RETURNS_ARGUMENT = "returnsArgument"
-private val ORIGINAL_CALLS = setOf("callOriginal", "coCallOriginal")
-private val ANSWER_BLOCKS = setOf("answers", "coAnswers", "andThenAnswer", "coAndThen")

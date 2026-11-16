@@ -69,17 +69,8 @@ class Fixture<T : Any> {
     @Spy
     lateinit var latePart: Part
 
-    <!LOKKI_TYPE_NOT_MOCKABLE!>@Spy<!>
-    lateinit var lateEngine: Engine
-
-    @Spy
-    var existing: Part = <!LOKKI_SPY_ARGUMENT_NOT_CONSTRUCTOR_CALL!>shared<!>
-
     <!LOKKI_MOCK_PROPERTY_NOT_MUTABLE!>@Spy<!>
-    val readonlyExisting: Part = <!LOKKI_SPY_ARGUMENT_NOT_CONSTRUCTOR_CALL!>shared<!>
-
-    @Spy
-    var pump: Pump = <!LOKKI_UNSAFE_SPY_DELEGATION!>sharedPump<!>
+    val readonlyExisting: Part = shared
 
     @Spy
     var constructedPump = Pump()

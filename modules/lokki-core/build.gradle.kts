@@ -1,3 +1,4 @@
+import lokki.buildlogic.LOKKI_ABI_FLAGS
 import lokki.buildlogic.LOKKI_ABI_VERSION
 
 plugins {
@@ -10,6 +11,7 @@ buildConfig {
     packageName("io.lokki.internal")
     className("LokkiAbi")
     buildConfigField("VERSION", LOKKI_ABI_VERSION)
+    LOKKI_ABI_FLAGS.forEach { (name, flag) -> buildConfigField(name, flag) }
 }
 
 kotlin {

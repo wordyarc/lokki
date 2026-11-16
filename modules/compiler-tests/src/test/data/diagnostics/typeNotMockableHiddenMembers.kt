@@ -1,5 +1,5 @@
-// RUN_PIPELINE_TILL: FRONTEND
-// RENDER_DIAGNOSTICS_FULL_TEXT
+// RUN_PIPELINE_TILL: FIR2IR
+// RENDER_IR_DIAGNOSTICS_FULL_TEXT
 
 // MODULE: lib
 // FILE: lib/Plugin.kt
@@ -69,8 +69,8 @@ import io.lokki.mock
 fun test() {
     mock<Base>()
     mock<Hidden>()
-    mock<<!LOKKI_TYPE_NOT_MOCKABLE!>middle.Middle<!>>()
-    mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Leaf<!>>()
+    <!LOKKI_TYPE_NOT_MOCKABLE!>mock<middle.Middle>()<!>
+    <!LOKKI_TYPE_NOT_MOCKABLE!>mock<Leaf>()<!>
 }
 
 // FILE: main.kt
@@ -85,10 +85,10 @@ import other.Base
 import other.Hidden
 
 fun test() {
-    mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Plugin<!>>()
-    mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Base<!>>()
-    mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Hidden<!>>()
-    mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Singleton<!>>()
-    mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Factory<!>>()
+    <!LOKKI_TYPE_NOT_MOCKABLE!>mock<Plugin>()<!>
+    <!LOKKI_TYPE_NOT_MOCKABLE!>mock<Base>()<!>
+    <!LOKKI_TYPE_NOT_MOCKABLE!>mock<Hidden>()<!>
+    <!LOKKI_TYPE_NOT_MOCKABLE!>mock<Singleton>()<!>
+    <!LOKKI_TYPE_NOT_MOCKABLE!>mock<Factory>()<!>
     mock<Extension>()
 }

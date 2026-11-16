@@ -1,6 +1,6 @@
 package io.lokki.compiler.fir.checkers
 
-import io.lokki.compiler.IntrinsicKind
+import io.lokki.compiler.REFERABLE_KINDS
 import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.fir.intrinsicKind
 import io.lokki.compiler.linked
@@ -19,7 +19,7 @@ internal object IntrinsicReferenceChecker : FirCallableReferenceAccessChecker(Mp
     context(context: CheckerContext, reporter: DiagnosticReporter)
     private fun inspect(expression: FirCallableReferenceAccess) {
         val function = expression.calleeReference.toResolvedCallableSymbol() ?: return
-        if (function.intrinsicKind(context.session) in REFERABLE) return
+        if (function.intrinsicKind(context.session) in REFERABLE_KINDS) return
         reporter.reportOn(
             expression.source,
             LokkiDiagnostics.LOKKI_CALLABLE_REFERENCE_TO_INTRINSIC,
@@ -27,5 +27,3 @@ internal object IntrinsicReferenceChecker : FirCallableReferenceAccessChecker(Mp
         )
     }
 }
-
-private val REFERABLE = setOf(IntrinsicKind.ANSWER, null)
