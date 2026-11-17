@@ -4,6 +4,7 @@ import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.declarations.IrTypeParameter
+import org.jetbrains.kotlin.ir.declarations.IrTypeParametersContainer
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
@@ -11,6 +12,7 @@ import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrStarProjection
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.IrTypeProjection
+import org.jetbrains.kotlin.ir.types.extractTypeParameters
 import org.jetbrains.kotlin.ir.types.isMarkedNullable
 import org.jetbrains.kotlin.ir.util.isFromJava
 import org.jetbrains.kotlin.ir.util.isLocal
@@ -71,7 +73,7 @@ private val IrClass.keyName: String
     get() = if (isLocal) "${kotlinFqName.asString()}@$startOffset" else kotlinFqName.asString()
 
 private val IrTypeParameter.position: Int
-    get() = when (val container = parent) {
-        is IrSimpleFunction -> (container.parent as? IrClass)?.typeParameters.orEmpty().size + index
-        else -> index
+    get() {
+        val container = parent as IrTypeParametersContainer
+        return extractTypeParameters(container).size - container.typeParameters.size + index
     }

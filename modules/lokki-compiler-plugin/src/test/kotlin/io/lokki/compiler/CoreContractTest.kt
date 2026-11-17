@@ -28,6 +28,19 @@ class CoreContractTest {
     }
 
     @Test
+    fun testMatcherFactoriesTakeArgumentsOfMatchers() {
+        val scopes = arities("io.lokki.MatcherScope") + arities("io.lokki.VerificationScope")
+        val factories = arities("io.lokki.internal.Matchers")
+        val constructed = MatcherNames.BUILTIN - MatcherNames.ANY - MatcherNames.ARRAY
+        val mismatched = scopes.filter { (name, _) -> name in constructed }.filterNot { it in factories }
+        assertTrue(
+            mismatched.isEmpty(),
+            "Matchers of lokki-core must declare a factory with the parameters of each of $mismatched: " +
+                "the compiler plugin passes the arguments of a matcher to its factory by position",
+        )
+    }
+
+    @Test
     fun testAnswersAreDeclared() {
         val answers = methods("io.lokki.StubScope") + methods("io.lokki.AdditionalAnswerScope")
         assertDeclared(AnswerNames.BLOCKS + AnswerNames.RETURNS_ARGUMENT, answers, "answer scopes")
@@ -94,6 +107,9 @@ class CoreContractTest {
 
     private val Method.arity: Int
         get() = parameterTypes.count { it != Continuation::class.java }
+
+    private fun arities(type: String): Set<Pair<String, Int>> =
+        Class.forName(type).declaredMethods.mapTo(HashSet()) { it.name to it.parameterCount }
 
     private fun methods(type: String): Set<String> = Class.forName(type).declaredMethods.mapTo(HashSet()) { it.name }
 

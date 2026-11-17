@@ -280,19 +280,16 @@ internal class StubBlockLowering(
                 arguments[0] = verify.arguments[calls.indexInParameters]
             }
         }
-        val constructor = symbols[CoreConstructor.VERIFICATION]
-        val ordering = VERIFICATION_ORDERINGS[kind]?.let(symbols::orderingEntry)
-        return irCallConstructor(constructor.symbol, emptyList()).apply {
-            for (parameter in constructor.parameters) {
-                val argument = function.parameters.find { it.name == parameter.name }
-                arguments[parameter.indexInParameters] = when {
-                    argument != null -> verify.arguments[argument.indexInParameters]
-                    ordering != null && parameter.name.asString() == ParameterNames.ORDERING -> {
-                        val type = symbols[CoreClass.ORDERING].defaultType
-                        IrGetEnumValueImpl(startOffset, endOffset, type, ordering.symbol)
-                    }
-                    else -> continue
-                }
+        val settings = function.parameters.filter { it.kind == IrParameterKind.Regular }.dropLast(1)
+        return irCallConstructor(symbols[CoreConstructor.VERIFICATION].symbol, emptyList()).apply {
+            VERIFICATION_ORDERINGS[kind]?.let(symbols::orderingEntry)?.let { ordering ->
+                val type = symbols[CoreClass.ORDERING].defaultType
+                arguments[symbols.verificationParameter(ParameterNames.ORDERING).indexInParameters] =
+                    IrGetEnumValueImpl(startOffset, endOffset, type, ordering.symbol)
+            }
+            for (setting in settings) {
+                arguments[symbols.verificationParameter(setting.name.asString()).indexInParameters] =
+                    verify.arguments[setting.indexInParameters]
             }
         }
     }

@@ -47,15 +47,24 @@ interface Keys : Base<String>, Appendable, Left, Right {
     }
 }
 
+class Outer<A : CharSequence> {
+    open inner class Inner<B : Number> {
+        open fun same(x: A): String = "outer"
+        open fun same(x: B): String = "inner"
+        open fun <C> all(a: A, b: B, c: C): String = "all"
+    }
+}
+
 fun box(): String {
     mock<Keys>()
     mock<Keys.Nested>()
+    mock<Outer<String>.Inner<Int>>()
     return "OK"
 }
 
-// 2 LDC "kotlin\.Any#equals\(kotlin\.Any\?\)"
-// 2 LDC "kotlin\.Any#hashCode\(\)"
-// 2 LDC "kotlin\.Any#toString\(\)"
+// 3 LDC "kotlin\.Any#equals\(kotlin\.Any\?\)"
+// 3 LDC "kotlin\.Any#hashCode\(\)"
+// 3 LDC "kotlin\.Any#toString\(\)"
 // 1 LDC "sample\.Keys#<get-open>\(\)"
 // 1 LDC "sample\.Keys#<set-open>\(kotlin\.Boolean\)"
 // 1 LDC "sample\.Keys#plain\(kotlin\.Int,kotlin\.String\?\)"
@@ -81,4 +90,7 @@ fun box(): String {
 // 2 LDC "sample\.Left#same\(\)"
 // 1 LDC "sample\.Right#same\(\)"
 // 1 LDC "sample\.Keys\.Nested#inner\(\)"
-// 32 LDC "[^"]*#[^"]*\(
+// 1 LDC "sample\.Outer\.Inner#same\(#0\)"
+// 1 LDC "sample\.Outer\.Inner#same\(#1\)"
+// 1 LDC "sample\.Outer\.Inner#<#2:kotlin\.Any\?>all\(#0,#1,#2\)"
+// 38 LDC "[^"]*#[^"]*\(

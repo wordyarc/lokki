@@ -14,10 +14,12 @@ import org.jetbrains.kotlin.ir.declarations.IrEnumEntry
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
+import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.erasedUpperBound
 import org.jetbrains.kotlin.ir.util.functions
 import org.jetbrains.kotlin.ir.util.hasAnnotation
+import org.jetbrains.kotlin.ir.util.parentAsClass
 import org.jetbrains.kotlin.ir.util.properties
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
@@ -98,6 +100,12 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
             ?: incompatible("'${verification.name}' has no constructor that takes '${calls.name}'")
     }
 
+    fun verificationParameter(name: String): IrValueParameter {
+        val verification = this[CoreConstructor.VERIFICATION]
+        return verification.parameters.singleOrNull { it.name.asString() == name }
+            ?: incompatible("the constructor of '${verification.parentAsClass.name}' has no parameter '$name'")
+    }
+
     fun orderingEntry(name: String): IrEnumEntry {
         val ordering = this[CoreClass.ORDERING]
         return ordering.declarations.filterIsInstance<IrEnumEntry>().singleOrNull { it.name.asString() == name }
@@ -115,7 +123,9 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
         this[CoreClass.MATCHERS].functions.singleOrNull { it.name.asString() == name } ?: noMatcherFactory(name)
 
     fun matcherFactory(function: IrSimpleFunction): IrSimpleFunction {
-        val factories = this[CoreClass.MATCHERS].functions.filter { it.name == function.name }.toList()
+        val factories = this[CoreClass.MATCHERS].functions
+            .filter { it.name == function.name && it.regularParameters == function.regularParameters }
+            .toList()
         return factories.singleOrNull()
             ?: factories.singleOrNull { it.firstParameterClass == function.firstParameterClass }
             ?: noMatcherFactory(function.name.asString())
