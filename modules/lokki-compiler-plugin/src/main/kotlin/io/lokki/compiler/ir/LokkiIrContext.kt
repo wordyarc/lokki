@@ -1,12 +1,14 @@
 package io.lokki.compiler.ir
 
 import io.lokki.compiler.CoreClass
+import io.lokki.compiler.LokkiPluginKey
 import io.lokki.compiler.compat.CompilerCompat
 import io.lokki.compiler.ir.collect.MockFields
 import io.lokki.compiler.ir.collect.Mockability
 import io.lokki.compiler.ir.collect.collectMockFields
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.incremental.components.LookupTracker
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.types.IrTypeSystemContext
 import org.jetbrains.kotlin.ir.types.IrTypeSystemContextImpl
@@ -18,6 +20,7 @@ internal class LokkiIrContext(
     val lookupTracker: LookupTracker?,
 ) {
     val symbols = LokkiSymbols(pluginContext)
+    val origin: IrDeclarationOrigin = IrDeclarationOrigin.GeneratedByPlugin(LokkiPluginKey)
     val typeSystem: IrTypeSystemContext = IrTypeSystemContextImpl(pluginContext.irBuiltIns)
 }
 

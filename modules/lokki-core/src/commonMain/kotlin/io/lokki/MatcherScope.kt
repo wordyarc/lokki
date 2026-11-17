@@ -4,6 +4,7 @@ import io.lokki.internal.AnyMatcher
 import io.lokki.internal.EqMatcher
 import io.lokki.internal.LokkiIntrinsic
 import io.lokki.internal.Matchers
+import io.lokki.internal.pluginNotApplied
 import kotlin.reflect.KClass
 
 @LokkiDslMarker
@@ -1382,25 +1383,25 @@ public class VarargScope internal constructor(public val position: Int, public v
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.WITH_CONTEXT)
 public inline fun <reified C1 : Any> MatcherScope.withContext(noinline stubBlock: context(C1) () -> Any?): Any? =
-    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+    pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.WITH_CONTEXT)
 public inline fun <reified C1 : Any, reified C2 : Any> MatcherScope.withContext(
     noinline stubBlock: context(C1, C2) () -> Any?,
 ): Any? =
-    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+    pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.WITH_CONTEXT)
 public inline fun <reified C1 : Any, reified C2 : Any, reified C3 : Any> MatcherScope.withContext(
     noinline stubBlock: context(C1, C2, C3) () -> Any?,
 ): Any? =
-    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+    pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.WITH_CONTEXT)
 public inline fun <reified C1 : Any, reified C2 : Any, reified C3 : Any, reified C4 : Any> MatcherScope.withContext(
     noinline stubBlock: context(C1, C2, C3, C4) () -> Any?,
 ): Any? =
-    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+    pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.WITH_CONTEXT)
 public inline fun <
@@ -1412,7 +1413,7 @@ public inline fun <
 > MatcherScope.withContext(
     noinline stubBlock: context(C1, C2, C3, C4, C5) () -> Any?,
 ): Any? =
-    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+    pluginNotApplied()
 
 private fun placeholder(type: KClass<*>): Any? =
     when (type) {

@@ -29,6 +29,18 @@ class ScopeTest {
     }
 
     @Test
+    fun stubsOfScopeDoNotOutliveItOnMockOfEnumEntry() {
+        lokkiScope {
+            every { Fleet.FIRST.car.drive(1) } returns "driven"
+            assertEquals("enum", Garage(Fleet.FIRST.car).plate())
+            assertEquals("driven", Garage(Fleet.FIRST.car).leave())
+        }
+
+        assertEquals("enum", Garage(Fleet.FIRST.car).plate())
+        assertFailsWith<LokkiException> { Garage(Fleet.FIRST.car).leave() }
+    }
+
+    @Test
     fun callWithoutAnswerInCodeUnderTestFailsScope() {
         val error = assertFailsWith<AssertionError> {
             lokkiScope {
@@ -53,6 +65,10 @@ class ScopeTest {
             confirmVerified()
             checkUnnecessaryStub()
         }
+    }
+
+    private enum class Fleet(val car: Car) {
+        FIRST(mock<Car> { every { plate } returns "enum" }),
     }
 
     private companion object {

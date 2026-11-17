@@ -4,7 +4,6 @@ import io.lokki.compiler.BuildConfig
 import io.lokki.compiler.CoreClass
 import io.lokki.compiler.CoreConstructor
 import io.lokki.compiler.CoreFunction
-import io.lokki.compiler.LokkiPluginKey
 import io.lokki.compiler.ir.FileContext
 import io.lokki.compiler.ir.LokkiIrContext
 import io.lokki.compiler.ir.addFriendAwareFakeOverrides
@@ -17,9 +16,9 @@ import io.lokki.compiler.ir.collect.mockedClass
 import io.lokki.compiler.ir.collect.mockedClassTypeParameters
 import io.lokki.compiler.ir.collect.referencedTypeParameters
 import io.lokki.compiler.ir.irArrayOf
-import io.lokki.compiler.ir.redirectedName
 import io.lokki.compiler.ir.isVisibleFrom
 import io.lokki.compiler.ir.memberKeys
+import io.lokki.compiler.ir.redirectedName
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
@@ -59,7 +58,6 @@ import org.jetbrains.kotlin.ir.builders.irWhen
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrConstructor
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
-import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOriginImpl
 import org.jetbrains.kotlin.ir.declarations.IrField
 import org.jetbrains.kotlin.ir.declarations.IrFile
@@ -73,6 +71,7 @@ import org.jetbrains.kotlin.ir.declarations.IrValueDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.declarations.name
 import org.jetbrains.kotlin.ir.expressions.IrBranch
+import org.jetbrains.kotlin.ir.expressions.IrDelegatingConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrStatementContainer
 import org.jetbrains.kotlin.ir.expressions.impl.IrCallImpl
@@ -80,6 +79,7 @@ import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrInstanceInitializerCallImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrThrowImpl
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
+import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.classOrNull
@@ -117,7 +117,7 @@ import org.jetbrains.kotlin.util.OperatorNameConventions
 internal class MockClassGenerator(private val lokki: LokkiIrContext) {
     private val context = lokki.pluginContext
     private val symbols = lokki.symbols
-    private val origin = IrDeclarationOrigin.GeneratedByPlugin(LokkiPluginKey)
+    private val origin = lokki.origin
     private val anyConstructor = context.irBuiltIns.anyClass.owner.constructors.single()
     private val relaxedDefaults = RelaxedDefaults(lokki)
     private val memberDescriptions = MemberDescriptions(lokki)
@@ -235,19 +235,13 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
             addValueParameter("spec", symbols[CoreClass.MOCK_SPEC].defaultType, MOCK_PARAMETER)
             body = DeclarationIrBuilder(context, symbol, startOffset, endOffset).irBlockBody {
                 +irDelegatingConstructorCall(anyConstructor)
-                +IrInstanceInitializerCallImpl(
-                    startOffset,
-                    endOffset,
-                    this@addSpecConstructor.symbol,
-                    context.irBuiltIns.unitType,
-                )
+                +irInstanceInitializer(this@addSpecConstructor)
             }
         }
 
     private fun IrClass.addSpyConstructor(mockedType: IrSimpleType, form: MockForm.Construction): IrConstructor {
         val superConstructor = form.constructor
-        val superTypeArguments = mockedType.arguments.map { it.typeOrFail }
-        val substitution = mockedType.mockedClassTypeParameters.map { it.symbol }.zip(superTypeArguments).toMap()
+        val substitution = mockedType.superSubstitution
         val constructor = addConstructor {
             startOffset = this@addSpyConstructor.startOffset
             endOffset = this@addSpyConstructor.endOffset
@@ -264,16 +258,10 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
             }
         constructor.addValueParameter("spec", symbols[CoreClass.MOCK_SPEC].defaultType, MOCK_PARAMETER)
         constructor.body = DeclarationIrBuilder(context, constructor.symbol).irBlockBody {
-            +irDelegatingConstructorCall(superConstructor).apply {
-                typeArguments.indices.forEach { index -> typeArguments[index] = superTypeArguments[index] }
+            +irSuperCall(superConstructor, mockedType).apply {
                 for ((parameter, value) in passed) arguments[parameter.indexInParameters] = irGet(value)
             }
-            +IrInstanceInitializerCallImpl(
-                startOffset,
-                endOffset,
-                this@addSpyConstructor.symbol,
-                context.irBuiltIns.unitType,
-            )
+            +irInstanceInitializer(this@addSpyConstructor)
         }
         return constructor
     }
@@ -283,8 +271,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         val superConstructor = mocked.constructors
             .filter { it.isVisibleFrom(file) }
             .minBy { it.parameters.size }
-        val superTypeArguments = mockedType.arguments.map { it.typeOrFail }
-        val substitution = mockedType.mockedClassTypeParameters.map { it.symbol }.zip(superTypeArguments).toMap()
+        val substitution = mockedType.superSubstitution
         val constructor = addConstructor {
             startOffset = this@addUncalledConstructor.startOffset
             endOffset = this@addUncalledConstructor.endOffset
@@ -293,8 +280,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
             isPrimary = true
         }
         constructor.body = DeclarationIrBuilder(context, constructor.symbol).irBlockBody {
-            +irDelegatingConstructorCall(superConstructor).apply {
-                typeArguments.indices.forEach { index -> typeArguments[index] = superTypeArguments[index] }
+            +irSuperCall(superConstructor, mockedType).apply {
                 for (parameter in superConstructor.parameters) {
                     val type = parameter.type.substitute(substitution)
                     arguments[parameter.indexInParameters] = when {
@@ -304,14 +290,20 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
                     }
                 }
             }
-            +IrInstanceInitializerCallImpl(
-                startOffset,
-                endOffset,
-                this@addUncalledConstructor.symbol,
-                context.irBuiltIns.unitType,
-            )
+            +irInstanceInitializer(this@addUncalledConstructor)
         }
     }
+
+    private fun IrBuilderWithScope.irSuperCall(
+        constructor: IrConstructor,
+        mockedType: IrSimpleType,
+    ): IrDelegatingConstructorCall =
+        irDelegatingConstructorCall(constructor).apply {
+            typeArguments.indices.forEach { index -> typeArguments[index] = mockedType.arguments[index].typeOrFail }
+        }
+
+    private fun IrBuilderWithScope.irInstanceInitializer(mock: IrClass): IrExpression =
+        IrInstanceInitializerCallImpl(startOffset, endOffset, mock.symbol, context.irBuiltIns.unitType)
 
     private fun IrClass.addDescriptor(mockedClass: IrClass, members: List<IrSimpleFunction>): IrField {
         val descriptor = addField {
@@ -689,6 +681,9 @@ private fun IrFile.mockClassName(key: MockClassKey, mocked: IrClass, form: MockF
 
 private val IrClass.descriptorName: String
     get() = redirectedName ?: name.asString()
+
+private val IrSimpleType.superSubstitution: Map<IrTypeParameterSymbol, IrType>
+    get() = mockedClassTypeParameters.map { it.symbol }.zip(arguments.map { it.typeOrFail }).toMap()
 
 private val IrType.depth: Int
     get() = 1 + ((this as? IrSimpleType)?.arguments.orEmpty().maxOfOrNull { it.typeOrNull?.depth ?: 0 } ?: 0)

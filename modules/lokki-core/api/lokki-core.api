@@ -602,6 +602,10 @@ public final class io/lokki/internal/NoRelaxedDefault {
 	public fun <init> (Ljava/lang/String;Z)V
 }
 
+public final class io/lokki/internal/PluginNotAppliedKt {
+	public static final fun pluginNotApplied ()Ljava/lang/Void;
+}
+
 public final class io/lokki/internal/Redirect {
 	public fun <init> (Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)V
 }

@@ -1,7 +1,6 @@
 package io.lokki.internal
 
 import io.lokki.LokkiException
-import io.lokki.LokkiScope
 import io.lokki.MethodDescription
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import kotlin.coroutines.intrinsics.startCoroutineUninterceptedOrReturn
@@ -78,13 +77,3 @@ internal class NoRelaxedDefault(internal val type: String, internal val mockable
 
 @PublishedApi
 internal class ChildMock(internal val factory: (MockSpec) -> Any)
-
-internal fun states(mocks: Array<out Any>): List<MockState> = mocks.map { GeneratedMock.of(it).`lokki$state` }
-
-internal class Window(val states: List<MockState>, val since: Long)
-
-internal fun window(function: String, mocks: Array<out Any>): Window {
-    if (mocks.isNotEmpty()) return Window(states(mocks), ALL)
-    val scope = LokkiScope.requireCurrent(function)
-    return Window(scope.windowStates(), scope.start)
-}

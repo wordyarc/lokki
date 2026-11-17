@@ -4,10 +4,15 @@ import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.ir.collect.DelegatingSpy
 import io.lokki.compiler.ir.collect.FailedInjection
 import io.lokki.compiler.ir.collect.InjectionProblem
+import io.lokki.compiler.ir.collect.MockFields
 import io.lokki.compiler.ir.collect.MockProblem
+import io.lokki.compiler.ir.collect.MockSite
+import io.lokki.compiler.ir.collect.MockSites
 import io.lokki.compiler.ir.collect.NotMockable
 import io.lokki.compiler.ir.collect.Unsupported
 import io.lokki.compiler.ir.collect.UnsafeSpyDelegation
+import io.lokki.compiler.ir.collect.constructorParameter
+import io.lokki.compiler.ir.collect.mockAnnotationName
 import org.jetbrains.kotlin.ir.IrDiagnosticReporter
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrFile
@@ -15,6 +20,25 @@ import org.jetbrains.kotlin.ir.declarations.IrFile
 internal class IrDiagnostics(private val lokki: LokkiIrContext, private val file: IrFile) {
     fun unsupported(element: IrElement, reason: String) {
         at(element).report(LokkiDiagnostics.LOKKI_UNSUPPORTED, reason)
+    }
+
+    fun report(fields: MockFields, sites: MockSites) {
+        for (parameter in fields.annotatedParameters) {
+            unsupported(parameter, "'@${parameter.mockAnnotationName}' on a parameter is not supported yet")
+        }
+        for (field in fields.fields.values) {
+            val problem = field.problem
+            when {
+                problem == null -> field.site?.warning?.let { report(field.property, it) }
+                field.property.constructorParameter?.mockAnnotationName == null -> report(field.property, problem)
+            }
+        }
+        for ((call, site) in sites.calls) {
+            when (site) {
+                is MockSite.Mocked -> site.warning?.let { report(call, it) }
+                is MockSite.Rejected -> report(call, site.problem)
+            }
+        }
     }
 
     fun report(element: IrElement, problem: MockProblem) {

@@ -12,6 +12,7 @@ import io.lokki.compiler.ir.FileContext
 import io.lokki.compiler.ir.LokkiIrContext
 import io.lokki.compiler.ir.NoCalls
 import io.lokki.compiler.ir.ObjectRedirect
+import io.lokki.compiler.ir.Redirect
 import io.lokki.compiler.ir.StaticRedirect
 import io.lokki.compiler.ir.StubbedCall
 import io.lokki.compiler.ir.buildLambda
@@ -114,12 +115,20 @@ internal class StubBlockLowering(
     private val matcherType = symbols[CoreClass.MATCHER].typeWith(builtIns.anyNType)
     private val matchersType = builtIns.arrayClass.typeWith(matcherType)
 
-    fun lowerStub(every: IrCall, kind: IntrinsicKind, scope: Scope): IrExpression = stub(every, kind, scope) ?: every
+    fun lowerStub(every: IrCall, kind: IntrinsicKind, scope: Scope): IrExpression =
+        every.loweredOrIntact { stub(every, kind, scope) }
 
     fun lowerVerify(verify: IrCall, kind: IntrinsicKind, scope: Scope): IrExpression =
-        verify(verify, kind, scope) ?: verify
+        verify.loweredOrIntact { verify(verify, kind, scope) }
 
-    fun lowerExclusion(exclude: IrCall, scope: Scope): IrExpression = exclusion(exclude, scope) ?: exclude
+    fun lowerExclusion(exclude: IrCall, scope: Scope): IrExpression =
+        exclude.loweredOrIntact { exclusion(exclude, scope) }
+
+    private inline fun IrCall.loweredOrIntact(lower: () -> IrExpression?): IrExpression {
+        val block = arguments.last() as? IrFunctionExpression
+        val intact = block?.function?.let { it.deepCopyWithSymbols(it.parent) }
+        return lower() ?: also { if (intact != null) block.function = intact }
+    }
 
     fun lowerAwaits(just: IrCall, scope: Scope): IrExpression {
         val awaitCancellation = awaitCancellation(just, "${just.name} Awaits") ?: return just
@@ -297,22 +306,27 @@ internal class StubBlockLowering(
         if (!chainedMocks && receiver != null && !receiver.isIndependentOf(block.function)) {
             return fail(receiver, "The receiver of the stubbed or verified call must not use matchers")
         }
-        if (!stubbed.callsSuspend) return irEvaluatedRegistration(block, stubbed)
+        val target = targetOf(stubbed.call)
+        if (!stubbed.callsSuspend) return irEvaluatedRegistration(block, stubbed, target)
         val anyN = builtIns.anyNType
         val evaluated = irTemporary(
             irEvaluate(block, builtIns.arrayClass.typeWith(anyN)) { nested ->
-                val registration = irEvaluatedRegistration(nested, stubbed) ?: return null
+                val registration = irEvaluatedRegistration(nested, stubbed, target) ?: return null
                 irArrayOf(anyN, listOf(irGet(registration.state), registration.matchers))
             }
         )
         return Registration(
             irTemporary(irAs(irArrayGet(evaluated, 0), symbols[CoreClass.MOCK_STATE].defaultType)),
-            keyOf(stubbed.call),
+            target.key,
             irAs(irArrayGet(evaluated, 1), matchersType),
         )
     }
 
-    private fun IrBlockBodyBuilder.irEvaluatedRegistration(block: StubBlock, stubbed: StubbedCall): Registration? {
+    private fun IrBlockBodyBuilder.irEvaluatedRegistration(
+        block: StubBlock,
+        stubbed: StubbedCall,
+        target: Target,
+    ): Registration? {
         val receiver = stubbed.receiver?.let { receiver ->
             irTemporary(
                 when {
@@ -323,14 +337,14 @@ internal class StubBlockLowering(
             )
         }
         val state = irTemporary(
-            irStateOf(stubbed.call, receiver?.let(::irGet)) ?: return fail(
+            irStateOf(target.redirect, receiver?.let(::irGet)) ?: return fail(
                 stubbed.call,
                 "'${stubbed.call.name}' has no interception point: lokki intercepts top-level functions and " +
                     "properties of main compilations with lokki { mockable(...) }",
             )
         )
-        val matchers = irArguments(block, stubbed, receiver, state) ?: return null
-        return Registration(state, keyOf(stubbed.call), matchers)
+        val matchers = irArguments(block, stubbed, receiver, state, target.key) ?: return null
+        return Registration(state, target.key, matchers)
     }
 
     private fun IrBlockBodyBuilder.irArguments(
@@ -338,6 +352,7 @@ internal class StubBlockLowering(
         stubbed: StubbedCall,
         receiver: IrVariable?,
         state: IrVariable,
+        key: String,
     ): IrExpression? {
         val call = stubbed.call
         val member = call.symbol.owner
@@ -360,7 +375,7 @@ internal class StubBlockLowering(
         }
         val defaults = if (capturesDefaults) {
             if (receiver != null) call.dispatchReceiver = irGet(receiver)
-            irTemporary(irCaptureDefaults(block.dsl, state, keyOf(call), stubbed, values))
+            irTemporary(irCaptureDefaults(block.dsl, state, key, stubbed, values))
         } else {
             null
         }
@@ -450,7 +465,7 @@ internal class StubBlockLowering(
             }
         }
         val state = irTemporary(irStateOf(irGet(head)))
-        val matchers = irTemporary(irArguments(block, link, head, state) ?: return null)
+        val matchers = irTemporary(irArguments(block, link, head, state, targetOf(link.call).key) ?: return null)
         block.verification?.let { verification ->
             +irCall(symbols[CoreFunction.EXPECT_LINK]).apply {
                 arguments[0] = irGet(verification)
@@ -727,11 +742,14 @@ internal class StubBlockLowering(
 
     private fun IrBuilder.irAny(): IrExpression = irGetObject(symbols[CoreClass.ANY_MATCHER])
 
-    private fun keyOf(call: IrCall): String =
-        file.redirects.member(call.symbol.owner)?.key ?: call.symbol.owner.memberKeys.first()
+    private fun targetOf(call: IrCall): Target {
+        val member = call.symbol.owner
+        val redirected = file.redirects.member(member)
+        return Target(redirected?.redirect, redirected?.key ?: member.memberKeys.first())
+    }
 
-    private fun IrBuilder.irStateOf(call: IrCall, receiver: IrExpression?): IrExpression? {
-        val redirect = file.redirects.member(call.symbol.owner)?.redirect ?: return receiver?.let { irStateOf(it) }
+    private fun IrBuilder.irStateOf(redirect: Redirect?, receiver: IrExpression?): IrExpression? {
+        if (redirect == null) return receiver?.let { irStateOf(it) }
         val (of, target) = when (redirect) {
             is ObjectRedirect -> symbols[CoreFunction.REDIRECT_OF] to receiver!!
             is StaticRedirect -> symbols[CoreFunction.STATIC_REDIRECT_OF] to irString(redirect.key)
@@ -806,6 +824,8 @@ private class StubBlock(
 }
 
 private class Registration(val state: IrVariable, val key: String, val matchers: IrExpression)
+
+private class Target(val redirect: Redirect?, val key: String)
 
 private val IrCall.name: String
     get() = symbol.owner.name.asString()

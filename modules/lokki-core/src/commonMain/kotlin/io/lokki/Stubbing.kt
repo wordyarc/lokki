@@ -1,27 +1,28 @@
 package io.lokki
 
 import io.lokki.internal.LokkiIntrinsic
+import io.lokki.internal.pluginNotApplied
 import io.lokki.internal.window
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.STUB_BLOCK)
 public fun <T> every(stubBlock: MatcherScope.() -> T): StubScope<T> =
-    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+    pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.STUB_BLOCK)
 public fun <T> coEvery(stubBlock: suspend MatcherScope.() -> T): StubScope<T> =
-    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+    pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.JUST_RUN_BLOCK)
 public fun justRun(stubBlock: MatcherScope.() -> Unit): AdditionalAnswerScope<Unit> =
-    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+    pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.JUST_RUN_BLOCK)
 public fun coJustRun(stubBlock: suspend MatcherScope.() -> Unit): AdditionalAnswerScope<Unit> =
-    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+    pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.JUST_AWAIT_BLOCK)
 public fun coJustAwait(stubBlock: suspend MatcherScope.() -> Unit): AdditionalAnswerScope<Unit> =
-    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+    pluginNotApplied()
 
 public fun checkUnnecessaryStub(vararg mocks: Any) {
     val window = window("checkUnnecessaryStub", mocks)
@@ -97,8 +98,8 @@ public object Awaits
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.AWAITS)
 public infix fun <T> StubScope<T>.just(awaits: Awaits): AdditionalAnswerScope<T> =
-    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+    pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.AWAITS)
 public infix fun <T> AdditionalAnswerScope<T>.andThenJust(awaits: Awaits): AdditionalAnswerScope<T> =
-    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+    pluginNotApplied()

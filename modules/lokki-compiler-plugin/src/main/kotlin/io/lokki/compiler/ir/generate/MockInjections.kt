@@ -12,6 +12,7 @@ import io.lokki.compiler.ir.collect.MockClassKey
 import io.lokki.compiler.ir.collect.MockField
 import io.lokki.compiler.ir.collect.valueType
 import io.lokki.compiler.ir.irCompanionCall
+import io.lokki.compiler.ir.irVararg
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.irCatch
 import org.jetbrains.kotlin.backend.common.lower.irThrow
@@ -42,7 +43,6 @@ import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.expressions.IrExpression
-import org.jetbrains.kotlin.ir.expressions.impl.IrVarargImpl
 import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.classOrNull
@@ -132,8 +132,7 @@ internal class MockInjections(lokki: LokkiIrContext) {
                 val element = (type as IrSimpleType).arguments.single().typeOrNull!!
                 val elements = value.sources.map { irRequired(it.property, element, self, subject) }
                 irCall(symbols.listOf.symbol, context.irBuiltIns.listClass.typeWith(element), listOf(element)).apply {
-                    val arrayType = context.irBuiltIns.arrayClass.typeWith(element)
-                    arguments[0] = IrVarargImpl(startOffset, endOffset, arrayType, element, elements)
+                    arguments[0] = irVararg(element, elements)
                 }
             }
         }

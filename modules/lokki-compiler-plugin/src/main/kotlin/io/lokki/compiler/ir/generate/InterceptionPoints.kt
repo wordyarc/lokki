@@ -3,7 +3,6 @@ package io.lokki.compiler.ir.generate
 import io.lokki.compiler.BuildConfig
 import io.lokki.compiler.FILE_REDIRECT_SUFFIX
 import io.lokki.compiler.INTERCEPTION_MARK
-import io.lokki.compiler.LokkiPluginKey
 import io.lokki.compiler.MockablePatterns
 import io.lokki.compiler.REDIRECT
 import io.lokki.compiler.REDIRECT_PROPERTY
@@ -77,7 +76,7 @@ internal class InterceptionPoints(private val lokki: LokkiIrContext, private val
     private val context = lokki.pluginContext
     private val symbols = lokki.symbols
     private val compat = lokki.compat
-    private val origin = IrDeclarationOrigin.GeneratedByPlugin(LokkiPluginKey)
+    private val origin = lokki.origin
 
     fun generate(module: IrModuleFragment) {
         if (!compat.registersClassesAsMetadataVisible) return

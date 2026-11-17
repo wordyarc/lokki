@@ -60,6 +60,7 @@ internal class LokkiIrGenerationExtension(
         for (file in files) {
             file.ir.transform(contextBlocks, null)
             val sites = file.collectMockSites()
+            file.diagnostics.report(file.fields, sites)
             val classes = generator.generate(file, sites.classes)
             fieldInitializers.implement(file, classes)
             file.ir.transform(DslLowering(lokki, file, sites, classes), null)

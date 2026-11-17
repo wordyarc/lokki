@@ -2,7 +2,6 @@ package io.lokki.compiler.ir.lower
 
 import io.lokki.compiler.CoreClass
 import io.lokki.compiler.CoreFunction
-import io.lokki.compiler.LokkiPluginKey
 import io.lokki.compiler.ir.LokkiIrContext
 import io.lokki.compiler.ir.contains
 import io.lokki.compiler.ir.irGetObject
@@ -16,7 +15,7 @@ import org.jetbrains.kotlin.ir.builders.irTry
 import org.jetbrains.kotlin.ir.declarations.IrAnonymousInitializer
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
-import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
+import org.jetbrains.kotlin.ir.declarations.IrEnumEntry
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
@@ -32,7 +31,7 @@ import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 internal class StaticInitializers(lokki: LokkiIrContext) {
     private val context = lokki.pluginContext
     private val symbols = lokki.symbols
-    private val generated = IrDeclarationOrigin.GeneratedByPlugin(LokkiPluginKey)
+    private val generated = lokki.origin
 
     fun lower(file: IrFile) {
         for (declaration in file.declarations) lower(declaration, static = true)
@@ -45,8 +44,16 @@ internal class StaticInitializers(lokki: LokkiIrContext) {
             }
             is IrProperty -> if (static) lower(declaration)
             is IrAnonymousInitializer -> if (static) declaration.body.bracket(declaration.symbol, null)
+            is IrEnumEntry -> lower(declaration)
             else -> {}
         }
+    }
+
+    private fun lower(entry: IrEnumEntry) {
+        val initializer = entry.initializerExpression ?: return
+        val expression = initializer.expression
+        val builder = DeclarationIrBuilder(context, entry.symbol, expression.startOffset, expression.endOffset)
+        initializer.expression = builder.irBracket(expression, expression.type)
     }
 
     private fun lower(property: IrProperty) {

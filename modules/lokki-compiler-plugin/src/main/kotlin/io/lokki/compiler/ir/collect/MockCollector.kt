@@ -48,7 +48,7 @@ internal fun FileContext.collectMockSites(): MockSites {
 }
 
 private class MockCollector(private val file: FileContext) : IrVisitorVoid() {
-    val calls = HashMap<IrCall, MockSite>()
+    val calls = LinkedHashMap<IrCall, MockSite>()
 
     val blockStatementCalls = HashSet<IrCall>()
 

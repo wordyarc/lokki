@@ -3,6 +3,7 @@ package io.lokki
 import io.lokki.internal.GeneratedMock
 import io.lokki.internal.LokkiIntrinsic
 import io.lokki.internal.Redirects
+import io.lokki.internal.pluginNotApplied
 import io.lokki.internal.states
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
@@ -15,14 +16,14 @@ public inline fun <reified T : Any> mock(
     vararg moreInterfaces: KClass<*>,
     relaxUnitFun: Boolean = false,
     block: T.() -> Unit = {},
-): T = throw LokkiException("lokki compiler plugin is not applied to this compilation")
+): T = pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.SPY)
 public inline fun <reified T : Any> spy(
     name: String? = null,
     vararg moreInterfaces: KClass<*>,
     block: T.() -> Unit = {},
-): T = throw LokkiException("lokki compiler plugin is not applied to this compilation")
+): T = pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.SPY)
 public inline fun <reified T : Any> spy(
@@ -30,7 +31,7 @@ public inline fun <reified T : Any> spy(
     name: String? = null,
     vararg moreInterfaces: KClass<*>,
     block: T.() -> Unit = {},
-): T = throw LokkiException("lokki compiler plugin is not applied to this compilation")
+): T = pluginNotApplied()
 
 @Target(AnnotationTarget.FILE)
 @Retention(AnnotationRetention.SOURCE)
@@ -38,11 +39,11 @@ public annotation class ChainedMocks
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK_OBJECT)
 public fun mockObject(vararg objects: Any): Unit =
-    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+    pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK_OBJECT)
 public inline fun mockObject(vararg objects: Any, block: () -> Unit): Unit =
-    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+    pluginNotApplied()
 
 public fun unmockObject(vararg objects: Any) {
     Redirects.unmock(objects)
@@ -50,35 +51,35 @@ public fun unmockObject(vararg objects: Any) {
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK_STATIC)
 public fun mockStatic(vararg functions: KFunction<*>): Unit =
-    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+    pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK_STATIC)
 public fun mockStatic(vararg functions: KProperty<*>): Unit =
-    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+    pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK_STATIC)
 public inline fun mockStatic(vararg functions: KFunction<*>, block: () -> Unit): Unit =
-    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+    pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK_STATIC)
 public inline fun mockStatic(vararg functions: KProperty<*>, block: () -> Unit): Unit =
-    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+    pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.UNMOCK_STATIC)
 public fun unmockStatic(vararg functions: KFunction<*>): Unit =
-    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+    pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.UNMOCK_STATIC)
 public fun unmockStatic(vararg functions: KProperty<*>): Unit =
-    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+    pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.CLEAR_STATIC_MOCK)
 public fun clearStaticMock(vararg functions: KFunction<*>): Unit =
-    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+    pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.CLEAR_STATIC_MOCK)
 public fun clearStaticMock(vararg functions: KProperty<*>): Unit =
-    throw LokkiException("lokki compiler plugin is not applied to this compilation")
+    pluginNotApplied()
 
 public fun unmockAll() {
     Redirects.unmockAll()

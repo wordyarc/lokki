@@ -5,7 +5,6 @@ import io.lokki.compiler.CoreClass
 import io.lokki.compiler.CoreFunction
 import io.lokki.compiler.INIT_MOCK_FIELDS_NAME
 import io.lokki.compiler.IntrinsicKind
-import io.lokki.compiler.LokkiPluginKey
 import io.lokki.compiler.ParameterNames
 import io.lokki.compiler.ir.FileContext
 import io.lokki.compiler.ir.LokkiIrContext
@@ -15,8 +14,6 @@ import io.lokki.compiler.ir.collect.MockClassKey
 import io.lokki.compiler.ir.collect.MockField
 import io.lokki.compiler.ir.collect.MockFields
 import io.lokki.compiler.ir.collect.MockForm
-import io.lokki.compiler.ir.collect.constructorParameter
-import io.lokki.compiler.ir.collect.mockAnnotationName
 import io.lokki.compiler.ir.irHidden
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.descriptors.Modality
@@ -38,7 +35,6 @@ import org.jetbrains.kotlin.ir.builders.irSetField
 import org.jetbrains.kotlin.ir.builders.irString
 import org.jetbrains.kotlin.ir.builders.irTemporary
 import org.jetbrains.kotlin.ir.declarations.IrClass
-import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
@@ -59,7 +55,7 @@ import org.jetbrains.kotlin.name.Name
 internal class MockFieldInitializers(lokki: LokkiIrContext) {
     private val context = lokki.pluginContext
     private val symbols = lokki.symbols
-    private val origin = IrDeclarationOrigin.GeneratedByPlugin(LokkiPluginKey)
+    private val origin = lokki.origin
     private val injections = MockInjections(lokki)
     private val initializers = HashMap<IrClass, Initializer>()
 
@@ -77,19 +73,6 @@ internal class MockFieldInitializers(lokki: LokkiIrContext) {
 
     fun implement(file: FileContext, mocks: Map<MockClassKey, IrClass>) {
         val fields = file.fields
-        val diagnostics = file.diagnostics
-        for (parameter in fields.annotatedParameters) {
-            val annotation = parameter.mockAnnotationName
-            diagnostics.unsupported(parameter, "'@$annotation' on a parameter is not supported yet")
-        }
-        for (field in fields.fields.values) {
-            val problem = field.problem
-            when {
-                problem == null -> field.site?.warning?.let { diagnostics.report(field.property, it) }
-                field.property.constructorParameter?.mockAnnotationName == null ->
-                    diagnostics.report(field.property, problem)
-            }
-        }
         for ((owner, owned) in fields.owners) {
             initializers[owner]?.let { owner.implement(it, owned, file.ir, mocks) }
         }

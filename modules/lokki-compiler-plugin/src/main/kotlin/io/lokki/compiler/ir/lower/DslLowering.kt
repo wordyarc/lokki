@@ -131,11 +131,7 @@ internal class DslLowering(
     }
 
     private fun lowerMock(call: IrCall, kind: IntrinsicKind): IrExpression {
-        val site = when (val site = sites.calls.getValue(call)) {
-            is MockSite.Mocked -> site
-            is MockSite.Rejected -> return call.also { file.diagnostics.report(it, site.problem) }
-        }
-        site.warning?.let { file.diagnostics.report(call, it) }
+        val site = sites.calls.getValue(call) as? MockSite.Mocked ?: return call
         val types = site.types
         val mock = mocks.getValue(site.key)
         val spied = call.spiedInstance?.temporary
