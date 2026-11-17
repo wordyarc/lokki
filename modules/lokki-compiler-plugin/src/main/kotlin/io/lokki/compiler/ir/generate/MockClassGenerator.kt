@@ -15,7 +15,9 @@ import io.lokki.compiler.ir.collect.displayName
 import io.lokki.compiler.ir.collect.mockedClass
 import io.lokki.compiler.ir.collect.mockedClassTypeParameters
 import io.lokki.compiler.ir.collect.referencedTypeParameters
+import io.lokki.compiler.ir.irArrayGet
 import io.lokki.compiler.ir.irArrayOf
+import io.lokki.compiler.ir.irThrowLokkiException
 import io.lokki.compiler.ir.isVisibleFrom
 import io.lokki.compiler.ir.memberKeys
 import io.lokki.compiler.ir.redirectedName
@@ -77,7 +79,6 @@ import org.jetbrains.kotlin.ir.expressions.IrStatementContainer
 import org.jetbrains.kotlin.ir.expressions.impl.IrCallImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrInstanceInitializerCallImpl
-import org.jetbrains.kotlin.ir.expressions.impl.IrThrowImpl
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.IrSimpleType
@@ -452,7 +453,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
             entries.map { (index, original) ->
                 val erasure = original.typeParameters.associate { it.symbol to it.erasure }
                 val values = original.nonDispatchParameters.mapIndexed { position, parameter ->
-                    irAs(irArrayGet(arguments, position), parameter.type.substitute(erasure))
+                    irAs(irArrayGet(symbols, arguments, position), parameter.type.substitute(erasure))
                 }
                 val self = irGet(function.dispatchReceiverParameter!!)
                 val call = irForward(forward, original, self, original.typeParameters.map { it.erasure }, values)
@@ -613,26 +614,12 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         }
     }
 
-    private fun IrBuilder.irUninitialized(spied: IrClass, member: IrSimpleFunction): IrExpression {
+    private fun IrBuilderWithScope.irUninitialized(spied: IrClass, member: IrSimpleFunction): IrExpression {
         val name = member.correspondingPropertySymbol?.owner?.name ?: member.name
         val message = "abstract ${spied.name}.$name was called by a constructor of ${spied.name} " +
             "before the spy was created"
-        return IrThrowImpl(
-            startOffset,
-            endOffset,
-            context.irBuiltIns.nothingType,
-            irCallConstructor(symbols[CoreConstructor.LOKKI_EXCEPTION].symbol, emptyList()).apply {
-                arguments[0] = irString(message)
-                arguments[1] = irNull()
-            },
-        )
+        return irThrowLokkiException(symbols, message)
     }
-
-    private fun IrBuilder.irArrayGet(array: IrValueParameter, index: Int): IrExpression =
-        irCall(symbols.arrayGet.symbol, context.irBuiltIns.anyNType).apply {
-            arguments[0] = irGet(array)
-            arguments[1] = irInt(index)
-        }
 
     private fun IrSimpleFunction.adoptParameters(mock: IrClass) {
         parameters = parameters.map { parameter ->

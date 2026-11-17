@@ -1,6 +1,5 @@
 package io.lokki.compiler.ir.generate
 
-import io.lokki.compiler.CoreConstructor
 import io.lokki.compiler.CoreFunction
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.ir.LokkiIrContext
@@ -12,10 +11,10 @@ import io.lokki.compiler.ir.collect.MockClassKey
 import io.lokki.compiler.ir.collect.MockField
 import io.lokki.compiler.ir.collect.valueType
 import io.lokki.compiler.ir.irCompanionCall
+import io.lokki.compiler.ir.irThrowLokkiException
 import io.lokki.compiler.ir.irVararg
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.irCatch
-import org.jetbrains.kotlin.backend.common.lower.irThrow
 import org.jetbrains.kotlin.ir.builders.IrBlockBodyBuilder
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
 import org.jetbrains.kotlin.ir.builders.declarations.buildVariable
@@ -148,10 +147,7 @@ internal class MockInjections(lokki: LokkiIrContext) {
         return irBlock(resultType = read.type.makeNotNull()) {
             val value = irTemporary(read, irType = read.type.makeNullable())
             val message = "@InjectMocks: property '${source.name}' for $subject is null or not initialized"
-            val exception = irCallConstructor(symbols[CoreConstructor.LOKKI_EXCEPTION].symbol, emptyList()).apply {
-                arguments[0] = irString(message)
-            }
-            +irIfThen(context.irBuiltIns.unitType, irEqualsNull(irGet(value)), irThrow(exception))
+            +irIfThen(context.irBuiltIns.unitType, irEqualsNull(irGet(value)), irThrowLokkiException(symbols, message))
             +irImplicitCast(irGet(value), read.type.makeNotNull())
         }
     }

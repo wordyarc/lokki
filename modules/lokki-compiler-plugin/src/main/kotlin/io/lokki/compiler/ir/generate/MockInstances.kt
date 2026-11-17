@@ -6,11 +6,12 @@ import io.lokki.compiler.CoreConstructor
 import io.lokki.compiler.CoreFunction
 import io.lokki.compiler.ir.LokkiSymbols
 import io.lokki.compiler.ir.buildLambda
-import io.lokki.compiler.ir.irGetObject
-import io.lokki.compiler.ir.toLambda
 import io.lokki.compiler.ir.collect.MockForm
 import io.lokki.compiler.ir.collect.MockedTypes
 import io.lokki.compiler.ir.collect.mockedClass
+import io.lokki.compiler.ir.irGetObject
+import io.lokki.compiler.ir.irJavaClass
+import io.lokki.compiler.ir.toLambda
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
 import org.jetbrains.kotlin.ir.builders.declarations.addValueParameter
@@ -25,7 +26,6 @@ import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.expressions.IrBlock
 import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
-import org.jetbrains.kotlin.ir.expressions.impl.IrClassReferenceImpl
 import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.classOrFail
@@ -101,16 +101,7 @@ private fun IrBuilderWithScope.irAllocate(
     val instance = irTemporary(
         irCall(symbols[CoreFunction.ALLOCATE].symbol, type, listOf(type)).apply {
             arguments[0] = irGetObject(symbols[CoreClass.INSTANCE_ALLOCATOR])
-            val javaClass = symbols.javaClass.returnType.classOrFail.typeWith(type)
-            arguments[1] = irCall(symbols.javaClass.symbol, javaClass, listOf(type)).apply {
-                arguments[0] = IrClassReferenceImpl(
-                    startOffset,
-                    endOffset,
-                    context.irBuiltIns.kClassClass.typeWith(type),
-                    mock.symbol,
-                    type,
-                )
-            }
+            arguments[1] = irJavaClass(symbols, type)
         }
     )
     +irCall(mock.functions.single { it.name == INIT }).apply {

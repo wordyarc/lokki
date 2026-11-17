@@ -24,6 +24,7 @@ import io.lokki.compiler.ir.contains
 import io.lokki.compiler.ir.excludedCalls
 import io.lokki.compiler.ir.generate.irFactory
 import io.lokki.compiler.ir.intrinsicKind
+import io.lokki.compiler.ir.irArrayGet
 import io.lokki.compiler.ir.irArrayOf
 import io.lokki.compiler.ir.irCompanionCall
 import io.lokki.compiler.ir.irGetObject
@@ -52,7 +53,6 @@ import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irCallConstructor
 import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.builders.irIfThenElse
-import org.jetbrains.kotlin.ir.builders.irInt
 import org.jetbrains.kotlin.ir.builders.irNull
 import org.jetbrains.kotlin.ir.builders.irReturn
 import org.jetbrains.kotlin.ir.builders.irString
@@ -315,9 +315,9 @@ internal class StubBlockLowering(
             }
         )
         return Registration(
-            irTemporary(irAs(irArrayGet(evaluated, 0), symbols[CoreClass.MOCK_STATE].defaultType)),
+            irTemporary(irAs(irArrayGet(symbols, evaluated, 0), symbols[CoreClass.MOCK_STATE].defaultType)),
             target.key,
-            irAs(irArrayGet(evaluated, 1), matchersType),
+            irAs(irArrayGet(symbols, evaluated, 1), matchersType),
         )
     }
 
@@ -382,7 +382,7 @@ internal class StubBlockLowering(
             when {
                 matchers[index] != null -> irGet(matchers[index]!!)
                 stubbed.allAny -> irAny()
-                else -> irEq(values[index]?.let(::irGet) ?: irArrayGet(defaults!!, index))
+                else -> irEq(values[index]?.let(::irGet) ?: irArrayGet(symbols, defaults!!, index))
             }
         }
         return irArrayOf(matcherType, arguments)
@@ -514,7 +514,7 @@ internal class StubBlockLowering(
                 null
             }
             val arguments = values.indices.map { index ->
-                irEq(values[index]?.let(::irGet) ?: irArrayGet(defaults!!, index))
+                irEq(values[index]?.let(::irGet) ?: irArrayGet(symbols, defaults!!, index))
             }
             +irReturn(irArrayOf(matcherType, arguments))
         }
@@ -772,12 +772,6 @@ internal class StubBlockLowering(
 
     private fun IrBuilder.irEq(value: IrExpression): IrExpression =
         irCallConstructor(symbols[CoreConstructor.EQ_MATCHER].symbol, emptyList()).apply { arguments[0] = value }
-
-    private fun IrBuilder.irArrayGet(array: IrVariable, index: Int): IrExpression =
-        irCall(symbols.arrayGet.symbol, builtIns.anyNType).apply {
-            arguments[0] = irGet(array)
-            arguments[1] = irInt(index)
-        }
 
     private fun IrBuilder.irPlaceholder(argument: IrExpression, alternate: IrValueParameter): IrExpression {
         val type = argument.type

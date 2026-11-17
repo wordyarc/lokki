@@ -4,8 +4,9 @@ import io.lokki.compiler.BuildConfig
 import io.lokki.compiler.CoreClass
 import io.lokki.compiler.CoreFunction
 import io.lokki.compiler.ir.LokkiIrContext
-import io.lokki.compiler.ir.irGetObject
 import io.lokki.compiler.ir.irArrayOf
+import io.lokki.compiler.ir.irGetObject
+import io.lokki.compiler.ir.irJavaClass
 import io.lokki.compiler.ir.isAccessibleFrom
 import org.jetbrains.kotlin.backend.jvm.ir.getJvmNameFromAnnotation
 import org.jetbrains.kotlin.ir.builders.IrBuilder
@@ -15,7 +16,6 @@ import org.jetbrains.kotlin.ir.builders.irString
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.expressions.IrExpression
-import org.jetbrains.kotlin.ir.expressions.impl.IrClassReferenceImpl
 import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.classOrFail
@@ -62,26 +62,15 @@ internal class MemberDescriptions(lokki: LokkiIrContext) {
         return irCall(symbols[CoreFunction.METHOD_DESCRIPTION]).apply {
             arguments[0] = irGetObject(symbols[CoreClass.METHOD_DESCRIPTIONS])
             arguments[1] = irString(member.jvmName)
-            arguments[2] = irJavaClass(returnType)
+            arguments[2] = irErasedClass(returnType)
             arguments[3] = irInt(flags)
-            arguments[4] = irJavaClass(declaringClass.defaultType)
-            arguments[5] = irArrayOf(classClass.starProjectedType, parameters.map { irJavaClass(it.type) })
+            arguments[4] = irErasedClass(declaringClass.defaultType)
+            arguments[5] = irArrayOf(classClass.starProjectedType, parameters.map { irErasedClass(it.type) })
             arguments[6] = irInt(parameters.indexOfFirst { it.varargElementType != null })
         }
     }
 
-    private fun IrBuilder.irJavaClass(type: IrType): IrExpression {
-        val classType = type.erasedClassType()
-        return irCall(symbols.javaClass.symbol, classClass.typeWith(classType), listOf(classType)).apply {
-            arguments[0] = IrClassReferenceImpl(
-                startOffset,
-                endOffset,
-                builtIns.kClassClass.typeWith(classType),
-                classType.classOrFail,
-                classType,
-            )
-        }
-    }
+    private fun IrBuilder.irErasedClass(type: IrType): IrExpression = irJavaClass(symbols, type.erasedClassType())
 
     private fun IrType.erasedClassType(): IrSimpleType {
         val erased = erasedUpperBound

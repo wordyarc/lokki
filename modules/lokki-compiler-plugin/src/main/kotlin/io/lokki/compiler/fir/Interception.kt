@@ -29,28 +29,15 @@ internal sealed interface MemberInterception {
 
 context(context: CheckerContext)
 internal fun FirRegularClassSymbol.interceptionProblem(): String? {
-    if (origin is FirDeclarationOrigin.Source) {
-        if (moduleData != context.session.moduleData) return null
-        return "is declared in this compilation, and only main compilations with lokki { mockable(...) } " +
-            "get interception points"
-    }
-    return when (mark()) {
-        InterceptionMark.CURRENT -> null
-        InterceptionMark.OTHER_FORMAT ->
-            "has interception points of another version of lokki: rebuild the module that declares it"
-        InterceptionMark.ABSENT -> missingInterceptionPoints()
-            ?: "has no interception points: add it or its package to lokki { mockable(...) } of the module that " +
-                "declares it"
-    }
+    if (origin is FirDeclarationOrigin.Source) return DECLARED_HERE.takeIf { moduleData == context.session.moduleData }
+    return markProblem("it or its package")
 }
 
 context(context: CheckerContext)
 internal fun FirCallableSymbol<*>.objectInterception(): MemberInterception {
     val owner = getContainingClassSymbol() as? FirRegularClassSymbol
     if (owner == null || owner.classKind != ClassKind.OBJECT) return MemberInterception.NotApplicable
-    val reason = when {
-        this is FirPropertySymbol && isConst -> "it is a constant, which is inlined at compile time"
-        this is FirPropertySymbol && isLateInit -> "it is a lateinit property, whose getter lokki does not intercept"
+    val reason = propertyProblem() ?: when {
         this is FirNamedFunctionSymbol && isMemberOfAny -> "it is a member of 'Any'"
         else -> owner.interceptionProblem()?.let { "'${owner.displayName}' $it" }
     }
@@ -69,27 +56,31 @@ internal fun FirCallableSymbol<*>.staticInterception(): MemberInterception {
     val id = callableId ?: return MemberInterception.NotApplicable
     if (id.classId != null || id.isLocal) return MemberInterception.NotApplicable
     val inline = if (this is FirPropertySymbol) getterSymbol?.isInline == true else isInline
-    val reason = when {
-        this is FirPropertySymbol && isConst -> "it is a constant, which is inlined at compile time"
-        this is FirPropertySymbol && isLateInit -> "it is a lateinit property, whose getter lokki does not intercept"
-        inline -> "it is inline"
-        origin is FirDeclarationOrigin.Source -> if (moduleData == context.session.moduleData) {
-            "it is declared in this compilation, and only main compilations with lokki { mockable(...) } get " +
-                "interception points"
-        } else {
-            null
-        }
-        else -> when (mark()) {
-            InterceptionMark.CURRENT -> null
-            InterceptionMark.OTHER_FORMAT ->
-                "it has interception points of another version of lokki: rebuild the module that declares it"
-            InterceptionMark.ABSENT -> missingInterceptionPoints()?.let { "it $it" }
-                ?: "it has no interception points: add it, its file or its package to lokki { mockable(...) } of " +
-                    "the module that declares it"
-        }
+    val problem = when {
+        inline -> "is inline"
+        origin is FirDeclarationOrigin.Source -> DECLARED_HERE.takeIf { moduleData == context.session.moduleData }
+        else -> markProblem("it, its file or its package")
     }
+    val reason = propertyProblem() ?: problem?.let { "it $it" }
     return reason?.let(MemberInterception::NotIntercepted) ?: MemberInterception.Intercepted
 }
+
+private fun FirCallableSymbol<*>.propertyProblem(): String? =
+    when {
+        this is FirPropertySymbol && isConst -> "it is a constant, which is inlined at compile time"
+        this is FirPropertySymbol && isLateInit -> "it is a lateinit property, whose getter lokki does not intercept"
+        else -> null
+    }
+
+context(context: CheckerContext)
+private fun FirBasedSymbol<*>.markProblem(additions: String): String? =
+    when (mark()) {
+        InterceptionMark.CURRENT -> null
+        InterceptionMark.OTHER_FORMAT ->
+            "has interception points of another version of lokki: rebuild the module that declares it"
+        InterceptionMark.ABSENT -> missingInterceptionPoints()
+            ?: "has no interception points: add $additions to lokki { mockable(...) } of the module that declares it"
+    }
 
 context(context: CheckerContext)
 private fun missingInterceptionPoints(): String? =
@@ -99,3 +90,6 @@ private fun missingInterceptionPoints(): String? =
 @OptIn(SymbolInternals::class)
 private fun FirBasedSymbol<*>.mark(): InterceptionMark =
     InterceptionMark.of(fir.compilerPluginMetadata?.get(BuildConfig.COMPILER_PLUGIN_ID))
+
+private const val DECLARED_HERE =
+    "is declared in this compilation, and only main compilations with lokki { mockable(...) } get interception points"

@@ -42,6 +42,10 @@ interface Repo<T> {
     fun save(item: T): T
 }
 
+open class Ledger {
+    internal open fun audit(id: Int): String = ""
+}
+
 interface Api : Base {
     var isOpen: Boolean
     val size: Int
@@ -123,6 +127,8 @@ fun box(): String {
     if (repo != "Repo.save(String): String") return "Fail generic: $repo"
     val function = rendered(mock<(Int) -> String>())["invoke(Int)"]
     if (function != "Function1.invoke(Int): String fn") return "Fail function: $function"
+    val audit = rendered(mock<Ledger>())["audit(Int)"]
+    if (audit != "Ledger.audit(Int): String") return "Fail internal: $audit"
     val javaApi = rendered(mock<JavaApi>())["name()"]
     if (javaApi != "JavaApi.name(): String") return "Fail Java: $javaApi"
 
