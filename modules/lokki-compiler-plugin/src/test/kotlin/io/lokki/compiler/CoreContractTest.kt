@@ -58,7 +58,7 @@ class CoreContractTest {
         val ambiguous = CoreFunction.entries.filterNot { entry ->
             val declared = entry.owner.load().declaredMethods.count { method ->
                 !Modifier.isPrivate(method.modifiers) && method.declares(entry.functionName) &&
-                    method.valueParameters == entry.valueParameters
+                    method.arity == entry.arity
             }
             declared == 1
         }
@@ -75,7 +75,7 @@ class CoreContractTest {
         val ambiguous = CoreConstructor.entries.filterNot { entry ->
             val declared = entry.owner.load().declaredConstructors.count { constructor ->
                 !Modifier.isPrivate(constructor.modifiers) && !constructor.isSynthetic &&
-                    constructor.parameterCount == entry.valueParameters
+                    constructor.parameterCount == entry.arity
             }
             declared == 1
         }
@@ -92,7 +92,7 @@ class CoreContractTest {
     private fun Method.declares(function: String): Boolean =
         name == function || name.startsWith("$function$") && COMPILER_SUFFIXES.none(name::endsWith)
 
-    private val Method.valueParameters: Int
+    private val Method.arity: Int
         get() = parameterTypes.count { it != Continuation::class.java }
 
     private fun methods(type: String): Set<String> = Class.forName(type).declaredMethods.mapTo(HashSet()) { it.name }

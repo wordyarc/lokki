@@ -4,6 +4,8 @@ import io.lokki.compiler.IncompatibleRuntimeException
 import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.MockablePatterns
 import io.lokki.compiler.compat.CompilerCompat
+import io.lokki.compiler.ir.collect.Mockability
+import io.lokki.compiler.ir.collect.collectMockFields
 import io.lokki.compiler.ir.collect.collectMockSites
 import io.lokki.compiler.ir.generate.InterceptionPoints
 import io.lokki.compiler.ir.generate.MockClassGenerator
@@ -55,7 +57,10 @@ internal class LokkiIrGenerationExtension(
         val staticInitializers = StaticInitializers(lokki)
         val fieldInitializers = MockFieldInitializers(lokki)
         val contextBlocks = ContextBlocks(lokki)
-        val files = moduleFragment.files.map { FileContext(it, lokki) }
+        val files = moduleFragment.files.map { file ->
+            val mockability = Mockability(file)
+            FileContext(file, lokki, mockability, file.collectMockFields(mockability, lokki.typeSystem))
+        }
         fieldInitializers.declare(files.map { it.fields })
         for (file in files) {
             file.ir.transform(contextBlocks, null)

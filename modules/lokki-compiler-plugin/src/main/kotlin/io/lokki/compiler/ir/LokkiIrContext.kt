@@ -5,7 +5,6 @@ import io.lokki.compiler.LokkiPluginKey
 import io.lokki.compiler.compat.CompilerCompat
 import io.lokki.compiler.ir.collect.MockFields
 import io.lokki.compiler.ir.collect.Mockability
-import io.lokki.compiler.ir.collect.collectMockFields
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.incremental.components.LookupTracker
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
@@ -24,10 +23,13 @@ internal class LokkiIrContext(
     val typeSystem: IrTypeSystemContext = IrTypeSystemContextImpl(pluginContext.irBuiltIns)
 }
 
-internal class FileContext(val ir: IrFile, lokki: LokkiIrContext) {
+internal class FileContext(
+    val ir: IrFile,
+    lokki: LokkiIrContext,
+    val mockability: Mockability,
+    val fields: MockFields,
+) {
     val chainedMocks: Boolean = ir.hasAnnotation(CoreClass.CHAINED_MOCKS.id)
-    val mockability = Mockability(ir)
     val redirects = RedirectLookup(lokki.pluginContext, ir)
     val diagnostics = IrDiagnostics(lokki, ir)
-    val fields: MockFields = ir.collectMockFields(mockability, lokki.typeSystem)
 }

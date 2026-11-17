@@ -661,7 +661,8 @@ internal fun IrClass.dispatchReceiverFor(function: IrFunction): IrValueParameter
 private fun IrSimpleFunction.delegatedTo(mocked: IrClass): IrSimpleFunctionSymbol? =
     if (isMethodOfAny()) null else overriddenSymbols.find { it.owner.parentAsClass == mocked }
 
-private fun IrFile.addAfter(local: IrClass, mock: IrClass) {
+private fun IrFile.addAfter(mocked: IrClass, mock: IrClass) {
+    val local = generateSequence(mocked) { nested -> (nested.parent as? IrClass)?.takeIf { it.isLocal } }.last()
     mock.parent = local.parent
     acceptVoid(object : IrVisitorVoid() {
         override fun visitElement(element: IrElement) {

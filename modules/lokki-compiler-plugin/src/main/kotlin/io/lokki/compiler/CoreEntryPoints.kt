@@ -37,7 +37,7 @@ internal enum class CoreClass(val id: ClassId) {
     LOKKI_EXCEPTION(publicClassId("LokkiException")),
 }
 
-internal enum class CoreFunction(val owner: CoreClass, val functionName: String, val valueParameters: Int) {
+internal enum class CoreFunction(val owner: CoreClass, val functionName: String, val arity: Int) {
     ORIGINAL(CoreClass.GENERATED_MOCK, "lokki\$original", 2),
     CO_ORIGINAL(CoreClass.GENERATED_MOCK, "lokki\$coOriginal", 2),
     RELAXED(CoreClass.GENERATED_MOCK, "lokki\$relaxed", 1),
@@ -77,7 +77,7 @@ internal enum class CoreFunction(val owner: CoreClass, val functionName: String,
     ANY(CoreClass.MATCHER_SCOPE, "any", 0),
 }
 
-internal enum class CoreConstructor(val owner: CoreClass, val valueParameters: Int) {
+internal enum class CoreConstructor(val owner: CoreClass, val arity: Int) {
     NO_RELAXED_DEFAULT(CoreClass.NO_RELAXED_DEFAULT, 2),
     CHILD_MOCK(CoreClass.CHILD_MOCK, 1),
     REDIRECT(CoreClass.REDIRECT, 4),

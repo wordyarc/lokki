@@ -127,22 +127,20 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
         finder.findClass(entry.id)?.owner ?: incompatible("it has no class '${entry.id.asFqNameString()}'")
 
     private fun find(entry: CoreFunction): IrSimpleFunction {
-        val arity = entry.valueParameters
         val candidates = this[entry.owner].functions
-            .filter { it.name.asString() == entry.functionName && it.regularParameters == arity }
+            .filter { it.name.asString() == entry.functionName && it.regularParameters == entry.arity }
             .toList()
         return candidates.singleOrNull() ?: incompatible(
             "'${entry.owner.id.asFqNameString()}' declares ${candidates.size} functions " +
-                "'${entry.functionName}' with $arity parameters, and the compiler plugin needs exactly one"
+                "'${entry.functionName}' with ${entry.arity} parameters, and the compiler plugin needs exactly one"
         )
     }
 
     private fun find(entry: CoreConstructor): IrConstructor {
-        val arity = entry.valueParameters
-        val candidates = this[entry.owner].constructors.filter { it.regularParameters == arity }.toList()
+        val candidates = this[entry.owner].constructors.filter { it.regularParameters == entry.arity }.toList()
         return candidates.singleOrNull() ?: incompatible(
-            "'${entry.owner.id.asFqNameString()}' declares ${candidates.size} constructors with $arity parameters, " +
-                "and the compiler plugin needs exactly one"
+            "'${entry.owner.id.asFqNameString()}' declares ${candidates.size} constructors with ${entry.arity} " +
+                "parameters, and the compiler plugin needs exactly one"
         )
     }
 

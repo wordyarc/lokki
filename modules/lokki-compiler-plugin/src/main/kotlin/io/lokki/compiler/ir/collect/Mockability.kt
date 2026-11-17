@@ -183,12 +183,10 @@ internal class Mockability(private val file: IrFile) {
     fun child(type: IrType): MockSite.Mocked? {
         val mocked = type.makeNotNull().removeAnnotations()
         if (problemOf(mocked) != null) return null
-        return mock((mocked as IrSimpleType).approximated()!!)
+        return MockSite.Mocked(MockedTypes((mocked as IrSimpleType).approximated()!!, emptyList(), MockForm.Mock))
     }
 
     fun childProblem(type: IrType): NotMockable? = problemOf(type.makeNotNull().removeAnnotations())
-
-    fun mock(type: IrSimpleType): MockSite.Mocked = MockSite.Mocked(MockedTypes(type, emptyList(), MockForm.Mock))
 
     private fun IrClass.problem(): ClassProblem? {
         val frontend = declarationKindProblem(kind, modality, isFromFriendKotlinModule && !isValue)

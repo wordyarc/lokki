@@ -75,7 +75,7 @@ internal class DslLowering(
 ) : IrElementTransformerVoidWithContext() {
     private val context = lokki.pluginContext
     private val symbols = lokki.symbols
-    private val stubBlocks = StubBlockLowering(lokki, file, mocks)
+    private val stubBlocks = StubBlockLowering(lokki, file, sites, mocks)
 
     override fun visitCall(expression: IrCall): IrExpression {
         val kind = expression.intrinsicKind
@@ -259,7 +259,7 @@ internal class DslLowering(
         }
 
     private fun IrBuilderWithScope.irRedirect(target: IrExpression, redirect: Redirect): IrExpression {
-        val site = file.mockability.mock(redirect.redirect.defaultType)
+        val site = redirect.site
         val mock = mocks.getValue(site.key)
         val install = context.buildLambda(startOffset, endOffset, context.irBuiltIns.unitType)
         val value = install.addValueParameter("redirect", context.irBuiltIns.anyNType)

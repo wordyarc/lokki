@@ -7,6 +7,9 @@ import io.lokki.compiler.ParameterNames
 import io.lokki.compiler.REDIRECT
 import io.lokki.compiler.REDIRECT_PROPERTY
 import io.lokki.compiler.StaticInterception
+import io.lokki.compiler.ir.collect.MockForm
+import io.lokki.compiler.ir.collect.MockSite
+import io.lokki.compiler.ir.collect.MockedTypes
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
@@ -21,6 +24,7 @@ import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrVararg
 import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.util.classId
+import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.erasedUpperBound
 import org.jetbrains.kotlin.ir.util.isObject
 import org.jetbrains.kotlin.ir.util.isTopLevel
@@ -87,6 +91,8 @@ internal class RedirectLookup(private val context: IrPluginContext, file: IrFile
 
 internal sealed class Redirect(val redirect: IrClass, val property: IrProperty) {
     abstract val name: String
+
+    val site = MockSite.Mocked(MockedTypes(redirect.defaultType, emptyList(), MockForm.Mock))
 
     val members: List<IrSimpleFunction>
         get() = redirect.simpleFunctions()

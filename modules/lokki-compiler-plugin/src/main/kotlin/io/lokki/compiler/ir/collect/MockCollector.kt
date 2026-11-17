@@ -23,7 +23,6 @@ import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrSpreadElement
 import org.jetbrains.kotlin.ir.expressions.IrVararg
-import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.visitors.IrVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
@@ -37,6 +36,7 @@ internal class MockClassUsage(
 
 internal class MockSites(
     val calls: Map<IrCall, MockSite>,
+    val links: Map<IrCall, MockSite.Mocked>,
     val classes: Map<MockClassKey, MockClassUsage>,
     val blockStatementCalls: Set<IrCall>,
 )
@@ -44,11 +44,13 @@ internal class MockSites(
 internal fun FileContext.collectMockSites(): MockSites {
     val collector = MockCollector(this)
     ir.acceptChildrenVoid(collector)
-    return MockSites(collector.calls, collector.usages(), collector.blockStatementCalls)
+    return MockSites(collector.calls, collector.links, collector.usages(), collector.blockStatementCalls)
 }
 
 private class MockCollector(private val file: FileContext) : IrVisitorVoid() {
     val calls = LinkedHashMap<IrCall, MockSite>()
+
+    val links = HashMap<IrCall, MockSite.Mocked>()
 
     val blockStatementCalls = HashSet<IrCall>()
 
@@ -102,11 +104,13 @@ private class MockCollector(private val file: FileContext) : IrVisitorVoid() {
             IntrinsicKind.MOCK_STATIC -> expression.staticReferences.orEmpty().mapNotNull(file.redirects::static)
             else -> emptyList()
         }
-        for (redirect in redirected) add(expression, file.mockability.mock(redirect.redirect.defaultType))
+        for (redirect in redirected) add(expression, redirect.site)
         blockStatementCalls += expression.blockStatementCalls()
         if (file.chainedMocks) {
             for (link in expression.blockCalls().flatMap { it.receiver?.links().orEmpty() }) {
-                file.mockability.child(link.call.type)?.let { add(link.call, it) }
+                val site = file.mockability.child(link.call.type) ?: continue
+                links[link.call] = site
+                add(link.call, site)
             }
         }
         super.visitCall(expression)

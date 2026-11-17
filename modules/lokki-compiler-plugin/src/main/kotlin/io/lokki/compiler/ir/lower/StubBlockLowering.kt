@@ -18,6 +18,7 @@ import io.lokki.compiler.ir.StubbedCall
 import io.lokki.compiler.ir.buildLambda
 import io.lokki.compiler.ir.callsSuspend
 import io.lokki.compiler.ir.collect.MockClassKey
+import io.lokki.compiler.ir.collect.MockSites
 import io.lokki.compiler.ir.collect.MockedTypes
 import io.lokki.compiler.ir.contains
 import io.lokki.compiler.ir.excludedCalls
@@ -106,6 +107,7 @@ import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 internal class StubBlockLowering(
     lokki: LokkiIrContext,
     private val file: FileContext,
+    private val sites: MockSites,
     private val mocks: Map<MockClassKey, IrClass>,
 ) {
     private val context = lokki.pluginContext
@@ -437,7 +439,7 @@ internal class StubBlockLowering(
 
     private fun IrBuilderWithScope.irLink(block: StubBlock, head: IrVariable, key: String, call: IrCall): IrExpression {
         val type = call.type
-        val child = childOf(type)
+        val child = childOf(call)
         val evaluation = lambda(block.dsl, type)
         evaluation.body = builder(evaluation, block.dsl).irBlockBody { +irReturn(call) }
         return irCall(symbols[CoreFunction.LINK].symbol, type, listOf(type)).apply {
@@ -458,7 +460,7 @@ internal class StubBlockLowering(
         key: String,
     ): IrExpression? {
         val type = link.call.type
-        val (mock, types) = childOf(type) ?: return null.also {
+        val (mock, types) = childOf(link.call) ?: return null.also {
             when (val problem = file.mockability.childProblem(type)) {
                 null -> fail(link.call, childProblem(type))
                 else -> file.diagnostics.report(link.call, problem.withReason("${problem.reason}. $CHILD_MOCK_NEEDED"))
@@ -484,8 +486,8 @@ internal class StubBlockLowering(
         return irAs(child, type)
     }
 
-    private fun childOf(type: IrType): Pair<IrClass, MockedTypes>? {
-        val site = file.mockability.child(type) ?: return null
+    private fun childOf(link: IrCall): Pair<IrClass, MockedTypes>? {
+        val site = sites.links[link] ?: return null
         return mocks[site.key]?.let { it to site.types }
     }
 

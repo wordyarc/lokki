@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.IrTypeProjection
 import org.jetbrains.kotlin.ir.types.isMarkedNullable
 import org.jetbrains.kotlin.ir.util.isFromJava
+import org.jetbrains.kotlin.ir.util.isLocal
 import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.util.render
 
@@ -51,7 +52,7 @@ private fun IrValueParameter.key(nullability: Boolean): String =
 private fun IrType.key(nullability: Boolean, position: (IrTypeParameter) -> Int = { it.position }): String =
     if (this !is IrSimpleType) render() else buildString {
         when (val classifier = classifier) {
-            is IrClassSymbol -> append(classifier.owner.kotlinFqName.asString())
+            is IrClassSymbol -> append(classifier.owner.keyName)
             is IrTypeParameterSymbol -> append('#').append(position(classifier.owner))
             else -> append(render())
         }
@@ -65,6 +66,9 @@ private fun IrType.key(nullability: Boolean, position: (IrTypeParameter) -> Int 
         }
         if (nullability && isMarkedNullable()) append('?')
     }
+
+private val IrClass.keyName: String
+    get() = if (isLocal) "${kotlinFqName.asString()}@$startOffset" else kotlinFqName.asString()
 
 private val IrTypeParameter.position: Int
     get() = when (val container = parent) {
