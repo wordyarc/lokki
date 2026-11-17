@@ -114,7 +114,7 @@ internal class MockInjections(lokki: LokkiIrContext) {
         val typeArguments = type.arguments.map { it.typeOrNull ?: context.irBuiltIns.anyNType }
         return irCallConstructor(constructor.symbol, typeArguments).apply {
             this.type = type
-            parameters.zip(arguments) { parameter, argument -> this.arguments[parameter.indexInParameters] = argument }
+            parameters.zip(arguments) { parameter, argument -> this.arguments[parameter] = argument }
         }
     }
 

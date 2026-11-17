@@ -2,7 +2,9 @@ package io.lokki.compiler.ir.collect
 
 import io.lokki.compiler.LOOKUP_BY_NAME
 import io.lokki.compiler.LOOKUP_BY_TYPE
+import io.lokki.compiler.NOT_CLASS_PROBLEM
 import io.lokki.compiler.ParameterNames
+import io.lokki.compiler.TYPE_PARAMETER_PROBLEM
 import io.lokki.compiler.ir.argument
 import io.lokki.compiler.ir.isAccessibleOutsideHierarchy
 import io.lokki.compiler.ir.isVisibleFrom
@@ -133,10 +135,10 @@ internal class InjectionPlanner(private val file: IrFile, private val typeSystem
         val type = request.property.valueType.makeNotNull() as IrSimpleType
         val injected = type.classOrNull?.owner
         val problem = when {
-            type.classifier is IrTypeParameterSymbol -> "it is a type parameter"
-            injected == null -> "it is not a class"
+            type.classifier is IrTypeParameterSymbol -> TYPE_PARAMETER_PROBLEM
+            injected == null -> NOT_CLASS_PROBLEM
             injected.isInterface -> "it is an interface"
-            injected.kind != ClassKind.CLASS -> "it is not a class"
+            injected.kind != ClassKind.CLASS -> NOT_CLASS_PROBLEM
             injected.modality == Modality.ABSTRACT || injected.modality == Modality.SEALED -> "it is an abstract class"
             injected.isInner -> "it is an inner class"
             else -> null

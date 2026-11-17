@@ -17,7 +17,7 @@ import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
 
 internal fun IrFunctionAccessExpression.argument(name: String): IrExpression? =
-    symbol.owner.parameters.find { it.name.asString() == name }?.let { arguments[it.indexInParameters] }
+    symbol.owner.parameters.find { it.name.asString() == name }?.let { arguments[it] }
 
 internal fun IrExpression.constructorCall(): IrConstructorCall? =
     when {

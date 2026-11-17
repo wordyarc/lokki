@@ -9,7 +9,7 @@ import io.lokki.compiler.ir.buildLambda
 import io.lokki.compiler.ir.collect.MockForm
 import io.lokki.compiler.ir.collect.MockedTypes
 import io.lokki.compiler.ir.collect.mockedClass
-import io.lokki.compiler.ir.irGetObject
+import io.lokki.compiler.ir.irInvoke
 import io.lokki.compiler.ir.irJavaClass
 import io.lokki.compiler.ir.toLambda
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
@@ -17,7 +17,6 @@ import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
 import org.jetbrains.kotlin.ir.builders.declarations.addValueParameter
 import org.jetbrains.kotlin.ir.builders.irBlock
 import org.jetbrains.kotlin.ir.builders.irBlockBody
-import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irCallConstructor
 import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.builders.irReturn
@@ -40,10 +39,7 @@ internal val MockForm.spyFlags: Int
     get() = if (this == MockForm.Delegation) BuildConfig.FLAG_SPY or BuildConfig.FLAG_DELEGATE else BuildConfig.FLAG_SPY
 
 internal fun IrBuilderWithScope.irSpec(symbols: LokkiSymbols, name: IrExpression, flags: IrExpression): IrExpression =
-    irCallConstructor(symbols[CoreConstructor.MOCK_SPEC].symbol, emptyList()).apply {
-        arguments[0] = name
-        arguments[1] = flags
-    }
+    irInvoke(symbols[CoreConstructor.MOCK_SPEC], name, flags)
 
 internal fun IrBuilderWithScope.irConstruct(
     mock: IrClass,
@@ -99,15 +95,9 @@ private fun IrBuilderWithScope.irAllocate(
 ): IrExpression = irBlock {
     val mock = type.classOrFail.owner
     val instance = irTemporary(
-        irCall(symbols[CoreFunction.ALLOCATE].symbol, type, listOf(type)).apply {
-            arguments[0] = irGetObject(symbols[CoreClass.INSTANCE_ALLOCATOR])
-            arguments[1] = irJavaClass(symbols, type)
-        }
+        irInvoke(symbols[CoreFunction.ALLOCATE], irJavaClass(symbols, type), type = type, typeArguments = listOf(type))
     )
-    +irCall(mock.functions.single { it.name == INIT }).apply {
-        arguments[0] = irGet(instance)
-        init.forEachIndexed { index, argument -> arguments[index + 1] = argument }
-    }
+    +irInvoke(mock.functions.single { it.name == INIT }, *init.toTypedArray(), receiver = irGet(instance))
     +irGet(instance)
 }
 

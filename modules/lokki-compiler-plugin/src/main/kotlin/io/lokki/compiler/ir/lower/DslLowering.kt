@@ -10,7 +10,6 @@ import io.lokki.compiler.STUB_BLOCKS
 import io.lokki.compiler.VERIFY_BLOCKS
 import io.lokki.compiler.ir.FileContext
 import io.lokki.compiler.ir.LokkiIrContext
-import io.lokki.compiler.ir.ObjectRedirect
 import io.lokki.compiler.ir.Redirect
 import io.lokki.compiler.ir.StaticRedirect
 import io.lokki.compiler.ir.argument
@@ -29,7 +28,7 @@ import io.lokki.compiler.ir.generate.replaceConstructorCall
 import io.lokki.compiler.ir.generate.spyFlags
 import io.lokki.compiler.ir.intrinsicKind
 import io.lokki.compiler.ir.irArrayOf
-import io.lokki.compiler.ir.irGetObject
+import io.lokki.compiler.ir.irInvoke
 import io.lokki.compiler.ir.irVararg
 import io.lokki.compiler.ir.mockedObjects
 import io.lokki.compiler.ir.referencedDeclaration
@@ -46,7 +45,6 @@ import org.jetbrains.kotlin.ir.builders.declarations.addValueParameter
 import org.jetbrains.kotlin.ir.builders.irAs
 import org.jetbrains.kotlin.ir.builders.irBlockBody
 import org.jetbrains.kotlin.ir.builders.irCall
-import org.jetbrains.kotlin.ir.builders.irCallConstructor
 import org.jetbrains.kotlin.ir.builders.irCallOp
 import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.builders.irIfThenElse
@@ -194,10 +192,8 @@ internal class DslLowering(
     private fun lowerUnmockStatic(call: IrCall): IrExpression {
         val statics = call.staticRedirects() ?: return call
         return builder(call).run {
-            irCall(symbols[CoreFunction.UNMOCK]).apply {
-                arguments[0] = irGetObject(symbols[CoreClass.REDIRECTS])
-                arguments[1] = irArrayOf(context.irBuiltIns.anyType, statics.map { irString(it.key) })
-            }
+            val keys = irArrayOf(context.irBuiltIns.anyType, statics.map { irString(it.key) })
+            irInvoke(symbols[CoreFunction.UNMOCK], keys)
         }
     }
 
@@ -244,19 +240,16 @@ internal class DslLowering(
         installWithBlock: CoreFunction,
         redirects: List<IrExpression>,
         block: IrExpression?,
-    ): IrExpression =
-        irCall(symbols[if (block == null) install else installWithBlock]).apply {
-            arguments[0] = irGetObject(symbols[CoreClass.REDIRECTS])
-            arguments[1] = irArrayOf(symbols[CoreClass.REDIRECT].defaultType, redirects)
-            if (block != null) arguments[2] = block
+    ): IrExpression {
+        val installed = irArrayOf(symbols[CoreClass.REDIRECT].defaultType, redirects)
+        return when (block) {
+            null -> irInvoke(symbols[install], installed)
+            else -> irInvoke(symbols[installWithBlock], installed, block)
         }
+    }
 
     private fun IrBuilderWithScope.irStaticMock(redirect: StaticRedirect): IrExpression =
-        irCall(symbols[CoreFunction.STATIC_REDIRECT_OF]).apply {
-            arguments[0] = irGetObject(symbols[CoreClass.REDIRECTS])
-            arguments[1] = irString(redirect.key)
-            arguments[2] = irString(redirect.name)
-        }
+        irInvoke(symbols[CoreFunction.STATIC_REDIRECT_OF], irString(redirect.key), irString(redirect.name))
 
     private fun IrBuilderWithScope.irRedirect(target: IrExpression, redirect: Redirect): IrExpression {
         val site = redirect.site
@@ -264,18 +257,15 @@ internal class DslLowering(
         val install = context.buildLambda(startOffset, endOffset, context.irBuiltIns.unitType)
         val value = install.addValueParameter("redirect", context.irBuiltIns.anyNType)
         install.body = DeclarationIrBuilder(context, install.symbol, startOffset, endOffset).irBlockBody {
-            +irCall(redirect.property.setter!!).apply {
-                val owner = (redirect as? ObjectRedirect)?.target?.let { irGetObject(it) }
-                val installed = irAs(irGet(value), redirect.redirect.defaultType.makeNullable())
-                (listOfNotNull(owner) + installed).forEachIndexed { index, argument -> arguments[index] = argument }
-            }
+            +irInvoke(redirect.property.setter!!, irAs(irGet(value), redirect.redirect.defaultType.makeNullable()))
         }
-        return irCallConstructor(symbols[CoreConstructor.REDIRECT].symbol, emptyList()).apply {
-            arguments[0] = target
-            arguments[1] = irString(redirect.name)
-            arguments[2] = irFactory(symbols, mock, site.types)
-            arguments[3] = install.toLambda(context.irBuiltIns)
-        }
+        return irInvoke(
+            symbols[CoreConstructor.REDIRECT],
+            target,
+            irString(redirect.name),
+            irFactory(symbols, mock, site.types),
+            install.toLambda(context.irBuiltIns),
+        )
     }
 
     private fun IrBuilderWithScope.irFlags(call: IrCall): IrExpression {

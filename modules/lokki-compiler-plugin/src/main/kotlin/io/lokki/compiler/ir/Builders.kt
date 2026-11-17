@@ -17,11 +17,16 @@ import org.jetbrains.kotlin.ir.builders.irInt
 import org.jetbrains.kotlin.ir.builders.irNull
 import org.jetbrains.kotlin.ir.builders.irString
 import org.jetbrains.kotlin.ir.declarations.IrClass
+import org.jetbrains.kotlin.ir.declarations.IrConstructor
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
+import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.declarations.IrValueDeclaration
 import org.jetbrains.kotlin.ir.expressions.IrAnnotation
+import org.jetbrains.kotlin.ir.expressions.IrCall
+import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
+import org.jetbrains.kotlin.ir.expressions.IrFunctionAccessExpression
 import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.expressions.IrVarargElement
 import org.jetbrains.kotlin.ir.expressions.impl.IrClassReferenceImpl
@@ -33,7 +38,10 @@ import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.classOrFail
 import org.jetbrains.kotlin.ir.types.typeWith
 import org.jetbrains.kotlin.ir.util.defaultType
+import org.jetbrains.kotlin.ir.util.isObject
+import org.jetbrains.kotlin.ir.util.nonDispatchParameters
 import org.jetbrains.kotlin.ir.util.parentAsClass
+import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.name.SpecialNames
 
 internal fun IrBuilder.irArrayOf(elementType: IrType, elements: List<IrVarargElement>): IrExpression {
@@ -49,11 +57,42 @@ internal fun IrBuilder.irVararg(elementType: IrType, elements: List<IrVarargElem
 internal fun IrBuilder.irGetObject(objectClass: IrClass): IrExpression =
     irGetObjectValue(objectClass.defaultType, objectClass.symbol)
 
-internal fun IrBuilder.irCompanionCall(function: IrSimpleFunction, block: IrSimpleFunction): IrExpression =
-    irCall(function.symbol, block.returnType, listOf(block.returnType)).apply {
-        arguments[0] = irGetObject(function.parentAsClass)
-        arguments[1] = block.toLambda(context.irBuiltIns)
+internal fun IrBuilder.irInvoke(
+    function: IrSimpleFunction,
+    vararg arguments: IrExpression?,
+    receiver: IrExpression? = null,
+    type: IrType = function.returnType,
+    typeArguments: List<IrType> = emptyList(),
+): IrCall =
+    irCall(function.symbol, type).apply {
+        typeArguments.forEachIndexed { index, argument -> this.typeArguments[index] = argument }
+        function.dispatchReceiverParameter?.let { dispatch ->
+            this.arguments[dispatch] = receiver ?: function.parentAsClass.let { owner ->
+                check(owner.isObject) { "${function.render()} needs a receiver" }
+                irGetObject(owner)
+            }
+        }
+        putArguments(function, arguments)
     }
+
+internal fun IrBuilder.irInvoke(constructor: IrConstructor, vararg arguments: IrExpression?): IrConstructorCall =
+    irCallConstructor(constructor.symbol, emptyList()).apply { putArguments(constructor, arguments) }
+
+private fun IrFunctionAccessExpression.putArguments(function: IrFunction, arguments: Array<out IrExpression?>) {
+    val parameters = function.nonDispatchParameters
+    check(parameters.size == arguments.size) {
+        "${arguments.size} arguments are passed to ${function.render()}, which takes ${parameters.size}"
+    }
+    parameters.forEachIndexed { index, parameter -> this.arguments[parameter] = arguments[index] }
+}
+
+internal fun IrBuilder.irCompanionCall(function: IrSimpleFunction, block: IrSimpleFunction): IrExpression =
+    irInvoke(
+        function,
+        block.toLambda(context.irBuiltIns),
+        type = block.returnType,
+        typeArguments = listOf(block.returnType),
+    )
 
 internal fun IrGeneratorContext.buildLambda(
     startOffset: Int,
@@ -108,9 +147,4 @@ internal fun IrBuilder.irJavaClass(symbols: LokkiSymbols, type: IrSimpleType): I
 }
 
 internal fun IrBuilderWithScope.irThrowLokkiException(symbols: LokkiSymbols, message: String): IrExpression =
-    irThrow(
-        irCallConstructor(symbols[CoreConstructor.LOKKI_EXCEPTION].symbol, emptyList()).apply {
-            arguments[0] = irString(message)
-            arguments[1] = irNull()
-        }
-    )
+    irThrow(irInvoke(symbols[CoreConstructor.LOKKI_EXCEPTION], irString(message), irNull()))

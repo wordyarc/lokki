@@ -3,6 +3,7 @@ package io.lokki.compiler.ir.generate
 import io.lokki.compiler.CoreConstructor
 import io.lokki.compiler.ir.LokkiIrContext
 import io.lokki.compiler.ir.collect.referencedTypeParameters
+import io.lokki.compiler.ir.irInvoke
 import io.lokki.compiler.ir.renderReadable
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
@@ -125,10 +126,7 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
 
     private fun missing(description: String, mockable: Boolean = false): RelaxedDefault =
         RelaxedDefault("missing $description $mockable") {
-            irCallConstructor(symbols[CoreConstructor.NO_RELAXED_DEFAULT].symbol, emptyList()).apply {
-                arguments[0] = irString(description)
-                arguments[1] = irBoolean(mockable)
-            }
+            irInvoke(symbols[CoreConstructor.NO_RELAXED_DEFAULT], irString(description), irBoolean(mockable))
         }
 }
 

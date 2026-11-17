@@ -17,6 +17,7 @@ import io.lokki.compiler.ir.collect.mockedClassTypeParameters
 import io.lokki.compiler.ir.collect.referencedTypeParameters
 import io.lokki.compiler.ir.irArrayGet
 import io.lokki.compiler.ir.irArrayOf
+import io.lokki.compiler.ir.irInvoke
 import io.lokki.compiler.ir.irThrowLokkiException
 import io.lokki.compiler.ir.isVisibleFrom
 import io.lokki.compiler.ir.memberKeys
@@ -40,7 +41,6 @@ import org.jetbrains.kotlin.ir.builders.irAs
 import org.jetbrains.kotlin.ir.builders.irBlockBody
 import org.jetbrains.kotlin.ir.builders.irBranch
 import org.jetbrains.kotlin.ir.builders.irCall
-import org.jetbrains.kotlin.ir.builders.irCallConstructor
 import org.jetbrains.kotlin.ir.builders.irCallOp
 import org.jetbrains.kotlin.ir.builders.irDelegatingConstructorCall
 import org.jetbrains.kotlin.ir.builders.irElseBranch
@@ -260,7 +260,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         constructor.addValueParameter("spec", symbols[CoreClass.MOCK_SPEC].defaultType, MOCK_PARAMETER)
         constructor.body = DeclarationIrBuilder(context, constructor.symbol).irBlockBody {
             +irSuperCall(superConstructor, mockedType).apply {
-                for ((parameter, value) in passed) arguments[parameter.indexInParameters] = irGet(value)
+                for ((parameter, value) in passed) arguments[parameter] = irGet(value)
             }
             +irInstanceInitializer(this@addSpyConstructor)
         }
@@ -284,7 +284,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
             +irSuperCall(superConstructor, mockedType).apply {
                 for (parameter in superConstructor.parameters) {
                     val type = parameter.type.substitute(substitution)
-                    arguments[parameter.indexInParameters] = when {
+                    arguments[parameter] = when {
                         type.isPrimitiveType() || type.isMarkedNullable() ->
                             IrConstImpl.defaultValueForType(startOffset, endOffset, type)
                         else -> irAs(irNull(), type)
@@ -324,13 +324,12 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         descriptor.markSynthetic()
         descriptor.initializer = DeclarationIrBuilder(context, descriptor.symbol).run {
             irExprBody(
-                irCallConstructor(constructor.symbol, emptyList()).apply {
-                    arguments[0] = irString(mockedClass.descriptorName)
-                    arguments[1] = irInt(BuildConfig.LOKKI_ABI_VERSION)
-                    arrays.forEachIndexed { index, strings ->
-                        arguments[index + 2] = irArrayOf(context.irBuiltIns.stringType, strings.map(::irString))
-                    }
-                }
+                irInvoke(
+                    constructor,
+                    irString(mockedClass.descriptorName),
+                    irInt(BuildConfig.LOKKI_ABI_VERSION),
+                    *arrays.map { irArrayOf(context.irBuiltIns.stringType, it.map(::irString)) }.toTypedArray(),
+                )
             )
         }
         return descriptor
@@ -381,11 +380,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         spec: IrValueDeclaration,
         descriptor: IrField,
     ): IrExpression =
-        irCallConstructor(symbols[CoreConstructor.MOCK_STATE].symbol, emptyList()).apply {
-            arguments[0] = irGet(self)
-            arguments[1] = irGet(spec)
-            arguments[2] = irGetField(null, descriptor)
-        }
+        irInvoke(symbols[CoreConstructor.MOCK_STATE], irGet(self), irGet(spec), irGetField(null, descriptor))
 
     private fun IrSimpleFunction.implement(mock: IrClass, state: IrField, member: Int, spied: IrClass?) {
         val abstract = modality == Modality.ABSTRACT
@@ -412,13 +407,19 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
                 +irIfThen(context.irBuiltIns.unitType, irEqualsNull(irGet(initialized)), irReturn(original))
                 irGet(initialized)
             }
+            val index = irInt(member)
+            val arguments = irArrayOf(context.irBuiltIns.anyNType, nonDispatchParameters.map(::irGet))
             val answer = when {
-                isSuspend -> irCall(symbols[CoreFunction.CO_ANSWER].symbol, returnType, listOf(returnType))
-                else -> irCall(symbols[CoreFunction.ANSWER])
+                isSuspend -> irInvoke(
+                    symbols[CoreFunction.CO_ANSWER],
+                    index,
+                    arguments,
+                    receiver = receiver,
+                    type = returnType,
+                    typeArguments = listOf(returnType),
+                )
+                else -> irInvoke(symbols[CoreFunction.ANSWER], index, arguments, receiver = receiver)
             }
-            answer.arguments[0] = receiver
-            answer.arguments[1] = irInt(member)
-            answer.arguments[2] = irArrayOf(context.irBuiltIns.anyNType, nonDispatchParameters.map(::irGet))
             when {
                 isSuspend -> +irReturn(answer)
                 returnType.isUnit() -> +answer
@@ -442,11 +443,8 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
             partSize,
             otherwise = { function ->
                 val (member, arguments) = function.nonDispatchParameters
-                irCall(symbols[CoreFunction.NO_ORIGINAL]).apply {
-                    this.arguments[0] = irGetField(irGet(function.dispatchReceiverParameter!!), state)
-                    this.arguments[1] = irGet(member)
-                    this.arguments[2] = irGet(arguments)
-                }
+                val receiver = irGetField(irGet(function.dispatchReceiverParameter!!), state)
+                irInvoke(symbols[CoreFunction.NO_ORIGINAL], irGet(member), irGet(arguments), receiver = receiver)
             },
         ) { function, entries ->
             val (member, arguments) = function.nonDispatchParameters
@@ -504,9 +502,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
             val child = classes.generated[key]
                 ?: generate(key, childUsage, classes, relaxedChildren = true, path + types.type)
             return RelaxedDefault("child ${key.typeKey}") {
-                irCallConstructor(symbols[CoreConstructor.CHILD_MOCK].symbol, emptyList()).apply {
-                    arguments[0] = irFactory(symbols, child, types)
-                }
+                irInvoke(symbols[CoreConstructor.CHILD_MOCK], irFactory(symbols, child, types))
             }
         }
     }
@@ -559,10 +555,11 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
             functions.map { (index, function) ->
                 irBranch(
                     irEquals(irGet(part), irInt(index)),
-                    irCall(function).apply {
-                        arguments[0] = irGet(dispatcher.dispatchReceiverParameter!!)
-                        parameters.forEachIndexed { position, parameter -> arguments[position + 1] = irGet(parameter) }
-                    },
+                    irInvoke(
+                        function,
+                        *parameters.map(::irGet).toTypedArray(),
+                        receiver = irGet(dispatcher.dispatchReceiverParameter!!),
+                    ),
                 )
             }
         }

@@ -139,13 +139,13 @@ internal val IrClass.redirectedName: String?
 internal val IrCall.mockedObjects: List<IrExpression>?
     get() {
         val parameter = symbol.owner.parameters.firstOrNull { it.varargElementType != null }
-        val objects = parameter?.let { arguments[it.indexInParameters] } as? IrVararg ?: return emptyList()
+        val objects = parameter?.let { arguments[it] } as? IrVararg ?: return emptyList()
         return objects.elements.map { it as? IrExpression ?: return null }
     }
 
 internal val IrCall.staticReferences: List<IrExpression>?
     get() = symbol.owner.parameters.flatMap { parameter ->
-        val argument = arguments[parameter.indexInParameters] ?: return@flatMap emptyList()
+        val argument = arguments[parameter] ?: return@flatMap emptyList()
         when {
             parameter.name.asString() !in ParameterNames.REFERENCES -> emptyList()
             argument is IrVararg -> argument.elements.map { it as? IrExpression ?: return null }

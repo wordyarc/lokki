@@ -1,16 +1,14 @@
 package io.lokki.compiler.ir.generate
 
 import io.lokki.compiler.BuildConfig
-import io.lokki.compiler.CoreClass
 import io.lokki.compiler.CoreFunction
 import io.lokki.compiler.ir.LokkiIrContext
 import io.lokki.compiler.ir.irArrayOf
-import io.lokki.compiler.ir.irGetObject
+import io.lokki.compiler.ir.irInvoke
 import io.lokki.compiler.ir.irJavaClass
 import io.lokki.compiler.ir.isAccessibleFrom
 import org.jetbrains.kotlin.backend.jvm.ir.getJvmNameFromAnnotation
 import org.jetbrains.kotlin.ir.builders.IrBuilder
-import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irInt
 import org.jetbrains.kotlin.ir.builders.irString
 import org.jetbrains.kotlin.ir.declarations.IrFile
@@ -59,15 +57,15 @@ internal class MemberDescriptions(lokki: LokkiIrContext) {
             flags = flags or BuildConfig.METHOD_FN_CALL
         }
         val parameters = member.nonDispatchParameters
-        return irCall(symbols[CoreFunction.METHOD_DESCRIPTION]).apply {
-            arguments[0] = irGetObject(symbols[CoreClass.METHOD_DESCRIPTIONS])
-            arguments[1] = irString(member.jvmName)
-            arguments[2] = irErasedClass(returnType)
-            arguments[3] = irInt(flags)
-            arguments[4] = irErasedClass(declaringClass.defaultType)
-            arguments[5] = irArrayOf(classClass.starProjectedType, parameters.map { irErasedClass(it.type) })
-            arguments[6] = irInt(parameters.indexOfFirst { it.varargElementType != null })
-        }
+        return irInvoke(
+            symbols[CoreFunction.METHOD_DESCRIPTION],
+            irString(member.jvmName),
+            irErasedClass(returnType),
+            irInt(flags),
+            irErasedClass(declaringClass.defaultType),
+            irArrayOf(classClass.starProjectedType, parameters.map { irErasedClass(it.type) }),
+            irInt(parameters.indexOfFirst { it.varargElementType != null }),
+        )
     }
 
     private fun IrBuilder.irErasedClass(type: IrType): IrExpression = irJavaClass(symbols, type.erasedClassType())

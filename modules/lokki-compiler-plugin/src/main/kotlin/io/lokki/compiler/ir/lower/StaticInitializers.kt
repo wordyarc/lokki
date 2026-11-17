@@ -1,15 +1,13 @@
 package io.lokki.compiler.ir.lower
 
-import io.lokki.compiler.CoreClass
 import io.lokki.compiler.CoreFunction
 import io.lokki.compiler.ir.LokkiIrContext
 import io.lokki.compiler.ir.contains
-import io.lokki.compiler.ir.irGetObject
+import io.lokki.compiler.ir.irInvoke
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
 import org.jetbrains.kotlin.ir.builders.irBlock
-import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irReturn
 import org.jetbrains.kotlin.ir.builders.irTry
 import org.jetbrains.kotlin.ir.declarations.IrAnonymousInitializer
@@ -81,9 +79,7 @@ internal class StaticInitializers(lokki: LokkiIrContext) {
         }
 
     private fun IrBuilderWithScope.irStaticInitializerCall(function: CoreFunction): IrExpression =
-        irCall(symbols[function]).apply {
-            arguments[0] = irGetObject(symbols[CoreClass.STATIC_INITIALIZER])
-        }
+        irInvoke(symbols[function])
 
     private inner class DelegateLambdas : IrElementTransformerVoid() {
         override fun visitFunctionExpression(expression: IrFunctionExpression): IrExpression {

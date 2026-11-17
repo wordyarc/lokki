@@ -6,11 +6,11 @@ import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.ir.LokkiIrContext
 import io.lokki.compiler.ir.contains
 import io.lokki.compiler.ir.intrinsicKind
+import io.lokki.compiler.ir.irInvoke
 import io.lokki.compiler.ir.rewrap
 import io.lokki.compiler.ir.wrapped
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.ir.IrStatement
-import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
@@ -51,7 +51,7 @@ internal class ContextBlocks(lokki: LokkiIrContext) : IrElementTransformerVoid()
     private fun IrCall.contextCall(block: IrSimpleFunction): IrExpression? {
         val scope = block.parameters.firstOrNull { it.kind == IrParameterKind.ExtensionReceiver } ?: return null
         val receiver = symbol.owner.parameters.first { it.kind == IrParameterKind.ExtensionReceiver }
-        if ((arguments[receiver.indexInParameters] as? IrGetValue)?.symbol != scope.symbol) return null
+        if ((arguments[receiver] as? IrGetValue)?.symbol != scope.symbol) return null
         val lambda = (arguments.last() as? IrFunctionExpression)?.function ?: return null
         val statement = (lambda.body as? IrBlockBody)?.statements?.singleOrNull() ?: return null
         val value = when {
@@ -65,10 +65,12 @@ internal class ContextBlocks(lokki: LokkiIrContext) : IrElementTransformerVoid()
             object : IrElementTransformerVoid() {
                 override fun visitGetValue(expression: IrGetValue): IrExpression {
                     if (expression.symbol !in contexts) return expression
-                    val any = symbols[CoreFunction.ANY].symbol
-                    return builder.irCall(any, expression.type, listOf(expression.type)).apply {
-                        arguments[0] = builder.irGet(scope)
-                    }
+                    return builder.irInvoke(
+                        symbols[CoreFunction.ANY],
+                        receiver = builder.irGet(scope),
+                        type = expression.type,
+                        typeArguments = listOf(expression.type),
+                    )
                 }
             },
             null,

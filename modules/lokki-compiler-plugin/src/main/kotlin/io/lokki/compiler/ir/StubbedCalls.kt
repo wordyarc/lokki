@@ -46,7 +46,7 @@ internal class NoCalls(val call: IrCall) : Expected {
     private val receiver = call.symbol.owner.parameters.first { it.kind == IrParameterKind.ExtensionReceiver }
 
     val mocks: IrExpression
-        get() = call.arguments[receiver.indexInParameters]!!
+        get() = call.arguments[receiver]!!
 
     val mocksClass: IrClass
         get() = receiver.type.erasedUpperBound
@@ -101,7 +101,7 @@ internal fun IrExpression.memberCall(): StubbedCall? {
     fun IrExpression.thawed() = frozen.getOrNull(frozenIndex(this))?.initializer ?: this
     val receiver = call.dispatchReceiver?.thawed()
     if (receiver == null && !call.symbol.owner.isTopLevel) return null
-    val arguments = call.symbol.owner.nonDispatchParameters.map { call.arguments[it.indexInParameters] }
+    val arguments = call.symbol.owner.nonDispatchParameters.map { call.arguments[it] }
     return StubbedCall(
         call,
         receiver,
