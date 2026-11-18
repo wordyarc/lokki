@@ -86,10 +86,6 @@ class KotlinVersionsTest {
                 debug = true
             }
 
-            dependencies {
-                testImplementation("io.lokki:lokki-junit5")
-            }
-
             testing {
                 suites {
                     named<JvmTestSuite>("test") {

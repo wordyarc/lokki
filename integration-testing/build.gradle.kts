@@ -24,7 +24,6 @@ testing {
             useKotlinTest(libs.versions.kotlin)
 
             dependencies {
-                implementation("io.lokki:lokki-junit5")
                 implementation(libs.junit.platform.testkit)
                 implementation(libs.junit.jupiter.params)
                 implementation(libs.kotlinx.coroutines.core)

@@ -17,7 +17,7 @@ plugin. `mock<T>()` compiles into an ordinary class that implements `T`, and the
 - Kotlin 2.4.0 – 2.5.0-RC; `mockObject` and `mockStatic` need Kotlin 2.4.20 or newer.
 - Gradle 9.0 or newer.
 - JVM target 17 or newer for test code.
-- JUnit Jupiter 5.12 or newer, including 6.x, for `lokki-junit5`.
+- JUnit Jupiter 5.12 or newer, including 6.x, for `LokkiExtension`; lokki raises an older JUnit 5 to 5.12.2.
 
 ## Installation
 
@@ -26,14 +26,10 @@ plugins {
     kotlin("jvm") version "2.4.20"
     id("io.lokki") version "0.1.0"
 }
-
-dependencies {
-    testImplementation("io.lokki:lokki-junit5") // optional: JUnit 5 extension
-}
 ```
 
 The plugin applies to test compilations — `test`, `testFixtures`, JVM test suites and Android test variants — and
-adds `io.lokki:lokki-core` to them. `io.lokki` dependencies without a version get the version of the plugin.
+adds the runtime, `io.lokki:lokki-core`, to them. The runtime includes the JUnit 5 extension.
 
 | `lokki { }` option | Effect |
 |---|---|

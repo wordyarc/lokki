@@ -126,16 +126,7 @@ public final class io/lokki/LokkiException : java/lang/RuntimeException {
 }
 
 public final class io/lokki/LokkiScope {
-	public static final field Companion Lio/lokki/LokkiScope$Companion;
-	public final fun close (Ljava/lang/Throwable;)V
-	public static synthetic fun close$default (Lio/lokki/LokkiScope;Ljava/lang/Throwable;ILjava/lang/Object;)V
 	public fun toString ()Ljava/lang/String;
-}
-
-public final class io/lokki/LokkiScope$Companion {
-	public final fun getRoot ()Lio/lokki/LokkiScope;
-	public final fun open (Lio/lokki/LokkiScope;Ljava/lang/String;)Lio/lokki/LokkiScope;
-	public final fun withCurrent (Lio/lokki/LokkiScope;Lkotlin/jvm/functions/Function0;)Ljava/lang/Object;
 }
 
 public final class io/lokki/LokkiScopeKt {
@@ -660,5 +651,33 @@ public final class io/lokki/internal/Verification {
 	public final fun expectLink (Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
 	public final fun expectNoCalls (Ljava/lang/Object;)V
 	public final fun expectNoCalls (Ljava/util/List;)V
+}
+
+public abstract interface annotation class io/lokki/junit5/CheckUnnecessaryStub : java/lang/annotation/Annotation {
+}
+
+public abstract interface annotation class io/lokki/junit5/ConfirmVerification : java/lang/annotation/Annotation {
+}
+
+public abstract interface annotation class io/lokki/junit5/KeepMocks : java/lang/annotation/Annotation {
+}
+
+public class io/lokki/junit5/LokkiExtension : org/junit/jupiter/api/extension/AfterAllCallback, org/junit/jupiter/api/extension/AfterEachCallback, org/junit/jupiter/api/extension/BeforeAllCallback, org/junit/jupiter/api/extension/BeforeEachCallback, org/junit/jupiter/api/extension/InvocationInterceptor, org/junit/jupiter/api/extension/TestInstancePostProcessor {
+	public fun <init> ()V
+	public final fun afterAll (Lorg/junit/jupiter/api/extension/ExtensionContext;)V
+	public final fun afterEach (Lorg/junit/jupiter/api/extension/ExtensionContext;)V
+	public final fun beforeAll (Lorg/junit/jupiter/api/extension/ExtensionContext;)V
+	public final fun beforeEach (Lorg/junit/jupiter/api/extension/ExtensionContext;)V
+	public final fun getTestInstantiationExtensionContextScope (Lorg/junit/jupiter/api/extension/ExtensionContext;)Lorg/junit/jupiter/api/extension/TestInstantiationAwareExtension$ExtensionContextScope;
+	public final fun interceptAfterAllMethod (Lorg/junit/jupiter/api/extension/InvocationInterceptor$Invocation;Lorg/junit/jupiter/api/extension/ReflectiveInvocationContext;Lorg/junit/jupiter/api/extension/ExtensionContext;)V
+	public final fun interceptAfterEachMethod (Lorg/junit/jupiter/api/extension/InvocationInterceptor$Invocation;Lorg/junit/jupiter/api/extension/ReflectiveInvocationContext;Lorg/junit/jupiter/api/extension/ExtensionContext;)V
+	public final fun interceptBeforeAllMethod (Lorg/junit/jupiter/api/extension/InvocationInterceptor$Invocation;Lorg/junit/jupiter/api/extension/ReflectiveInvocationContext;Lorg/junit/jupiter/api/extension/ExtensionContext;)V
+	public final fun interceptBeforeEachMethod (Lorg/junit/jupiter/api/extension/InvocationInterceptor$Invocation;Lorg/junit/jupiter/api/extension/ReflectiveInvocationContext;Lorg/junit/jupiter/api/extension/ExtensionContext;)V
+	public final fun interceptDynamicTest (Lorg/junit/jupiter/api/extension/InvocationInterceptor$Invocation;Lorg/junit/jupiter/api/extension/DynamicTestInvocationContext;Lorg/junit/jupiter/api/extension/ExtensionContext;)V
+	public final fun interceptTestClassConstructor (Lorg/junit/jupiter/api/extension/InvocationInterceptor$Invocation;Lorg/junit/jupiter/api/extension/ReflectiveInvocationContext;Lorg/junit/jupiter/api/extension/ExtensionContext;)Ljava/lang/Object;
+	public final fun interceptTestFactoryMethod (Lorg/junit/jupiter/api/extension/InvocationInterceptor$Invocation;Lorg/junit/jupiter/api/extension/ReflectiveInvocationContext;Lorg/junit/jupiter/api/extension/ExtensionContext;)Ljava/lang/Object;
+	public final fun interceptTestMethod (Lorg/junit/jupiter/api/extension/InvocationInterceptor$Invocation;Lorg/junit/jupiter/api/extension/ReflectiveInvocationContext;Lorg/junit/jupiter/api/extension/ExtensionContext;)V
+	public final fun interceptTestTemplateMethod (Lorg/junit/jupiter/api/extension/InvocationInterceptor$Invocation;Lorg/junit/jupiter/api/extension/ReflectiveInvocationContext;Lorg/junit/jupiter/api/extension/ExtensionContext;)V
+	public final fun postProcessTestInstance (Ljava/lang/Object;Lorg/junit/jupiter/api/extension/ExtensionContext;)V
 }
 

@@ -146,7 +146,7 @@ private fun <T> proceed(invocation: Invocation<T>, context: ExtensionContext): T
     LokkiScope.withCurrent(scope(context)) { invocation.proceed() }
 
 private fun scope(context: ExtensionContext): LokkiScope {
-    if (!supportsTestInstantiationScope) throw LokkiException("lokki-junit5 requires JUnit Jupiter 5.12+")
+    if (!supportsTestInstantiationScope) throw LokkiException("LokkiExtension requires JUnit Jupiter 5.12+")
     if (context.keepsMocks()) return context.parentScope()
     return context.store.getOrComputeIfAbsent(
         context.uniqueId,

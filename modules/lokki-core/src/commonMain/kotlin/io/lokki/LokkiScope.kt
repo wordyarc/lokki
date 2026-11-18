@@ -27,8 +27,7 @@ public class LokkiScope private constructor(private val parent: LokkiScope?, pri
     internal var isClosed: Boolean = false
         private set
 
-    @InternalLokkiApi
-    public fun close(failure: Throwable? = null) {
+    internal fun close(failure: Throwable? = null) {
         val parent = synchronized(tree) {
             if (isClosed) return
             val parent = parent ?: throw LokkiException("$this cannot be closed")
@@ -106,23 +105,20 @@ public class LokkiScope private constructor(private val parent: LokkiScope?, pri
             mocks.mapNotNull { it.get() }
         }
 
-    public companion object {
+    internal companion object {
         private val tree = Any()
 
         private val current = CommonThreadLocal<LokkiScope?>()
 
-        @InternalLokkiApi
-        public val root: LokkiScope = LokkiScope(null, "the root scope")
+        internal val root: LokkiScope = LokkiScope(null, "the root scope")
 
-        @InternalLokkiApi
-        public fun open(parent: LokkiScope, name: String): LokkiScope =
+        internal fun open(parent: LokkiScope, name: String): LokkiScope =
             synchronized(tree) {
                 if (parent.isClosed) throw LokkiException("$name cannot be opened in $parent, which is closed")
                 LokkiScope(parent, name).also { parent.children += it }
             }
 
-        @InternalLokkiApi
-        public fun <R> withCurrent(scope: LokkiScope, block: () -> R): R {
+        internal fun <R> withCurrent(scope: LokkiScope, block: () -> R): R {
             val previous = current.get()
             current.set(scope)
             try {

@@ -28,7 +28,6 @@ class GradleOptionsTest {
 
             dependencies {
                 implementation("io.lokki:lokki-core")
-                testImplementation("io.lokki:lokki-junit5")
             }
 
             testing {
@@ -72,8 +71,6 @@ class GradleOptionsTest {
         assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
         val main = project.build("dependencies", "--configuration", "compileClasspath").output
         assertContains(main, "io.lokki:lokki-core -> $LOKKI_VERSION")
-        val test = project.build("dependencies", "--configuration", "testRuntimeClasspath").output
-        assertContains(test, "io.lokki:lokki-junit5 -> $LOKKI_VERSION")
     }
 
     @ParameterizedTest

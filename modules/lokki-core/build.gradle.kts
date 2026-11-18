@@ -18,4 +18,16 @@ kotlin {
     compilerOptions {
         optIn.add("io.lokki.InternalLokkiApi")
     }
+
+    sourceSets {
+        jvmMain.dependencies {
+            compileOnly(libs.junit.jupiter.api)
+        }
+    }
+}
+
+dependencies {
+    constraints {
+        "jvmMainApi"(libs.junit.jupiter.api)
+    }
 }
