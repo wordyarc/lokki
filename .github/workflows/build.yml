@@ -4,12 +4,18 @@ on:
     branches:
       - master
 
+permissions:
+  contents: read
+
 env:
   GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false -Dkotlin.incremental=false"
 
 jobs:
   build:
     runs-on: macos-latest
+    permissions:
+      contents: read
+      checks: write
 
     steps:
       - uses: actions/checkout@v4
@@ -19,17 +25,67 @@ jobs:
           java-version: 25
 
       - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew build --continue
-      - run: ./gradlew -p integration-testing check --continue
+      - id: gradle
+        run: ./gradlew build -x :lokki-gradle-plugin:functionalTest --continue
 
-      - uses: mikepenz/action-junit-report@v5
-        if: success() || failure()
+      - if: ${{ !cancelled() }}
+        uses: ./.github/actions/reports
         with:
-          report_paths: '**/build/test-results/*/TEST-*.xml'
+          outcome: ${{ steps.gradle.outcome }}
+          name: build
+
+  gradle-plugin:
+    runs-on: macos-latest
+    permissions:
+      contents: read
+      checks: write
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@v4
+      - id: gradle
+        run: ./gradlew :lokki-gradle-plugin:functionalTest --continue
+
+      - if: ${{ !cancelled() }}
+        uses: ./.github/actions/reports
+        with:
+          outcome: ${{ steps.gradle.outcome }}
+          name: gradle-plugin
+
+  integration:
+    runs-on: macos-latest
+    permissions:
+      contents: read
+      checks: write
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@v4
+      - id: gradle
+        run: ./gradlew -p integration-testing check --continue
+
+      - if: ${{ !cancelled() }}
+        uses: ./.github/actions/reports
+        with:
+          outcome: ${{ steps.gradle.outcome }}
+          name: integration
 
   kotlin:
     runs-on: macos-latest
     name: Kotlin ${{ matrix.kotlin }}
+    permissions:
+      contents: read
+      checks: write
 
     strategy:
       fail-fast: false
@@ -53,11 +109,14 @@ jobs:
           java-version: 25
 
       - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew -p integration-testing check --continue -Plokki.kotlin="$KOTLIN"
-      - if: matrix.compiler-tests
+      - id: integration
+        run: ./gradlew -p integration-testing check --continue -Plokki.kotlin="$KOTLIN"
+      - id: compiler-tests
+        if: ${{ !cancelled() && matrix.compiler-tests }}
         run: ./gradlew :compiler-tests:test --continue -Plokki.kotlin="$KOTLIN"
 
-      - uses: mikepenz/action-junit-report@v5
-        if: success() || failure()
+      - if: ${{ !cancelled() }}
+        uses: ./.github/actions/reports
         with:
-          report_paths: '**/build/test-results/*/TEST-*.xml'
+          outcome: ${{ (steps.integration.outcome == 'failure' || steps.compiler-tests.outcome == 'failure') && 'failure' || 'success' }}
+          name: kotlin-${{ matrix.kotlin }}

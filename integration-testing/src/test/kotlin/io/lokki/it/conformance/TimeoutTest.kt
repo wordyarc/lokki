@@ -191,7 +191,7 @@ class TimeoutTest {
         }
 
         assertFails {
-            coVerify(exactly = 1, timeout = 500) {
+            coVerify(exactly = 1, timeout = 2000) {
                 mock1.run()
             }
         }
