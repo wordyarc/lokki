@@ -612,6 +612,8 @@ public final class io/lokki/internal/Redirect {
 
 public final class io/lokki/internal/Redirects {
 	public static final field INSTANCE Lio/lokki/internal/Redirects;
+	public final fun clearStatic ([Ljava/lang/Object;)V
+	public final fun confirmVerifiedStatic ([Ljava/lang/Object;Z)V
 	public final fun install ([Lio/lokki/internal/Redirect;)Ljava/util/List;
 	public final fun installStatic ([Lio/lokki/internal/Redirect;)Ljava/util/List;
 	public final fun mockObject ([Lio/lokki/internal/Redirect;)V

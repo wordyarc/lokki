@@ -2,6 +2,8 @@ package io.lokki.internal
 
 import io.lokki.LokkiException
 import io.lokki.LokkiScope
+import io.lokki.clearMocks
+import io.lokki.confirmVerified
 
 @PublishedApi
 internal class Redirect(
@@ -58,6 +60,14 @@ internal object Redirects {
         for (target in targets) {
             synchronized(this) { active.find { it.isFor(target) && it.scope === scope } }?.let(::remove)
         }
+    }
+
+    fun clearStatic(mocks: Array<Any>) {
+        clearMocks(mocks.first(), *mocks.copyOfRange(1, mocks.size))
+    }
+
+    fun confirmVerifiedStatic(mocks: Array<Any>, clear: Boolean) {
+        confirmVerified(*mocks, clear = clear)
     }
 
     internal fun find(target: Any): GeneratedMock? = synchronized(this) { active.find { it.isFor(target) }?.mock }

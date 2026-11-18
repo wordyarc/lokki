@@ -5,7 +5,6 @@ import io.lokki.compiler.CoreClass
 import io.lokki.compiler.CoreConstructor
 import io.lokki.compiler.CoreFunction
 import io.lokki.compiler.IncompatibleRuntimeException
-import io.lokki.compiler.LOKKI_PACKAGE
 import io.lokki.compiler.STATE_PROPERTY_NAME
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.ir.declarations.IrClass
@@ -40,10 +39,6 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
         val generatedMock = this[CoreClass.GENERATED_MOCK]
         generatedMock.properties.singleOrNull { it.name.asString() == STATE_PROPERTY_NAME }
             ?: incompatible("'${generatedMock.name}' has no property '$STATE_PROPERTY_NAME'")
-    }
-    val clearMocks by lazy { publicFunction("clearMocks") { true } }
-    val confirmVerified by lazy {
-        publicFunction("confirmVerified") { it.parameters.first().varargElementType != null }
     }
     val awaitCancellation by lazy { finder.findFunctions(AWAIT_CANCELLATION).singleOrNull()?.owner }
 
@@ -153,10 +148,6 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
                 "parameters, and the compiler plugin needs exactly one"
         )
     }
-
-    private fun publicFunction(name: String, matches: (IrSimpleFunction) -> Boolean): IrSimpleFunction =
-        finder.findFunctions(CallableId(LOKKI_PACKAGE, Name.identifier(name))).map { it.owner }.singleOrNull(matches)
-            ?: incompatible("'${LOKKI_PACKAGE.child(Name.identifier(name))}' is not a single function")
 
     private fun noMatcherFactory(name: String): Nothing =
         incompatible("'${CoreClass.MATCHERS.id.shortClassName}' has no single factory of the matcher '$name'")

@@ -29,7 +29,6 @@ import io.lokki.compiler.ir.generate.spyFlags
 import io.lokki.compiler.ir.intrinsicKind
 import io.lokki.compiler.ir.irArrayOf
 import io.lokki.compiler.ir.irInvoke
-import io.lokki.compiler.ir.irVararg
 import io.lokki.compiler.ir.mockedObjects
 import io.lokki.compiler.ir.referencedDeclaration
 import io.lokki.compiler.ir.staticReferences
@@ -46,6 +45,7 @@ import org.jetbrains.kotlin.ir.builders.irAs
 import org.jetbrains.kotlin.ir.builders.irBlockBody
 import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irCallOp
+import org.jetbrains.kotlin.ir.builders.irFalse
 import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.builders.irIfThenElse
 import org.jetbrains.kotlin.ir.builders.irInt
@@ -199,22 +199,14 @@ internal class DslLowering(
 
     private fun lowerClearStaticMock(call: IrCall): IrExpression {
         val statics = call.staticRedirects() ?: return call
-        return builder(call).run {
-            irCall(symbols.clearMocks).apply {
-                val mocks = statics.map { irStaticMock(it) }
-                arguments[0] = mocks.first()
-                arguments[1] = irVararg(context.irBuiltIns.anyType, mocks.drop(1))
-            }
-        }
+        return builder(call).run { irInvoke(symbols[CoreFunction.CLEAR_STATIC], irStaticMocks(statics)) }
     }
 
     private fun lowerConfirmVerifiedStatic(call: IrCall): IrExpression {
         val statics = call.staticRedirects() ?: return call
         return builder(call).run {
-            irCall(symbols.confirmVerified).apply {
-                arguments[0] = irVararg(context.irBuiltIns.anyType, statics.map { irStaticMock(it) })
-                arguments[1] = call.argument(ParameterNames.CLEAR)
-            }
+            val clear = call.argument(ParameterNames.CLEAR) ?: irFalse()
+            irInvoke(symbols[CoreFunction.CONFIRM_VERIFIED_STATIC], irStaticMocks(statics), clear)
         }
     }
 
@@ -248,8 +240,11 @@ internal class DslLowering(
         }
     }
 
-    private fun IrBuilderWithScope.irStaticMock(redirect: StaticRedirect): IrExpression =
-        irInvoke(symbols[CoreFunction.STATIC_REDIRECT_OF], irString(redirect.key), irString(redirect.name))
+    private fun IrBuilderWithScope.irStaticMocks(statics: List<StaticRedirect>): IrExpression =
+        irArrayOf(
+            context.irBuiltIns.anyType,
+            statics.map { irInvoke(symbols[CoreFunction.STATIC_REDIRECT_OF], irString(it.key), irString(it.name)) },
+        )
 
     private fun IrBuilderWithScope.irRedirect(target: IrExpression, redirect: Redirect): IrExpression {
         val site = redirect.site
