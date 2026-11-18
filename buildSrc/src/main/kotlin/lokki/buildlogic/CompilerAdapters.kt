@@ -116,6 +116,7 @@ fun Project.compileAgainstCompilerApi(compilerVersion: String) {
     val oldest = kotlinVersion(compilerApiBaseline)
     tasks.named<KotlinCompile>("compileKotlin") {
         compilerOptions.apiVersion.set(KotlinVersion.fromVersion("${oldest.major}.${oldest.minor}"))
+        compilerOptions.allWarningsAsErrors.set(buildsWithCatalogKotlin)
     }
 }
 

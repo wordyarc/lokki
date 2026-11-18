@@ -3,6 +3,7 @@ package io.lokki.compiler.ir.collect
 import io.lokki.compiler.FIELD_KINDS
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.ParameterNames
+import io.lokki.compiler.ir.annotationClass
 import io.lokki.compiler.ir.argument
 import io.lokki.compiler.ir.intrinsicKind
 import io.lokki.compiler.ir.renderReadable
@@ -12,24 +13,23 @@ import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
+import org.jetbrains.kotlin.ir.expressions.IrAnnotation
 import org.jetbrains.kotlin.ir.expressions.IrClassReference
 import org.jetbrains.kotlin.ir.expressions.IrConst
-import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrGetValue
 import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.IrTypeSystemContext
 import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.types.makeNotNull
-import org.jetbrains.kotlin.ir.util.constructedClass
 import org.jetbrains.kotlin.ir.visitors.IrVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 
 internal class MockField(
     val property: IrProperty,
-    val annotation: IrConstructorCall,
+    val annotation: IrAnnotation,
     val kind: IntrinsicKind,
-    val inject: IrConstructorCall?,
+    val inject: IrAnnotation?,
     val problem: MockProblem?,
     val site: MockSite.Mocked?,
     val injection: Injection?,
@@ -148,12 +148,12 @@ private class MockFieldCollector(
 
 private class Annotated(
     val property: IrProperty,
-    val annotation: IrConstructorCall,
+    val annotation: IrAnnotation,
     val kind: IntrinsicKind,
-    val inject: IrConstructorCall?,
+    val inject: IrAnnotation?,
 ) {
     val annotationName: String
-        get() = annotation.symbol.owner.constructedClass.name.asString()
+        get() = annotation.annotationClass!!.name.asString()
 
     val additionalInterface: AddedInterface?
         get() = property.annotations.find { it.annotationKind == IntrinsicKind.ADDITIONAL_INTERFACE }
@@ -195,10 +195,10 @@ internal val IrProperty.constructorParameter: IrValueParameter?
         ?.symbol?.owner as? IrValueParameter
 
 internal val IrAnnotationContainer.mockAnnotationName: String?
-    get() = annotations.find { it.annotationKind in FIELD_KINDS }?.symbol?.owner?.constructedClass?.name?.asString()
+    get() = annotations.find { it.annotationKind in FIELD_KINDS }?.annotationClass?.name?.asString()
 
 internal val IrProperty.valueType: IrType
     get() = backingField?.type ?: getter!!.returnType
 
-private val IrConstructorCall.annotationKind: IntrinsicKind?
-    get() = symbol.owner.constructedClass.intrinsicKind
+private val IrAnnotation.annotationKind: IntrinsicKind?
+    get() = annotationClass?.intrinsicKind

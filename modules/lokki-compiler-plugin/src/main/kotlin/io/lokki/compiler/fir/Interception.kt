@@ -18,6 +18,7 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
+import org.jetbrains.kotlin.name.CallableId
 
 internal sealed interface MemberInterception {
     object NotApplicable : MemberInterception
@@ -54,7 +55,9 @@ internal fun FirCallableSymbol<*>.objectInterception(): MemberInterception {
 context(context: CheckerContext)
 internal fun FirCallableSymbol<*>.staticInterception(): MemberInterception {
     val id = callableId ?: return MemberInterception.NotApplicable
-    if (id.classId != null || id.isLocal) return MemberInterception.NotApplicable
+    if (id.classId != null || id.packageName == CallableId.PACKAGE_FQ_NAME_FOR_LOCAL) {
+        return MemberInterception.NotApplicable
+    }
     val inline = if (this is FirPropertySymbol) getterSymbol?.isInline == true else isInline
     val problem = when {
         inline -> "is inline"

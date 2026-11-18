@@ -73,7 +73,7 @@ internal class MockableStatusTransformer(session: FirSession, private val mockab
         }
 
     private fun FirRegularClass.isMockable(): Boolean =
-        !isJavaOrEnhancement && classKind == ClassKind.CLASS && !isInlineOrValue && !symbol.classId.isLocal &&
+        !isJavaOrEnhancement && classKind == ClassKind.CLASS && !isInlineOrValue && !isLocal &&
             !hasAnnotationSafe(JvmStandardClassIds.JVM_RECORD_ANNOTATION_CLASS_ID, session) &&
             (mockable.matches(symbol.classId) || isAnnotatedMockable())
 

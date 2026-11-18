@@ -4,6 +4,9 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.kotlin.dsl.getByType
 
+internal val Project.buildsWithCatalogKotlin: Boolean
+    get() = !providers.gradleProperty("lokki.kotlin").isPresent
+
 internal fun Project.version(alias: String): String =
     extensions.getByType<VersionCatalogsExtension>().named("libs").findVersion(alias)
         .orElseThrow { IllegalStateException("no version '$alias' in the version catalog") }
