@@ -15,6 +15,18 @@ class CoreContractTest {
     }
 
     @Test
+    fun testIntrinsicKindParameterIsDeclared() {
+        val intrinsic = CoreClass.LOKKI_INTRINSIC.load()
+        val kind = intrinsic.declaredMethods.singleOrNull { it.name == ParameterNames.KIND }
+        assertEquals(
+            Class.forName("io.lokki.internal.LokkiIntrinsic\$Kind"),
+            kind?.returnType,
+            "LokkiIntrinsic of lokki-core must declare the parameter '${ParameterNames.KIND}' of type Kind: " +
+                "the compiler plugin reads the kind of an intrinsic by the name of this parameter",
+        )
+    }
+
+    @Test
     fun testBuiltinMatchersAreDeclared() {
         val scopes = methods("io.lokki.MatcherScope") + methods("io.lokki.VerificationScope")
         assertDeclared(MatcherNames.BUILTIN, scopes, "matcher scopes")

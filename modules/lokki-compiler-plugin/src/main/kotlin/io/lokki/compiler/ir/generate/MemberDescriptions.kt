@@ -59,7 +59,7 @@ internal class MemberDescriptions(lokki: LokkiIrContext) {
         val parameters = member.nonDispatchParameters
         return irInvoke(
             symbols[CoreFunction.METHOD_DESCRIPTION],
-            irString(member.jvmName),
+            irString(member.descriptionName),
             irErasedClass(returnType),
             irInt(flags),
             irErasedClass(declaringClass.defaultType),
@@ -78,7 +78,7 @@ internal class MemberDescriptions(lokki: LokkiIrContext) {
     }
 }
 
-private val IrSimpleFunction.jvmName: String
+private val IrSimpleFunction.descriptionName: String
     get() {
         getJvmNameFromAnnotation()?.let { return it }
         val property = correspondingPropertySymbol?.owner ?: return name.asString()

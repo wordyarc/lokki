@@ -22,6 +22,7 @@ import io.lokki.compiler.ir.irThrowLokkiException
 import io.lokki.compiler.ir.isVisibleFrom
 import io.lokki.compiler.ir.memberKeys
 import io.lokki.compiler.ir.redirectedName
+import io.lokki.compiler.ir.root
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
@@ -180,9 +181,9 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         val coOriginal = functions.single { symbols[CoreFunction.CO_ORIGINAL].symbol in it.overriddenSymbols }
         val relaxed = functions.single { symbols[CoreFunction.RELAXED].symbol in it.overriddenSymbols }
         val describe = functions.single { symbols[CoreFunction.DESCRIBE].symbol in it.overriddenSymbols }
-        val dispatchers = setOf(original, coOriginal, relaxed, describe)
+        val generatedMock = symbols[CoreClass.GENERATED_MOCK]
         val (methodsOfAny, declared) = mock.simpleFunctions()
-            .filter { it !in dispatchers && it.correspondingPropertySymbol != stateProperty.symbol }
+            .filter { it.root.parent != generatedMock }
             .partition { it.isMethodOfAny() }
         val members = METHODS_OF_ANY.map { name -> methodsOfAny.single { it.name == name } } +
             declared.filter { it.modality != Modality.FINAL }
