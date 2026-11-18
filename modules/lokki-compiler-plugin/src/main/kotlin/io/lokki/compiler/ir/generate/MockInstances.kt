@@ -4,6 +4,7 @@ import io.lokki.compiler.BuildConfig
 import io.lokki.compiler.CoreClass
 import io.lokki.compiler.CoreConstructor
 import io.lokki.compiler.CoreFunction
+import io.lokki.compiler.ParameterNames
 import io.lokki.compiler.ir.LokkiSymbols
 import io.lokki.compiler.ir.buildLambda
 import io.lokki.compiler.ir.collect.MockForm
@@ -34,6 +35,11 @@ import org.jetbrains.kotlin.ir.util.functions
 import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.ir.util.primaryConstructor
 import org.jetbrains.kotlin.ir.util.render
+
+internal val MOCK_FLAGS = listOf(
+    ParameterNames.RELAXED to BuildConfig.FLAG_RELAXED,
+    ParameterNames.RELAX_UNIT_FUN to BuildConfig.FLAG_RELAX_UNIT_FUN,
+)
 
 internal val MockForm.spyFlags: Int
     get() = if (this == MockForm.Delegation) BuildConfig.FLAG_SPY or BuildConfig.FLAG_DELEGATE else BuildConfig.FLAG_SPY

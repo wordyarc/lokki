@@ -5,7 +5,6 @@ import io.lokki.compiler.CoreClass
 import io.lokki.compiler.CoreFunction
 import io.lokki.compiler.INIT_MOCK_FIELDS_NAME
 import io.lokki.compiler.IntrinsicKind
-import io.lokki.compiler.ParameterNames
 import io.lokki.compiler.ir.FileContext
 import io.lokki.compiler.ir.LokkiIrContext
 import io.lokki.compiler.ir.argument
@@ -170,8 +169,7 @@ internal class MockFieldInitializers(lokki: LokkiIrContext) {
             IntrinsicKind.SPY -> irInt(form.spyFlags)
             IntrinsicKind.RELAXED_MOCK -> irInt(BuildConfig.FLAG_RELAXED)
             else -> {
-                val own = field.flag(ParameterNames.RELAXED, BuildConfig.FLAG_RELAXED) or
-                    field.flag(ParameterNames.RELAX_UNIT_FUN, BuildConfig.FLAG_RELAX_UNIT_FUN)
+                val own = MOCK_FLAGS.fold(0) { own, (name, flag) -> own or field.flag(name, flag) }
                 val intType = context.irBuiltIns.intType
                 if (own == 0) irGet(flags) else irCallOp(symbols.intOr.symbol, intType, irGet(flags), irInt(own))
             }

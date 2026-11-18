@@ -105,13 +105,14 @@ internal class Mockability(private val file: IrFile) {
 
     private class ClassProblem(val reason: String, val isFrontendRule: Boolean)
 
+    @OptIn(ExperimentalStdlibApi::class)
     fun problemOf(type: IrType): NotMockable? {
         val mocked = type.classOrNull?.owner ?: return when (val classifier = type.classifierOrNull) {
             is IrTypeParameterSymbol ->
                 NotMockable(classifier.owner.name.asString(), TYPE_PARAMETER_PROBLEM, isFrontendRule = true)
             else -> NotMockable(type.render(), NOT_CLASS_PROBLEM, isFrontendRule = true)
         }
-        classProblems.getOrPut(mocked) { mocked.problem() }?.let {
+        classProblems.getOrPutIfMissing(mocked) { mocked.problem() }?.let {
             return NotMockable(mocked.displayName, it.reason, isFrontendRule = it.isFrontendRule)
         }
         val parameter = (type as IrSimpleType).irreplaceableStar() ?: return null

@@ -38,7 +38,8 @@ internal class RedirectLookup(private val context: IrPluginContext, file: IrFile
     private val objects = HashMap<IrClass, ObjectRedirect?>()
     private val statics = HashMap<IrDeclaration, StaticRedirect?>()
 
-    fun of(target: IrClass): ObjectRedirect? = objects.getOrPut(target) { find(target) }
+    @OptIn(ExperimentalStdlibApi::class)
+    fun of(target: IrClass): ObjectRedirect? = objects.getOrPutIfMissing(target) { find(target) }
 
     fun of(argument: IrExpression): ObjectRedirect? = argument.type.classOrNull?.owner?.let(::of)
 
@@ -48,8 +49,9 @@ internal class RedirectLookup(private val context: IrPluginContext, file: IrFile
             else -> null
         }
 
+    @OptIn(ExperimentalStdlibApi::class)
     fun static(declaration: IrDeclarationWithName): StaticRedirect? =
-        statics.getOrPut(declaration) { findStatic(declaration) }
+        statics.getOrPutIfMissing(declaration) { findStatic(declaration) }
 
     fun member(function: IrSimpleFunction): RedirectMember? {
         val declaration = function.correspondingPropertySymbol?.owner ?: function

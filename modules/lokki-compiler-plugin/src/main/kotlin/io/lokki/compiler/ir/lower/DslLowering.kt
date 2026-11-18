@@ -1,6 +1,5 @@
 package io.lokki.compiler.ir.lower
 
-import io.lokki.compiler.BuildConfig
 import io.lokki.compiler.CoreClass
 import io.lokki.compiler.CoreConstructor
 import io.lokki.compiler.CoreFunction
@@ -19,6 +18,7 @@ import io.lokki.compiler.ir.collect.MockForm
 import io.lokki.compiler.ir.collect.MockSite
 import io.lokki.compiler.ir.collect.MockSites
 import io.lokki.compiler.ir.collect.spiedInstance
+import io.lokki.compiler.ir.generate.MOCK_FLAGS
 import io.lokki.compiler.ir.generate.irConstruct
 import io.lokki.compiler.ir.generate.irDelegatingSpy
 import io.lokki.compiler.ir.generate.irFactory
@@ -285,8 +285,3 @@ internal class DslLowering(
         file.diagnostics.unsupported(element, reason)
     }
 }
-
-private val MOCK_FLAGS = listOf(
-    ParameterNames.RELAXED to BuildConfig.FLAG_RELAXED,
-    ParameterNames.RELAX_UNIT_FUN to BuildConfig.FLAG_RELAX_UNIT_FUN,
-)
