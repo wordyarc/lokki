@@ -1,0 +1,7 @@
+main: FieldsTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, equals, hashCode, toString
+main: FieldsTest.kt: sample.Car: <SAM-CONSTRUCTOR>, drive
+main: FieldsTest.kt: sample.Radio: <SAM-CONSTRUCTOR>, play
+main: InjectionTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, equals, hashCode, toString
+main: InjectionTest.kt: sample.Car: <SAM-CONSTRUCTOR>, drive
+main: InjectionTest.kt: sample.Garage: <SAM-CONSTRUCTOR>, spare, workshop
+main: InjectionTest.kt: sample.Workshop: <SAM-CONSTRUCTOR>, car, radio, repair

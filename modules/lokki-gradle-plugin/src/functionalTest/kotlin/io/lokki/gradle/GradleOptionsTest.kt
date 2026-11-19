@@ -1,7 +1,6 @@
 package io.lokki.gradle
 
 import org.gradle.testkit.runner.TaskOutcome
-import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
@@ -84,46 +83,6 @@ class GradleOptionsTest {
             result.output,
             "lokki $LOKKI_VERSION requires Kotlin $MIN_KOTLIN_VERSION or newer, but the build uses Kotlin " +
                 "$OLDER_KOTLIN: the lokki compiler plugin has no adapter to its compiler API.",
-        )
-    }
-
-    @ParameterizedTest
-    @EnumSource(GradleUnderTest::class)
-    fun testPreReleaseOfOldestKotlin(gradle: GradleUnderTest) {
-        val preRelease = "$MIN_KOTLIN_VERSION-RC"
-        val project = reportedKotlinVersionProject(gradle, preRelease)
-
-        val result = project.buildAndFail("help")
-
-        assertContains(
-            result.output,
-            "lokki $LOKKI_VERSION requires Kotlin $MIN_KOTLIN_VERSION or newer, but the build uses Kotlin $preRelease",
-        )
-    }
-
-    @ParameterizedTest
-    @EnumSource(GradleUnderTest::class)
-    fun testDevBuildOfOldestKotlin(gradle: GradleUnderTest) {
-        val project = reportedKotlinVersionProject(gradle, "$MIN_KOTLIN_VERSION-dev-1234")
-
-        val result = project.build("help")
-
-        assertFalse("requires Kotlin" in result.output, result.output)
-    }
-
-    @ParameterizedTest
-    @EnumSource(GradleUnderTest::class)
-    fun testReleaseOfLatestTestedPreRelease(gradle: GradleUnderTest) {
-        assumeTrue('-' in LATEST_TESTED_KOTLIN, "the latest tested Kotlin is a release")
-        val release = LATEST_TESTED_KOTLIN.substringBefore('-')
-        val project = reportedKotlinVersionProject(gradle, release)
-
-        val result = project.build("help")
-
-        assertContains(
-            result.output,
-            "lokki $LOKKI_VERSION is tested with Kotlin up to $LATEST_TESTED_KOTLIN, but the build uses Kotlin " +
-                release,
         )
     }
 

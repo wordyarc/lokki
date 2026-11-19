@@ -1,9 +1,12 @@
 package io.lokki.compiler.test.runners
 
+import io.lokki.compiler.test.services.IrSourcelessDiagnosticsHandler
+import io.lokki.compiler.test.services.SourcelessDiagnosticsChecker
 import io.lokki.compiler.test.services.configurePlugin
 import org.jetbrains.kotlin.config.JvmTarget
 import org.jetbrains.kotlin.test.FirParser
 import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
+import org.jetbrains.kotlin.test.builders.configureIrHandlersStep
 import org.jetbrains.kotlin.test.directives.CodegenTestDirectives
 import org.jetbrains.kotlin.test.directives.ConfigurationDirectives
 import org.jetbrains.kotlin.test.directives.FirDiagnosticsDirectives
@@ -38,5 +41,9 @@ open class AbstractJvmDiagnosticTest : AbstractFirPhasedDiagnosticTest(FirParser
         }
 
         configurePlugin()
+        configureIrHandlersStep {
+            useHandlers(::IrSourcelessDiagnosticsHandler)
+        }
+        useAfterAnalysisCheckers(::SourcelessDiagnosticsChecker)
     }
 }

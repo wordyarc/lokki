@@ -1,0 +1,5 @@
+test: ObjectTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, equals, hashCode, toString
+test: ObjectTest.kt: sample.Clock.LokkiRedirect: <SAM-CONSTRUCTOR>, now, zone
+test: ObjectTest.kt: sample.Settings.Companion.LokkiRedirect: <SAM-CONSTRUCTOR>, mode
+test: StaticTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, equals, hashCode, toString
+test: StaticTest.kt: sample.ClockKt$LokkiRedirect: <SAM-CONSTRUCTOR>, today, uptime

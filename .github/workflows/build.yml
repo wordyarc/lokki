@@ -1,4 +1,5 @@
 on:
+  workflow_dispatch: {}
   pull_request: {}
   push:
     branches:
@@ -7,12 +8,17 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false -Dkotlin.incremental=false"
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       checks: write
@@ -35,10 +41,22 @@ jobs:
           name: build
 
   gradle-plugin:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    name: Gradle plugin on ${{ matrix.gradle }} Gradle
     permissions:
       contents: read
       checks: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        gradle:
+          - current
+          - minimal
+
+    env:
+      GRADLE: ${{ matrix.gradle }}
 
     steps:
       - uses: actions/checkout@v4
@@ -48,17 +66,24 @@ jobs:
           java-version: 25
 
       - uses: gradle/actions/setup-gradle@v4
+      - name: Cache the TestKit Gradle User Home
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: modules/lokki-gradle-plugin/build/test-kit/caches
+          key: test-kit-${{ runner.os }}-${{ matrix.gradle }}-${{ hashFiles('gradle/libs.versions.toml', 'gradle.properties', 'gradle/wrapper/gradle-wrapper.properties', 'modules/lokki-gradle-plugin/src/**') }}
+          restore-keys: test-kit-${{ runner.os }}-${{ matrix.gradle }}-
       - id: gradle
-        run: ./gradlew :lokki-gradle-plugin:functionalTest --continue
+        run: ./gradlew :lokki-gradle-plugin:functionalTest --continue -Plokki.test.gradle="$GRADLE"
 
       - if: ${{ !cancelled() }}
         uses: ./.github/actions/reports
         with:
           outcome: ${{ steps.gradle.outcome }}
-          name: gradle-plugin
+          name: gradle-plugin-${{ matrix.gradle }}
 
   integration:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       checks: write
@@ -81,7 +106,8 @@ jobs:
           name: integration
 
   kotlin:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     name: Kotlin ${{ matrix.kotlin }}
     permissions:
       contents: read
@@ -110,7 +136,7 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
       - id: integration
-        run: ./gradlew -p integration-testing check --continue -Plokki.kotlin="$KOTLIN"
+        run: ./gradlew -p integration-testing test --continue -Plokki.kotlin="$KOTLIN"
       - id: compiler-tests
         if: ${{ !cancelled() && matrix.compiler-tests }}
         run: ./gradlew :compiler-tests:test --continue -Plokki.kotlin="$KOTLIN"

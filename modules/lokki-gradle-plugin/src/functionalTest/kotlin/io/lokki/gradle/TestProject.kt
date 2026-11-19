@@ -36,6 +36,11 @@ enum class GradleUnderTest(val version: String?, val javaHome: String?, val agpV
     ),
 }
 
+private val SELECTED_GRADLE: GradleUnderTest? = System.getProperty("lokki.test.gradle")?.let { selected ->
+    GradleUnderTest.entries.find { it.name.equals(selected, ignoreCase = true) }
+        ?: error("lokki.test.gradle=$selected: expected 'current' or 'minimal'")
+}
+
 class TestProject(
     private val dir: File,
     private val gradle: GradleUnderTest,
@@ -45,6 +50,9 @@ class TestProject(
     private val buildReports = dir.resolve("build/reports/kotlin-build")
 
     init {
+        Assumptions.assumeTrue(SELECTED_GRADLE == null || gradle == SELECTED_GRADLE) {
+            "lokki.test.gradle selects the tests of ${SELECTED_GRADLE?.name?.lowercase()} Gradle"
+        }
         val repositories = System.getProperty("lokki.test.repositories").split(File.pathSeparator)
             .map { "maven(\"${File(it).toURI()}\")" }
             .plus(listOfNotNull("google()".takeIf { android }, "mavenCentral()"))

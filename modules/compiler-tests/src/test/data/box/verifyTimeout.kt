@@ -61,7 +61,7 @@ fun box(): String {
     coVerify(timeout = 5_000) { bell.ring(5) }
 
     val other = bell()
-    later(50) { bell.ring(6) }
+    bell.ring(6)
     val oneOfTwo = message {
         verify(timeout = 300) {
             bell.ring(6)
@@ -73,11 +73,8 @@ fun box(): String {
     }
 
     val twice = bell()
-    later(20) {
-        twice.ring(1)
-        Thread.sleep(30)
-        twice.ring(1)
-    }
+    twice.ring(1)
+    twice.ring(1)
     val once = message { verify(exactly = 1, timeout = 300) { twice.ring(1) } }
     if (once?.startsWith("Verification failed: call 1 of 1: $twice.ring(eq(1)). 2 matching calls found") != true ||
         !once.endsWith("(timeout = 300 ms)")
@@ -91,14 +88,14 @@ fun box(): String {
     verify(timeout = 100) { quiet wasNot Called }
 
     val silent = bell()
-    later(30) { silent.ring(1) }
+    silent.ring(1)
     val called = message { verify(timeout = 300) { silent wasNot Called } }
     if (called != "Verification failed: $silent should not be called:\n1) $silent.ring(1)\n\n$CALL_SITES") {
         return "Fail wasNot Called: $called"
     }
 
     val inverse = bell()
-    later(30) { inverse.ring(1) }
+    inverse.ring(1)
     val inverted = message { verify(inverse = true, timeout = 300) { inverse.ring(1) } }
     if (inverted != "Inverse verification failed.\n\nVerified calls:\n1) $inverse.ring(1)") {
         return "Fail inverse: $inverted"

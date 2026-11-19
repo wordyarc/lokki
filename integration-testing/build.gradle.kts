@@ -5,6 +5,10 @@ plugins {
 
 kotlin {
     jvmToolchain(libs.versions.jvm.toolchain.get().toInt())
+
+    compilerOptions {
+        freeCompilerArgs.add("-Xverify-ir=error")
+    }
 }
 
 lokki {
@@ -39,6 +43,11 @@ tasks.withType<Test>().configureEach {
     }
 }
 
+val slowJupiterIndependentTests = listOf(
+    "io.lokki.it.conformance.TimeoutTest",
+    "io.lokki.it.conformance.ParallelTest",
+)
+
 jupiterTest("testLatestJupiter5", libs.versions.junit.jupiter)
 jupiterTest("testLatestJupiter6", libs.versions.jupiter6)
 jupiterTest("testUnsupportedJupiter", libs.versions.jupiter.unsupported) {
@@ -61,6 +70,7 @@ fun jupiterTest(name: String, jupiter: Provider<String>, configure: Test.() -> U
         group = LifecycleBasePlugin.VERIFICATION_GROUP
         testClassesDirs = sourceSets.test.get().output.classesDirs
         classpath = sourceSets.test.get().output + sourceSets.main.get().output + runtimeClasspath.get()
+        slowJupiterIndependentTests.forEach(filter::excludeTestsMatching)
         configure()
     }
     tasks.check {

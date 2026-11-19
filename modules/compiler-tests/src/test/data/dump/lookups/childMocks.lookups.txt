@@ -1,0 +1,9 @@
+main: ChainTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, equals, hashCode, toString
+main: ChainTest.kt: sample.Car: <SAM-CONSTRUCTOR>, door, plate, seat
+main: ChainTest.kt: sample.Door: <SAM-CONSTRUCTOR>, open
+main: PlainTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, equals, hashCode, toString
+main: PlainTest.kt: sample.Car: <SAM-CONSTRUCTOR>, door, plate, seat
+main: RelaxedTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, equals, hashCode, toString
+main: RelaxedTest.kt: sample.Car: <SAM-CONSTRUCTOR>, door, plate, seat
+main: RelaxedTest.kt: sample.Door: <SAM-CONSTRUCTOR>, open
+main: RelaxedTest.kt: sample.Seat: <SAM-CONSTRUCTOR>, recline

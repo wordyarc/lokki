@@ -3,6 +3,7 @@ package io.lokki.compiler.test
 import io.lokki.compiler.test.runners.AbstractJvmBinaryDependencyDiagnosticTest
 import io.lokki.compiler.test.runners.AbstractJvmBoxTest
 import io.lokki.compiler.test.runners.AbstractJvmDiagnosticTest
+import io.lokki.compiler.test.runners.AbstractJvmLookupDumpTest
 import org.jetbrains.kotlin.generators.dsl.junit5.generateTestGroupSuiteWithJUnit5
 
 fun main(args: Array<String>) {
@@ -18,6 +19,10 @@ fun main(args: Array<String>) {
 
             testClass<AbstractJvmBoxTest> {
                 model("box")
+            }
+
+            testClass<AbstractJvmLookupDumpTest> {
+                model("dump/lookups")
             }
         }
     }

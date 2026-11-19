@@ -1,0 +1,1 @@
+main: error: [LOKKI_RUNTIME_INCOMPATIBLE] lokki-core on the classpath does not match the lokki compiler plugin: 'io.lokki.internal.StaticInitializer' declares 0 functions 'enter' with 0 parameters, and the compiler plugin needs exactly one. Use the version of the lokki Gradle plugin for all io.lokki dependencies.

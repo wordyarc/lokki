@@ -6,7 +6,7 @@ import io.lokki.verify
 import java.util.Collections.synchronizedList
 import java.util.Random
 import kotlin.test.Test
-import kotlin.test.assertTrue
+import kotlin.test.assertEquals
 
 class ParallelTest {
     interface MockCls {
@@ -40,7 +40,7 @@ class ParallelTest {
 
         val rnd = Random()
         val threads = mutableListOf<Thread>()
-        val exceptions = synchronizedList(mutableListOf<Exception>())
+        val failures = synchronizedList(mutableListOf<Throwable>())
 
         repeat(30) {
             Thread {
@@ -59,8 +59,8 @@ class ParallelTest {
                         val op = ops[rnd.nextInt(ops.size)]
                         verify { op.mock.op(op.a, op.b) }
                     }
-                } catch (ex: Exception) {
-                    exceptions.add(ex)
+                } catch (failure: Throwable) {
+                    failures.add(failure)
                 }
             }.apply { start() }
                 .apply { threads.add(this) }
@@ -68,6 +68,6 @@ class ParallelTest {
 
         threads.forEach { it.join() }
 
-        assertTrue(exceptions.isEmpty())
+        assertEquals(emptyList(), failures)
     }
 }

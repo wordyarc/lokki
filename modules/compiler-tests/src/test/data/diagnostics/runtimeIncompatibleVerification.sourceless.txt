@@ -1,0 +1,1 @@
+main: error: [LOKKI_RUNTIME_INCOMPATIBLE] lokki-core on the classpath does not match the lokki compiler plugin: the constructor of 'Verification' has no parameter 'timeout'. Use the version of the lokki Gradle plugin for all io.lokki dependencies.

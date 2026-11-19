@@ -20,6 +20,10 @@ import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.TestMethodOrder
 import org.junit.jupiter.api.extension.ExtendWith
+import org.junit.jupiter.api.parallel.Execution
+import org.junit.jupiter.api.parallel.ExecutionMode
+import java.util.concurrent.CyclicBarrier
+import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -155,6 +159,30 @@ class LokkiExtensionFailureTest {
         assertEquals("failure of the constructor", failure.message)
         assertTrue(failure.suppressed.single().message!!.startsWith("1 call to mocks had no answer:"))
         assertEquals(emptyMap(), runSample(StubOfStaticMock::class).testFailures)
+    }
+
+    @Test
+    fun concurrentTestsFailForTheirOwnCallsWithoutAnswer() {
+        val failures = runSample(ConcurrentCallsWithoutAnswer::class, *CONCURRENT_TESTS).testFailures
+
+        assertEquals(setOf("first()", "second()"), failures.keys)
+        for (failure in failures.values) {
+            assertTrue(failure.message!!.startsWith("1 call to mocks had no answer:"), failure.message)
+        }
+    }
+
+    @Test
+    fun concurrentTestsCannotStubMockOfClass() {
+        val failures = runSample(ConcurrentTestsOfSharedMock::class, *CONCURRENT_TESTS).testFailures
+
+        assertEquals(setOf("first()", "second()"), failures.keys)
+        for (failure in failures.values) {
+            assertIs<LokkiException>(failure)
+            assertContains(
+                failure.message!!,
+                "is used by concurrently running tests; create it per test or serialize them with @ResourceLock",
+            )
+        }
     }
 
     @Sample
@@ -362,7 +390,69 @@ class LokkiExtensionFailureTest {
         }
     }
 
+    @Sample
+    @ExtendWith(LokkiExtension::class)
+    class ConcurrentCallsWithoutAnswer {
+        @Test
+        fun first() {
+            callAlongside()
+        }
+
+        @Test
+        fun second() {
+            callAlongside()
+        }
+
+        private fun callAlongside() {
+            started.await(10, TimeUnit.SECONDS)
+            runCatching { Garage(mock()).leave() }
+            called.await(10, TimeUnit.SECONDS)
+        }
+
+        private companion object {
+            val started = CyclicBarrier(2)
+            val called = CyclicBarrier(2)
+        }
+    }
+
+    @Sample
+    @ExtendWith(LokkiExtension::class)
+    @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+    @Execution(ExecutionMode.CONCURRENT)
+    class ConcurrentTestsOfSharedMock {
+        private val car = mock<Car>()
+
+        @Test
+        fun first() {
+            stubAlongside("first")
+        }
+
+        @Test
+        fun second() {
+            stubAlongside("second")
+        }
+
+        private fun stubAlongside(answer: String) {
+            started.await(10, TimeUnit.SECONDS)
+            val stubbing = runCatching { every { car.drive(any()) } returns answer }
+            stubbed.await(10, TimeUnit.SECONDS)
+            stubbing.getOrThrow()
+        }
+
+        private companion object {
+            val started = CyclicBarrier(2)
+            val stubbed = CyclicBarrier(2)
+        }
+    }
+
     private companion object {
         val shared = mock<Car> { every { plate } returns "static" }
+
+        val CONCURRENT_TESTS = arrayOf(
+            "junit.jupiter.execution.parallel.enabled" to "true",
+            "junit.jupiter.execution.parallel.mode.default" to "concurrent",
+            "junit.jupiter.execution.parallel.config.strategy" to "fixed",
+            "junit.jupiter.execution.parallel.config.fixed.parallelism" to "2",
+        )
     }
 }

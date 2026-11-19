@@ -70,6 +70,15 @@ val androidSdk = providers.environmentVariable("ANDROID_HOME")
 
 testing {
     suites {
+        named<JvmTestSuite>("test") {
+            useJUnitJupiter(libs.versions.junit.jupiter)
+
+            dependencies {
+                implementation(libs.kotlin.test.junit5)
+                implementation(libs.kotlin.tooling.core)
+            }
+        }
+
         register<JvmTestSuite>("functionalTest") {
             useJUnitJupiter(libs.versions.junit.jupiter)
 
@@ -99,6 +108,13 @@ testing {
                         )
                     )
                     jvmArgumentProviders.add(LocationSystemProperty("lokki.test.androidSdk", androidSdk))
+                    jvmArgumentProviders.add(
+                        LocationSystemProperty(
+                            "org.gradle.testkit.dir",
+                            layout.buildDirectory.dir("test-kit").map { it.asFile.path },
+                        )
+                    )
+                    providers.gradleProperty("lokki.test.gradle").orNull?.let { systemProperty("lokki.test.gradle", it) }
                     systemProperty("lokki.test.minGradleVersion", minGradleVersion)
                     systemProperty("lokki.test.minAgpVersion", libs.versions.agp.min.get())
                     systemProperty("lokki.test.agpVersion", libs.versions.agp.latest.get())

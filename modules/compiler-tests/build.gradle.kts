@@ -82,6 +82,8 @@ tasks.test {
         .withPathSensitivity(PathSensitivity.RELATIVE)
 
     workingDir = rootDir
+    maxHeapSize = "1g"
+    jvmArgs("-XX:TieredStopAtLevel=1")
     systemProperty("idea.ignore.disabled.plugins", "true")
     jvmArgumentProviders.add(LocationSystemProperty("idea.home.path", provider { workingDir.path }))
 
