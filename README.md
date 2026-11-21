@@ -1,5 +1,10 @@
 # lokki
 
+[![Build](https://github.com/wordyarc/lokki/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/wordyarc/lokki/actions/workflows/build.yml)
+[![Gradle Plugin Portal](https://img.shields.io/gradle-plugin-portal/v/io.github.wordyarc.lokki?label=Gradle%20Plugin%20Portal)](https://plugins.gradle.org/plugin/io.github.wordyarc.lokki)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.wordyarc.lokki/lokki-core?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.wordyarc.lokki/lokki-core)
+[![License](https://img.shields.io/badge/license-Apache_2.0-blue)](LICENSE.txt)
+
 lokki is a mocking library for Kotlin/JVM with the [MockK](https://mockk.io) DSL, implemented as a K2 compiler
 plugin. `mock<T>()` compiles into an ordinary class that implements `T`, and the blocks of `every { }` and
 `verify { }` compile into calls of the runtime instead of being executed.
@@ -7,14 +12,15 @@ plugin. `mock<T>()` compiles into an ordinary class that implements `T`, and the
 - **No instrumentation.** No Java agent, proxies or runtime class generation.
 - **Errors at compile time.** Unmockable types, calls that cannot be intercepted and stubs without an answer fail the
   build.
-- **Scoped state.** `mockObject`, `mockStatic` and stubs added to shared mocks belong to a scope — a JUnit 5 test or
-  `lokkiScope { }` — and are undone when it closes.
+- **Scoped state.** `mockObject`, `mockStatic` and stubs added to shared mocks last until their scope — a JUnit 5
+  test or `lokkiScope { }` — closes.
 
 **Status:** alpha. Until 1.0, the API may change without a deprecation cycle.
 
 ## Requirements
 
-- Kotlin 2.4.0 – 2.5.0-RC; `mockObject` and `mockStatic` need Kotlin 2.4.20 or newer.
+- Kotlin 2.4.0 – 2.5.0-RC: an older Kotlin fails the build, a newer one is untested and gives a warning.
+  `mockObject` and `mockStatic` need Kotlin 2.4.20 or newer.
 - Gradle 9.0 or newer.
 - JVM target 17 or newer for test code.
 - JUnit Jupiter 5.12 or newer, including 6.x, for `LokkiExtension`; lokki raises an older JUnit 5 to 5.12.2.
@@ -28,14 +34,9 @@ plugins {
 }
 ```
 
-The plugin applies to test compilations — `test`, `testFixtures`, JVM test suites and Android test variants — and
-adds the runtime, `io.github.wordyarc.lokki:lokki-core`, to them. The runtime includes the JUnit 5 extension.
-
-| `lokki { }` option | Effect |
-|---|---|
-| `mockable(vararg patterns)` | Makes final classes, `object`s and top-level functions of main code mockable, see [below](#final-classes-objects-and-top-level-functions). |
-| `applyToMain = true` | Applies the plugin to main code too, for modules with test utilities that create mocks. |
-| `recordStackTraces = true` | Adds call sites of mock calls to failure reports. |
+The plugin applies to test compilations — `test`, `testFixtures`, JVM test suites, `jvmTest` of multiplatform
+projects and Android test variants — and adds the runtime, `io.github.wordyarc.lokki:lokki-core`, to them. The
+runtime includes the JUnit 5 extension.
 
 ## Usage
 
@@ -87,10 +88,12 @@ Misuse fails compilation:
 
 ```kotlin
 mock<Job>()
-// e: 'com.example.Job' cannot be mocked: it is a final class. Extract an interface, make the class and its members open, or add it to lokki { mockable(...) }.
+// e: 'com.example.Job' cannot be mocked: it is a final class. Extract an interface,
+//    make the class and its members open, or add it to lokki { mockable(...) }.
 
 every { queue.complete(any()) }
-// e: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
+// e: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws'
+//    or 'just Runs' after the block.
 ```
 
 ### JUnit 5
@@ -113,13 +116,13 @@ class JobProcessorTest {
 ```
 
 `LokkiExtension` runs every test class, test and dynamic test in its own scope and initializes `@Mock`,
-`@RelaxedMock`, `@Spy` and `@InjectMocks` properties. On a test class, `@ConfirmVerification` and
-`@CheckUnnecessaryStub` run `confirmVerified()` and `checkUnnecessaryStub()` after each test, and `@KeepMocks` keeps
-the stubs and recorded calls of a test for the rest of the class.
+`@RelaxedMock`, `@Spy` and `@InjectMocks` properties. `@ConfirmVerification` and `@CheckUnnecessaryStub` on a test
+class run `confirmVerified()` and `checkUnnecessaryStub()` after each test. `@KeepMocks` on a test class or method
+keeps the stubs and recorded calls of a test for the rest of the class.
 
-Without the extension, initialize properties with `MockAnnotations.init(this)`. `mockObject`, `mockStatic` and
-`confirmVerified()`, `checkUnnecessaryStub()` and `clearAllMocks()` without arguments need a scope, so wrap such
-tests in `lokkiScope { }`.
+Without the extension, `MockAnnotations.init(this)` initializes the properties and `lokkiScope { }` provides the
+scope. Outside a scope, `mockObject`, `mockStatic` and the calls without arguments `confirmVerified()`,
+`checkUnnecessaryStub()` and `clearAllMocks()` throw `LokkiException`.
 
 ### Final classes, objects and top-level functions
 
@@ -152,10 +155,19 @@ fun morning() {
 }
 ```
 
-`mockStatic(::function)` does the same for top-level functions and properties, including extensions.
+`mockStatic(::function)` does the same for top-level functions and properties, including extensions. An overloaded
+or generic function cannot be passed to it: Kotlin does not resolve such a reference.
 
 This changes the main bytecode: matching classes are open, and every call of an intercepted function reads a volatile
 field. The plugin warns if the project applies `maven-publish`.
+
+## Configuration
+
+| `lokki { }` option | Effect |
+|---|---|
+| `mockable(vararg patterns)` | Makes final classes, `object`s and top-level functions of main code mockable, see [above](#final-classes-objects-and-top-level-functions). |
+| `applyToMain = true` | Applies the plugin to main code too, for modules with test utilities that create mocks. |
+| `recordStackTraces = true` | Adds call sites of mock calls to failure reports. |
 
 ## Coming from MockK
 
@@ -171,8 +183,8 @@ Imports move to `io.lokki`, and names that contain `mockk` or `MockK` change:
 
 Behaviour that differs:
 
-- The block of `every { }` and `verify { }` is not executed: its receiver and arguments are evaluated once, as
-  ordinary code, and `any()` never creates a placeholder value.
+- The receiver and arguments of the call in `every { }` and `verify { }` are evaluated once, as ordinary code, and
+  `any()` never creates a placeholder value.
 - Child mocks need `@file:ChainedMocks`. Without it, the receiver of a stubbed call such as
   `every { car.door().open() }` is evaluated as ordinary code, and relaxed mocks return no child mocks.
 - A relaxed mock returns `null` for nullable types and empty values for primitives, strings, collections and arrays.
@@ -183,19 +195,20 @@ Behaviour that differs:
 
 ## Limitations
 
-- JVM only. Android instrumented tests compile with the plugin but have not been run on ART.
+- JVM only: Kotlin/JVM, Android and the JVM target of multiplatform projects. Android instrumented tests compile with
+  the plugin but have not been run on ART.
 - Mocks are created and stubbed only in Kotlin code compiled with the plugin; Java code can only call them.
-- The mocked type must be known at compile time: there is no `mockkClass(KClass)`, and `mock<T>()` inside your own
-  `inline reified` helper is an error.
+- The mocked type and the stubbed call must be written where they are used: there is no `mockkClass(KClass)`, and
+  `mock<T>()` inside your own `inline reified` helper or a block passed to `every` or `verify` through your own
+  function is an error.
 - Final classes, objects and functions from libraries, Java static methods and constructors (`mockkConstructor`)
   cannot be mocked.
-- No JUnit 4 integration: use `lokkiScope { }`.
+- Private members cannot be stubbed or verified: there are no calls by name such as `every { spy["name"]() }`.
+- No JUnit 4 integration: use `lokkiScope { }`. Kotest is not supported.
 - IntelliJ IDEA shows `LOKKI_*` diagnostics only with the registry key
   `kotlin.k2.only.bundled.compiler.plugins.enabled` set to `false`; the Gradle build always reports them.
 
 ## Development
-
-The build uses a JDK 25 toolchain, which Gradle downloads if it is missing.
 
 ```shell
 ./gradlew build                                   # all tests and checks of the main build, including the ABI check
@@ -204,15 +217,9 @@ The build uses a JDK 25 toolchain, which Gradle downloads if it is missing.
 ./gradlew updateKotlinAbi                         # update the ABI dumps after a public API change
 ```
 
-`-Plokki.kotlin=<version>` runs the tests on another Kotlin version from `lokki.kotlin.tested` in
-`gradle.properties`. The Gradle plugin tests in `build` need an Android SDK (`ANDROID_HOME`).
-
-Compiler tests are data files in [`modules/compiler-tests/src/test/data`](modules/compiler-tests/src/test/data):
-`box` for codegen, `diagnostics` and `dump/ir`. The [Kotlin Compiler DevKit][devkit] IntelliJ plugin runs them from
-the files.
+Gradle downloads the JDK 25 toolchain of the build if it is missing. The Gradle plugin tests in `build` need an
+Android SDK (`ANDROID_HOME`).
 
 ## License
 
 [Apache License 2.0](LICENSE.txt)
-
-[devkit]: https://github.com/JetBrains/kotlin-compiler-devkit
