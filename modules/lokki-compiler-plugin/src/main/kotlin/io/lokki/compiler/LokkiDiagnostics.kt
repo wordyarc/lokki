@@ -266,14 +266,14 @@ private object LokkiDiagnosticRenderers : BaseDiagnosticRendererFactory() {
         map.put(
             LokkiDiagnostics.LOKKI_RUNTIME_TOO_OLD,
             "lokki-core on the classpath is older than the lokki compiler plugin needs: " +
-                "use the version of the lokki Gradle plugin for all io.lokki dependencies.",
+                "use the version of the lokki Gradle plugin for all lokki dependencies.",
         )
         map.put(LokkiDiagnostics.LOKKI_DEBUG, "{0}")
         map.put(LokkiDiagnostics.LOKKI_CANNOT_START, "{0}")
         map.put(
             LokkiDiagnostics.LOKKI_RUNTIME_INCOMPATIBLE,
             "lokki-core on the classpath does not match the lokki compiler plugin: {0}. " +
-                "Use the version of the lokki Gradle plugin for all io.lokki dependencies.",
+                "Use the version of the lokki Gradle plugin for all lokki dependencies.",
         )
     }
 }

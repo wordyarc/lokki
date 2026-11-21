@@ -22,6 +22,9 @@ plugins {
     `jvm-test-suite`
 }
 
+description = "lokki compiler plugin: generates mock classes at compile time and lowers the mocking DSL into calls " +
+    "of lokki-core"
+
 compileAgainstCompilerApi(compilerApiBaseline)
 val latestCompilerApi = checkLatestCompilerApi()
 
@@ -35,6 +38,16 @@ val embeddedCompat = configurations.dependencyScope("embeddedCompat")
 val embeddedCompatClasspath = configurations.resolvable("embeddedCompatClasspath") {
     extendsFrom(embeddedCompat.get())
     isTransitive = false
+}
+val embeddedCompatSources = configurations.resolvable("embeddedCompatSources") {
+    extendsFrom(embeddedCompat.get())
+    isTransitive = false
+    attributes {
+        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.DOCUMENTATION))
+        attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType.SOURCES))
+        attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.EXTERNAL))
+        attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_RUNTIME))
+    }
 }
 
 dependencies {
@@ -81,11 +94,11 @@ tasks.jar {
     from(mergeCompilerCompatServices)
 }
 
-publishing {
-    publications {
-        register<MavenPublication>("maven") {
-            from(components["java"])
-        }
+tasks.withType<Jar>().matching { it.name == "sourcesJar" }.configureEach {
+    duplicatesStrategy = DuplicatesStrategy.FAIL
+    dependsOn(embeddedCompatSources)
+    from(embeddedCompatSources.map { jars -> jars.map(::zipTree) }) {
+        exclude("META-INF/**")
     }
 }
 

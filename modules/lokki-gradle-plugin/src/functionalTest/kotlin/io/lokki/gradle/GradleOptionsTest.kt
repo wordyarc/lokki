@@ -26,7 +26,7 @@ class GradleOptionsTest {
             }
 
             dependencies {
-                implementation("io.lokki:lokki-core")
+                implementation("$LOKKI_GROUP:lokki-core")
             }
 
             testing {
@@ -69,7 +69,7 @@ class GradleOptionsTest {
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
         val main = project.build("dependencies", "--configuration", "compileClasspath").output
-        assertContains(main, "io.lokki:lokki-core -> $LOKKI_VERSION")
+        assertContains(main, "$LOKKI_GROUP:lokki-core -> $LOKKI_VERSION")
     }
 
     @ParameterizedTest
@@ -163,7 +163,7 @@ class GradleOptionsTest {
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
         assertEquals(setOf("drive()"), project.mockedMethods("main", "sample.Car\$LokkiMock\$08768170\$CarsKt"))
-        assertContains(project.build("dependencies", "--configuration", "compileClasspath").output, "io.lokki:lokki-core")
+        assertContains(project.build("dependencies", "--configuration", "compileClasspath").output, "$LOKKI_GROUP:lokki-core")
     }
 
     @ParameterizedTest

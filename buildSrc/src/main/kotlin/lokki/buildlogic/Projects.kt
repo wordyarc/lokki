@@ -4,7 +4,14 @@ import org.gradle.api.Project
 import org.gradle.api.file.Directory
 import org.gradle.api.provider.Provider
 
+internal const val REPOSITORY_PATH = "wordyarc/lokki"
+
+const val REPOSITORY_URL = "https://github.com/$REPOSITORY_PATH"
+
 const val COMPILER_PLUGIN_ID = "io.lokki.compiler"
+
+internal val Project.kotlinModuleName: String
+    get() = "io.lokki_$name"
 
 const val MOCKABLE_OPTION = "mockable"
 

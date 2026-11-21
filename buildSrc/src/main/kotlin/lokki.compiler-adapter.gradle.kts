@@ -14,6 +14,10 @@ description = "Adapter of the lokki compiler plugin to the compiler API of Kotli
 
 compileAgainstCompilerApi(adapter.minVersion)
 
+java {
+    withSourcesJar()
+}
+
 dependencies {
     api(project(COMPILER_COMPAT_PROJECT))
 }

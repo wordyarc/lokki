@@ -2,6 +2,7 @@ import lokki.buildlogic.COMPILER_PLUGIN_ID
 import lokki.buildlogic.DEBUG_OPTION
 import lokki.buildlogic.MOCKABLE_OPTION
 import lokki.buildlogic.LocationSystemProperty
+import lokki.buildlogic.REPOSITORY_URL
 import lokki.buildlogic.compilerApiBaseline
 import lokki.buildlogic.functionalTestRepository
 import lokki.buildlogic.latestTestedKotlin
@@ -11,10 +12,12 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 plugins {
     id("lokki.kotlin-jvm")
     id("lokki.publish")
-    `java-gradle-plugin`
+    id("com.gradle.plugin-publish")
     `jvm-test-suite`
     id("com.github.gmazzo.buildconfig")
 }
+
+description = "Gradle plugin that applies the lokki compiler plugin to test compilations and adds lokki-core"
 
 val minGradleVersion = libs.versions.gradle.min.version.get()
 val minGradleKotlinVersion = KotlinVersion.fromVersion(libs.versions.gradle.min.kotlin.get())
@@ -51,10 +54,15 @@ buildConfig {
 }
 
 gradlePlugin {
+    website = REPOSITORY_URL
+    vcsUrl = REPOSITORY_URL
     plugins {
         create("lokki") {
             id = "io.lokki"
+            displayName = "lokki"
+            description = project.description
             implementationClass = "io.lokki.gradle.LokkiGradleSubplugin"
+            tags = listOf("kotlin", "testing", "mocking", "compiler-plugin")
         }
     }
 }
@@ -118,6 +126,7 @@ testing {
                     systemProperty("lokki.test.minGradleVersion", minGradleVersion)
                     systemProperty("lokki.test.minAgpVersion", libs.versions.agp.min.get())
                     systemProperty("lokki.test.agpVersion", libs.versions.agp.latest.get())
+                    systemProperty("lokki.test.lokkiGroup", project.group.toString())
                     systemProperty("lokki.test.lokkiVersion", version.toString())
                     systemProperty("lokki.test.kotlinVersion", libs.versions.kotlin.get())
                     systemProperty("lokki.test.minKotlinVersion", compilerApiBaseline)

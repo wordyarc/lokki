@@ -12,6 +12,10 @@ description = "Contract between the lokki compiler plugin and its adapters to th
 compileAgainstCompilerApi(compilerApiBaseline)
 checkLatestCompilerApi()
 
+java {
+    withSourcesJar()
+}
+
 dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-compiler:$compilerApiBaseline")
     testImplementation(libs.kotlin.test.junit5)

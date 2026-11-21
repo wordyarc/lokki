@@ -273,7 +273,7 @@ class MockStateTest {
         assertEquals(
             "the mock of Repo was compiled by a newer lokki compiler plugin than lokki-core on the classpath: " +
                 "it needs ABI $newer, lokki-core has ABI ${LokkiAbi.VERSION}; " +
-                "use the version of the lokki Gradle plugin for all io.lokki dependencies",
+                "use the version of the lokki Gradle plugin for all lokki dependencies",
             exception.message,
         )
         MockState(owner, MockSpec(null, 0), MockDescriptor("Repo", LokkiAbi.VERSION - 1, emptyArray()))

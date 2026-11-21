@@ -1,6 +1,8 @@
 import lokki.buildlogic.abiCheckEnabled
+import lokki.buildlogic.kotlinModuleName
 import lokki.buildlogic.targetJvm
 import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     id("org.jetbrains.kotlin.multiplatform")
@@ -27,6 +29,10 @@ kotlin {
             implementation(kotlin("test"))
         }
     }
+}
+
+tasks.named<KotlinCompile>("compileKotlinJvm") {
+    compilerOptions.moduleName = kotlinModuleName
 }
 
 tasks.withType<Test>().configureEach {

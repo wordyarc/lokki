@@ -7,6 +7,9 @@ plugins {
     id("com.github.gmazzo.buildconfig")
 }
 
+description = "Mocking for Kotlin without reflection or runtime code generation: the mockk-style DSL, matchers, " +
+    "verification, scopes and the JUnit 5 extension"
+
 buildConfig {
     packageName("io.lokki.internal")
     className("LokkiAbi")

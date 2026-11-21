@@ -10,6 +10,7 @@ val KOTLIN_VERSION: String = System.getProperty("lokki.test.kotlinVersion")
 val MIN_KOTLIN_VERSION: String = System.getProperty("lokki.test.minKotlinVersion")
 val LATEST_TESTED_KOTLIN: String = System.getProperty("lokki.test.latestTestedKotlin")
 val TESTED_KOTLIN: List<String> = System.getProperty("lokki.test.testedKotlin").split(',')
+val LOKKI_GROUP: String = System.getProperty("lokki.test.lokkiGroup")
 val LOKKI_VERSION: String = System.getProperty("lokki.test.lokkiVersion")
 
 const val INTERCEPTION_POINTS_KOTLIN: String = "2.4.20"

@@ -1,1 +1,1 @@
-main: error: [LOKKI_RUNTIME_INCOMPATIBLE] lokki-core on the classpath does not match the lokki compiler plugin: 'Matchers' has no single factory of the matcher 'more'. Use the version of the lokki Gradle plugin for all io.lokki dependencies.
+main: error: [LOKKI_RUNTIME_INCOMPATIBLE] lokki-core on the classpath does not match the lokki compiler plugin: 'Matchers' has no single factory of the matcher 'more'. Use the version of the lokki Gradle plugin for all lokki dependencies.

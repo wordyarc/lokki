@@ -248,7 +248,7 @@ class CompilationApplicabilityTest {
         }
 
     private fun TestProject.dependsOnLokki(configuration: String): Boolean =
-        "io.lokki:" in build("dependencies", "--configuration", configuration).output
+        "$LOKKI_GROUP:" in build("dependencies", "--configuration", configuration).output
 }
 
 private const val PUBLICATION_WARNING = "and the project applies maven-publish: its published artifacts contain this bytecode."

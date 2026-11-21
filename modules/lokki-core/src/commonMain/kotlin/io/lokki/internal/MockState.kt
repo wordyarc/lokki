@@ -51,7 +51,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
             throw LokkiException(
                 "the mock of ${descriptor.name} was compiled by a newer lokki compiler plugin than lokki-core on " +
                     "the classpath: it needs ABI ${descriptor.abi}, lokki-core has ABI ${LokkiAbi.VERSION}; " +
-                    "use the version of the lokki Gradle plugin for all io.lokki dependencies"
+                    "use the version of the lokki Gradle plugin for all lokki dependencies"
             )
         }
         scope?.adopt(this)
