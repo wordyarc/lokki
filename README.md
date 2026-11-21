@@ -29,7 +29,7 @@ plugins {
 ```
 
 The plugin applies to test compilations — `test`, `testFixtures`, JVM test suites and Android test variants — and
-adds the runtime, `io.lokki:lokki-core`, to them. The runtime includes the JUnit 5 extension.
+adds the runtime, `io.github.wordyarc:lokki-core`, to them. The runtime includes the JUnit 5 extension.
 
 | `lokki { }` option | Effect |
 |---|---|
