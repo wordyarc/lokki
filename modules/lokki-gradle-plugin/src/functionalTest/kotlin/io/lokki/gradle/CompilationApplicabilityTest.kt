@@ -23,7 +23,7 @@ class CompilationApplicabilityTest {
             plugins {
                 kotlin("jvm") version "$KOTLIN_VERSION"
                 `java-test-fixtures`
-                id("io.lokki") version "$LOKKI_VERSION"
+                id("$LOKKI_PLUGIN_ID") version "$LOKKI_VERSION"
             }
 
             testing {
@@ -74,7 +74,7 @@ class CompilationApplicabilityTest {
             """
             plugins {
                 kotlin("jvm") version "$KOTLIN_VERSION"
-                id("io.lokki") version "$LOKKI_VERSION"
+                id("$LOKKI_PLUGIN_ID") version "$LOKKI_VERSION"
             }
 
             java {
@@ -109,7 +109,7 @@ class CompilationApplicabilityTest {
             """
             plugins {
                 kotlin("multiplatform") version "$KOTLIN_VERSION"
-                id("io.lokki") version "$LOKKI_VERSION"
+                id("$LOKKI_PLUGIN_ID") version "$LOKKI_VERSION"
             }
 
             kotlin {
@@ -228,7 +228,7 @@ class CompilationApplicabilityTest {
                 """
                 plugins {
                     kotlin("jvm") version "$KOTLIN_VERSION"
-                    id("io.lokki") version "$LOKKI_VERSION"
+                    id("$LOKKI_PLUGIN_ID") version "$LOKKI_VERSION"
                     ${plugins.joinToString("; ")}
                 }
 

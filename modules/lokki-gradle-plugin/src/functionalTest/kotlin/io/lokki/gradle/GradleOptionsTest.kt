@@ -22,7 +22,7 @@ class GradleOptionsTest {
             """
             plugins {
                 kotlin("jvm") version "$KOTLIN_VERSION"
-                id("io.lokki") version "$LOKKI_VERSION"
+                id("$LOKKI_PLUGIN_ID") version "$LOKKI_VERSION"
             }
 
             dependencies {
@@ -114,7 +114,7 @@ class GradleOptionsTest {
             """
             plugins {
                 kotlin("jvm") version "$KOTLIN_VERSION"
-                id("io.lokki") version "$LOKKI_VERSION"
+                id("$LOKKI_PLUGIN_ID") version "$LOKKI_VERSION"
             }
 
             lokki {
@@ -175,7 +175,7 @@ class GradleOptionsTest {
             """
             plugins {
                 kotlin("jvm") version "$KOTLIN_VERSION"
-                id("io.lokki") version "$LOKKI_VERSION"
+                id("$LOKKI_PLUGIN_ID") version "$LOKKI_VERSION"
             }
 
             lokki {
@@ -228,7 +228,7 @@ class GradleOptionsTest {
             """
             plugins {
                 kotlin("jvm") version "$KOTLIN_VERSION"
-                id("io.lokki") version "$LOKKI_VERSION"
+                id("$LOKKI_PLUGIN_ID") version "$LOKKI_VERSION"
             }
 
             lokki {
@@ -260,7 +260,7 @@ class GradleOptionsTest {
 
                 plugins {
                     kotlin("jvm") version "$KOTLIN_VERSION" apply false
-                    id("io.lokki") version "$LOKKI_VERSION"
+                    id("$LOKKI_PLUGIN_ID") version "$LOKKI_VERSION"
                 }
 
                 class ReportedKotlin : KotlinBasePlugin {
@@ -281,7 +281,7 @@ class GradleOptionsTest {
                 """
                 plugins {
                     kotlin("jvm") version "$kotlin"
-                    id("io.lokki") version "$LOKKI_VERSION"
+                    id("$LOKKI_PLUGIN_ID") version "$LOKKI_VERSION"
                 }
                 """,
             )

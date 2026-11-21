@@ -56,14 +56,6 @@ val cleanFunctionalTestRepository = tasks.register<Delete>("cleanFunctionalTestR
     delete(functionalTestRepository)
 }
 
-val mavenCentralNamespace = group.toString()
-
 tasks.withType<PublishToMavenRepository>().configureEach {
     if (name.endsWith("ToFunctionalTestRepository")) dependsOn(cleanFunctionalTestRepository)
-    if (name.endsWith("ToMavenCentralRepository")) {
-        val inNamespace = provider {
-            publication.groupId.let { it == mavenCentralNamespace || it.startsWith("$mavenCentralNamespace.") }
-        }
-        onlyIf("its group is in the Maven Central namespace $mavenCentralNamespace") { inNamespace.get() }
-    }
 }

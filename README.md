@@ -24,12 +24,12 @@ plugin. `mock<T>()` compiles into an ordinary class that implements `T`, and the
 ```kotlin
 plugins {
     kotlin("jvm") version "2.4.20"
-    id("io.lokki") version "0.1.0"
+    id("io.github.wordyarc.lokki") version "0.1.0"
 }
 ```
 
 The plugin applies to test compilations — `test`, `testFixtures`, JVM test suites and Android test variants — and
-adds the runtime, `io.github.wordyarc:lokki-core`, to them. The runtime includes the JUnit 5 extension.
+adds the runtime, `io.github.wordyarc.lokki:lokki-core`, to them. The runtime includes the JUnit 5 extension.
 
 | `lokki { }` option | Effect |
 |---|---|

@@ -78,7 +78,7 @@ class KotlinVersionsTest {
             """
             plugins {
                 kotlin("jvm") version "$kotlin"
-                id("io.lokki") version "$LOKKI_VERSION"
+                id("$LOKKI_PLUGIN_ID") version "$LOKKI_VERSION"
             }
 
             lokki {

@@ -17,7 +17,8 @@ git diff --quiet HEAD || die "uncommitted changes"
 git fetch --quiet origin master
 git merge-base --is-ancestor HEAD origin/master || die "HEAD is not on origin/master"
 grep -qxF "version=${version%%-*}-SNAPSHOT" gradle.properties || die "gradle.properties is not at ${version%%-*}-SNAPSHOT"
-[[ $version == *-* ]] || grep -qF "id(\"io.lokki\") version \"$version\"" README.md || die "README.md applies another version"
+plugin=$(sed -n 's/^group=//p' gradle.properties)
+[[ $version == *-* ]] || grep -qF "id(\"$plugin\") version \"$version\"" README.md || die "README.md applies another version"
 
 git tag -a -m "$tag" "$tag"
 git push origin tag "$tag" || { git tag -d "$tag" >/dev/null; exit 1; }

@@ -170,7 +170,7 @@ class MissingClassesTest {
             """
             plugins {
                 kotlin("jvm") version "$KOTLIN_VERSION"
-                id("io.lokki") version "$LOKKI_VERSION"
+                id("$LOKKI_PLUGIN_ID") version "$LOKKI_VERSION"
             }
 
             dependencies {

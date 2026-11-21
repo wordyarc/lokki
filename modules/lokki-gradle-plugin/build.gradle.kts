@@ -58,7 +58,7 @@ gradlePlugin {
     vcsUrl = REPOSITORY_URL
     plugins {
         create("lokki") {
-            id = "io.lokki"
+            id = project.group.toString()
             displayName = "lokki"
             description = project.description
             implementationClass = "io.lokki.gradle.LokkiGradleSubplugin"
@@ -127,6 +127,7 @@ testing {
                     systemProperty("lokki.test.minAgpVersion", libs.versions.agp.min.get())
                     systemProperty("lokki.test.agpVersion", libs.versions.agp.latest.get())
                     systemProperty("lokki.test.lokkiGroup", project.group.toString())
+                    systemProperty("lokki.test.pluginId", gradlePlugin.plugins.getByName("lokki").id)
                     systemProperty("lokki.test.lokkiVersion", version.toString())
                     systemProperty("lokki.test.kotlinVersion", libs.versions.kotlin.get())
                     systemProperty("lokki.test.minKotlinVersion", compilerApiBaseline)

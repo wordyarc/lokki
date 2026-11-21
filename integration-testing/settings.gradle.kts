@@ -20,6 +20,8 @@ dependencyResolutionManagement {
         create("libs") {
             from(files("../gradle/libs.versions.toml"))
             providers.gradleProperty("lokki.kotlin").orNull?.let { version("kotlin", it) }
+            val lokki = java.util.Properties().apply { file("../gradle.properties").reader().use(::load) }
+            plugin("lokki", lokki.getProperty("group")).version(lokki.getProperty("version"))
         }
     }
 }

@@ -1,6 +1,6 @@
 plugins {
     kotlin("jvm") version libs.versions.kotlin
-    id("io.lokki")
+    alias(libs.plugins.lokki)
 }
 
 kotlin {

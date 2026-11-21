@@ -26,7 +26,7 @@ class AndroidTest {
             plugins {
                 id("com.android.library") version "${gradle.agpVersion}"
                 kotlin("android") version "$KOTLIN_VERSION"$kotlinAndroid
-                id("io.lokki") version "$LOKKI_VERSION"
+                id("$LOKKI_PLUGIN_ID") version "$LOKKI_VERSION"
             }
 
             android {
@@ -87,7 +87,7 @@ class AndroidTest {
             plugins {
                 kotlin("multiplatform") version "$KOTLIN_VERSION"
                 id("com.android.kotlin.multiplatform.library") version "${gradle.agpVersion}"
-                id("io.lokki") version "$LOKKI_VERSION"
+                id("$LOKKI_PLUGIN_ID") version "$LOKKI_VERSION"
             }
 
             kotlin {

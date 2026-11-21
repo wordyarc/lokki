@@ -363,7 +363,7 @@ class IncrementalCompilationTest {
             """
             plugins {
                 kotlin("jvm") version "$KOTLIN_VERSION" apply false
-                id("io.lokki") version "$LOKKI_VERSION" apply false
+                id("$LOKKI_PLUGIN_ID") version "$LOKKI_VERSION" apply false
             }
             """,
         )
@@ -373,7 +373,7 @@ class IncrementalCompilationTest {
             plugins {
                 kotlin("jvm")
                 `java-test-fixtures`
-                id("io.lokki")
+                id("$LOKKI_PLUGIN_ID")
             }
             """,
         )
@@ -382,7 +382,7 @@ class IncrementalCompilationTest {
             """
             plugins {
                 kotlin("jvm")
-                id("io.lokki")
+                id("$LOKKI_PLUGIN_ID")
             }
 
             dependencies {
@@ -732,7 +732,7 @@ class IncrementalCompilationTest {
         """
         plugins {
             kotlin("jvm") version "$KOTLIN_VERSION"
-            id("io.lokki") version "$LOKKI_VERSION"
+            id("$LOKKI_PLUGIN_ID") version "$LOKKI_VERSION"
         }
 
         lokki {
@@ -979,7 +979,7 @@ class IncrementalCompilationTest {
             """
             plugins {
                 kotlin("jvm") version "$KOTLIN_VERSION" apply false
-                id("io.lokki") version "$LOKKI_VERSION" apply false
+                id("$LOKKI_PLUGIN_ID") version "$LOKKI_VERSION" apply false
             }
             """,
         )
@@ -989,7 +989,7 @@ class IncrementalCompilationTest {
             plugins {
                 kotlin("jvm")
                 `java-test-fixtures`
-                id("io.lokki")
+                id("$LOKKI_PLUGIN_ID")
             }
             """,
         )
@@ -998,7 +998,7 @@ class IncrementalCompilationTest {
             """
             plugins {
                 kotlin("jvm")
-                id("io.lokki")
+                id("$LOKKI_PLUGIN_ID")
             }
 
             dependencies {
@@ -1138,7 +1138,7 @@ class IncrementalCompilationTest {
                 """
                 plugins {
                     kotlin("jvm") version "$KOTLIN_VERSION"
-                    id("io.lokki") version "$LOKKI_VERSION"
+                    id("$LOKKI_PLUGIN_ID") version "$LOKKI_VERSION"
                 }
 
                 testing {
