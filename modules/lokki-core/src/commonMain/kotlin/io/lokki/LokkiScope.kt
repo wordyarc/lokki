@@ -14,8 +14,8 @@ import io.lokki.internal.numbered
 import io.lokki.internal.synchronized
 import kotlin.concurrent.Volatile
 
-public class LokkiScope private constructor(private val parent: LokkiScope?, private val name: String) {
-    internal val start: Long = if (parent == null) 0 else nextSequenceNumber()
+internal class LokkiScope private constructor(private val parent: LokkiScope?, private val name: String) {
+    val start: Long = if (parent == null) 0 else nextSequenceNumber()
 
     private val mocks = ArrayList<WeakReference<MockState>>()
 
@@ -24,10 +24,10 @@ public class LokkiScope private constructor(private val parent: LokkiScope?, pri
     private val positions: List<StubPosition> = parent?.windowStates()?.flatMap { it.chainPositions() }.orEmpty()
 
     @Volatile
-    internal var isClosed: Boolean = false
+    var isClosed: Boolean = false
         private set
 
-    internal fun close(failure: Throwable? = null) {
+    fun close(failure: Throwable? = null) {
         val parent = synchronized(tree) {
             if (isClosed) return
             val parent = parent ?: throw LokkiException("$this cannot be closed")
@@ -61,16 +61,16 @@ public class LokkiScope private constructor(private val parent: LokkiScope?, pri
 
     override fun toString(): String = name
 
-    internal fun adopt(state: MockState) {
+    fun adopt(state: MockState) {
         synchronized(mocks) { mocks += WeakReference(state) }
     }
 
-    internal fun isWithin(ancestor: LokkiScope): Boolean = generateSequence(this) { it.parent }.any { it === ancestor }
+    fun isWithin(ancestor: LokkiScope): Boolean = generateSequence(this) { it.parent }.any { it === ancestor }
 
-    internal fun windowStates(): List<MockState> =
+    fun windowStates(): List<MockState> =
         generateSequence(this) { it.parent }.toList().asReversed().flatMap { it.ownStates() }
 
-    internal fun clearWindow(states: List<MockState>, answers: Boolean, recordedCalls: Boolean, childMocks: Boolean) {
+    fun clearWindow(states: List<MockState>, answers: Boolean, recordedCalls: Boolean, childMocks: Boolean) {
         for (state in states) {
             state.clear(
                 answers,
@@ -84,7 +84,7 @@ public class LokkiScope private constructor(private val parent: LokkiScope?, pri
         if (answers) positions.forEach { it.restore() }
     }
 
-    internal fun checkNotShared(mock: String) {
+    fun checkNotShared(mock: String) {
         synchronized(tree) {
             var scope = this
             while (true) {
@@ -105,20 +105,20 @@ public class LokkiScope private constructor(private val parent: LokkiScope?, pri
             mocks.mapNotNull { it.get() }
         }
 
-    internal companion object {
+    companion object {
         private val tree = Any()
 
         private val current = CommonThreadLocal<LokkiScope?>()
 
-        internal val root: LokkiScope = LokkiScope(null, "the root scope")
+        val root: LokkiScope = LokkiScope(null, "the root scope")
 
-        internal fun open(parent: LokkiScope, name: String): LokkiScope =
+        fun open(parent: LokkiScope, name: String): LokkiScope =
             synchronized(tree) {
                 if (parent.isClosed) throw LokkiException("$name cannot be opened in $parent, which is closed")
                 LokkiScope(parent, name).also { parent.children += it }
             }
 
-        internal fun <R> withCurrent(scope: LokkiScope, block: () -> R): R {
+        fun <R> withCurrent(scope: LokkiScope, block: () -> R): R {
             val previous = current.get()
             current.set(scope)
             try {
@@ -128,12 +128,12 @@ public class LokkiScope private constructor(private val parent: LokkiScope?, pri
             }
         }
 
-        internal val currentScope: LokkiScope?
+        val currentScope: LokkiScope?
             get() = current.get()
 
-        internal fun owner(): LokkiScope? = if (StaticInitializer.isActive) root else current.get()
+        fun owner(): LokkiScope? = if (StaticInitializer.isActive) root else current.get()
 
-        internal fun requireCurrent(function: String): LokkiScope =
+        fun requireCurrent(function: String): LokkiScope =
             current.get() ?: throw LokkiException(
                 "no active LokkiScope for $function(): use LokkiExtension or lokkiScope { }"
             )

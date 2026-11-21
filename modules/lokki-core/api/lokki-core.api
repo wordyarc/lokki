@@ -125,10 +125,6 @@ public final class io/lokki/LokkiException : java/lang/RuntimeException {
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
-public final class io/lokki/LokkiScope {
-	public fun toString ()Ljava/lang/String;
-}
-
 public final class io/lokki/LokkiScopeKt {
 	public static final fun lokkiScope (Lkotlin/jvm/functions/Function0;)Ljava/lang/Object;
 }
