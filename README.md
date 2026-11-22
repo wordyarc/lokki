@@ -1,4 +1,9 @@
-# lokki
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo/lokki-wordmark-dark.svg">
+    <img src="docs/logo/lokki-wordmark.svg" alt="lokki" height="72">
+  </picture>
+</h1>
 
 [![Build](https://github.com/wordyarc/lokki/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/wordyarc/lokki/actions/workflows/build.yml)
 [![Gradle Plugin Portal](https://img.shields.io/gradle-plugin-portal/v/io.github.wordyarc.lokki?label=Gradle%20Plugin%20Portal)](https://plugins.gradle.org/plugin/io.github.wordyarc.lokki)
