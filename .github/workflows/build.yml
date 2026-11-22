@@ -31,7 +31,7 @@ jobs:
           distribution: 'zulu'
           java-version: 25
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v5
       - id: gradle
         run: ./gradlew build -x :lokki-gradle-plugin:functionalTest --continue
 
@@ -66,7 +66,7 @@ jobs:
           distribution: 'zulu'
           java-version: 25
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v5
       - name: Cache the TestKit Gradle User Home
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -96,7 +96,7 @@ jobs:
           distribution: 'zulu'
           java-version: 25
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v5
       - id: gradle
         run: ./gradlew -p integration-testing check --continue
 
@@ -135,7 +135,7 @@ jobs:
           distribution: 'zulu'
           java-version: 25
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v5
       - id: integration
         run: ./gradlew -p integration-testing test --continue -Plokki.kotlin="$KOTLIN"
       - id: compiler-tests
