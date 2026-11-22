@@ -188,8 +188,6 @@ Imports move to `io.lokki`, and names that contain `mockk` or `MockK` change:
 | `@MockK`, `@RelaxedMockK`, `@SpyK`, `@InjectMockKs` | `@Mock`, `@RelaxedMock`, `@Spy`, `@InjectMocks` |
 | `MockKExtension`, `MockKAnnotations`, `MockKException` | `LokkiExtension`, `MockAnnotations`, `LokkiException` |
 | `MockKMatcherScope` | `MatcherScope` |
-| `any(Foo::class)` | `any<Foo>()` |
-| `just runs`, `wasNot called` | `just Runs`, `wasNot Called` |
 | `mockkStatic("com.example.FileKt")`, `mockkStatic(Foo::class)` | `mockStatic(::function)` for each function, or just `every { function() }` |
 
 Behaviour that differs:

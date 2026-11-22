@@ -94,6 +94,10 @@ internal object Matchers {
     inline fun <reified T> match(matcher: Matcher<T>): Matcher<Any?> = filtered(matcher as Matcher<Any?>) { it is T }
 
     @Suppress("UNCHECKED_CAST")
+    fun match(matcher: Matcher<*>, kclass: KClass<*>): Matcher<Any?> =
+        filtered(matcher as Matcher<Any?>) { kclass.isInstance(it) }
+
+    @Suppress("UNCHECKED_CAST")
     fun matchNullable(matcher: (Nothing?) -> Boolean): Matcher<Any?> = FunctionMatcher(matcher as (Any?) -> Boolean)
 
     @Suppress("UNCHECKED_CAST")
@@ -157,6 +161,8 @@ internal object Matchers {
     fun array(elements: Array<Matcher<Any?>>): Matcher<Any?> = ArrayMatcher(elements)
 
     inline fun <reified T> ofType(): Matcher<Any?> = named("ofType(${T::class.simpleName})") { it is T }
+
+    fun ofType(cls: KClass<*>): Matcher<Any?> = named("ofType(${cls.simpleName})") { cls.isInstance(it) }
 
     inline fun <reified T> typed(matcher: Matcher<Any?>): Matcher<Any?> = filtered(matcher) { it == null || it is T }
 

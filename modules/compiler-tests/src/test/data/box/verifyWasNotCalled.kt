@@ -1,6 +1,7 @@
 package sample
 
 import io.lokki.Called
+import io.lokki.called
 import io.lokki.LokkiException
 import io.lokki.confirmVerified
 import io.lokki.every
@@ -32,6 +33,7 @@ fun box(): String {
     every { repo.find(any()) } returns "found"
 
     verify { repo wasNot Called }
+    verify { repo wasNot called }
     verify { listOf(repo, other) wasNot Called }
     repo.hashCode()
     repo.equals(other)

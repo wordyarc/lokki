@@ -515,6 +515,7 @@ public final class io/lokki/internal/Matchers {
 	public static synthetic fun isNull$default (Lio/lokki/internal/Matchers;ZILjava/lang/Object;)Lio/lokki/Matcher;
 	public final fun less (Ljava/lang/Comparable;Z)Lio/lokki/Matcher;
 	public static synthetic fun less$default (Lio/lokki/internal/Matchers;Ljava/lang/Comparable;ZILjava/lang/Object;)Lio/lokki/Matcher;
+	public final fun match (Lio/lokki/Matcher;Lkotlin/reflect/KClass;)Lio/lokki/Matcher;
 	public final fun match (Lkotlin/jvm/functions/Function1;)Lio/lokki/Matcher;
 	public final fun matchNullable (Lkotlin/jvm/functions/Function1;)Lio/lokki/Matcher;
 	public final fun more (Ljava/lang/Comparable;Z)Lio/lokki/Matcher;
@@ -523,6 +524,7 @@ public final class io/lokki/internal/Matchers {
 	public final fun neq (Ljava/lang/Object;)Lio/lokki/Matcher;
 	public final fun not (Lio/lokki/Matcher;)Lio/lokki/Matcher;
 	public final fun nrefEq (Ljava/lang/Object;)Lio/lokki/Matcher;
+	public final fun ofType (Lkotlin/reflect/KClass;)Lio/lokki/Matcher;
 	public final fun or (Lio/lokki/Matcher;Lio/lokki/Matcher;)Lio/lokki/Matcher;
 	public final fun range (Ljava/lang/Comparable;Ljava/lang/Comparable;ZZ)Lio/lokki/Matcher;
 	public static synthetic fun range$default (Lio/lokki/internal/Matchers;Ljava/lang/Comparable;Ljava/lang/Comparable;ZZILjava/lang/Object;)Lio/lokki/Matcher;

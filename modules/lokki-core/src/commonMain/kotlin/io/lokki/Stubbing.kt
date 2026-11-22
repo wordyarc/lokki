@@ -88,6 +88,8 @@ public interface AdditionalAnswerScope<T> {
 
 public object Runs
 
+public typealias runs = Runs
+
 @LokkiIntrinsic(LokkiIntrinsic.Kind.ANSWER)
 public infix fun StubScope<Unit>.just(runs: Runs): AdditionalAnswerScope<Unit> = returns(Unit)
 
@@ -95,6 +97,8 @@ public infix fun StubScope<Unit>.just(runs: Runs): AdditionalAnswerScope<Unit> =
 public infix fun AdditionalAnswerScope<Unit>.andThenJust(runs: Runs): AdditionalAnswerScope<Unit> = andThen(Unit)
 
 public object Awaits
+
+public typealias awaits = Awaits
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.AWAITS)
 public infix fun <T> StubScope<T>.just(awaits: Awaits): AdditionalAnswerScope<T> =

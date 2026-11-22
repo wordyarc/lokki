@@ -1,6 +1,7 @@
 package sample
 
 import io.lokki.LokkiException
+import io.lokki.Matcher
 import io.lokki.every
 import io.lokki.mock
 
@@ -114,6 +115,20 @@ fun types(): String? {
     every { canvas.put(ofType<Double>()) } returns "double"
     if (canvas.put(1.5) != "double") return "ofType"
     if (canvas.put<Double?>(null) != "long") return "null does not pass ofType"
+    return classifiers()
+}
+
+fun classifiers(): String? {
+    val canvas = mock<Canvas>()
+    every { canvas.draw(any(Shape::class)) } returns "shape"
+    every { canvas.draw(any(Square::class)) } returns "square"
+    every { canvas.draw(ofType(Circle::class)) } returns "circle"
+    if (canvas.draw(Circle(1)) != "circle" || canvas.draw(Square(1)) != "square") return "any and ofType of a class"
+    if (canvas.draw(object : Shape {}) != "shape") return "any of the declared class"
+
+    every { canvas.scale(match(Matcher<Int> { it == 2 }, Int::class)) } returns "two"
+    if (canvas.scale(2) != "two") return "match with a class"
+    if (answer { canvas.scale(2.0) } != "none" || answer { canvas.scale(3) } != "none") return "match of another value"
     return null
 }
 

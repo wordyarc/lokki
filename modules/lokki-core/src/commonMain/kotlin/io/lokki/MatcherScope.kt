@@ -15,6 +15,10 @@ public abstract class MatcherScope internal constructor() {
     public inline fun <reified T> any(): T = push(Matchers.typed<T>(AnyMatcher), T::class)
 
     @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <reified T : Any> any(classifier: KClass<T>): T =
+        push(Matchers.typed<T>(AnyMatcher), classifier)
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
     public inline fun <reified T> anyNullable(): T = push(Matchers.typed<T>(AnyMatcher), T::class)
 
     @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
@@ -76,7 +80,14 @@ public abstract class MatcherScope internal constructor() {
     public inline fun <reified T : Any> ofType(): T = push(Matchers.ofType<T>(), T::class)
 
     @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <reified T : Any, R : T> ofType(cls: KClass<R>): T = push(Matchers.ofType(cls), T::class)
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
     public inline fun <reified T : Any> match(matcher: Matcher<T>): T = push(Matchers.match(matcher), T::class)
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <reified T : Any> match(matcher: Matcher<T>, kclass: KClass<T>): T =
+        push(Matchers.match(matcher, kclass), kclass)
 
     @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
     public inline fun <reified T : Any> match(noinline matcher: (T) -> Boolean): T =

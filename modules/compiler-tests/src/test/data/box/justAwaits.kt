@@ -7,6 +7,7 @@ import io.lokki.Awaits
 import io.lokki.LokkiException
 import io.lokki.StubScope
 import io.lokki.andThenJust
+import io.lokki.awaits
 import io.lokki.coEvery
 import io.lokki.coJustAwait
 import io.lokki.coVerify
@@ -54,7 +55,7 @@ fun box(): String {
     val service = mock<Service> {
         coEvery { fetch() } just Awaits
     }
-    coEvery { api.load(1) } just Awaits
+    coEvery { api.load(1) } just awaits
     coJustAwait { api.save(any()) }
     var second = ""
     coEvery { api.load(2) } returns "two" andThenJust Awaits

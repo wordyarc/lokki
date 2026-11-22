@@ -112,6 +112,8 @@ public class AssertScope internal constructor(public val actual: Any?) {
 
 public object Called
 
+public typealias called = Called
+
 public enum class Ordering {
     UNORDERED,
     ALL,

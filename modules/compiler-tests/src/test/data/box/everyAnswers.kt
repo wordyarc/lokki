@@ -7,6 +7,7 @@ import io.lokki.andThenJust
 import io.lokki.every
 import io.lokki.just
 import io.lokki.mock
+import io.lokki.runs
 
 interface Counter {
     var step: Int
@@ -79,6 +80,9 @@ fun box(): String {
     every { counter.reset() } just Runs andThenThrows IllegalStateException("reset twice")
     counter.reset()
     if (failure { counter.reset() } != "IllegalStateException: reset twice") return "Fail: just Runs"
+
+    every { counter.reset() } just runs
+    counter.reset()
 
     every { counter.step = any() } throws IllegalStateException("read only") andThenJust Runs
     if (failure { counter.step = 1 } != "IllegalStateException: read only") return "Fail: throws of a setter"
