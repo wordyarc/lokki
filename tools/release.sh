@@ -33,7 +33,7 @@ if ! git diff --quiet HEAD; then
         git checkout -- gradle.properties README.md
         die "HEAD is behind origin/master, cannot commit the version"
     fi
-    git commit --quiet -m "Prepare release $version" gradle.properties README.md
+    git commit --quiet -m "Release $version" gradle.properties README.md
     refs+=("HEAD:refs/heads/master")
 fi
 [[ $version == *-* ]] || grep -qF "id(\"$plugin\") version \"$version\"" README.md || die "README.md does not apply the plugin with a version"
