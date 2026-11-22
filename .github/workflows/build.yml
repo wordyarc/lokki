@@ -33,7 +33,7 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v5
       - id: gradle
-        run: ./gradlew build -x :lokki-gradle-plugin:functionalTest --continue
+        run: ./gradlew build -x :lokki-gradle-plugin:functionalTest -x :lokki-maven:functionalTest --continue
 
       - if: ${{ !cancelled() }}
         uses: ./.github/actions/reports
@@ -81,6 +81,39 @@ jobs:
         with:
           outcome: ${{ steps.gradle.outcome }}
           name: gradle-plugin-${{ matrix.gradle }}
+
+  maven:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    name: Maven extension
+    permissions:
+      contents: read
+      checks: write
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@v5
+      - name: Cache the Maven local repository
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            modules/lokki-maven/build/maven-repository
+            !modules/lokki-maven/build/maven-repository/io/github/wordyarc
+          key: maven-repository-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml', 'gradle.properties', 'modules/lokki-maven/src/**') }}
+          restore-keys: maven-repository-${{ runner.os }}-
+      - id: gradle
+        run: ./gradlew :lokki-maven:functionalTest --continue
+
+      - if: ${{ !cancelled() }}
+        uses: ./.github/actions/reports
+        with:
+          outcome: ${{ steps.gradle.outcome }}
+          name: maven
 
   integration:
     runs-on: ubuntu-latest

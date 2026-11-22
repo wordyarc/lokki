@@ -9,6 +9,11 @@ gradle-min-kotlin = "2.2"
 agp-min = "8.13.2"
 agp-latest = "9.4.1"
 
+# -- Maven compatibility ------------------------------------------------------
+maven-min = "3.6.3"
+maven-latest = "3.10.1"
+maven-surefire = "3.5.5"
+
 # -- Dependencies -------------------------------------------------------------
 kotlin = "2.4.20"
 junit = "4.13.2"
@@ -27,6 +32,7 @@ asm = "9.10.1"
 kotlin-compiler = { group = "org.jetbrains.kotlin", name = "kotlin-compiler", version.ref = "kotlin" }
 kotlin-gradle-plugin-api = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin-api", version.ref = "kotlin" }
 kotlin-tooling-core = { group = "org.jetbrains.kotlin", name = "kotlin-tooling-core", version.ref = "kotlin" }
+maven-core = { module = "org.apache.maven:maven-core", version.ref = "maven-min" }
 
 # -- JUnit integration --------------------------------------------------------
 junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "jupiter-min" }

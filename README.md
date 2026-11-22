@@ -225,7 +225,8 @@ Behaviour that differs:
 ```
 
 Gradle downloads the JDK 25 toolchain of the build if it is missing. The Gradle plugin tests in `build` need an
-Android SDK (`ANDROID_HOME`).
+Android SDK (`ANDROID_HOME`). The tests of `lokki-maven` download Maven and keep its local repository in
+`modules/lokki-maven/build`.
 
 ## License
 
