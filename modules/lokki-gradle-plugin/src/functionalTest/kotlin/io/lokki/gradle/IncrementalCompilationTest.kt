@@ -850,11 +850,8 @@ class IncrementalCompilationTest {
         project.write(
             "src/test/kotlin/sample/CarTest.kt",
             """
-            @file:ChainedMocks
-
             package sample
 
-            import io.lokki.ChainedMocks
             import io.lokki.LokkiException
             import io.lokki.every
             import io.lokki.mock

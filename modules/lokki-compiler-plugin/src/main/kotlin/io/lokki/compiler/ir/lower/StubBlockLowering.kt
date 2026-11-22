@@ -30,7 +30,6 @@ import io.lokki.compiler.ir.irArrayOf
 import io.lokki.compiler.ir.irCompanionCall
 import io.lokki.compiler.ir.irGetObject
 import io.lokki.compiler.ir.irInvoke
-import io.lokki.compiler.ir.isChain
 import io.lokki.compiler.ir.isLink
 import io.lokki.compiler.ir.memberCall
 import io.lokki.compiler.ir.memberKeys
@@ -113,7 +112,6 @@ internal class StubBlockLowering(
     private val context = lokki.pluginContext
     private val symbols = lokki.symbols
     private val builtIns = context.irBuiltIns
-    private val chainedMocks = file.chainedMocks
     private val matcherType = symbols[CoreClass.MATCHER].typeWith(builtIns.anyNType)
     private val matchersType = builtIns.arrayClass.typeWith(matcherType)
 
@@ -300,10 +298,6 @@ internal class StubBlockLowering(
     }
 
     private fun IrBlockBodyBuilder.irRegistration(block: StubBlock, stubbed: StubbedCall): Registration {
-        val receiver = stubbed.receiver
-        if (!chainedMocks && receiver != null && !receiver.isIndependentOf(block.function)) {
-            fail(receiver, "The receiver of the stubbed or verified call must not use matchers")
-        }
         val target = targetOf(stubbed.call)
         if (!stubbed.callsSuspend) return irEvaluatedRegistration(block, stubbed, target)
         val anyN = builtIns.anyNType
@@ -325,15 +319,7 @@ internal class StubBlockLowering(
         stubbed: StubbedCall,
         target: Target,
     ): Registration {
-        val receiver = stubbed.receiver?.let { receiver ->
-            irTemporary(
-                when {
-                    chainedMocks -> irLinks(block, receiver)
-                    receiver.isChain -> irChain(block.dsl, receiver.type) { irLinks(block, receiver) }
-                    else -> receiver
-                }
-            )
-        }
+        val receiver = stubbed.receiver?.let { irTemporary(irLinks(block, it)) }
         val state = irTemporary(
             irStateOf(target.redirect, receiver?.let(::irGet)) ?: fail(
                 stubbed.call,
@@ -386,19 +372,8 @@ internal class StubBlockLowering(
         return irArrayOf(matcherType, arguments)
     }
 
-    private inline fun IrBuilder.irChain(
-        dsl: IrCall,
-        type: IrType,
-        value: IrBlockBodyBuilder.() -> IrExpression,
-    ): IrExpression {
-        val chain = lambda(dsl, type)
-        chain.body = builder(chain, dsl).irBlockBody { +irReturn(value()) }
-        return irCompanionCall(symbols[CoreFunction.CHAIN], chain)
-    }
-
     private fun IrBlockBodyBuilder.irLinks(block: StubBlock, receiver: IrExpression): IrExpression {
         val verification = block.verification
-        if (!chainedMocks && verification == null) return receiver
         receiver.wrapped?.let { wrapped ->
             receiver.rewrap(irLinks(block, wrapped))
             return receiver
@@ -406,7 +381,7 @@ internal class StubBlockLowering(
         val link = receiver.memberCall()?.takeIf { it.call.symbol.owner.isLink }
         if (link == null) {
             if (receiver.isIndependentOf(block.function)) return receiver
-            fail(receiver, "Chained mocks support matchers only in the arguments of a link of the call chain")
+            fail(receiver, "A matcher in the receiver of the stubbed or verified call must be an argument of a link of the call chain")
         }
         val call = link.call
         val parameters = call.symbol.owner.nonDispatchParameters
@@ -428,7 +403,7 @@ internal class StubBlockLowering(
                 receiver = irGet(verification),
             )
         }
-        return if (chainedMocks) irLink(block, head, key, call) else call
+        return irLink(block, head, key, call)
     }
 
     private fun IrBuilderWithScope.irLink(block: StubBlock, head: IrVariable, key: String, call: IrCall): IrExpression {

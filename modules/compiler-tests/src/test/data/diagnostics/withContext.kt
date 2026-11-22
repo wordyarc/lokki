@@ -26,7 +26,7 @@ fun test(repo: Repo, tenant: Tenant, block: context(Tenant) () -> Any?) {
     every { withContext<Tenant> <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>{ repo.load(1); repo.load(2) }<!> } returns "a"
     every { withContext<Tenant> { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>repo.load(1) == "a"<!> } } returns true
     every { withContext<Tenant> { repo.find(<!LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION!>contextOf<Tenant>()<!>.name) } } returns "a"
-    every { withContext<Tenant> { <!LOKKI_CHAINED_CALL_DISABLED!>repo.child()<!>.load(1) } } returns "a"
+    every { withContext<Tenant> { repo.child().load(1) } } returns "a"
     every { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>context(tenant) { repo.load(1) }<!> } returns "a"
     verify { withContext<Tenant> <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>{ }<!> }
 

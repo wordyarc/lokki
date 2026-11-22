@@ -1,11 +1,8 @@
 // RUN_PIPELINE_TILL: FRONTEND
 // RENDER_DIAGNOSTICS_FULL_TEXT
 
-@file:ChainedMocks
-
 package sample
 
-import io.lokki.ChainedMocks
 import io.lokki.MatcherScope
 import io.lokki.every
 import io.lokki.excludeRecords

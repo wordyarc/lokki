@@ -1,1 +1,1 @@
-/unsupportedChainedMocks.kt:23:13: error: Chained mocks support matchers only in the arguments of a link of the call chain.
+/unsupportedChainedMocks.kt:21:13: error: A matcher in the receiver of the stubbed or verified call must be an argument of a link of the call chain.

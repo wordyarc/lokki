@@ -37,6 +37,15 @@ data class Spec(val size: Int) {
     fun describe(): String = "spec $size"
 }
 
+@ConsistentCopyVisibility
+data class Token private constructor(val value: String) {
+    fun renamed(value: String): Token = copy(value = value)
+
+    companion object {
+        fun of(value: String): Token = Token(value)
+    }
+}
+
 final class Locked {
     fun open(): String = "locked"
 }
@@ -104,6 +113,7 @@ import sample.engine.Registry
 import sample.engine.Rpm
 import sample.engine.Spec
 import sample.engine.Starter
+import sample.engine.Token
 import sample.engine.parts.Piston
 import sample.engineering.Gear
 
@@ -138,6 +148,12 @@ fun box(): String {
     every { spec.size } returns 3
     if (spec.describe() != "mocked" || spec.size != 3) return "Fail: data class"
     if (Spec(1).copy(size = 2) != Spec(2)) return "Fail: data class members"
+    every { spec.component1() } returns 4
+    every { spec.copy(any()) } returns Spec(9)
+    val (size) = spec
+    if (size != 4 || spec.copy(size = 1) != Spec(9) || spec.copy() != Spec(9)) return "Fail: generated data class members"
+
+    if (Token.of("a").renamed("b") != Token.of("b")) return "Fail: private copy"
 
     val wheel = mock<Wheel>()
     every { wheel.spin() } returns "mocked"
@@ -159,6 +175,9 @@ private fun checkModifiers(): String {
     if (!engine.isFinal("twice", Function0::class.java)) return "Fail: inline function was opened"
     if (!engine.isFinal("countdown", Int::class.javaPrimitiveType!!)) return "Fail: tailrec function was opened"
     if (!engine.isFinal("getRevision")) return "Fail: property with a private setter was opened"
+    if (Spec::class.java.isFinal("component1") || Spec::class.java.isFinal("copy", Int::class.javaPrimitiveType!!)) {
+        return "Fail: generated data class members were not opened"
+    }
     if (Engine(1).countdown(3) != 0 || Engine(1).serial != "serial" || Engine(1).code != "code") {
         return "Fail: members that stay final"
     }

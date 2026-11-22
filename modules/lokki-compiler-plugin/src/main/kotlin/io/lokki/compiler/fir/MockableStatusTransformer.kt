@@ -2,6 +2,7 @@ package io.lokki.compiler.fir
 
 import io.lokki.compiler.MockablePatterns
 import io.lokki.compiler.linked
+import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Visibilities
@@ -62,8 +63,9 @@ internal class MockableStatusTransformer(session: FirSession, private val mockab
     @OptIn(SymbolInternals::class)
     override fun transformStatus(status: FirDeclarationStatus, declaration: FirDeclaration): FirDeclarationStatus =
         linked {
-            val explicitModality = when (declaration) {
-                is FirPropertyAccessor -> declaration.propertySymbol.fir.status.modality
+            val explicitModality = when {
+                declaration is FirPropertyAccessor -> declaration.propertySymbol.fir.status.modality
+                declaration.source?.kind is KtFakeSourceElementKind.DataClassGeneratedMembers -> null
                 else -> status.modality
             }
             when (explicitModality) {

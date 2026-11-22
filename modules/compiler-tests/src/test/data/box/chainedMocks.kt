@@ -1,8 +1,5 @@
-@file:ChainedMocks
-
 package sample
 
-import io.lokki.ChainedMocks
 import io.lokki.LokkiException
 import io.lokki.Runs
 import io.lokki.clearMocks

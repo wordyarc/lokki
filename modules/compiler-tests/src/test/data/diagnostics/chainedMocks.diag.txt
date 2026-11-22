@@ -1,9 +1,9 @@
-/chainedMocks.kt:43:14: error: 'T' cannot be mocked: it is a type parameter. A matcher in a link of a call chain needs a child mock of its return type.
+/chainedMocks.kt:40:14: error: 'T' cannot be mocked: it is a type parameter. A matcher in a link of a call chain needs a child mock of its return type.
 
-/chainedMocks.kt:44:20: error: A call of 'door' cannot be intercepted: it is final.
+/chainedMocks.kt:41:20: error: A call of 'door' cannot be intercepted: it is final.
 
-/chainedMocks.kt:45:26: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
+/chainedMocks.kt:42:26: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/chainedMocks.kt:46:25: warning: 'allAny' replaces the other arguments only as the first argument of the stubbed or verified call: here it matches like 'any'.
+/chainedMocks.kt:43:25: warning: 'allAny' replaces the other arguments only as the first argument of the stubbed or verified call: here it matches like 'any'.
 
-/chainedMocks.kt:47:18: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
+/chainedMocks.kt:44:18: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.

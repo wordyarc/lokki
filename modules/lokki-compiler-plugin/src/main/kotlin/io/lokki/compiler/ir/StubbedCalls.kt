@@ -113,9 +113,6 @@ internal fun IrExpression.memberCall(): StubbedCall? {
 internal val IrSimpleFunction.isLink: Boolean
     get() = modality != Modality.FINAL && !isMethodOfAny()
 
-internal val IrExpression.isChain: Boolean
-    get() = (unwrapped() as? IrExpression)?.memberCall()?.call?.symbol?.owner?.isLink == true
-
 private val IrExpression?.isAllAny: Boolean
     get() = when (this) {
         is IrVararg -> (elements.firstOrNull() as? IrExpression).isAllAny

@@ -164,7 +164,8 @@ fun morning() {
 or generic function cannot be passed to it: Kotlin does not resolve such a reference.
 
 This changes the main bytecode: matching classes are open, and every call of an intercepted function reads a volatile
-field. The plugin warns if the project applies `maven-publish`.
+field. The plugin warns if the project applies `maven-publish`. As with `allopen`, main code can no longer smart cast
+properties of the opened classes: `if (settings.name != null) use(settings.name)` needs a local variable.
 
 ## Configuration
 
@@ -190,8 +191,9 @@ Behaviour that differs:
 
 - The receiver and arguments of the call in `every { }` and `verify { }` are evaluated once, as ordinary code, and
   `any()` never creates a placeholder value.
-- Child mocks need `@file:ChainedMocks`. Without it, the receiver of a stubbed call such as
-  `every { car.door().open() }` is evaluated as ordinary code, and relaxed mocks return no child mocks.
+- A call chain such as `every { car.door().open() }` stubs `car.door()` with a child mock only when the call has no
+  answer yet; a stubbed `car.door()` keeps its answer. Relaxed mocks return child mocks only in files annotated with
+  `@file:ChainedMocks`.
 - A relaxed mock returns `null` for nullable types and empty values for primitives, strings, collections and arrays.
   A call that returns any other type throws `LokkiException`.
 - A mock call without an answer fails the test even if the code under test catches the exception.

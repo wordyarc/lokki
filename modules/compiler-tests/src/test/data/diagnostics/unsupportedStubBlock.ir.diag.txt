@@ -12,7 +12,7 @@
 
 /unsupportedStubBlock.kt:61:18: error: 'first' has no interception point: lokki intercepts top-level functions and properties of main compilations with lokki { mockable(...) }.
 
-/unsupportedStubBlock.kt:62:13: error: The receiver of the stubbed or verified call must not use matchers.
+/unsupportedStubBlock.kt:62:13: error: A matcher in the receiver of the stubbed or verified call must be an argument of a link of the call chain.
 
 /unsupportedStubBlock.kt:63:23: error: A matcher inside an expression is not supported: pass the matcher as a whole argument.
 
@@ -32,7 +32,7 @@
 
 /unsupportedStubBlock.kt:71:44: error: A vararg argument cannot contain more than one vararg matcher.
 
-/unsupportedStubBlock.kt:72:26: error: The receiver of the stubbed or verified call must not use matchers.
+/unsupportedStubBlock.kt:72:26: error: A matcher in the receiver of the stubbed or verified call must be an argument of a link of the call chain.
 
 /unsupportedStubBlock.kt:73:11: error: The block of 'every' must be a single call of a mock member.
 
@@ -52,7 +52,7 @@
 
 /unsupportedStubBlock.kt:85:19: error: 'toString' is not recorded: calls of equals, hashCode and toString cannot be verified.
 
-/unsupportedStubBlock.kt:86:14: error: The receiver of the stubbed or verified call must not use matchers.
+/unsupportedStubBlock.kt:86:14: error: A matcher in the receiver of the stubbed or verified call must be an argument of a link of the call chain.
 
 /unsupportedStubBlock.kt:87:24: error: A matcher inside an expression is not supported: pass the matcher as a whole argument.
 
@@ -74,7 +74,7 @@
 
 /unsupportedStubBlock.kt:98:20: error: The block of 'excludeRecords' must consist of calls of mock members.
 
-/unsupportedStubBlock.kt:102:22: error: The receiver of the stubbed or verified call must not use matchers.
+/unsupportedStubBlock.kt:102:22: error: A matcher in the receiver of the stubbed or verified call must be an argument of a link of the call chain.
 
 /unsupportedStubBlock.kt:103:32: error: A matcher inside an expression is not supported: pass the matcher as a whole argument.
 

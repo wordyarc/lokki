@@ -1,12 +1,10 @@
 // RUN_PIPELINE_TILL: FIR2IR
 // RENDER_IR_DIAGNOSTICS_FULL_TEXT
 
-@file:ChainedMocks
 @file:Suppress("LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION")
 
 package sample
 
-import io.lokki.ChainedMocks
 import io.lokki.every
 
 interface Door {

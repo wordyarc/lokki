@@ -1,8 +1,5 @@
-@file:ChainedMocks
-
 package io.lokki.it.conformance
 
-import io.lokki.ChainedMocks
 import io.lokki.every
 import io.lokki.mock
 import kotlin.test.Test

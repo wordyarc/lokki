@@ -18,11 +18,8 @@ interface Car {
 }
 
 // FILE: ChainTest.kt
-@file:ChainedMocks
-
 package sample
 
-import io.lokki.ChainedMocks
 import io.lokki.every
 import io.lokki.mock
 

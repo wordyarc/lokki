@@ -15,8 +15,10 @@ import io.lokki.compiler.ir.collect.displayName
 import io.lokki.compiler.ir.collect.mockedClass
 import io.lokki.compiler.ir.collect.mockedClassTypeParameters
 import io.lokki.compiler.ir.collect.referencedTypeParameters
+import io.lokki.compiler.ir.collect.withOwnParameters
 import io.lokki.compiler.ir.irArrayGet
 import io.lokki.compiler.ir.irArrayOf
+import io.lokki.compiler.ir.irCast
 import io.lokki.compiler.ir.irInvoke
 import io.lokki.compiler.ir.irThrowLokkiException
 import io.lokki.compiler.ir.isVisibleFrom
@@ -93,6 +95,7 @@ import org.jetbrains.kotlin.ir.types.makeNullable
 import org.jetbrains.kotlin.ir.types.starProjectedType
 import org.jetbrains.kotlin.ir.types.typeOrFail
 import org.jetbrains.kotlin.ir.types.typeOrNull
+import org.jetbrains.kotlin.ir.types.typeWith
 import org.jetbrains.kotlin.ir.util.addChild
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.copyTo
@@ -154,9 +157,11 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         classes.generated[key] = mock
         val parameters = usage.mockedTypes.type.referencedTypeParameters
         val ownParameters = parameters.indices.map { mock.addTypeParameter("T$it", context.irBuiltIns.anyNType) }
-        val mockedType = usage.mockedTypes.type
-            .substitute(parameters.zip(ownParameters.map { it.defaultType }).toMap()) as IrSimpleType
-        mock.superTypes = listOf(mockedType) + usage.mockedTypes.interfaces + symbols[CoreClass.GENERATED_MOCK].defaultType
+        val own = parameters.zip(ownParameters.map { it.defaultType }).toMap()
+        val (mockedType, interfaces) = (listOf(usage.mockedTypes.type) + usage.mockedTypes.interfaces)
+            .map { it.withOwnParameters(mock, own) }
+            .let { it.first() to it.drop(1) }
+        mock.superTypes = listOf(mockedType) + interfaces + symbols[CoreClass.GENERATED_MOCK].defaultType
         mock.createThisReceiverParameter()
         if (mocked.isLocal) file.addAfter(mocked, mock) else file.addChild(mock)
         val constructor = when {
@@ -424,7 +429,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
             when {
                 isSuspend -> +irReturn(answer)
                 returnType.isUnit() -> +answer
-                else -> +irReturn(irAs(answer, returnType))
+                else -> +irReturn(irCast(answer, returnType))
             }
         }
     }
@@ -452,7 +457,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
             entries.map { (index, original) ->
                 val erasure = original.typeParameters.associate { it.symbol to it.erasure }
                 val values = original.nonDispatchParameters.mapIndexed { position, parameter ->
-                    irAs(irArrayGet(symbols, arguments, position), parameter.type.substitute(erasure))
+                    irCast(irArrayGet(symbols, arguments, position), parameter.type.substitute(erasure))
                 }
                 val self = irGet(function.dispatchReceiverParameter!!)
                 val call = irForward(forward, original, self, original.typeParameters.map { it.erasure }, values)

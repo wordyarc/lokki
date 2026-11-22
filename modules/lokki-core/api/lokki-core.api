@@ -436,7 +436,6 @@ public abstract interface class io/lokki/internal/GeneratedMock {
 }
 
 public final class io/lokki/internal/GeneratedMock$Companion {
-	public final fun chain (Lkotlin/jvm/functions/Function0;)Ljava/lang/Object;
 	public final fun evaluate (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
 	public final fun link (Ljava/lang/Object;Ljava/lang/String;ZLkotlin/jvm/functions/Function1;Ljava/lang/String;Lkotlin/jvm/functions/Function0;)Ljava/lang/Object;
 	public final fun of (Ljava/lang/Object;)Lio/lokki/internal/GeneratedMock;
@@ -616,13 +615,10 @@ public final class io/lokki/internal/Redirects {
 public final class io/lokki/internal/Registration {
 	public static final field INSTANCE Lio/lokki/internal/Registration;
 	public final fun enter ()V
-	public final fun enterChain ()V
 	public final fun enterLink (Ljava/lang/Object;Ljava/lang/String;ZLkotlin/jvm/functions/Function1;Ljava/lang/String;)Lio/lokki/internal/Link;
 	public final fun exit ()V
-	public final fun exitChain ()V
 	public final fun exitLink (Lio/lokki/internal/Link;)V
 	public final fun isActive ()Z
-	public final fun isChain ()Z
 }
 
 public final class io/lokki/internal/RegistrationScope : io/lokki/VerificationScope {

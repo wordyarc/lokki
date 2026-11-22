@@ -112,15 +112,8 @@ internal class Mockability(private val file: IrFile) {
                 NotMockable(classifier.owner.name.asString(), TYPE_PARAMETER_PROBLEM, isFrontendRule = true)
             else -> NotMockable(type.render(), NOT_CLASS_PROBLEM, isFrontendRule = true)
         }
-        classProblems.getOrPutIfMissing(mocked) { mocked.problem() }?.let {
-            return NotMockable(mocked.displayName, it.reason, isFrontendRule = it.isFrontendRule)
-        }
-        val parameter = (type as IrSimpleType).irreplaceableStar() ?: return null
-        return NotMockable(
-            mocked.displayName,
-            "the star projection for '${parameter.name}' cannot be replaced with the upper bound of " +
-                "'${parameter.name}'. Specify the type argument",
-        )
+        return classProblems.getOrPutIfMissing(mocked) { mocked.problem() }
+            ?.let { NotMockable(mocked.displayName, it.reason, isFrontendRule = it.isFrontendRule) }
     }
 
     fun site(request: MockRequest): MockSite {
@@ -169,8 +162,8 @@ internal class Mockability(private val file: IrFile) {
             }
             problemOf(extra.type)?.let { return MockSite.Rejected(it.at(extra.literal)) }
         }
-        val type = mockedType.approximated()!!
-        val interfaces = added.map { (it.type as IrSimpleType).approximated()!! }.distinctBy { it.mockedClass }
+        val type = mockedType.approximated()
+        val interfaces = added.map { (it.type as IrSimpleType).approximated() }.distinctBy { it.mockedClass }
         val all = listOf(type) + interfaces
         val extra = interfaces.filter { candidate ->
             all.none { other ->
@@ -184,7 +177,7 @@ internal class Mockability(private val file: IrFile) {
     fun child(type: IrType): MockSite.Mocked? {
         val mocked = type.makeNotNull().removeAnnotations()
         if (problemOf(mocked) != null) return null
-        return MockSite.Mocked(MockedTypes((mocked as IrSimpleType).approximated()!!, emptyList(), MockForm.Mock))
+        return MockSite.Mocked(MockedTypes((mocked as IrSimpleType).approximated(), emptyList(), MockForm.Mock))
     }
 
     fun childProblem(type: IrType): NotMockable? = problemOf(type.makeNotNull().removeAnnotations())

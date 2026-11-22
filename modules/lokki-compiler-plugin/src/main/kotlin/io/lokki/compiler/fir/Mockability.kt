@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.fir.SessionAndScopeSessionHolder
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.caches.getValue
 import org.jetbrains.kotlin.fir.canSeeInternalsOf
+import org.jetbrains.kotlin.fir.containingClassLookupTag
 import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
 import org.jetbrains.kotlin.fir.declarations.getStringArgument
 import org.jetbrains.kotlin.fir.declarations.toAnnotationClassId
@@ -68,9 +69,9 @@ internal fun FirRegularClassSymbol.findFinalMembers(): List<String> {
     if (classKind != ClassKind.CLASS) return emptyList()
     val members = sortedSetOf<String>()
     memberScope().processAllCallables { member ->
-        val declaration = member.unwrapFakeOverrides()
+        val owner = member.unwrapFakeOverrides().containingClassLookupTag()?.toRegularClassSymbol(holder.session)
         if (member.isFinal && member.visibility != Visibilities.Private &&
-            holder.session.moduleData.canSeeInternalsOf(declaration.moduleData)
+            owner != null && holder.session.moduleData.canSeeInternalsOf(owner.moduleData)
         ) {
             members += member.name.asString()
         }

@@ -47,6 +47,10 @@ interface Api {
     fun run()
 }
 
+open class Failure : RuntimeException() {
+    fun code(): Int = 1
+}
+
 fun test() {
     mock<<!LOKKI_FINAL_MEMBERS_NOT_MOCKED!>Service<!>>()
     mock<<!LOKKI_FINAL_MEMBERS_NOT_MOCKED!>Task<!>>()
@@ -54,4 +58,6 @@ fun test() {
     mock<Clean>()
     mock<Api>()
     mock<Thread>()
+    mock<RuntimeException>()
+    mock<<!LOKKI_FINAL_MEMBERS_NOT_MOCKED!>Failure<!>>()
 }

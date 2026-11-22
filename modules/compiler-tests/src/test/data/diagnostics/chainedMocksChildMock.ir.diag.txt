@@ -1,3 +1,3 @@
-/chainedMocksChildMock.kt:26:17: error: 'sample.Locked' cannot be mocked: none of its constructors is visible from this file. A matcher in a link of a call chain needs a child mock of its return type.
+/chainedMocksChildMock.kt:23:17: error: 'sample.Locked' cannot be mocked: none of its constructors is visible from this file. A matcher in a link of a call chain needs a child mock of its return type.
 
-/chainedMocksChildMock.kt:27:18: error: 'sample.Locked' cannot be mocked: none of its constructors is visible from this file. A matcher in a link of a call chain needs a child mock of its return type.
+/chainedMocksChildMock.kt:24:18: error: 'sample.Locked' cannot be mocked: none of its constructors is visible from this file. A matcher in a link of a call chain needs a child mock of its return type.

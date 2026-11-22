@@ -1,6 +1,7 @@
 package io.lokki.compiler.ir.collect
 
 import io.lokki.compiler.ir.typeKey
+import org.jetbrains.kotlin.ir.builders.declarations.addTypeParameter
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrConstructor
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
@@ -14,10 +15,15 @@ import org.jetbrains.kotlin.ir.types.classOrFail
 import org.jetbrains.kotlin.ir.types.classifierOrNull
 import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.types.extractTypeParameters
+import org.jetbrains.kotlin.ir.types.impl.makeTypeProjection
+import org.jetbrains.kotlin.ir.types.starProjectedType
 import org.jetbrains.kotlin.ir.types.typeOrNull
 import org.jetbrains.kotlin.ir.types.typeWith
+import org.jetbrains.kotlin.ir.types.typeWithArguments
 import org.jetbrains.kotlin.ir.util.constructedClass
+import org.jetbrains.kotlin.ir.util.erasedUpperBound
 import org.jetbrains.kotlin.ir.util.substitute
+import org.jetbrains.kotlin.types.Variance
 
 @JvmInline
 internal value class MockClassKey(val typeKey: String)
@@ -59,7 +65,8 @@ internal class MockedTypes(val type: IrSimpleType, val interfaces: List<IrSimple
         get() = (listOf(type) + interfaces).map { it.mockedClass }
 
     val typeArguments: List<IrType>
-        get() = type.referencedTypeParameters.map { it.defaultType }
+        get() = type.referencedTypeParameters.map { it.defaultType } +
+            (listOf(type) + interfaces).flatMap { it.starParameters }.map { it.instantiationArgument }
 }
 
 internal val IrType.referencedTypeParameters: List<IrTypeParameterSymbol>
@@ -76,25 +83,46 @@ internal val IrSimpleType.mockedClass: IrClass
 internal val IrSimpleType.mockedClassTypeParameters: List<IrTypeParameter>
     get() = extractTypeParameters(mockedClass).take(arguments.size)
 
-internal fun IrSimpleType.approximated(): IrSimpleType? {
-    if (irreplaceableStar() != null) return null
+internal fun IrSimpleType.approximated(): IrSimpleType {
     val parameters = mockedClassTypeParameters
     val explicit = parameters.zip(arguments).mapNotNull { (parameter, argument) ->
         (argument as? IrTypeProjection)?.let { parameter.symbol to it.type }
     }.toMap()
+    val generic = genericStars()
     val approximated = parameters.zip(arguments).map { (parameter, argument) ->
-        when (argument) {
-            is IrTypeProjection -> argument.type
-            is IrStarProjection -> parameter.superTypes.single().substitute(explicit)
+        when {
+            argument is IrTypeProjection -> makeTypeProjection(argument.type, Variance.INVARIANT)
+            parameter in generic -> argument
+            else -> makeTypeProjection(parameter.superTypes.single().substitute(explicit), Variance.INVARIANT)
         }
     }
-    return mockedClass.typeWith(approximated)
+    return mockedClass.symbol.typeWithArguments(approximated)
 }
 
-internal fun IrSimpleType.irreplaceableStar(): IrTypeParameter? {
-    val stars = mockedClassTypeParameters.filterIndexed { index, _ -> arguments[index] is IrStarProjection }
+internal fun IrSimpleType.withOwnParameters(mock: IrClass, own: Map<IrTypeParameterSymbol, IrType>): IrSimpleType {
+    val parameters = mockedClassTypeParameters
+    val added = ArrayList<Pair<IrTypeParameter, IrTypeParameter>>()
+    val arguments = parameters.zip(arguments).map { (parameter, argument) ->
+        argument.typeOrNull?.substitute(own)
+            ?: mock.addTypeParameter { name = parameter.name }.also { added += parameter to it }.defaultType
+    }
+    val substitution = parameters.map { it.symbol }.zip(arguments).toMap()
+    for ((parameter, ownParameter) in added) {
+        ownParameter.superTypes = parameter.superTypes.map { it.substitute(substitution) }
+    }
+    return classifier.typeWith(arguments)
+}
+
+private val IrSimpleType.starParameters: List<IrTypeParameter>
+    get() = mockedClassTypeParameters.filterIndexed { index, _ -> arguments[index] is IrStarProjection }
+
+private val IrTypeParameter.instantiationArgument: IrType
+    get() = superTypes.first().erasedUpperBound.symbol.starProjectedType
+
+private fun IrSimpleType.genericStars(): List<IrTypeParameter> {
+    val stars = starParameters
     val symbols = stars.map { it.symbol }.toSet()
-    return stars.firstOrNull { parameter ->
+    return stars.filter { parameter ->
         parameter.superTypes.size != 1 || parameter.superTypes.single().referencedTypeParameters.any { it in symbols }
     }
 }

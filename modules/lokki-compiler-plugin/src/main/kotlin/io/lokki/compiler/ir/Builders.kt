@@ -9,10 +9,12 @@ import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
 import org.jetbrains.kotlin.ir.builders.IrGeneratorContext
 import org.jetbrains.kotlin.ir.builders.declarations.buildFun
 import org.jetbrains.kotlin.ir.builders.irAnnotation
+import org.jetbrains.kotlin.ir.builders.irAs
 import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irCallConstructor
 import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.builders.irGetObjectValue
+import org.jetbrains.kotlin.ir.builders.irImplicitCast
 import org.jetbrains.kotlin.ir.builders.irInt
 import org.jetbrains.kotlin.ir.builders.irNull
 import org.jetbrains.kotlin.ir.builders.irString
@@ -36,6 +38,8 @@ import org.jetbrains.kotlin.ir.expressions.impl.IrVarargImpl
 import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.classOrFail
+import org.jetbrains.kotlin.ir.types.classOrNull
+import org.jetbrains.kotlin.ir.types.impl.buildSimpleType
 import org.jetbrains.kotlin.ir.types.typeWith
 import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.isObject
@@ -126,6 +130,29 @@ internal fun IrBuilderWithScope.irHidden(symbols: LokkiSymbols, message: String)
             symbols.hiddenDeprecation.symbol,
         )
     }
+
+internal fun IrBuilder.irCast(argument: IrExpression, type: IrType): IrExpression {
+    val readOnly = (type as? IrSimpleType)?.readOnlyCollection(context.irBuiltIns) ?: return irAs(argument, type)
+    return irImplicitCast(irAs(argument, readOnly), type)
+}
+
+private fun IrSimpleType.readOnlyCollection(builtIns: IrBuiltIns): IrSimpleType? {
+    val readOnly = when (classOrNull) {
+        builtIns.mutableIterableClass -> builtIns.iterableClass
+        builtIns.mutableCollectionClass -> builtIns.collectionClass
+        builtIns.mutableListClass -> builtIns.listClass
+        builtIns.mutableSetClass -> builtIns.setClass
+        builtIns.mutableMapClass -> builtIns.mapClass
+        builtIns.mutableMapEntryClass -> builtIns.mapEntryClass
+        builtIns.mutableIteratorClass -> builtIns.iteratorClass
+        builtIns.mutableListIteratorClass -> builtIns.listIteratorClass
+        else -> return null
+    }
+    return buildSimpleType {
+        classifier = readOnly
+        annotations = emptyList()
+    }
+}
 
 internal fun IrBuilder.irArrayGet(symbols: LokkiSymbols, array: IrValueDeclaration, index: Int): IrExpression =
     irCall(symbols.arrayGet.symbol, context.irBuiltIns.anyNType).apply {

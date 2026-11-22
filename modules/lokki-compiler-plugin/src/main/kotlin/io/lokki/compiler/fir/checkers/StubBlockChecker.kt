@@ -121,8 +121,6 @@ private class StubBlock(
     private val session = context.session
     private val scope = block.receiverParameter?.symbol
     private val action = mode.action
-    private val chainedMocks =
-        CoreClass.CHAINED_MOCKS.id in context.containingFileSymbol?.resolvedAnnotationClassIds.orEmpty()
     private val contexts = HashSet<FirCallableSymbol<*>>()
     private val contextSources = HashMap<FirElement, KtSourceElement?>()
 
@@ -254,7 +252,6 @@ private class StubBlock(
         val matchers = receiver.scopeCalls()
         when {
             matchers.singleOrNull() === receiver -> matcherInCallPosition(receiver)
-            !chainedMocks -> matchers.forEach { report(it, LokkiDiagnostics.LOKKI_CHAINED_CALL_DISABLED) }
             else -> {
                 val linked = receiver.links().flatMap(::checkLink)
                 matchers.filter { it !in linked }

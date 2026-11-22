@@ -51,7 +51,7 @@ fun box(): String {
     return "OK"
 }
 
-// 0 checkNotNullParameter
+// 1 checkNotNullParameter
 // 1 LOCALVARIABLE name Ljava/lang/String;
 // 1 LOCALVARIABLE suffix Ljava/lang/String;
 // 1 parameter synthetic  name

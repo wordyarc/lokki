@@ -285,7 +285,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
             val value = relaxedAnswer(member)
             if (value is ChildMock) return returned(record, child(member, equalTo(arguments), value.factory))
             if (value !is NoRelaxedDefault) return value
-            val hint = if (value.mockable && link == null && !Registration.isChain) RELAXED_CHILD_HINT else ""
+            val hint = if (value.mockable && link == null) RELAXED_CHILD_HINT else ""
             "relaxed mock has no default for ${value.type} returned by " +
                 "${call(member, arguments.joinToString { it.toStr() })}; stub the call$hint"
         } else {
@@ -294,11 +294,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
                 "among the configured answers: (${describeStubs { true }.joinToString("\n")})\n" +
                 "Called member: ${description(member).signature()}"
         }
-        val hint = when {
-            link != null -> "\n$LINK_HINT: stub it first, a child mock cannot be created: ${link.problem}"
-            Registration.isChain -> "\n$LINK_HINT: stub it first or annotate the file with $CHAINED_MOCKS"
-            else -> ""
-        }
+        val hint = link?.let { "\n$LINK_HINT: stub it first, a child mock cannot be created: ${it.problem}" }.orEmpty()
         val closed = scope?.takeIf { it.isClosed }
             ?.let { "\nThe mock belongs to $it, which is closed: the call came after its end" }
             .orEmpty()

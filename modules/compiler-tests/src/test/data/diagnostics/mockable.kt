@@ -58,6 +58,8 @@ sealed class Fuel {
 
 object Registry
 
+data class Settings(val enabled: Boolean, val limit: Int)
+
 // MODULE: test()(main)
 // FILE: test.kt
 package test
@@ -70,6 +72,7 @@ import sample.Fuel
 import sample.Locked
 import sample.Registry
 import sample.Rpm
+import sample.Settings
 import sample.Tagged
 
 class Window {
@@ -87,4 +90,5 @@ fun test() {
     mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Fuel<!>>()
     mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Registry<!>>()
     mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Window<!>>()
+    mock<Settings>()
 }

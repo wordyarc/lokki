@@ -27,7 +27,6 @@ internal object LokkiDiagnostics : KtDiagnosticsContainer() {
     val LOKKI_NOT_INTERCEPTABLE by error2<KtElement, String, String>()
     val LOKKI_TYPE_NOT_MOCKABLE by error2<KtElement, String, String>()
     val LOKKI_TYPE_ARGUMENT_NOT_CONCRETE by error3<KtElement, String, String, String>()
-    val LOKKI_CHAINED_CALL_DISABLED by error0<KtElement>()
     val LOKKI_CALLABLE_REFERENCE_TO_INTRINSIC by error1<KtElement, String>()
     val LOKKI_STUB_WITHOUT_ANSWER by error1<KtElement, String>()
     val LOKKI_RETURNS_ARGUMENT_OUT_OF_RANGE by error3<KtElement, Int, String, Int>()
@@ -105,11 +104,6 @@ private object LokkiDiagnosticRenderers : BaseDiagnosticRendererFactory() {
             CommonRenderers.STRING,
             CommonRenderers.STRING,
             CommonRenderers.STRING,
-        )
-        map.put(
-            LokkiDiagnostics.LOKKI_CHAINED_CALL_DISABLED,
-            "A matcher in the receiver of the stubbed or verified call needs chained mocks: " +
-                "stub or verify the call in the receiver separately, or annotate the file with @file:ChainedMocks.",
         )
         map.put(
             LokkiDiagnostics.LOKKI_CALLABLE_REFERENCE_TO_INTRINSIC,

@@ -5,7 +5,6 @@ import kotlin.concurrent.Volatile
 @PublishedApi
 internal object Registration {
     private val registering = Threads()
-    private val chains = Threads()
 
     @Volatile
     private var links = emptyArray<Link>()
@@ -13,23 +12,12 @@ internal object Registration {
     val isActive: Boolean
         get() = registering.containsCurrent()
 
-    val isChain: Boolean
-        get() = chains.containsCurrent()
-
     fun enter() {
         registering.add()
     }
 
     fun exit() {
         registering.remove()
-    }
-
-    fun enterChain() {
-        chains.add()
-    }
-
-    fun exitChain() {
-        chains.remove()
     }
 
     fun enterLink(receiver: Any?, key: String, stubs: Boolean, factory: ((MockSpec) -> Any)?, problem: String?): Link? {

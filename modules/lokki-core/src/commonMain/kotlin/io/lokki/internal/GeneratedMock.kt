@@ -36,15 +36,6 @@ internal interface GeneratedMock {
             }
         }
 
-        inline fun <T> chain(block: () -> T): T {
-            Registration.enterChain()
-            try {
-                return block()
-            } finally {
-                Registration.exitChain()
-            }
-        }
-
         inline fun <T> link(
             receiver: Any?,
             key: String,
