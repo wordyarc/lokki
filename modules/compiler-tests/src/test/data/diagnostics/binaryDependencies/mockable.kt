@@ -82,10 +82,10 @@ class Window {
 fun test() {
     val engine = mock<<!LOKKI_FINAL_MEMBERS_NOT_MOCKED!>Engine<!>>()
     every { engine.start() } returns "mocked"
-    every { engine.<!LOKKI_NOT_INTERCEPTABLE!>id<!>() } returns 2
+    every { engine.id() } returns 2
     mock<<!LOKKI_FINAL_MEMBERS_NOT_MOCKED!>Aliased<!>>()
     mock<<!LOKKI_FINAL_MEMBERS_NOT_MOCKED!>Tagged<!>>()
-    mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Locked<!>>()
+    mock<Locked>()
     mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Rpm<!>>()
     mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Fuel<!>>()
     mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Registry<!>>()

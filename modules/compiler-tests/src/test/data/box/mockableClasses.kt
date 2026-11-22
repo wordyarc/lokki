@@ -33,6 +33,29 @@ abstract class Starter {
     fun kick(): String = "kick"
 }
 
+abstract class Device {
+    abstract fun id(): String
+}
+
+class Sensor(input: String) : Device() {
+    val name: String
+    var reading: Int
+    val label: String?
+    lateinit var unit: String
+
+    init {
+        name = input.trim()
+        reading = name.length
+        label = input.takeIf { it.isNotBlank() }
+    }
+
+    constructor() : this("")
+
+    final override fun id(): String = "sensor"
+
+    fun labelLength(): Int = if (label != null) label.length else 0
+}
+
 data class Spec(val size: Int) {
     fun describe(): String = "spec $size"
 }
@@ -111,6 +134,7 @@ import sample.engine.Locked
 import sample.engine.Mode
 import sample.engine.Registry
 import sample.engine.Rpm
+import sample.engine.Sensor
 import sample.engine.Spec
 import sample.engine.Starter
 import sample.engine.Token
@@ -138,6 +162,28 @@ fun box(): String {
     val piston = mock<Piston>()
     every { piston.move() } returns "mocked"
     if (piston.move() != "mocked") return "Fail: class of a subpackage"
+
+    val sensor = mock<Sensor>()
+    every { sensor.name } returns "mocked"
+    every { sensor.reading } returns 5
+    every { sensor.label } returns "label"
+    every { sensor.unit } returns "unit"
+    every { sensor.id() } returns "mocked"
+    if (sensor.name != "mocked" || sensor.reading != 5 || sensor.unit != "unit") {
+        return "Fail: properties initialized in init"
+    }
+    if (sensor.id() != "mocked") return "Fail: final override"
+    every { sensor.labelLength() } answers { callOriginal() }
+    if (sensor.labelLength() != 5) return "Fail: smart cast in main: ${sensor.labelLength()}"
+    if (Sensor(" ab ").labelLength() != 4 || Sensor().labelLength() != 0) return "Fail: original class"
+
+    val locked = mock<Locked>()
+    every { locked.open() } returns "mocked"
+    if (locked.open() != "mocked") return "Fail: explicitly final class"
+
+    every { engine.id() } returns 2
+    every { engine.revision } returns 3
+    if (engine.id() != 2 || engine.revision != 3) return "Fail: explicitly final member"
 
     val starter = mock<Starter>()
     every { starter.kick() } returns "mocked"
@@ -171,10 +217,10 @@ private fun checkModifiers(): String {
     if (engine.isFinal()) return "Fail: class was not opened"
     if (engine.isFinal("start")) return "Fail: function was not opened"
     if (engine.isFinal("getMode")) return "Fail: property was not opened"
-    if (!engine.isFinal("id")) return "Fail: explicit final member was opened"
+    if (engine.isFinal("id")) return "Fail: explicit final member was not opened"
     if (!engine.isFinal("twice", Function0::class.java)) return "Fail: inline function was opened"
     if (!engine.isFinal("countdown", Int::class.javaPrimitiveType!!)) return "Fail: tailrec function was opened"
-    if (!engine.isFinal("getRevision")) return "Fail: property with a private setter was opened"
+    if (engine.isFinal("getRevision")) return "Fail: property with a private setter was not opened"
     if (Spec::class.java.isFinal("component1") || Spec::class.java.isFinal("copy", Int::class.javaPrimitiveType!!)) {
         return "Fail: generated data class members were not opened"
     }
@@ -182,9 +228,10 @@ private fun checkModifiers(): String {
         return "Fail: members that stay final"
     }
 
+    if (Locked::class.java.isFinal()) return "Fail: explicitly final class was not opened"
+
     val finals = listOf(
         Engine.Companion::class.java,
-        Locked::class.java,
         Rpm::class.java,
         Registry::class.java,
         Mode::class.java,

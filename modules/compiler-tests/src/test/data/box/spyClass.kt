@@ -45,6 +45,10 @@ open class Pager(val size: Int = 20) {
     open fun size(): Int = size
 }
 
+open class Route {
+    open lateinit var url: String
+}
+
 abstract class Template {
     init {
         name()
@@ -144,6 +148,12 @@ fun box(): String {
         e.message
     }
     if (noOriginal?.startsWith("no original implementation for Shape(#") != true) return "Fail no original: $noOriginal"
+
+    val route = spy<Route>()
+    route.url = "original"
+    if (route.url != "original") return "Fail lateinit property: ${route.url}"
+    every { route.url } returns "stubbed"
+    if (route.url != "stubbed") return "Fail stub of a lateinit property: ${route.url}"
 
     val closeable = spy(Counter(1), moreInterfaces = arrayOf(Closeable::class))
     (closeable as Closeable).close()

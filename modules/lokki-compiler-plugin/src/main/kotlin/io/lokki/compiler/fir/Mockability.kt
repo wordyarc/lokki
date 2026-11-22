@@ -17,7 +17,6 @@ import org.jetbrains.kotlin.fir.declarations.getStringArgument
 import org.jetbrains.kotlin.fir.declarations.toAnnotationClassId
 import org.jetbrains.kotlin.fir.declarations.utils.isFinal
 import org.jetbrains.kotlin.fir.declarations.utils.isInlineOrValue
-import org.jetbrains.kotlin.fir.declarations.utils.modality
 import org.jetbrains.kotlin.fir.declarations.utils.visibility
 import org.jetbrains.kotlin.fir.moduleData
 import org.jetbrains.kotlin.fir.resolve.lookupSuperTypes
@@ -45,9 +44,9 @@ import org.jetbrains.kotlin.name.StandardClassIds
 
 context(context: CheckerContext)
 internal fun FirRegularClassSymbol.mockabilityProblem(): String? =
-    declarationKindProblem(
+    UNIT_PROBLEM.takeIf { classId == StandardClassIds.Unit } ?: declarationKindProblem(
         classKind,
-        modality,
+        effectiveModality(context.session),
         suggestsMockable = isFromFriendKotlinModule(context.session) && !isInlineOrValue,
     ) ?: context.session.lokkiEnvironment.missingClassProblems.getValue(this, context.sessionHolder)
 
@@ -70,7 +69,7 @@ internal fun FirRegularClassSymbol.findFinalMembers(): List<String> {
     val members = sortedSetOf<String>()
     memberScope().processAllCallables { member ->
         val owner = member.unwrapFakeOverrides().containingClassLookupTag()?.toRegularClassSymbol(holder.session)
-        if (member.isFinal && member.visibility != Visibilities.Private &&
+        if (member.isFinal && !member.isOpenedInBytecode(holder.session) && member.visibility != Visibilities.Private &&
             owner != null && holder.session.moduleData.canSeeInternalsOf(owner.moduleData)
         ) {
             members += member.name.asString()
@@ -150,6 +149,7 @@ private fun ConeKotlinType.erasedClasses(): List<ConeClassLikeType> =
         else -> emptyList()
     }
 
+private const val UNIT_PROBLEM = "it is an object. To answer a call that returns 'Unit', use 'just Runs'"
 private val DO_NOT_MOCK = Name.identifier("DoNotMock")
 private val VALUE = Name.identifier("value")
 private val RESTRICTED_TYPES = setOf(

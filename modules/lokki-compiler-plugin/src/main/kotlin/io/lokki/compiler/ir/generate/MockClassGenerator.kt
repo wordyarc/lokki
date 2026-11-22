@@ -21,6 +21,7 @@ import io.lokki.compiler.ir.irArrayOf
 import io.lokki.compiler.ir.irCast
 import io.lokki.compiler.ir.irInvoke
 import io.lokki.compiler.ir.irThrowLokkiException
+import io.lokki.compiler.ir.isOverridable
 import io.lokki.compiler.ir.isVisibleFrom
 import io.lokki.compiler.ir.memberKeys
 import io.lokki.compiler.ir.redirectedName
@@ -191,7 +192,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
             .filter { it.root.parent != generatedMock }
             .partition { it.isMethodOfAny() }
         val members = METHODS_OF_ANY.map { name -> methodsOfAny.single { it.name == name } } +
-            declared.filter { it.modality != Modality.FINAL }
+            declared.filter { it.isOverridable }
         val delegated = members.filter { form == MockForm.Delegation && it.delegatedTo(mocked) != null }.toSet()
         val (coOriginals, originals) = members.withIndex()
             .filter { (_, member) -> member.modality != Modality.ABSTRACT || member in delegated }
@@ -216,7 +217,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         }
         val spied = mocked.takeIf { form is MockForm.Construction }
         members.forEachIndexed { index, member ->
-            if (member.modality != Modality.FINAL) member.implement(mock, state, index, spied)
+            if (member.isOverridable) member.implement(mock, state, index, spied)
         }
         val forward = Forward(mocked, delegate, delegated)
         original.implementOriginal(mock, forward, state, originals, ORIGINAL_BRANCH_BYTES)
@@ -642,6 +643,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         isFakeOverride = false
         origin = this@MockClassGenerator.origin
         modality = Modality.FINAL
+        if (this is IrProperty) isLateinit = false
     }
 }
 

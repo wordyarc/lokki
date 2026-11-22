@@ -3,6 +3,7 @@ package io.lokki.compiler.ir.collect
 import io.lokki.compiler.ARRAY_OF
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.ParameterNames
+import io.lokki.compiler.STUB_BLOCKS
 import io.lokki.compiler.ir.FileContext
 import io.lokki.compiler.ir.argument
 import io.lokki.compiler.ir.blockCalls
@@ -105,6 +106,11 @@ private class MockCollector(private val file: FileContext) : IrVisitorVoid() {
             else -> emptyList()
         }
         for (redirect in redirected) add(expression, redirect.site)
+        if (kind in STUB_BLOCKS) {
+            for (stubbed in expression.blockCalls()) {
+                file.redirects.member(stubbed.call.symbol.owner)?.let { add(expression, it.redirect.site) }
+            }
+        }
         blockStatementCalls += expression.blockStatementCalls()
         for (link in expression.blockCalls().flatMap { it.receiver?.links().orEmpty() }) {
             val site = file.mockability.child(link.call.type) ?: continue

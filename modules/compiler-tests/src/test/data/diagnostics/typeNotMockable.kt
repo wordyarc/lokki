@@ -41,6 +41,7 @@ fun test() {
     mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Plate<!>>()
     mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Vin<!>>()
     mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Garage<!>>()
+    mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Unit<!>>()
     mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Color<!>>()
     mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Marker<!>>()
     mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Shape<!>>()

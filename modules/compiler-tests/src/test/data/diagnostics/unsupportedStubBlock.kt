@@ -56,7 +56,7 @@ fun VerificationScope.unused(repo: Repo): Int {
 fun test(repo: Repo, nullable: Repo?, block: MatcherScope.() -> String, check: VerificationScope.() -> Any?) {
     <!LOKKI_UNSUPPORTED!>every(block)<!> returns "a"
     every <!LOKKI_UNSUPPORTED!>{ repo.find(1); repo.find(2) }<!> returns "a"
-    every <!LOKKI_UNSUPPORTED!>{ nullable?.find(1) }<!> returns "a"
+    every <!LOKKI_UNSUPPORTED!>{ nullable ?: repo }<!> returns repo
     every { <!LOKKI_UNSUPPORTED!>top()<!> } returns "a"
     every { repo.<!LOKKI_UNSUPPORTED!>first()<!> } returns "a"
     every { <!LOKKI_UNSUPPORTED!>any<Repo>()<!>.find(1) } returns "a"
@@ -80,7 +80,7 @@ fun test(repo: Repo, nullable: Repo?, block: MatcherScope.() -> String, check: V
     verify <!LOKKI_UNSUPPORTED!>{ }<!>
     verify <!LOKKI_UNSUPPORTED!>{
         repo.find(1)
-        nullable?.find(1)
+        nullable ?: repo
     }<!>
     verify { repo.<!LOKKI_UNSUPPORTED!>toString()<!> }
     verify { <!LOKKI_UNSUPPORTED!>any<Repo>()<!>.find(1) }
@@ -97,7 +97,7 @@ fun test(repo: Repo, nullable: Repo?, block: MatcherScope.() -> String, check: V
     excludeRecords <!LOKKI_UNSUPPORTED!>{ }<!>
     excludeRecords <!LOKKI_UNSUPPORTED!>{
         repo.find(1)
-        nullable?.find(1)
+        nullable ?: repo
     }<!>
     excludeRecords { <!LOKKI_UNSUPPORTED!>any<Repo>()<!>.find(1) }
     excludeRecords { repo.find(<!LOKKI_UNSUPPORTED!>any<Int>() + 1<!>) }

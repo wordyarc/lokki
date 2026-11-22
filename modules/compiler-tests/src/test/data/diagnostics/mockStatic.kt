@@ -20,13 +20,18 @@ object Clock {
 
 open class Service {
     fun f(): Int = 1
+
+    fun retry(): Int = 1
 }
+
+fun Service.retry(attempts: Int): Int = attempts
 
 fun test(functions: Array<KFunction<*>>, function: KFunction<*>) {
     mockStatic(<!LOKKI_OBJECT_NOT_INTERCEPTABLE!>::local<!>)
     mockStatic(<!LOKKI_OBJECT_NOT_INTERCEPTABLE!>Int::doubled<!>)
     mockStatic(<!LOKKI_OBJECT_NOT_INTERCEPTABLE!>Clock::now<!>)
     mockStatic(<!LOKKI_OBJECT_NOT_INTERCEPTABLE!>Service::f<!>)
+    mockStatic(<!LOKKI_OBJECT_NOT_INTERCEPTABLE!>Service::retry<!>)
     mockStatic(<!LOKKI_OBJECT_NOT_INTERCEPTABLE!>System::currentTimeMillis<!>)
     mockStatic(<!LOKKI_OBJECT_NOT_INTERCEPTABLE!>String::isBlank<!>) {}
     mockStatic(<!LOKKI_REFERENCE_NOT_LITERAL!>function<!>)

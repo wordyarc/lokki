@@ -3,6 +3,7 @@ package sample
 import io.lokki.LokkiException
 import io.lokki.every
 import io.lokki.mock
+import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.lang.reflect.Modifier
 import java.util.Random
@@ -65,6 +66,10 @@ open class Names : Box<String>() {
     override fun get(): String = "name"
 }
 
+open class Route {
+    open lateinit var url: String
+}
+
 fun noAnswer(block: () -> Unit): String? =
     try {
         block()
@@ -124,6 +129,16 @@ fun box(): String {
     every { names.put(any()) } returns true
     val box: Box<String> = names
     if (box.get() != "mocked" || !box.put("x")) return "Fail: members of a generic superclass"
+
+    val route = mock<Route>()
+    every { route.url } returns "mocked"
+    if (route.url != "mocked") return "Fail: lateinit property"
+
+    val output = mock<ByteArrayOutputStream>()
+    every { output.size() } returns 3
+    if (output.size() != 3) return "Fail: Java class with protected fields"
+    val fields = output.javaClass.declaredFields.map { it.name }.filter { !it.startsWith("lokki") }
+    if (fields.isNotEmpty()) return "Fail: fields of a Java class are redeclared: $fields"
 
     val stream = mock<InputStream>()
     every { stream.read() } returns 7

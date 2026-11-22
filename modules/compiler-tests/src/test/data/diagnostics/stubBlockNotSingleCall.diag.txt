@@ -4,8 +4,6 @@
 
 /stubBlockNotSingleCall.kt:40:11: error: The block of 'every' must be a single call of a mock member, but it has several statements.
 
-/stubBlockNotSingleCall.kt:44:13: error: The block of 'every' must be a single call of a mock member, but it is a safe call. Use '!!' on the receiver instead of '?.'.
-
 /stubBlockNotSingleCall.kt:45:13: error: The block of 'every' must be a single call of a mock member, but it compares values with an operator. Call 'equals' explicitly.
 
 /stubBlockNotSingleCall.kt:46:13: error: The block of 'every' must be a single call of a mock member, but it compares values with an operator. Call 'equals' explicitly.
@@ -36,8 +34,6 @@
 
 /stubBlockNotSingleCall.kt:82:9: error: The block of 'verify' must consist of calls of mock members, but it is not a call.
 
-/stubBlockNotSingleCall.kt:85:14: error: The block of 'verify' must consist of calls of mock members, but it is a safe call. Use '!!' on the receiver instead of '?.'.
-
 /stubBlockNotSingleCall.kt:86:14: error: The block of 'verify' must consist of calls of mock members, but it compares values with an operator.
 
 /stubBlockNotSingleCall.kt:87:14: error: The block of 'verify' must consist of calls of mock members, but it compares values with an operator. Call 'compareTo' explicitly.
@@ -61,8 +57,6 @@
 /stubBlockNotSingleCall.kt:113:20: error: The block of 'excludeRecords' must consist of calls of mock members, but it is empty.
 
 /stubBlockNotSingleCall.kt:116:9: error: The block of 'excludeRecords' must consist of calls of mock members, but it is not a call.
-
-/stubBlockNotSingleCall.kt:119:22: error: The block of 'excludeRecords' must consist of calls of mock members, but it is a safe call. Use '!!' on the receiver instead of '?.'.
 
 /stubBlockNotSingleCall.kt:120:22: error: The block of 'excludeRecords' must consist of calls of mock members, but it compares values with an operator.
 

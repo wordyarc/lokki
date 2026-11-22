@@ -55,6 +55,10 @@ internal object Redirects {
 
     fun ofStatic(target: Any, name: String): GeneratedMock = of(target, name, "mockStatic($name)")
 
+    fun stubbed(redirect: Redirect): GeneratedMock = stubbed(redirect, "mockObject(${redirect.name})", OBJECT)
+
+    fun stubbedStatic(redirect: Redirect): GeneratedMock = stubbed(redirect, "mockStatic(${redirect.name})", STATIC)
+
     fun unmock(targets: Array<out Any>) {
         val scope = LokkiScope.currentScope ?: return
         for (target in targets) {
@@ -92,6 +96,12 @@ internal object Redirects {
             throw LokkiException("$name is not mocked in the current scope; call $call")
         }
         return redirect.mock
+    }
+
+    private fun stubbed(redirect: Redirect, call: String, kind: Int): GeneratedMock {
+        val scope = LokkiScope.currentScope ?: return of(redirect.target, redirect.name, call)
+        val visible = synchronized(this) { active.find { it.isFor(redirect.target) && scope.isWithin(it.scope) } }
+        return visible?.mock ?: install(redirect, scope, kind)?.mock ?: of(redirect.target, redirect.name, call)
     }
 
     private fun install(redirect: Redirect, scope: LokkiScope, kind: Int): ActiveRedirect? =

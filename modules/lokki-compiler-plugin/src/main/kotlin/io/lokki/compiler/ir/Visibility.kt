@@ -7,6 +7,7 @@ import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationWithVisibility
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrOverridableDeclaration
+import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.moduleDescriptor
 import org.jetbrains.kotlin.ir.overrides.FakeOverrideBuilderStrategy
 import org.jetbrains.kotlin.ir.overrides.IrFakeOverrideBuilder
@@ -45,6 +46,7 @@ internal fun IrDeclarationWithVisibility.isAccessibleOutsideHierarchy(
 internal fun IrClass.addFriendAwareFakeOverrides(typeSystem: IrTypeSystemContext) {
     IrFakeOverrideBuilder(typeSystem, FriendAwareFakeOverrides, emptyList())
         .buildFakeOverridesForClassUsingOverriddenSymbols(this, emptyMap(), compatibilityMode = false)
+        .onEach { if (it is IrProperty && it.getter == null) it.backingField = null }
         .forEach(::addChild)
 }
 

@@ -17,10 +17,16 @@ import org.jetbrains.kotlin.fir.expressions.FirResolvedQualifier
 import org.jetbrains.kotlin.fir.expressions.FirSpreadArgumentExpression
 import org.jetbrains.kotlin.fir.expressions.FirVarargArgumentsExpression
 import org.jetbrains.kotlin.fir.expressions.resolvedArgumentMapping
+import org.jetbrains.kotlin.fir.packageFqName
 import org.jetbrains.kotlin.fir.references.toResolvedCallableSymbol
 import org.jetbrains.kotlin.fir.resolve.getContainingClassSymbol
+import org.jetbrains.kotlin.fir.resolve.lookupSuperTypes
+import org.jetbrains.kotlin.fir.resolve.providers.symbolProvider
+import org.jetbrains.kotlin.fir.resolve.toRegularClassSymbol
+import org.jetbrains.kotlin.fir.symbols.SymbolInternals
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
+import org.jetbrains.kotlin.name.FqName
 
 context(context: CheckerContext, reporter: DiagnosticReporter)
 internal fun checkStaticReferences(call: FirFunctionCall, function: FirCallableSymbol<*>) {
@@ -59,6 +65,27 @@ private fun memberReason(callee: FirCallableSymbol<*>): String {
         callee.isStatic -> "it is a static member of a Java class, which lokki does not intercept"
         owner.classKind == ClassKind.OBJECT ->
             "it is a member of '${owner.displayName}': mock the object with 'mockObject(${owner.name})'"
-        else -> "it is a member of '${owner.displayName}': mock its instance with 'mock<T>()' or 'spy(...)'"
+        else -> "it is a member of '${owner.displayName}': " + when (val extension = callee.sameNamedExtension(owner)) {
+            null -> "mock its instance with 'mock<T>()' or 'spy(...)'"
+            else -> "the reference resolves to the member, not to the extension '$extension'. Import the extension " +
+                "under another name, such as 'import $extension as ${callee.name}Extension'"
+        }
+    }
+}
+
+@OptIn(SymbolInternals::class)
+context(context: CheckerContext)
+private fun FirCallableSymbol<*>.sameNamedExtension(owner: FirRegularClassSymbol): FqName? {
+    val file = context.containingFileSymbol?.fir ?: return null
+    val imports = file.imports.filter { it.aliasName == null }
+    val packages = listOf(file.packageFqName) +
+        imports.filter { it.isAllUnder }.mapNotNull { it.importedFqName } +
+        imports.mapNotNull { it.importedFqName?.takeIf { fqName -> fqName.shortName() == name }?.parent() }
+    val receivers = listOf(owner) + lookupSuperTypes(owner, lookupInterfaces = true, deep = true, context.session)
+        .mapNotNull { it.toRegularClassSymbol(context.session) }
+    return packages.distinct().firstNotNullOfOrNull { packageName ->
+        context.session.symbolProvider.getTopLevelCallableSymbols(packageName, name)
+            .find { it.resolvedReceiverType?.toRegularClassSymbol(context.session) in receivers }
+            ?.let { packageName.child(name) }
     }
 }

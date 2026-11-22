@@ -9,10 +9,12 @@ import io.lokki.compiler.TYPE_PARAMETER_PROBLEM
 import io.lokki.compiler.fir.argument
 import io.lokki.compiler.fir.classifier
 import io.lokki.compiler.fir.displayName
+import io.lokki.compiler.fir.effectiveModality
 import io.lokki.compiler.fir.fieldKind
 import io.lokki.compiler.fir.finalMembers
 import io.lokki.compiler.fir.intrinsicKind
 import io.lokki.compiler.fir.isFromFriendKotlinModule
+import io.lokki.compiler.fir.isOpenedInBytecode
 import io.lokki.compiler.fir.mockabilityProblem
 import io.lokki.compiler.fir.restriction
 import io.lokki.compiler.linked
@@ -33,7 +35,6 @@ import org.jetbrains.kotlin.fir.declarations.findArgumentByName
 import org.jetbrains.kotlin.fir.declarations.getTargetType
 import org.jetbrains.kotlin.fir.declarations.toAnnotationClassLikeSymbol
 import org.jetbrains.kotlin.fir.declarations.utils.correspondingValueParameterFromPrimaryConstructor
-import org.jetbrains.kotlin.fir.declarations.utils.modality
 import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
 import org.jetbrains.kotlin.fir.expressions.FirGetClassCall
@@ -173,10 +174,13 @@ private fun MockedType.check(interfaces: () -> Boolean): Boolean {
     }
     val finalMembers = mocked.finalMembers()
     if (finalMembers.isNotEmpty()) {
-        val advice = if (mocked.isFromFriendKotlinModule(context.session)) {
-            "Make them open or add their classes to lokki { mockable(...) }"
-        } else {
-            "Make them open"
+        val advice = when {
+            mocked.isOpenedInBytecode(context.session) ->
+                "lokki { mockable(...) } does not open inline and tailrec functions, @JvmField properties and " +
+                    "members inherited from classes it does not open"
+            mocked.isFromFriendKotlinModule(context.session) ->
+                "Make them open or add their classes to lokki { mockable(...) }"
+            else -> "Make them open"
         }
         reporter.reportOn(
             source,
@@ -207,8 +211,8 @@ private fun FirExpression.constructedType(): ConeKotlinType? {
     val type = call.resolvedType.fullyExpandedType()
     val constructed = type.toRegularClassSymbol(context.session) ?: return null
     return type.takeIf {
-        constructed.classKind == ClassKind.CLASS && constructed.modality != Modality.FINAL &&
-            constructed.modality != Modality.SEALED
+        constructed.classKind == ClassKind.CLASS &&
+            constructed.effectiveModality(context.session).let { it != Modality.FINAL && it != Modality.SEALED }
     }
 }
 

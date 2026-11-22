@@ -6,6 +6,7 @@ import io.lokki.compiler.CoreConstructor
 import io.lokki.compiler.CoreFunction
 import io.lokki.compiler.ParameterNames
 import io.lokki.compiler.ir.LokkiSymbols
+import io.lokki.compiler.ir.Redirect
 import io.lokki.compiler.ir.buildLambda
 import io.lokki.compiler.ir.collect.MockForm
 import io.lokki.compiler.ir.collect.MockedTypes
@@ -16,11 +17,13 @@ import io.lokki.compiler.ir.toLambda
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
 import org.jetbrains.kotlin.ir.builders.declarations.addValueParameter
+import org.jetbrains.kotlin.ir.builders.irAs
 import org.jetbrains.kotlin.ir.builders.irBlock
 import org.jetbrains.kotlin.ir.builders.irBlockBody
 import org.jetbrains.kotlin.ir.builders.irCallConstructor
 import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.builders.irReturn
+import org.jetbrains.kotlin.ir.builders.irString
 import org.jetbrains.kotlin.ir.builders.irTemporary
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.expressions.IrBlock
@@ -29,6 +32,7 @@ import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.classOrFail
+import org.jetbrains.kotlin.ir.types.makeNullable
 import org.jetbrains.kotlin.ir.types.typeWith
 import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.functions
@@ -79,6 +83,26 @@ internal fun IrBuilderWithScope.irFactory(symbols: LokkiSymbols, mock: IrClass, 
         +irReturn(irNewMock(symbols, mock, types, irGet(spec)))
     }
     return factory.toLambda(context.irBuiltIns)
+}
+
+internal fun IrBuilderWithScope.irRedirect(
+    symbols: LokkiSymbols,
+    mock: IrClass,
+    target: IrExpression,
+    redirect: Redirect,
+): IrExpression {
+    val install = context.buildLambda(startOffset, endOffset, context.irBuiltIns.unitType)
+    val value = install.addValueParameter("redirect", context.irBuiltIns.anyNType)
+    install.body = DeclarationIrBuilder(context, install.symbol, startOffset, endOffset).irBlockBody {
+        +irInvoke(redirect.property.setter!!, irAs(irGet(value), redirect.redirect.defaultType.makeNullable()))
+    }
+    return irInvoke(
+        symbols[CoreConstructor.REDIRECT],
+        target,
+        irString(redirect.name),
+        irFactory(symbols, mock, redirect.site.types),
+        install.toLambda(context.irBuiltIns),
+    )
 }
 
 private fun IrBuilderWithScope.irInstance(

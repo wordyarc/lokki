@@ -6,7 +6,9 @@ import io.lokki.compiler.declarationKindProblem
 import io.lokki.compiler.fir.lokkiEnvironment
 import io.lokki.compiler.memberWithClasses
 import io.lokki.compiler.ir.constructorCall
+import io.lokki.compiler.ir.effectiveModality
 import io.lokki.compiler.ir.inaccessibleClasses
+import io.lokki.compiler.ir.isOverridable
 import io.lokki.compiler.ir.isVisibleFrom
 import io.lokki.compiler.ir.packageFqName
 import io.lokki.compiler.ir.typeKey
@@ -183,7 +185,7 @@ internal class Mockability(private val file: IrFile) {
     fun childProblem(type: IrType): NotMockable? = problemOf(type.makeNotNull().removeAnnotations())
 
     private fun IrClass.problem(): ClassProblem? {
-        val frontend = declarationKindProblem(kind, modality, isFromFriendKotlinModule && !isValue)
+        val frontend = declarationKindProblem(kind, effectiveModality, isFromFriendKotlinModule && !isValue)
             ?: missingClassesProblem()
         if (frontend != null) return ClassProblem(frontend, isFrontendRule = true)
         val reason = when {
@@ -220,7 +222,7 @@ internal class Mockability(private val file: IrFile) {
 
     private fun IrClass.membersWithInaccessibleClasses(): String? {
         val inaccessible = simpleFunctions()
-            .filter { it.modality != Modality.FINAL && it.resolveFakeOverrideMaybeAbstractOrFail().isVisibleFrom(file) }
+            .filter { it.isOverridable && it.resolveFakeOverrideMaybeAbstractOrFail().isVisibleFrom(file) }
             .associateWith { it.inaccessibleClasses(file) }
             .filterValues { it.isNotEmpty() }
         if (inaccessible.isEmpty()) return null
@@ -242,7 +244,7 @@ internal class Mockability(private val file: IrFile) {
         simpleFunctions()
             .filter { member ->
                 !DescriptorVisibilities.isPrivate(member.visibility) &&
-                    (member.modality == Modality.FINAL || member.visibility in PROTECTED || !member.isVisibleFrom(file))
+                    (!member.isOverridable || member.visibility in PROTECTED || !member.isVisibleFrom(file))
             }
             .map { it.memberName }
             .distinct()
@@ -259,7 +261,7 @@ internal val IrClass.displayName: String
     get() = if (isLocal) name.asString() else kotlinFqName.asString()
 
 private val IrClass.canBeSubclassed: Boolean
-    get() = kind == ClassKind.CLASS && modality != Modality.FINAL && modality != Modality.SEALED
+    get() = kind == ClassKind.CLASS && effectiveModality != Modality.FINAL && effectiveModality != Modality.SEALED
 
 private val IrSimpleFunction.memberName: String
     get() = (correspondingPropertySymbol?.owner?.name ?: name).asString()

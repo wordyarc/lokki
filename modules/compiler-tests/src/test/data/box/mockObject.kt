@@ -115,6 +115,9 @@ fun box(): String {
     failure { mockObject(Clock) }.let {
         if (!it.startsWith("no active LokkiScope for mockObject()")) return "Fail: mockObject without a scope: $it"
     }
+    failure { every { Clock.now() } returns 2 }.let {
+        if (it != "Clock is not mocked in the current scope; call mockObject(Clock)") return "Fail: every without a scope: $it"
+    }
     lokkiScope { stubs() }?.let { return it }
     if (Clock.now() != 1L || isMock(Clock)) return "Fail: the scope did not remove the redirect"
     lokkiScope { scopes() }?.let { return it }
@@ -190,9 +193,12 @@ private fun stubs(): String? {
 
     unmockObject(Clock)
     if (isMock(Clock)) return "Fail: unmockObject"
-    failure { every { Clock.now() } returns 2 }.let {
+    failure { verify { Clock.now() } }.let {
         if (it != "Clock is not mocked in the current scope; call mockObject(Clock)") return "Fail: not mocked: $it"
     }
+    every { Clock.now() } returns 2
+    if (!isMock(Clock) || Clock.now() != 2L || Clock.twice() != 4L) return "Fail: every mocks an object that is not mocked"
+    unmockObject(Clock)
     mockObject(Shelf)
     every { Shelf.put("a") } returns 9
     if (Shelf.put("a") != 9 || Shelf.put("bb") != 2) return "Fail: an override with another root key"

@@ -41,7 +41,7 @@ fun test(repo: Repo, nullable: Repo?, tenant: Tenant, flag: Boolean) {
         val id = 1
         repo.find(id)
     }<!> returns "a"
-    every { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>nullable?.find(1)<!> } returns "a"
+    every { nullable?.find(1) } returns "a"
     every { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>repo == repo<!> } returns true
     every { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>repo === repo<!> } returns true
     every { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>repo < repo<!> } returns true
@@ -82,7 +82,7 @@ fun testVerify(repo: Repo, nullable: Repo?, flag: Boolean) {
         <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>val id = 2<!>
         repo.find(id)
     }
-    verify { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>nullable?.find(1)<!> }
+    verify { nullable?.find(1) }
     verify { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>repo == repo<!> }
     verify { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>repo < repo<!> }
     verify { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>"$repo"<!> }
@@ -116,7 +116,7 @@ fun testExclude(repo: Repo, nullable: Repo?, flag: Boolean) {
         <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>val id = 2<!>
         repo.find(id)
     }
-    excludeRecords { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>nullable?.find(1)<!> }
+    excludeRecords { nullable?.find(1) }
     excludeRecords { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>repo == repo<!> }
     excludeRecords { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>"$repo"<!> }
     excludeRecords { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>repo.count += 1<!> }

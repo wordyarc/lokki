@@ -10,6 +10,7 @@ import io.lokki.compiler.ir.collect.collectMockSites
 import io.lokki.compiler.ir.generate.InterceptionPoints
 import io.lokki.compiler.ir.generate.MockClassGenerator
 import io.lokki.compiler.ir.generate.MockFieldInitializers
+import io.lokki.compiler.ir.generate.MockableClasses
 import io.lokki.compiler.ir.lower.ContextBlocks
 import io.lokki.compiler.ir.lower.DslLowering
 import io.lokki.compiler.ir.lower.StaticInitializers
@@ -51,7 +52,10 @@ internal class LokkiIrGenerationExtension(
     }
 
     private fun lower(moduleFragment: IrModuleFragment, lokki: LokkiIrContext) {
-        mockable?.let { InterceptionPoints(lokki, it).generate(moduleFragment) }
+        mockable?.let {
+            MockableClasses(lokki, it).open(moduleFragment)
+            InterceptionPoints(lokki, it).generate(moduleFragment)
+        }
         if (!lokki.symbols.isRuntimeAvailable) return
         val generator = MockClassGenerator(lokki)
         val staticInitializers = StaticInitializers(lokki)

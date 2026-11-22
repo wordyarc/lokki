@@ -132,9 +132,9 @@ scope. Outside a scope, `mockObject`, `mockStatic` and the calls without argumen
 ### Final classes, objects and top-level functions
 
 Without an agent, only calls of open members can be intercepted. Declarations of the module's main code that match a
-`mockable` pattern are compiled differently: classes and their members become open, and `object`s and top-level
-functions get interception points. A pattern is a package with its subpackages (`com.example.**`), a class, an
-annotation or a function.
+`mockable` pattern are compiled differently: classes and their members are open in the bytecode, and `object`s and
+top-level functions get interception points. A pattern is a package with its subpackages (`com.example.**`), a class,
+an annotation or a function.
 
 ```kotlin
 // build.gradle.kts
@@ -154,18 +154,19 @@ object Clock {
 // src/test/kotlin, in a test with LokkiExtension
 @Test
 fun morning() {
-    mockObject(Clock)
     every { Clock.hour() } returns 9
     // Clock is restored when the test's scope closes
 }
 ```
 
-`mockStatic(::function)` does the same for top-level functions and properties, including extensions. An overloaded
-or generic function cannot be passed to it: Kotlin does not resolve such a reference.
+`every` mocks the object in the current scope by itself; `mockObject(Clock)` records its calls for `verify` without
+a stub. `mockStatic(::function)` does the same for top-level functions and properties, including extensions. An
+overloaded or generic function cannot be passed to it: Kotlin does not resolve such a reference.
 
-This changes the main bytecode: matching classes are open, and every call of an intercepted function reads a volatile
-field. The plugin warns if the project applies `maven-publish`. As with `allopen`, main code can no longer smart cast
-properties of the opened classes: `if (settings.name != null) use(settings.name)` needs a local variable.
+Only the bytecode changes: Kotlin still compiles matching classes as final, so smart casts and initialization rules of
+main code stay as they are, and only mocks override the members. Inline and `tailrec` functions and `@JvmField`
+properties stay final. Every call of an intercepted function reads a volatile field. The plugin warns if the project
+applies `maven-publish`.
 
 ## Configuration
 
@@ -186,6 +187,10 @@ Imports move to `io.lokki`, and names that contain `mockk` or `MockK` change:
 | `mockkObject`, `mockkStatic`, `unmockkAll` | `mockObject`, `mockStatic`, `unmockAll` |
 | `@MockK`, `@RelaxedMockK`, `@SpyK`, `@InjectMockKs` | `@Mock`, `@RelaxedMock`, `@Spy`, `@InjectMocks` |
 | `MockKExtension`, `MockKAnnotations`, `MockKException` | `LokkiExtension`, `MockAnnotations`, `LokkiException` |
+| `MockKMatcherScope` | `MatcherScope` |
+| `any(Foo::class)` | `any<Foo>()` |
+| `just runs`, `wasNot called` | `just Runs`, `wasNot Called` |
+| `mockkStatic("com.example.FileKt")`, `mockkStatic(Foo::class)` | `mockStatic(::function)` for each function, or just `every { function() }` |
 
 Behaviour that differs:
 
@@ -194,11 +199,15 @@ Behaviour that differs:
 - A call chain such as `every { car.door().open() }` stubs `car.door()` with a child mock only when the call has no
   answer yet; a stubbed `car.door()` keeps its answer. Relaxed mocks return child mocks only in files annotated with
   `@file:ChainedMocks`.
-- A relaxed mock returns `null` for nullable types and empty values for primitives, strings, collections and arrays.
-  A call that returns any other type throws `LokkiException`.
+- A relaxed mock returns `null` for nullable types and for a type parameter of a Java method (`<T> T query(...)`),
+  and empty values for primitives, strings, collections and arrays. A call that returns any other type throws
+  `LokkiException`.
 - A mock call without an answer fails the test even if the code under test catches the exception.
 - Spies are not copies: `spy(Foo(args))` constructs the spy itself, and `spy(existing)` forwards calls to `existing`.
 - Calls of `equals`, `hashCode` and `toString` are not recorded.
+- `mock.javaClass` is a generated subclass of the mocked class, not the class itself.
+- `coVerify` does not run coroutines that are still waiting to be dispatched: MockK runs them as a side effect of its
+  `runBlocking`. Start them with `CoroutineStart.UNDISPATCHED` or let them complete before verifying.
 
 ## Limitations
 

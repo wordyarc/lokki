@@ -6,28 +6,30 @@
 
 /typeNotMockable.kt:43:10: error: 'sample.Garage' cannot be mocked: it is an object.
 
-/typeNotMockable.kt:44:10: error: 'sample.Color' cannot be mocked: it is an enum class.
+/typeNotMockable.kt:44:10: error: 'kotlin.Unit' cannot be mocked: it is an object. To answer a call that returns 'Unit', use 'just Runs'.
 
-/typeNotMockable.kt:45:10: error: 'sample.Marker' cannot be mocked: it is an annotation class.
+/typeNotMockable.kt:45:10: error: 'sample.Color' cannot be mocked: it is an enum class.
 
-/typeNotMockable.kt:46:10: error: 'sample.Shape' cannot be mocked: it is sealed.
+/typeNotMockable.kt:46:10: error: 'sample.Marker' cannot be mocked: it is an annotation class.
 
-/typeNotMockable.kt:47:10: error: 'sample.Part' cannot be mocked: it is sealed.
+/typeNotMockable.kt:47:10: error: 'sample.Shape' cannot be mocked: it is sealed.
 
-/typeNotMockable.kt:48:10: error: 'sample.Bolt' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+/typeNotMockable.kt:48:10: error: 'sample.Part' cannot be mocked: it is sealed.
 
-/typeNotMockable.kt:49:10: error: 'kotlin.String' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+/typeNotMockable.kt:49:10: error: 'sample.Bolt' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
 
-/typeNotMockable.kt:50:10: error: 'kotlin.Int' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+/typeNotMockable.kt:50:10: error: 'kotlin.String' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
 
-/typeNotMockable.kt:51:10: error: 'kotlin.Array' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+/typeNotMockable.kt:51:10: error: 'kotlin.Int' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
 
-/typeNotMockable.kt:52:10: error: Cannot use 'Nothing' as reified type parameter.
+/typeNotMockable.kt:52:10: error: 'kotlin.Array' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
 
-/typeNotMockable.kt:53:22: error: 'sample.Bolt' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+/typeNotMockable.kt:53:10: error: Cannot use 'Nothing' as reified type parameter.
 
 /typeNotMockable.kt:54:22: error: 'sample.Bolt' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
 
-/typeNotMockable.kt:62:10: warning: 'kotlin.collections.List' should not be mocked: use a real 'kotlin.collections.Collection' instead.
+/typeNotMockable.kt:55:22: error: 'sample.Bolt' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
 
-/typeNotMockable.kt:70:10: error: 'Local' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+/typeNotMockable.kt:63:10: warning: 'kotlin.collections.List' should not be mocked: use a real 'kotlin.collections.Collection' instead.
+
+/typeNotMockable.kt:71:10: error: 'Local' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.

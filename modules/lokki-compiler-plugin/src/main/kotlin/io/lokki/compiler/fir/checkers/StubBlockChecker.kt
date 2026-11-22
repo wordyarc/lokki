@@ -17,6 +17,7 @@ import io.lokki.compiler.fir.displayName
 import io.lokki.compiler.fir.intrinsicKind
 import io.lokki.compiler.fir.isFinalType
 import io.lokki.compiler.fir.isMemberOfAny
+import io.lokki.compiler.fir.isOpenedInBytecode
 import io.lokki.compiler.fir.objectInterception
 import io.lokki.compiler.fir.staticInterception
 import io.lokki.compiler.linked
@@ -42,6 +43,7 @@ import org.jetbrains.kotlin.fir.expressions.FirAnonymousFunctionExpression
 import org.jetbrains.kotlin.fir.expressions.FirBlock
 import org.jetbrains.kotlin.fir.expressions.FirCall
 import org.jetbrains.kotlin.fir.expressions.FirCheckNotNullCall
+import org.jetbrains.kotlin.fir.expressions.FirCheckedSafeCallSubject
 import org.jetbrains.kotlin.fir.expressions.FirComparisonExpression
 import org.jetbrains.kotlin.fir.expressions.FirEqualityOperatorCall
 import org.jetbrains.kotlin.fir.expressions.FirExpression
@@ -83,6 +85,7 @@ import org.jetbrains.kotlin.fir.types.coneType
 import org.jetbrains.kotlin.fir.types.renderReadable
 import org.jetbrains.kotlin.fir.types.resolvedType
 import org.jetbrains.kotlin.fir.visitors.FirVisitorVoid
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.util.OperatorNameConventions
 
 context(context: CheckerContext, reporter: DiagnosticReporter)
@@ -176,8 +179,6 @@ private class StubBlock(
                 "is a compound assignment, which reads and writes the property. " +
                     "$action the setter with a plain assignment of a matcher",
             )
-            statement is FirSafeCallExpression ->
-                notSingleCall(statement, "is a safe call. Use '!!' on the receiver instead of '?.'")
             statement is FirEqualityOperatorCall ->
                 notSingleCall(statement, "compares values with an operator${callExplicitly("equals")}")
             statement is FirComparisonExpression ->
@@ -233,15 +234,25 @@ private class StubBlock(
                 checkArguments(call, callee, arguments)
             arguments.any { it.unwrapArgument() is FirAnonymousFunctionExpression } -> notSingleCall(
                 statement,
-                "wraps the call into a lambda. Move the wrapping call outside the block" +
-                    " or match its context with 'withContext'".takeIf { arguments.any { it.hasContextLambda() } }
-                        .orEmpty(),
+                "wraps the call into a lambda. " + when {
+                    callee.callableId?.asSingleFqName() in COROUTINE_BUILDERS -> coroutineAdvice(callee)
+                    else -> "Move the wrapping call outside the block" +
+                        " or match its context with 'withContext'".takeIf { arguments.any { it.hasContextLambda() } }
+                            .orEmpty()
+                },
             )
             call.extensionReceiver != null ->
                 notInterceptable(call, callee, "it is an extension, not a member. $action the member it calls")
             else -> notInterceptable(call, callee, "it is not a member")
         }
     }
+
+    private fun coroutineAdvice(builder: FirCallableSymbol<*>): String =
+        when {
+            function.startsWith("co") -> "Remove '${builder.name}': '$function' takes suspend calls"
+            else -> "Use 'co${function.replaceFirstChar(Char::uppercaseChar)}' instead of '${builder.name}': " +
+                "it takes suspend calls"
+        }
 
     private fun checkMemberCall(
         call: FirQualifiedAccessExpression,
@@ -375,9 +386,9 @@ private class StubBlock(
             inline -> "it is inline. $action the member it calls"
             interception is MemberInterception.NotIntercepted -> interception.reason
             interception == MemberInterception.Intercepted -> null
-            callee.modality == Modality.FINAL -> "it is final"
+            callee.modality == Modality.FINAL && !callee.isOpenedInBytecode(session) -> "it is final"
             else -> receiver.resolvedType.fullyExpandedType(session).toRegularClassSymbol(session)
-                ?.takeIf { it.isFinalType }
+                ?.takeIf { it.isFinalType && !it.isOpenedInBytecode(session) }
                 ?.let { "its receiver type '${it.displayName}' is final" }
         }
     }
@@ -532,6 +543,8 @@ private val FirStatement.wrapped: FirExpression?
     get() = when {
         this is FirTypeOperatorCall && operation == FirOperation.AS -> argument
         this is FirCheckNotNullCall -> argument
+        this is FirSafeCallExpression -> selector as? FirExpression
+        this is FirCheckedSafeCallSubject -> originalReceiverRef.value
         this is FirSmartCastExpression -> originalExpression
         else -> null
     }
@@ -567,3 +580,8 @@ private val FirStatement.isCompoundAssignment: Boolean
     }
 
 private const val SINGLE_CALL = "be a single call of a mock member"
+
+private val COROUTINE_BUILDERS = setOf(
+    FqName("kotlinx.coroutines.runBlocking"),
+    FqName("kotlinx.coroutines.test.runTest"),
+)

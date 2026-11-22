@@ -5,7 +5,6 @@ import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.MatcherNames
 import io.lokki.compiler.STUB_BLOCKS
 import io.lokki.compiler.VERIFY_BLOCKS
-import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
@@ -21,6 +20,7 @@ import org.jetbrains.kotlin.ir.expressions.IrGetValue
 import org.jetbrains.kotlin.ir.expressions.IrReturn
 import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.expressions.IrVararg
+import org.jetbrains.kotlin.ir.expressions.IrWhen
 import org.jetbrains.kotlin.ir.types.isUnit
 import org.jetbrains.kotlin.ir.util.erasedUpperBound
 import org.jetbrains.kotlin.ir.util.isMethodOfAny
@@ -89,6 +89,7 @@ private fun IrStatement.unwrapped(): IrStatement? {
 }
 
 internal fun IrExpression.memberCall(): StubbedCall? {
+    if (this is IrBlock && origin == IrStatementOrigin.SAFE_CALL) return safeCall()
     var expression: IrStatement? = this
     var frozen = emptyList<IrVariable>()
     if (expression is IrBlock && expression.origin == IrStatementOrigin.ARGUMENTS_REORDERING_FOR_CALL) {
@@ -110,8 +111,24 @@ internal fun IrExpression.memberCall(): StubbedCall? {
     )
 }
 
+private fun IrBlock.safeCall(): StubbedCall? {
+    val subject = statements.firstOrNull() as? IrVariable ?: return null
+    val selector = (statements.lastOrNull() as? IrWhen)?.branches?.lastOrNull()?.result ?: return null
+    val selected = generateSequence(selector) { it.wrapped }.last().memberCall() ?: return null
+    fun IrExpression.subjectValue(): IrExpression? {
+        val value = generateSequence(this) { it.wrapped }.last()
+        return if ((value as? IrGetValue)?.symbol == subject.symbol) subject.initializer else this
+    }
+    return StubbedCall(
+        selected.call,
+        selected.receiver?.subjectValue(),
+        selected.arguments.map { it?.subjectValue() },
+        selected.order,
+    )
+}
+
 internal val IrSimpleFunction.isLink: Boolean
-    get() = modality != Modality.FINAL && !isMethodOfAny()
+    get() = isOverridable && !isMethodOfAny()
 
 private val IrExpression?.isAllAny: Boolean
     get() = when (this) {

@@ -91,7 +91,7 @@ private fun missingInterceptionPoints(): String? =
         .takeUnless { context.session.lokkiEnvironment.interceptionPoints }
 
 @OptIn(SymbolInternals::class)
-private fun FirBasedSymbol<*>.mark(): InterceptionMark =
+internal fun FirBasedSymbol<*>.mark(): InterceptionMark =
     InterceptionMark.of(fir.compilerPluginMetadata?.get(BuildConfig.COMPILER_PLUGIN_ID))
 
 private const val DECLARED_HERE =

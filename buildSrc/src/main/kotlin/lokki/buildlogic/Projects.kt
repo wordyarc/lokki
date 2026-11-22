@@ -17,7 +17,7 @@ const val MOCKABLE_OPTION = "mockable"
 
 const val DEBUG_OPTION = "debug"
 
-const val LOKKI_ABI_VERSION = 1
+const val LOKKI_ABI_VERSION = 2
 
 val LOKKI_ABI_FLAGS = mapOf(
     "FLAG_RELAXED" to 1,

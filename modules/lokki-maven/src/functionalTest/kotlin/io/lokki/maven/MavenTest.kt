@@ -67,6 +67,20 @@ class MavenTest {
     }
 
     @Test
+    fun testRebuildOfMockableMainWithoutClean() {
+        assumeInterceptionPoints()
+        val project = TestProject(projectDir)
+        project.pom(compileConfiguration = MOCKABLE_OPTIONS)
+        project.write("src/main/kotlin/sample/Clock.kt", CLOCK)
+        project.write("src/test/kotlin/sample/ClockTest.kt", CLOCK_TEST)
+
+        project.build("test", "-Dlokki.mockablePublication.nowarn=true")
+        project.build("test", "-Dlokki.mockablePublication.nowarn=true")
+
+        assertEquals(3, project.testCount("sample.ClockTest"))
+    }
+
+    @Test
     fun testMockableInPluginConfiguration() {
         val project = TestProject(projectDir)
         project.pom(configuration = MOCKABLE_OPTIONS)

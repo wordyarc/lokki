@@ -59,8 +59,16 @@ class MockStaticTest {
     }
 
     @Test
-    fun stubWithoutMockStaticFails() {
-        val exception = assertFailsWith<LokkiException> { every { today() } returns "x" }
+    fun stubMocksTheFunction() {
+        every { today() } returns "later"
+
+        assertEquals("issued later", stamp())
+        verify { today() }
+    }
+
+    @Test
+    fun verificationWithoutMockStaticFails() {
+        val exception = assertFailsWith<LokkiException> { verify { today() } }
 
         assertEquals("::today is not mocked in the current scope; call mockStatic(::today)", exception.message)
     }

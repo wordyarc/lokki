@@ -16,6 +16,10 @@ public interface JavaDefaults {
 
     Thread thread();
 
+    <T> T query(String sql, List<T> rows);
+
+    <T extends CharSequence> T first(List<T> values);
+
     void run();
 }
 
@@ -209,6 +213,9 @@ fun box(): String {
     if (java.array().javaClass != Array<String>::class.java) return "Fail Java array"
     val thread = missing { java.thread() }
     if (thread != noChild("Thread", "JavaDefaults.thread()")) return "Fail Java message: $thread"
+    val row: String? = java.query("select", listOf("a"))
+    val first: String? = java.first(listOf("b"))
+    if (row != null || first != null) return "Fail Java type parameter: $row $first"
 
     return "OK"
 }

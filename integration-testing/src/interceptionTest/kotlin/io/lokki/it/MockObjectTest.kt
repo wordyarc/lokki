@@ -59,8 +59,16 @@ class MockObjectTest {
     }
 
     @Test
-    fun stubWithoutMockObjectFails() {
-        val exception = assertFailsWith<LokkiException> { every { Clock.now() } returns 1 }
+    fun stubMocksTheObject() {
+        every { Clock.now() } returns 3
+
+        assertEquals(3, Ticket.issue().issued)
+        verify { Clock.now() }
+    }
+
+    @Test
+    fun verificationWithoutMockObjectFails() {
+        val exception = assertFailsWith<LokkiException> { verify { Clock.now() } }
 
         assertEquals("Clock is not mocked in the current scope; call mockObject(Clock)", exception.message)
     }

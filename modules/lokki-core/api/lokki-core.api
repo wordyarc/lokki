@@ -608,6 +608,8 @@ public final class io/lokki/internal/Redirects {
 	public final fun mockStatic ([Lio/lokki/internal/Redirect;Lkotlin/jvm/functions/Function0;)V
 	public final fun of (Ljava/lang/Object;Ljava/lang/String;)Lio/lokki/internal/GeneratedMock;
 	public final fun ofStatic (Ljava/lang/Object;Ljava/lang/String;)Lio/lokki/internal/GeneratedMock;
+	public final fun stubbed (Lio/lokki/internal/Redirect;)Lio/lokki/internal/GeneratedMock;
+	public final fun stubbedStatic (Lio/lokki/internal/Redirect;)Lio/lokki/internal/GeneratedMock;
 	public final fun uninstall (Ljava/util/List;)V
 	public final fun unmock ([Ljava/lang/Object;)V
 }

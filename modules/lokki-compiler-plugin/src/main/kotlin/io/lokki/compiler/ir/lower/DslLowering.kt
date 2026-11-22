@@ -1,7 +1,6 @@
 package io.lokki.compiler.ir.lower
 
 import io.lokki.compiler.CoreClass
-import io.lokki.compiler.CoreConstructor
 import io.lokki.compiler.CoreFunction
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.ParameterNames
@@ -12,7 +11,6 @@ import io.lokki.compiler.ir.LokkiIrContext
 import io.lokki.compiler.ir.Redirect
 import io.lokki.compiler.ir.StaticRedirect
 import io.lokki.compiler.ir.argument
-import io.lokki.compiler.ir.buildLambda
 import io.lokki.compiler.ir.collect.MockClassKey
 import io.lokki.compiler.ir.collect.MockForm
 import io.lokki.compiler.ir.collect.MockSite
@@ -21,8 +19,8 @@ import io.lokki.compiler.ir.collect.spiedInstance
 import io.lokki.compiler.ir.generate.MOCK_FLAGS
 import io.lokki.compiler.ir.generate.irConstruct
 import io.lokki.compiler.ir.generate.irDelegatingSpy
-import io.lokki.compiler.ir.generate.irFactory
 import io.lokki.compiler.ir.generate.irNewMock
+import io.lokki.compiler.ir.generate.irRedirect
 import io.lokki.compiler.ir.generate.irSpec
 import io.lokki.compiler.ir.generate.replaceConstructorCall
 import io.lokki.compiler.ir.generate.spyFlags
@@ -33,20 +31,15 @@ import io.lokki.compiler.ir.mockedObjects
 import io.lokki.compiler.ir.referencedDeclaration
 import io.lokki.compiler.ir.staticReferences
 import io.lokki.compiler.ir.temporary
-import io.lokki.compiler.ir.toLambda
 import io.lokki.compiler.isReferable
 import org.jetbrains.kotlin.backend.common.IrElementTransformerVoidWithContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
-import org.jetbrains.kotlin.ir.builders.declarations.addValueParameter
-import org.jetbrains.kotlin.ir.builders.irAs
-import org.jetbrains.kotlin.ir.builders.irBlockBody
 import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irCallOp
 import org.jetbrains.kotlin.ir.builders.irFalse
-import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.builders.irIfThenElse
 import org.jetbrains.kotlin.ir.builders.irInt
 import org.jetbrains.kotlin.ir.builders.irNull
@@ -59,7 +52,6 @@ import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrFunctionReference
 import org.jetbrains.kotlin.ir.expressions.IrRichFunctionReference
-import org.jetbrains.kotlin.ir.types.makeNullable
 import org.jetbrains.kotlin.ir.types.typeWith
 import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.patchDeclarationParents
@@ -246,22 +238,8 @@ internal class DslLowering(
             statics.map { irInvoke(symbols[CoreFunction.STATIC_REDIRECT_OF], irString(it.key), irString(it.name)) },
         )
 
-    private fun IrBuilderWithScope.irRedirect(target: IrExpression, redirect: Redirect): IrExpression {
-        val site = redirect.site
-        val mock = mocks.getValue(site.key)
-        val install = context.buildLambda(startOffset, endOffset, context.irBuiltIns.unitType)
-        val value = install.addValueParameter("redirect", context.irBuiltIns.anyNType)
-        install.body = DeclarationIrBuilder(context, install.symbol, startOffset, endOffset).irBlockBody {
-            +irInvoke(redirect.property.setter!!, irAs(irGet(value), redirect.redirect.defaultType.makeNullable()))
-        }
-        return irInvoke(
-            symbols[CoreConstructor.REDIRECT],
-            target,
-            irString(redirect.name),
-            irFactory(symbols, mock, site.types),
-            install.toLambda(context.irBuiltIns),
-        )
-    }
+    private fun IrBuilderWithScope.irRedirect(target: IrExpression, redirect: Redirect): IrExpression =
+        irRedirect(symbols, mocks.getValue(redirect.site.key), target, redirect)
 
     private fun IrBuilderWithScope.irFlags(call: IrCall): IrExpression {
         var constant = 0

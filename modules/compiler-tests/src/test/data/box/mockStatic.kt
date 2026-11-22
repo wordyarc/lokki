@@ -125,6 +125,11 @@ fun box(): String {
     failure { mockStatic(::buildCar) }.let {
         if (!it.startsWith("no active LokkiScope for mockStatic()")) return "Fail: mockStatic without a scope: $it"
     }
+    failure { every { buildCar() } returns "a" }.let {
+        if (it != "::buildCar is not mocked in the current scope; call mockStatic(::buildCar)") {
+            return "Fail: every without a scope: $it"
+        }
+    }
     lokkiScope { stubs() }?.let { return it }
     if (buildCar() != "car:red") return "Fail: the scope did not remove the redirect"
     lokkiScope { references() }?.let { return it }
@@ -204,9 +209,12 @@ private fun stubs(): String? {
 
     unmockStatic(::buildCar)
     if (buildCar("x") != "car:x") return "Fail: unmockStatic"
-    failure { every { buildCar() } returns "a" }.let {
+    failure { verify { buildCar() } }.let {
         if (it != "::buildCar is not mocked in the current scope; call mockStatic(::buildCar)") return "Fail: $it"
     }
+    every { buildCar() } returns "a"
+    if (buildCar() != "a" || buildCar("x") != "car:x") return "Fail: every mocks a function that is not mocked"
+    verify { buildCar() }
     unmockAll()
     if (5 op 6 != 11) return "Fail: unmockAll"
     return null

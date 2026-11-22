@@ -1,0 +1,7 @@
+/coroutineBuilderInBlock.kt:18:13: error: The block of 'every' must be a single call of a mock member, but it wraps the call into a lambda. Use 'coEvery' instead of 'runBlocking': it takes suspend calls.
+
+/coroutineBuilderInBlock.kt:19:14: error: The block of 'verify' must consist of calls of mock members, but it wraps the call into a lambda. Use 'coVerify' instead of 'runBlocking': it takes suspend calls.
+
+/coroutineBuilderInBlock.kt:20:15: error: The block of 'coEvery' must be a single call of a mock member, but it wraps the call into a lambda. Remove 'runBlocking': 'coEvery' takes suspend calls.
+
+/coroutineBuilderInBlock.kt:21:16: error: The block of 'coVerify' must consist of calls of mock members, but it wraps the call into a lambda. Remove 'runBlocking': 'coVerify' takes suspend calls.

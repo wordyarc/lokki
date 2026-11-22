@@ -3,6 +3,7 @@ package io.lokki.compiler.ir.generate
 import io.lokki.compiler.CoreConstructor
 import io.lokki.compiler.ir.LokkiIrContext
 import io.lokki.compiler.ir.collect.referencedTypeParameters
+import io.lokki.compiler.ir.effectiveModality
 import io.lokki.compiler.ir.irInvoke
 import io.lokki.compiler.ir.renderReadable
 import org.jetbrains.kotlin.descriptors.ClassKind
@@ -16,6 +17,7 @@ import org.jetbrains.kotlin.ir.builders.irGetObjectValue
 import org.jetbrains.kotlin.ir.builders.irInt
 import org.jetbrains.kotlin.ir.builders.irString
 import org.jetbrains.kotlin.ir.declarations.IrClass
+import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.declarations.IrTypeParameter
 import org.jetbrains.kotlin.ir.expressions.IrExpression
@@ -57,7 +59,10 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
         val platform = type.hasAnnotation(StandardClassIds.Annotations.FlexibleNullability)
         if (type.isMarkedNullable() && !platform) return null
         val klass = when (val classifier = type.classifierOrNull) {
-            is IrTypeParameterSymbol -> return missing("type parameter ${parameterName(classifier.owner)}")
+            is IrTypeParameterSymbol -> return when {
+                platform && classifier.owner.parent is IrFunction -> null
+                else -> missing("type parameter ${parameterName(classifier.owner)}")
+            }
             is IrClassSymbol -> classifier
             else -> return missing(type.render())
         }
@@ -131,7 +136,7 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
 }
 
 private val IrClass.isOpen: Boolean
-    get() = modality != Modality.FINAL && modality != Modality.SEALED && when (kind) {
+    get() = effectiveModality != Modality.FINAL && effectiveModality != Modality.SEALED && when (kind) {
         ClassKind.INTERFACE -> true
         ClassKind.CLASS -> constructors.any { !DescriptorVisibilities.isPrivate(it.visibility) }
         else -> false

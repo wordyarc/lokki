@@ -24,6 +24,7 @@ import io.lokki.compiler.ir.collect.MockedTypes
 import io.lokki.compiler.ir.contains
 import io.lokki.compiler.ir.excludedCalls
 import io.lokki.compiler.ir.generate.irFactory
+import io.lokki.compiler.ir.generate.irRedirect
 import io.lokki.compiler.ir.intrinsicKind
 import io.lokki.compiler.ir.irArrayGet
 import io.lokki.compiler.ir.irArrayOf
@@ -321,7 +322,7 @@ internal class StubBlockLowering(
     ): Registration {
         val receiver = stubbed.receiver?.let { irTemporary(irLinks(block, it)) }
         val state = irTemporary(
-            irStateOf(target.redirect, receiver?.let(::irGet)) ?: fail(
+            irStateOf(block, target.redirect, receiver?.let(::irGet)) ?: fail(
                 stubbed.call,
                 "'${stubbed.call.name}' has no interception point: lokki intercepts top-level functions and " +
                     "properties of main compilations with lokki { mockable(...) }",
@@ -709,14 +710,25 @@ internal class StubBlockLowering(
         return Target(redirected?.redirect, redirected?.key ?: member.memberKeys.first())
     }
 
-    private fun IrBuilder.irStateOf(redirect: Redirect?, receiver: IrExpression?): IrExpression? {
+    private fun IrBuilderWithScope.irStateOf(
+        block: StubBlock,
+        redirect: Redirect?,
+        receiver: IrExpression?,
+    ): IrExpression? {
         if (redirect == null) return receiver?.let { irStateOf(it) }
         val name = irString(redirect.name)
-        val mock = when (redirect) {
-            is ObjectRedirect -> irInvoke(symbols[CoreFunction.REDIRECT_OF], receiver!!, name)
-            is StaticRedirect -> irInvoke(symbols[CoreFunction.STATIC_REDIRECT_OF], irString(redirect.key), name)
+        val mock = mocks[redirect.site.key]?.takeIf { block.stubs }
+        val target = when (redirect) {
+            is ObjectRedirect -> receiver!!
+            is StaticRedirect -> irString(redirect.key)
         }
-        return irInvoke(symbols.state.getter!!, receiver = mock)
+        val redirected = when {
+            mock == null && redirect is ObjectRedirect -> irInvoke(symbols[CoreFunction.REDIRECT_OF], target, name)
+            mock == null -> irInvoke(symbols[CoreFunction.STATIC_REDIRECT_OF], target, name)
+            redirect is ObjectRedirect -> irInvoke(symbols[CoreFunction.STUBBED_REDIRECT], irRedirect(symbols, mock, target, redirect))
+            else -> irInvoke(symbols[CoreFunction.STUBBED_STATIC_REDIRECT], irRedirect(symbols, mock, target, redirect))
+        }
+        return irInvoke(symbols.state.getter!!, receiver = redirected)
     }
 
     private fun IrBuilder.irStateOf(instance: IrExpression): IrExpression =
