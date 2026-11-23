@@ -38,9 +38,9 @@ internal fun checkMockObject(call: FirFunctionCall, function: FirCallableSymbol<
         val type = argument.resolvedType.fullyExpandedType()
         val symbol = type.toRegularClassSymbol()
         val reason = when {
-            symbol == null || symbol.classKind != ClassKind.OBJECT ->
-                "it is not an object: lokki intercepts calls of objects and companion objects, and an instance " +
-                    "of an open class is spied with 'spy(Foo(...))'"
+            symbol == null || symbol.classKind != ClassKind.OBJECT && symbol.classKind != ClassKind.ENUM_CLASS ->
+                "it is not an object: lokki intercepts calls of objects, companion objects and enum entries, and " +
+                    "an instance of an open class is spied with 'spy(Foo(...))'"
             else -> symbol.interceptionProblem()?.let { "it $it" }
         } ?: continue
         val name = symbol?.displayName ?: type.renderReadable()

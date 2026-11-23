@@ -26,7 +26,7 @@
 
 /test.kt:100:22: error: A call of 'LIMIT' cannot be intercepted: it is a constant, which is inlined at compile time.
 
-/test.kt:101:23: error: A call of 'hex' cannot be intercepted: its receiver type 'sample.Color' is final.
+/test.kt:101:23: error: A call of 'hex' cannot be intercepted: 'sample.Color' is declared in this compilation and has no interception points: name it in lokki { mockable(...) } (in test sources a package pattern does not apply).
 
 /test.kt:102:18: error: A call of 'length' cannot be intercepted: its receiver type 'kotlin.String' is final.
 

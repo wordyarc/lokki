@@ -8,6 +8,7 @@ internal class ConstructorMocks internal constructor(
     private val className: String,
     private val factory: (MockSpec) -> Any,
     private val scope: LokkiScope,
+    private val flags: Int = 0,
 ) {
     private val constructed = ArrayList<Constructed>()
     private val selected = ArrayList<Selected>()
@@ -34,7 +35,7 @@ internal class ConstructorMocks internal constructor(
                 it.linkStubs()
             }
         }.state
-        return MockSpec(null, SPY, state)
+        return MockSpec(null, SPY or flags, state)
     }
 
     internal fun representative(matchers: Array<Matcher<Any?>>): GeneratedMock {

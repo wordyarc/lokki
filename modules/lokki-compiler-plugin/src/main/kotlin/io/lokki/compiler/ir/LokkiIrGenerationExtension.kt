@@ -5,6 +5,7 @@ import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.MockablePatterns
 import io.lokki.compiler.compat.CompilerCompat
 import io.lokki.compiler.ir.collect.Mockability
+import io.lokki.compiler.ir.collect.ReifiedHelpers
 import io.lokki.compiler.ir.collect.collectMockFields
 import io.lokki.compiler.ir.collect.collectMockSites
 import io.lokki.compiler.ir.generate.InterceptionPoints
@@ -12,6 +13,7 @@ import io.lokki.compiler.ir.generate.MockClassGenerator
 import io.lokki.compiler.ir.generate.MockFieldInitializers
 import io.lokki.compiler.ir.generate.MockParameterFactories
 import io.lokki.compiler.ir.generate.MockableClasses
+import io.lokki.compiler.ir.generate.PrivateMembers
 import io.lokki.compiler.ir.lower.ConstructorCalls
 import io.lokki.compiler.ir.lower.ContextBlocks
 import io.lokki.compiler.ir.lower.DslLowering
@@ -57,6 +59,7 @@ internal class LokkiIrGenerationExtension(
     private fun lower(moduleFragment: IrModuleFragment, lokki: LokkiIrContext) {
         mockable?.let {
             MockableClasses(lokki, it).open(moduleFragment)
+            PrivateMembers(lokki, it).generate(moduleFragment)
             InterceptionPoints(lokki, it).generate(moduleFragment)
         }
         val constructorCalls = ConstructorCalls(lokki)
@@ -69,9 +72,10 @@ internal class LokkiIrGenerationExtension(
         val fieldInitializers = MockFieldInitializers(lokki)
         val parameterFactories = MockParameterFactories(lokki)
         val contextBlocks = ContextBlocks(lokki)
+        val reifiedHelpers = ReifiedHelpers(lokki).apply { collect(moduleFragment) }
         val files = moduleFragment.files.map { file ->
             val mockability = Mockability(file, lokki.typeSystem)
-            FileContext(file, lokki, mockability, file.collectMockFields(mockability, lokki.typeSystem))
+            FileContext(file, lokki, mockability, file.collectMockFields(mockability, lokki.typeSystem), reifiedHelpers)
         }
         fieldInitializers.declare(files.map { it.fields })
         for (file in files) {

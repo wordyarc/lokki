@@ -33,7 +33,7 @@ abstract class Engine {
 
 abstract class Diesel : Engine()
 
-fun AnswerScope<Int>.original(): Int = callOriginal()
+fun AnswerScope<Int, Int>.original(): Int = callOriginal()
 
 fun test() {
     val pump = mock<Pump>()

@@ -290,7 +290,7 @@ class IncrementalCompilationTest {
                 coEvery { car.park() } coAnswers { original() }
             }
 
-            private suspend fun AnswerScope<String>.original(): String = coCallOriginal()
+            private suspend fun AnswerScope<String, String>.original(): String = coCallOriginal()
             """,
         )
         project.write(
@@ -769,6 +769,85 @@ class IncrementalCompilationTest {
         assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
         assertEquals(setOf("EngineFactory.kt", "EngineTest.kt"), project.compiledSources(":compileTestKotlin"))
     }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testNewPrivateFunctionOfMockableClassInMain(gradle: GradleUnderTest) {
+        assumeInterceptionPoints()
+        val project = TestProject(projectDir, gradle)
+        project.write("build.gradle.kts", mockableBuildScript("sample.**"))
+        project.write("src/main/kotlin/sample/Engine.kt", declaration("class Engine", "fun start(): String = \"started\""))
+        project.write("src/main/kotlin/sample/Mechanic.kt", exercise("Engine", "start()"))
+        project.write("src/test/kotlin/sample/EngineTest.kt", mockTest("EngineTest", "Engine"))
+        project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
+        project.build("test")
+        assertEquals(setOf("start()"), project.mockedMethods("test", ENGINE_MOCK))
+
+        project.write(
+            "src/main/kotlin/sample/Engine.kt",
+            declaration("class Engine", "fun start(): String = hidden()", "private fun hidden() = \"started\""),
+        )
+        val result = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
+        assertEquals(setOf("EngineTest.kt"), project.compiledSources(":compileTestKotlin"))
+        assertTrue(project.syntheticMethods("test", ENGINE_MOCK).any { it.startsWith("hidden\$lokkiPrivate\$") })
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testNewMemberOfMockableEnumInMain(gradle: GradleUnderTest) {
+        assumeInterceptionPoints()
+        val project = TestProject(projectDir, gradle)
+        project.write("build.gradle.kts", mockableBuildScript("sample.**"))
+        project.write("src/main/kotlin/sample/Level.kt", enumLevel("fun label() = name"))
+        project.write("src/test/kotlin/sample/LevelTest.kt", ENUM_TEST)
+        project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
+        project.build("test")
+
+        project.write("src/main/kotlin/sample/Level.kt", enumLevel("fun label() = name", "fun weight() = 1"))
+        val result = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
+        assertEquals(setOf("LevelTest.kt"), project.compiledSources(":compileTestKotlin"))
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testInlineHelperStartsToMockItsTypeParameter(gradle: GradleUnderTest) {
+        val project = jvmProject(gradle)
+        project.write("src/main/kotlin/sample/Car.kt", declaration("interface Car", "fun drive(): String"))
+        project.write("src/test/kotlin/sample/Helper.kt", reifiedHelper("fallback"))
+        project.write("src/test/kotlin/sample/HelperTest.kt", REIFIED_HELPER_TEST)
+        project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
+        project.build("test")
+
+        project.write("src/test/kotlin/sample/Helper.kt", reifiedHelper("mock<T>(relaxed = true)"))
+        val result = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
+        assertEquals(setOf("Helper.kt", "HelperTest.kt"), project.compiledSources(":compileTestKotlin"))
+    }
+
+    private fun enumLevel(vararg members: String): String =
+        """
+        package sample
+
+        enum class Level {
+            LOW;
+
+            ${members.joinToString("\n\n            ")}
+        }
+        """.trimIndent()
+
+    private fun reifiedHelper(body: String): String =
+        """
+        package sample
+
+        import io.lokki.mock
+
+        inline fun <reified T : Any> helper(fallback: T): T = $body
+        """.trimIndent()
 
     private fun constructorCallProject(gradle: GradleUnderTest, pattern: String): TestProject {
         val project = TestProject(projectDir, gradle)
@@ -1255,6 +1334,43 @@ private const val ENGINE_CALL_TEST: String =
         }
     }
     """
+private val ENUM_TEST =
+    """
+    package sample
+
+    import io.lokki.every
+    import io.lokki.lokkiScope
+    import kotlin.test.Test
+    import kotlin.test.assertEquals
+
+    class LevelTest {
+        @Test
+        fun entryAnswersWithTheStub() = lokkiScope {
+            every { Level.LOW.label() } returns "stub"
+            assertEquals("stub", Level.LOW.label())
+        }
+    }
+    """.trimIndent()
+
+private val REIFIED_HELPER_TEST =
+    """
+    package sample
+
+    import kotlin.test.Test
+
+    private class RealCar : Car {
+        override fun drive() = "real"
+    }
+
+    class HelperTest {
+        @Test
+        fun helperCreatesAMockOrKeepsTheFallback() = io.lokki.lokkiScope {
+            val car = helper<Car>(RealCar())
+            assert(car.drive() == "real" || car.drive() == "")
+        }
+    }
+    """.trimIndent()
+
 private const val ENGINE_MOCK = "sample.Engine\$LokkiMock\$dabe4326\$EngineTestKt"
 private const val CLOCK_REDIRECT_MOCK = "sample.LokkiRedirect\$LokkiMock\$40c3b43e\$ClockTestKt"
 private const val OBJECT_TEST: String =

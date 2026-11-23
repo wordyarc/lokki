@@ -48,10 +48,12 @@ import org.jetbrains.kotlin.fir.references.toResolvedCallableSymbol
 import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
 import org.jetbrains.kotlin.fir.resolve.getContainingClassSymbol
 import org.jetbrains.kotlin.fir.resolve.toRegularClassSymbol
+import org.jetbrains.kotlin.fir.resolve.toSymbol
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirConstructorSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirTypeParameterSymbol
 import org.jetbrains.kotlin.fir.types.ConeDefinitelyNotNullType
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.fir.types.ConeTypeParameterType
@@ -77,8 +79,21 @@ internal fun checkMock(call: FirFunctionCall, function: FirCallableSymbol<*>, ki
     val type = instance?.constructedType()
         ?: argument.toConeTypeProjection().type?.lowerBoundIfFlexible()?.fullyExpandedType()
         ?: return
+    if (kind == IntrinsicKind.MOCK && type.isReifiedHelperParameter && !call.hasMoreInterfaces()) return
     val mocked = MockedType(kind, type, source, "The type argument", function.name.asString())
     mocked.check { moreInterfaces(call, function) }
+}
+
+context(context: CheckerContext)
+private val ConeKotlinType.isReifiedHelperParameter: Boolean
+    get() {
+        val parameter = (this as? ConeTypeParameterType)?.toSymbol(context.session) as? FirTypeParameterSymbol
+        return parameter?.isReified == true && parameter.containingDeclarationSymbol is FirNamedFunctionSymbol
+    }
+
+private fun FirFunctionCall.hasMoreInterfaces(): Boolean {
+    val interfaces = argument(ParameterNames.MORE_INTERFACES)?.unwrapArgument() ?: return false
+    return (interfaces as? FirVarargArgumentsExpression)?.arguments?.isNotEmpty() != false
 }
 
 context(context: CheckerContext, reporter: DiagnosticReporter)

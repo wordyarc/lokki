@@ -6,6 +6,7 @@ import lokki.buildlogic.DEBUG_OPTION
 import lokki.buildlogic.FILE_REDIRECT_SUFFIX
 import lokki.buildlogic.LOKKI_ABI_FLAGS
 import lokki.buildlogic.LOKKI_ABI_VERSION
+import lokki.buildlogic.PRIVATE_HOOK_INFIX
 import lokki.buildlogic.MOCKABLE_OPTION
 import lokki.buildlogic.RESTRICTED_OPTION
 import lokki.buildlogic.MergeCompilerCompatServices
@@ -67,6 +68,7 @@ buildConfig {
     buildConfigField("DEBUG_OPTION", DEBUG_OPTION)
     buildConfigField("LOKKI_ABI_VERSION", LOKKI_ABI_VERSION)
     buildConfigField("FILE_REDIRECT_SUFFIX", FILE_REDIRECT_SUFFIX)
+    buildConfigField("PRIVATE_HOOK_INFIX", PRIVATE_HOOK_INFIX)
     LOKKI_ABI_FLAGS.forEach { (name, flag) -> buildConfigField(name, flag) }
     buildConfigField("VERSION", version.toString())
     buildConfigField("LATEST_TESTED_KOTLIN", latestTestedKotlin)

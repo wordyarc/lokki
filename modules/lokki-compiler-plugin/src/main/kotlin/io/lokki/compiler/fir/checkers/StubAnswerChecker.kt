@@ -2,12 +2,14 @@ package io.lokki.compiler.fir.checkers
 
 import io.lokki.compiler.AWAIT_CANCELLATION
 import io.lokki.compiler.AnswerNames
+import io.lokki.compiler.CoreClass
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.STUB_BLOCKS
 import io.lokki.compiler.fir.blockArgument
 import io.lokki.compiler.fir.classifier
 import io.lokki.compiler.fir.intrinsicKind
+import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.FirElement
@@ -15,6 +17,8 @@ import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.declarations.FirAnonymousFunction
 import org.jetbrains.kotlin.fir.declarations.FirAnonymousInitializer
 import org.jetbrains.kotlin.fir.declarations.FirFunction
+import org.jetbrains.kotlin.fir.declarations.impl.FirDefaultPropertyAccessor
+import org.jetbrains.kotlin.fir.declarations.utils.hasBackingField
 import org.jetbrains.kotlin.fir.declarations.utils.isAbstract
 import org.jetbrains.kotlin.fir.expressions.FirAnonymousFunctionExpression
 import org.jetbrains.kotlin.fir.expressions.FirArgumentList
@@ -38,13 +42,18 @@ import org.jetbrains.kotlin.fir.expressions.resolvedArgumentMapping
 import org.jetbrains.kotlin.fir.expressions.unwrapArgument
 import org.jetbrains.kotlin.fir.expressions.unwrapSmartcastExpression
 import org.jetbrains.kotlin.fir.references.toResolvedCallableSymbol
+import org.jetbrains.kotlin.fir.resolve.getContainingClassSymbol
 import org.jetbrains.kotlin.fir.resolve.providers.symbolProvider
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
+import org.jetbrains.kotlin.fir.symbols.SymbolInternals
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirFunctionSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.types.ConeTypeParameterType
 import org.jetbrains.kotlin.fir.types.coneType
 import org.jetbrains.kotlin.fir.types.type
+import org.jetbrains.kotlin.fir.unwrapFakeOverrides
 import org.jetbrains.kotlin.fir.visitors.FirVisitorVoid
 
 context(context: CheckerContext, reporter: DiagnosticReporter)
@@ -64,7 +73,10 @@ context(context: CheckerContext, reporter: DiagnosticReporter)
 internal fun checkAnswer(answer: FirFunctionCall, function: FirCallableSymbol<*>) {
     when (function.name.asString()) {
         AnswerNames.RETURNS_ARGUMENT -> checkReturnsArgument(answer)
-        in AnswerNames.BLOCKS -> checkOriginalCalls(answer)
+        in AnswerNames.BLOCKS -> {
+            checkOriginalCalls(answer)
+            checkFieldValues(answer)
+        }
     }
 }
 
@@ -101,7 +113,7 @@ private fun checkOriginalCalls(answer: FirFunctionCall) {
     val block = lambda?.anonymousFunction
     val scope = block?.receiverParameter?.symbol ?: return
     val (member, _) = answer.stubBlock()?.stubbedMember() ?: return
-    if (!member.isAbstract) return
+    if (!member.isAbstract || (member.getContainingClassSymbol() as? FirRegularClassSymbol)?.classKind == ClassKind.ENUM_CLASS) return
     block.accept(object : FirVisitorVoid() {
         override fun visitElement(element: FirElement) {
             if (element is FirFunctionCall && element.isOriginalCallIn(scope)) {
@@ -115,6 +127,48 @@ private fun checkOriginalCalls(answer: FirFunctionCall) {
             element.acceptChildren(this)
         }
     })
+}
+
+context(context: CheckerContext, reporter: DiagnosticReporter)
+private fun checkFieldValues(answer: FirFunctionCall) {
+    val lambda = answer.arguments.singleOrNull()?.unwrapArgument() as? FirAnonymousFunctionExpression
+    val block = lambda?.anonymousFunction
+    val scope = block?.receiverParameter?.symbol ?: return
+    val (member, _) = answer.stubBlock()?.stubbedMember() ?: return
+    val problem = member.fieldProblem() ?: return
+    block.accept(object : FirVisitorVoid() {
+        override fun visitElement(element: FirElement) {
+            if (element is FirQualifiedAccessExpression && element.isFieldValueOf(scope)) {
+                reporter.reportOn(
+                    element.calleeReference.source ?: element.source,
+                    LokkiDiagnostics.LOKKI_FIELD_VALUE_UNAVAILABLE,
+                    member.name.asString(),
+                    problem,
+                )
+            }
+            element.acceptChildren(this)
+        }
+    })
+}
+
+private fun FirQualifiedAccessExpression.isFieldValueOf(scope: FirBasedSymbol<*>): Boolean {
+    val property = calleeReference.toResolvedCallableSymbol() ?: return false
+    val receiver = dispatchReceiver?.unwrapSmartcastExpression() as? FirThisReceiverExpression ?: return false
+    return property.name.asString() in AnswerNames.FIELD_VALUES &&
+        property.callableId?.classId == CoreClass.ANSWER_SCOPE.id &&
+        receiver.calleeReference.boundSymbol == scope
+}
+
+@OptIn(SymbolInternals::class)
+private fun FirCallableSymbol<*>.fieldProblem(): String? {
+    val property = unwrapFakeOverrides() as? FirPropertySymbol ?: return "it is not a property"
+    val accessors = listOfNotNull(property.getterSymbol, property.setterSymbol)
+    return when {
+        !property.fir.hasBackingField -> "the property has no backing field"
+        accessors.any { it.fir !is FirDefaultPropertyAccessor } ->
+            "the property has a custom accessor, whose value differs from the field. Use 'callOriginal()'"
+        else -> null
+    }
 }
 
 context(context: CheckerContext)

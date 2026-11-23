@@ -1,5 +1,3 @@
-/unsupportedMock.kt:19:44: error: 'T' cannot be mocked: it is a type parameter.
-
 /unsupportedMock.kt:21:88: error: 'T' cannot be mocked: it is a type parameter.
 
 /unsupportedMock.kt:24:5: error: 'sample.Bolt' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.

@@ -19,9 +19,11 @@ const val RESTRICTED_OPTION = "restricted"
 
 const val DEBUG_OPTION = "debug"
 
-const val LOKKI_ABI_VERSION = 4
+const val LOKKI_ABI_VERSION = 5
 
 const val FILE_REDIRECT_SUFFIX = "\$LokkiRedirect"
+
+const val PRIVATE_HOOK_INFIX = "\$lokkiPrivate\$"
 
 val LOKKI_ABI_FLAGS = mapOf(
     "FLAG_RELAXED" to 1,
@@ -31,11 +33,14 @@ val LOKKI_ABI_FLAGS = mapOf(
     "FLAG_OBJECT" to 16,
     "FLAG_STATIC" to 32,
     "FLAG_CONSTRUCTOR" to 64,
+    "FLAG_RECORD_PRIVATE_CALLS" to 128,
     "METHOD_RETURN_TYPE_NULLABLE" to 1,
     "METHOD_RETURNS_UNIT" to 2,
     "METHOD_RETURNS_NOTHING" to 4,
     "METHOD_SUSPEND" to 8,
     "METHOD_FN_CALL" to 16,
+    "METHOD_NO_DEFAULT_FIELD" to 32,
+    "METHOD_PRIVATE_CALL" to 64,
 )
 
 private val withoutPublicApi = setOf("compiler-tests", "lokki-compiler-plugin", "lokki-maven")

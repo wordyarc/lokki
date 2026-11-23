@@ -1,0 +1,3 @@
+/reifiedHelperRejected.kt:12:5: error: 'Final' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+
+/reifiedHelperRejected.kt:13:5: error: 'kotlin.String' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.

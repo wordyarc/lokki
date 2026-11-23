@@ -1,5 +1,6 @@
 package io.lokki.compiler.ir.lower
 
+import io.lokki.compiler.BuildConfig
 import io.lokki.compiler.CoreClass
 import io.lokki.compiler.CoreConstructor
 import io.lokki.compiler.CoreFunction
@@ -10,12 +11,14 @@ import io.lokki.compiler.VERIFY_BLOCKS
 import io.lokki.compiler.ir.ConstructorRedirect
 import io.lokki.compiler.ir.FileContext
 import io.lokki.compiler.ir.LokkiIrContext
+import io.lokki.compiler.ir.ObjectRedirect
 import io.lokki.compiler.ir.Redirect
 import io.lokki.compiler.ir.StaticRedirect
 import io.lokki.compiler.ir.argument
 import io.lokki.compiler.ir.buildLambda
 import io.lokki.compiler.ir.constructorClasses
 import io.lokki.compiler.ir.fileClassName
+import io.lokki.compiler.ir.staticClassArguments
 import io.lokki.compiler.ir.staticFileArguments
 import io.lokki.compiler.ir.collect.MockClassKey
 import io.lokki.compiler.ir.collect.MockForm
@@ -24,6 +27,7 @@ import io.lokki.compiler.ir.collect.MockSites
 import io.lokki.compiler.ir.collect.spiedInstance
 import io.lokki.compiler.ir.generate.ConstructedClasses
 import io.lokki.compiler.ir.generate.MOCK_FLAGS
+import io.lokki.compiler.ir.generate.RECORD_PRIVATE_FLAG
 import io.lokki.compiler.ir.generate.irFactory
 import io.lokki.compiler.ir.generate.irConstruct
 import io.lokki.compiler.ir.generate.irDelegatingSpy
@@ -34,6 +38,7 @@ import io.lokki.compiler.ir.generate.replaceConstructorCall
 import io.lokki.compiler.ir.generate.spyFlags
 import io.lokki.compiler.ir.intrinsicKind
 import io.lokki.compiler.ir.irArrayOf
+import io.lokki.compiler.ir.irGetObject
 import io.lokki.compiler.ir.irInvoke
 import io.lokki.compiler.ir.isConfigurationOfInstance
 import io.lokki.compiler.ir.mockedObjects
@@ -47,6 +52,7 @@ import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
+import org.jetbrains.kotlin.ir.builders.IrStatementsBuilder
 import org.jetbrains.kotlin.ir.builders.declarations.addValueParameter
 import org.jetbrains.kotlin.ir.builders.irAs
 import org.jetbrains.kotlin.ir.builders.irBlock
@@ -71,6 +77,7 @@ import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrFunctionReference
 import org.jetbrains.kotlin.ir.expressions.IrRichFunctionReference
+import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.makeNullable
 import org.jetbrains.kotlin.ir.types.typeWith
 import org.jetbrains.kotlin.ir.util.defaultType
@@ -92,7 +99,25 @@ internal class DslLowering(
     override fun visitCall(expression: IrCall): IrExpression {
         val kind = expression.intrinsicKind
         super.visitCall(expression)
-        return when (kind) {
+        val lowered = lowerIntrinsic(expression, kind)
+        val reified = sites.reifiedCalls[expression] ?: return lowered
+        return builder(expression).irBlock(resultType = lowered.type) {
+            for (mocked in reified) {
+                +irInvoke(
+                    symbols[CoreFunction.REIFIED_REGISTER],
+                    irTypeOf(mocked.type),
+                    irFactory(symbols, mocks.getValue(mocked.site.key), mocked.site.types),
+                )
+            }
+            +lowered
+        }.also { it.patchDeclarationParents(currentScope!!.scope.getLocalDeclarationParent()) }
+    }
+
+    private fun IrBuilderWithScope.irTypeOf(type: IrType): IrExpression =
+        irCall(symbols.typeOf.symbol, symbols.typeOf.returnType, listOf(type))
+
+    private fun lowerIntrinsic(expression: IrCall, kind: IntrinsicKind?): IrExpression =
+        when (kind) {
             null, IntrinsicKind.MATCHER, IntrinsicKind.ANSWER, IntrinsicKind.RELAXED_MOCK,
             IntrinsicKind.ADDITIONAL_INTERFACE, IntrinsicKind.INJECT_MOCKS, IntrinsicKind.CONSTRUCTED,
             IntrinsicKind.DYNAMIC_MEMBER -> expression
@@ -130,7 +155,6 @@ internal class DslLowering(
                 unsupported(it, "'${it.symbol.owner.name}' requires a newer version of the lokki compiler plugin")
             }
         }
-    }
 
     override fun visitFunctionNew(declaration: IrFunction): IrStatement =
         when (declaration.origin) {
@@ -152,7 +176,9 @@ internal class DslLowering(
     }
 
     private fun lowerMock(call: IrCall, kind: IntrinsicKind): IrExpression {
-        val site = sites.calls.getValue(call) as? MockSite.Mocked ?: return call
+        val found = sites.calls.getValue(call)
+        if (found === MockSite.Reified) return lowerReifiedMock(call)
+        val site = found as? MockSite.Mocked ?: return call
         call.argument(ParameterNames.MOCKED_CLASS)?.takeIf { it !is IrClassReference }?.let {
             unsupported(it, "'mockClass' needs a class literal such as 'Car::class'")
             return call
@@ -167,7 +193,10 @@ internal class DslLowering(
             return call
         }
         return builder(call).run {
-            val flags = if (kind == IntrinsicKind.MOCK) irFlags(call) else irInt(types.form.spyFlags)
+            val flags = when (kind) {
+                IntrinsicKind.MOCK -> irFlags(call, 0, MOCK_FLAGS)
+                else -> irFlags(call, types.form.spyFlags, listOf(RECORD_PRIVATE_FLAG))
+            }
             val spec = irSpec(symbols, call.argument(ParameterNames.NAME) ?: irNull(), flags)
             val typeArguments = types.typeArguments
             val mockType = mock.typeWith(typeArguments)
@@ -193,6 +222,23 @@ internal class DslLowering(
         }
     }
 
+    private fun lowerReifiedMock(call: IrCall): IrExpression = builder(call).run {
+        val type = call.typeArguments.single()!!
+        val spec = irSpec(symbols, call.argument(ParameterNames.NAME) ?: irNull(), irFlags(call, 0, MOCK_FLAGS))
+        val instance = irInvoke(
+            symbols[CoreFunction.REIFIED_CREATE],
+            irTypeOf(type),
+            spec,
+            type = type,
+            typeArguments = listOf(type),
+        )
+        val block = call.argument(ParameterNames.BLOCK) ?: return instance
+        irCall(symbols.apply, call.type, listOf(call.type)).apply {
+            arguments[0] = instance
+            arguments[1] = block
+        }
+    }
+
     private fun IrBuilderWithScope.irWithoutRecords(spy: IrExpression): IrExpression =
         irBlock(resultType = spy.type) {
             val configured = irTemporary(spy)
@@ -210,13 +256,40 @@ internal class DslLowering(
             }
         }
         val block = call.argument(ParameterNames.BLOCK)
-        return builder(call).run {
-            val installed = objects.zip(redirects).map { (target, redirect) -> irRedirect(target, redirect) }
-            irInstall(CoreFunction.MOCK_OBJECT, CoreFunction.MOCK_OBJECT_WITH_BLOCK, installed, block)
+        return builder(call).irBlock {
+            val flags = irRecordPrivateCalls(call)
+            val installed = objects.zip(redirects).map { (target, redirect) -> irRedirect(target, redirect, flags?.invoke()) }
+            +irInstall(CoreFunction.MOCK_OBJECT, CoreFunction.MOCK_OBJECT_WITH_BLOCK, installed, block)
         }.also { it.patchDeclarationParents(currentScope!!.scope.getLocalDeclarationParent()) }
     }
 
+    private fun IrStatementsBuilder<*>.irRecordPrivateCalls(call: IrCall): (() -> IrExpression)? {
+        val argument = call.argument(ParameterNames.RECORD_PRIVATE_CALLS) ?: return null
+        val flag = BuildConfig.FLAG_RECORD_PRIVATE_CALLS
+        if (argument is IrConst) return { irInt(if (argument.value == true) flag else 0) }
+        val flags = irTemporary(irIfThenElse(context.irBuiltIns.intType, argument, irInt(flag), irInt(0)))
+        return { irGet(flags) }
+    }
+
+    private fun IrCall.staticClassRedirects(): List<ObjectRedirect>? {
+        val classes = staticClassArguments ?: return null
+        return classes.map { element ->
+            file.redirects.ofStaticClass(element) ?: return emptyList<ObjectRedirect>().also {
+                unsupported(this, "An argument of '${symbol.owner.name}' must be a literal of an object or of a class " +
+                    "with a companion object that has interception points")
+            }
+        }
+    }
+
     private fun lowerMockStatic(call: IrCall): IrExpression {
+        call.staticClassRedirects()?.let { redirects ->
+            if (redirects.isEmpty()) return call
+            val block = call.argument(ParameterNames.BLOCK)
+            return builder(call).run {
+                val installed = redirects.map { irRedirect(irGetObject(it.target), it) }
+                irInstall(CoreFunction.MOCK_STATIC, CoreFunction.MOCK_STATIC_WITH_BLOCK, installed, block)
+            }.also { it.patchDeclarationParents(currentScope!!.scope.getLocalDeclarationParent()) }
+        }
         val statics = call.staticRedirects() ?: return call
         val block = call.argument(ParameterNames.BLOCK)
         return builder(call).run {
@@ -226,6 +299,15 @@ internal class DslLowering(
     }
 
     private fun lowerUnmockStatic(call: IrCall): IrExpression {
+        call.staticClassRedirects()?.let { redirects ->
+            if (redirects.isEmpty()) return call
+            return builder(call).run {
+                irInvoke(
+                    symbols[CoreFunction.UNMOCK],
+                    irArrayOf(context.irBuiltIns.anyType, redirects.map { irGetObject(it.target) }),
+                )
+            }
+        }
         val statics = call.staticRedirects() ?: return call
         return builder(call).run {
             val keys = irArrayOf(context.irBuiltIns.anyType, statics.map { irString(it.key) })
@@ -234,6 +316,21 @@ internal class DslLowering(
     }
 
     private fun lowerClearStaticMock(call: IrCall): IrExpression {
+        call.staticClassRedirects()?.let { redirects ->
+            if (redirects.isEmpty()) return call
+            return builder(call).run {
+                val mocks = redirects.map {
+                    irInvoke(symbols[CoreFunction.REDIRECT_OF], irGetObject(it.target), irString(it.name))
+                }
+                irInvoke(
+                    symbols[CoreFunction.CLEAR_OBJECTS],
+                    irArrayOf(context.irBuiltIns.anyType, mocks),
+                    call.argument(ParameterNames.ANSWERS) ?: irTrue(),
+                    call.argument(ParameterNames.RECORDED_CALLS) ?: irTrue(),
+                    call.argument(ParameterNames.CHILD_MOCKS) ?: irTrue(),
+                )
+            }
+        }
         val statics = call.staticRedirects() ?: return call
         return builder(call).run { irInvoke(symbols[CoreFunction.CLEAR_STATIC], irStaticMocks(statics)) }
     }
@@ -249,9 +346,10 @@ internal class DslLowering(
     private fun lowerMockConstructor(call: IrCall): IrExpression {
         val targets = call.constructorRedirects() ?: return call
         val block = call.argument(ParameterNames.BLOCK)
-        return builder(call).run {
-            val installed = targets.map { irConstructorRedirect(call, it) ?: return call }
-            irInstall(CoreFunction.MOCK_CONSTRUCTOR, CoreFunction.MOCK_CONSTRUCTOR_WITH_BLOCK, installed, block)
+        return builder(call).irBlock {
+            val flags = irRecordPrivateCalls(call)
+            val installed = targets.map { irConstructorRedirect(call, it, flags?.invoke()) ?: return call }
+            +irInstall(CoreFunction.MOCK_CONSTRUCTOR, CoreFunction.MOCK_CONSTRUCTOR_WITH_BLOCK, installed, block)
         }.also { it.patchDeclarationParents(currentScope!!.scope.getLocalDeclarationParent()) }
     }
 
@@ -293,7 +391,11 @@ internal class DslLowering(
         }
     }
 
-    private fun IrBuilderWithScope.irConstructorRedirect(call: IrCall, redirect: ConstructorRedirect): IrExpression? {
+    private fun IrBuilderWithScope.irConstructorRedirect(
+        call: IrCall,
+        redirect: ConstructorRedirect,
+        flags: IrExpression?,
+    ): IrExpression? {
         val site = sites.constructed[redirect.target] ?: return null.also {
             unsupported(call, "'${redirect.target.name}' cannot be mocked by its constructors")
         }
@@ -310,13 +412,15 @@ internal class DslLowering(
             val installed = irIfThenElse(redirectType, irEqualsNull(irGet(value)), irNull(), created)
             +irInvoke(redirect.property.setter!!, installed)
         }
-        return irInvoke(
-            symbols[CoreConstructor.REDIRECT],
+        val arguments = listOfNotNull(
             irString(redirect.key),
             irString(redirect.target.name.asString()),
             irFactory(symbols, mocks.getValue(site.representative.key), site.representative.types),
             install.toLambda(builtIns),
+            flags,
         )
+        val constructor = if (flags == null) CoreConstructor.REDIRECT else CoreConstructor.REDIRECT_WITH_FLAGS
+        return irInvoke(symbols[constructor], *arguments.toTypedArray())
     }
 
     private fun IrCall.staticRedirects(): List<StaticRedirect>? {
@@ -371,13 +475,16 @@ internal class DslLowering(
             statics.map { irInvoke(symbols[CoreFunction.STATIC_REDIRECT_OF], irString(it.key), irString(it.name)) },
         )
 
-    private fun IrBuilderWithScope.irRedirect(target: IrExpression, redirect: Redirect): IrExpression =
-        irRedirect(symbols, mocks.getValue(redirect.site.key), target, redirect)
+    private fun IrBuilderWithScope.irRedirect(
+        target: IrExpression,
+        redirect: Redirect,
+        flags: IrExpression? = null,
+    ): IrExpression = irRedirect(symbols, mocks.getValue(redirect.site.key), target, redirect, flags)
 
-    private fun IrBuilderWithScope.irFlags(call: IrCall): IrExpression {
-        var constant = 0
+    private fun IrBuilderWithScope.irFlags(call: IrCall, base: Int, named: List<Pair<String, Int>>): IrExpression {
+        var constant = base
         val conditional = ArrayList<IrExpression>()
-        for ((name, flag) in MOCK_FLAGS) {
+        for ((name, flag) in named) {
             val argument = call.argument(name) ?: continue
             when ((argument as? IrConst)?.value) {
                 true -> constant = constant or flag

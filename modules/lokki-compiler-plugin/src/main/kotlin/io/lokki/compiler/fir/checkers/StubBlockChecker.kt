@@ -2,6 +2,7 @@ package io.lokki.compiler.fir.checkers
 
 import io.lokki.compiler.CHILD_MOCK_NEEDED
 import io.lokki.compiler.CoreClass
+import io.lokki.compiler.DynamicNames
 import io.lokki.compiler.FINALIZER_REASON
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiDiagnostics
@@ -271,10 +272,21 @@ private class StubBlock(
             it.calleeReference.toResolvedCallableSymbol()?.intrinsicKind(session) == IntrinsicKind.DYNAMIC_MEMBER &&
                 it.dispatchReceiver.isScope()
         }
-        val target = member?.extensionReceiver
+        val target = member?.extensionReceiver ?: call.extensionReceiver?.takeIf { access.isScope() }
             ?: return notSingleCall(statement, "calls a dynamic member that is not written in this call")
         checkReceiverMatchers(target)
-        checkArguments(call, callee, arguments)
+        val values = when (callee.name.asString()) {
+            DynamicNames.WITH_ARGUMENTS -> arguments.flatMap { it.listLiteralElements() ?: listOf(it) }
+            else -> arguments
+        }
+        checkArguments(call, callee, values)
+    }
+
+    private fun FirExpression.listLiteralElements(): List<FirExpression>? {
+        val list = unwrapArgument() as? FirFunctionCall ?: return null
+        val factory = list.calleeReference.toResolvedCallableSymbol()?.callableId?.asSingleFqName()
+        if (factory !in LIST_FACTORIES) return null
+        return list.arguments.flatMap { (it.unwrapArgument() as? FirVarargArgumentsExpression)?.arguments ?: listOf(it) }
     }
 
     private fun checkReceiverMatchers(receiver: FirExpression) {
@@ -631,3 +643,5 @@ private val COROUTINE_BUILDERS = setOf(
     FqName("kotlinx.coroutines.runBlocking"),
     FqName("kotlinx.coroutines.test.runTest"),
 )
+
+private val LIST_FACTORIES = setOf(FqName("kotlin.collections.listOf"), FqName("kotlin.collections.emptyList"))

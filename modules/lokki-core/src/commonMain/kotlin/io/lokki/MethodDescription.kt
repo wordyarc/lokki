@@ -26,6 +26,12 @@ public class MethodDescription internal constructor(
     public val isFnCall: Boolean
         get() = flags and FN_CALL != 0
 
+    public val privateCall: Boolean
+        get() = flags and PRIVATE_CALL != 0
+
+    internal val hasDefaultField: Boolean
+        get() = flags and NO_DEFAULT_FIELD == 0
+
     public fun argsToStr(): String = paramTypes.joinToString(", ") { argToStr(it).toString() }
 
     public fun argToStr(argType: KClass<*>): String? = argType.simpleName
@@ -65,3 +71,5 @@ internal const val RETURNS_UNIT = LokkiAbi.METHOD_RETURNS_UNIT
 internal const val RETURNS_NOTHING = LokkiAbi.METHOD_RETURNS_NOTHING
 internal const val SUSPEND = LokkiAbi.METHOD_SUSPEND
 internal const val FN_CALL = LokkiAbi.METHOD_FN_CALL
+internal const val NO_DEFAULT_FIELD = LokkiAbi.METHOD_NO_DEFAULT_FIELD
+internal const val PRIVATE_CALL = LokkiAbi.METHOD_PRIVATE_CALL

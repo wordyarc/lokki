@@ -157,7 +157,7 @@ internal class MockFieldInitializers(lokki: LokkiIrContext) {
         val initializer = field.initializer!!
         val typeArguments = types.typeArguments
         DeclarationIrBuilder(context, field.symbol, initializer.startOffset, initializer.endOffset).run {
-            val spec = irSpec(symbols, irString(name), irInt(types.form.spyFlags))
+            val spec = irSpec(symbols, irString(name), irInt(types.form.spyFlags or annotation.recordsPrivateCalls))
             initializer.expression = initializer.expression.replaceConstructorCall(mock.typeWith(typeArguments)) {
                 irConstruct(mock, typeArguments, it.arguments.filterNotNull() + spec)
             }
@@ -166,14 +166,23 @@ internal class MockFieldInitializers(lokki: LokkiIrContext) {
 
     private fun IrBuilderWithScope.irFlags(field: MockField, form: MockForm, flags: IrValueParameter): IrExpression =
         when (field.kind) {
-            IntrinsicKind.SPY -> irInt(form.spyFlags)
+            IntrinsicKind.SPY -> {
+                val own = form.spyFlags or field.annotation.recordsPrivateCalls
+                irOr(irInt(own), irAnd(irGet(flags), BuildConfig.FLAG_RECORD_PRIVATE_CALLS))
+            }
             IntrinsicKind.RELAXED_MOCK -> irInt(BuildConfig.FLAG_RELAXED)
             else -> {
                 val own = MOCK_FLAGS.fold(0) { own, (name, flag) -> own or field.flag(name, flag) }
-                val intType = context.irBuiltIns.intType
-                if (own == 0) irGet(flags) else irCallOp(symbols.intOr.symbol, intType, irGet(flags), irInt(own))
+                val relaxation = irAnd(irGet(flags), MOCK_FLAGS.fold(0) { all, (_, flag) -> all or flag })
+                if (own == 0) relaxation else irOr(relaxation, irInt(own))
             }
         }
+
+    private fun IrBuilderWithScope.irOr(left: IrExpression, right: IrExpression): IrExpression =
+        irCallOp(symbols.intOr.symbol, context.irBuiltIns.intType, left, right)
+
+    private fun IrBuilderWithScope.irAnd(value: IrExpression, mask: Int): IrExpression =
+        irCallOp(symbols.intAnd.symbol, context.irBuiltIns.intType, value, irInt(mask))
 
     private fun MockField.flag(name: String, flag: Int): Int =
         if ((annotation.argument(name) as? IrConst)?.value == true) flag else 0

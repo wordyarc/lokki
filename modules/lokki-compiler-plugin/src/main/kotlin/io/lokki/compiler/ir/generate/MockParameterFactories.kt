@@ -172,7 +172,7 @@ internal class MockParameterFactories(private val lokki: LokkiIrContext) {
 
     private fun MockParameterField.flags(form: MockForm): Int =
         when (kind) {
-            IntrinsicKind.SPY -> form.spyFlags
+            IntrinsicKind.SPY -> form.spyFlags or annotation.recordsPrivateCalls
             IntrinsicKind.RELAXED_MOCK -> BuildConfig.FLAG_RELAXED
             else -> MOCK_FLAGS.fold(0) { flags, (name, flag) ->
                 if ((annotation.argument(name) as? IrConst)?.value == true) flags or flag else flags

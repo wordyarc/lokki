@@ -32,7 +32,7 @@ abstract class Service {
     open suspend fun cached(): Int = 1
 }
 
-fun <T> StubScope<T>.forever(): AdditionalAnswerScope<T> = this just Awaits
+fun <T> StubScope<T, T>.forever(): AdditionalAnswerScope<T, T> = this just Awaits
 
 private fun failure(block: () -> Any?): String =
     try {

@@ -32,7 +32,7 @@ fun consume(block: () -> Any?) {
 
 fun expression(repo: Repo) = every { repo.find(1) }
 
-fun returned(repo: Repo): StubScope<String> {
+fun returned(repo: Repo): StubScope<String, String> {
     return every { repo.find(1) }
 }
 
@@ -95,7 +95,7 @@ fun test(repo: Repo, nullable: Repo?, flag: Boolean, ids: List<Int>) {
     with(repo) { every { find(1) } } returns "a"
     with(repo) { every { find(1) } returns "a" }
     val chosen = if (flag) every { repo.find(1) } else every { repo.find(2) }
-    val deferred: () -> StubScope<String> = { every { repo.find(1) } }
+    val deferred: () -> StubScope<String, String> = { every { repo.find(1) } }
     consume { every { repo.find(1) } }
     collect { every { repo.find(1) } }
     ids.map { every { repo.find(it) } }

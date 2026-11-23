@@ -12,7 +12,11 @@ internal class Redirect(
     internal val name: String,
     internal val factory: (MockSpec) -> Any,
     internal val install: (Any?) -> Unit,
-)
+    internal val flags: Int,
+) {
+    constructor(target: Any, name: String, factory: (MockSpec) -> Any, install: (Any?) -> Unit) :
+        this(target, name, factory, install, 0)
+}
 
 @PublishedApi
 internal object Redirects {
@@ -92,6 +96,16 @@ internal object Redirects {
         }
     }
 
+    fun clearObjects(mocks: Array<Any>, answers: Boolean, recordedCalls: Boolean, childMocks: Boolean) {
+        clearMocks(
+            mocks.first(),
+            *mocks.copyOfRange(1, mocks.size),
+            answers = answers,
+            recordedCalls = recordedCalls,
+            childMocks = childMocks,
+        )
+    }
+
     fun clearStatic(mocks: Array<Any>) {
         clearMocks(mocks.first(), *mocks.copyOfRange(1, mocks.size))
     }
@@ -106,7 +120,12 @@ internal object Redirects {
         synchronized(this) { active.any { it.target === target && it.mock.`lokki$state`.isObject } }
 
     internal fun isStatic(type: Any): Boolean =
-        synchronized(this) { active.any { it.mock.`lokki$state`.isStatic && it.mock.redirectsFile(type) } }
+        synchronized(this) {
+            active.any { active ->
+                active.mock.`lokki$state`.isStatic &&
+                    (active.mock.redirectsFile(type) || active.target !is String && active.target.isStaticOf(type))
+            }
+        }
 
     internal fun isConstructor(type: Any): Boolean =
         synchronized(this) { active.any { it.constructors != null && it.mock.mocksClass(type) } }
@@ -137,7 +156,8 @@ internal object Redirects {
         val redirect = synchronized(this) { active.find { it.isFor(target) } }
         val current = LokkiScope.currentScope
         if (redirect == null || current != null && !current.isWithin(redirect.scope)) {
-            throw LokkiException("$name is not mocked in the current scope; call $call")
+            val shown = if (target is Enum<*>) "$name.${target.name}" else name
+            throw LokkiException("$shown is not mocked in the current scope; call $call")
         }
         return redirect.mock
     }
@@ -164,12 +184,12 @@ internal object Redirects {
                 )
             }
             if (kind == CONSTRUCTOR) {
-                val mocks = ConstructorMocks(redirect.name, redirect.factory, scope)
+                val mocks = ConstructorMocks(redirect.name, redirect.factory, scope, redirect.flags)
                 redirect.install(mocks)
                 return@synchronized ActiveRedirect(redirect.target, scope, mocks.any, redirect.install, mocks)
                     .also { active += it }
             }
-            val mock = redirect.factory(MockSpec(null, SPY or kind)) as GeneratedMock
+            val mock = redirect.factory(MockSpec(null, SPY or kind or redirect.flags)) as GeneratedMock
             redirect.install(mock)
             ActiveRedirect(redirect.target, scope, mock, redirect.install).also { active += it }
         }

@@ -1,4 +1,4 @@
-/callableReferenceToIntrinsic.kt:24:71: error: 'every' must be called directly: a reference to it is not supported.
+/callableReferenceToIntrinsic.kt:24:79: error: 'every' must be called directly: a reference to it is not supported.
 
 /callableReferenceToIntrinsic.kt:25:56: error: 'every' must be called directly: a reference to it is not supported.
 

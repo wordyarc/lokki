@@ -9,6 +9,7 @@ import io.lokki.compiler.memberWithClasses
 import io.lokki.compiler.ir.effectiveModality
 import io.lokki.compiler.ir.inaccessibleClasses
 import io.lokki.compiler.ir.isOverridable
+import io.lokki.compiler.ir.isPrivateHook
 import io.lokki.compiler.ir.isVisibleFrom
 import io.lokki.compiler.ir.packageFqName
 import io.lokki.compiler.ir.spiedConstructorCall
@@ -62,6 +63,8 @@ internal sealed interface MockSite {
     }
 
     class Rejected(val problem: MockProblem) : MockSite
+
+    object Reified : MockSite
 }
 
 internal sealed interface MockProblem {
@@ -175,6 +178,12 @@ internal class Mockability(private val file: IrFile, private val typeSystem: IrT
             }
         }
         return MockSite.Mocked(MockedTypes(type, extra.sortedBy { it.typeKey(emptyList()) }, form), warning)
+    }
+
+    fun reified(type: IrType): MockSite {
+        val site = site(MockRequest(false, type, null, emptyList(), ""))
+        val problem = (site as? MockSite.Rejected)?.problem as? NotMockable ?: return site
+        return MockSite.Rejected(NotMockable(problem.type, problem.reason))
     }
 
     fun child(type: IrType): MockSite.Mocked? {
@@ -291,7 +300,7 @@ internal class Mockability(private val file: IrFile, private val typeSystem: IrT
     private fun IrClass.unforwardableMembers(): List<String> =
         simpleFunctions()
             .filter { member ->
-                !DescriptorVisibilities.isPrivate(member.visibility) &&
+                !DescriptorVisibilities.isPrivate(member.visibility) && !member.isPrivateHook &&
                     (!member.isOverridable || member.visibility in PROTECTED || !member.isVisibleFrom(file))
             }
             .map { it.memberName }

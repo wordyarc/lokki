@@ -107,9 +107,9 @@ abstract class Pump {
     abstract suspend fun pressure(): Int
 }
 
-suspend fun AnswerScope<Int>.original(): Int = coCallOriginal()
+suspend fun AnswerScope<Int, Int>.original(): Int = coCallOriginal()
 
-fun AnswerScope<Int>.plainOriginal(): Int = callOriginal()
+fun AnswerScope<Int, Int>.plainOriginal(): Int = callOriginal()
 
 private fun Class<*>.hasNested(name: String): Boolean =
     runCatching { Class.forName("${this.name}\$$name", false, classLoader) }.isSuccess

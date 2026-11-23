@@ -1,6 +1,7 @@
 package io.lokki
 
 import io.lokki.internal.Abandoned
+import io.lokki.internal.FieldAccess
 import io.lokki.internal.GeneratedMock
 import io.lokki.internal.LokkiIntrinsic
 import io.lokki.internal.StubEntry
@@ -73,6 +74,14 @@ public class Invocation internal constructor(
         return result
     }
 
+    internal fun readField(): Any? =
+        (self as GeneratedMock).`lokki$original`(self.`lokki$state`.fieldAccessor(member, FieldAccess.READ), emptyArray())
+
+    internal fun writeField(value: Any?) {
+        val mock = self as GeneratedMock
+        mock.`lokki$original`(mock.`lokki$state`.fieldAccessor(member, FieldAccess.WRITE), arrayOf(value))
+    }
+
     internal suspend fun coCallOriginal(): Any? {
         val mock = self as GeneratedMock
         return if (method.isSuspend) {
@@ -106,7 +115,7 @@ public class InvocationMatcher internal constructor(
 }
 
 @LokkiDslMarker
-public class AnswerScope<T> internal constructor(public val call: Call) {
+public class AnswerScope<T, B> internal constructor(public val call: Call) {
     public val invocation: Invocation
         get() = call.invocation
 
@@ -128,8 +137,25 @@ public class AnswerScope<T> internal constructor(public val call: Call) {
     public val nothing: Nothing?
         get() = null
 
+    @Suppress("UNCHECKED_CAST")
+    public val value: B
+        get() = valueAny as B
+
     public val valueAny: Any?
         get() = args[0]
+
+    @Suppress("UNCHECKED_CAST")
+    public var fieldValue: B
+        get() = fieldValueAny as B
+        set(value) {
+            fieldValueAny = value
+        }
+
+    public var fieldValueAny: Any?
+        get() = invocation.readField()
+        set(value) {
+            invocation.writeField(value)
+        }
 
     public inline fun <reified R> firstArg(): R = args[0] as R
 

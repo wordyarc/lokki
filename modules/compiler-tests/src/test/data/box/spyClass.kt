@@ -65,7 +65,7 @@ abstract class Shape {
     abstract fun scale(factor: Int)
 }
 
-fun AnswerScope<Int>.original(): Int = callOriginal()
+fun AnswerScope<Int, Int>.original(): Int = callOriginal()
 
 fun <T> run(block: suspend () -> T): T {
     var outcome: Result<T>? = null

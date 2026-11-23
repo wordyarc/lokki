@@ -73,7 +73,7 @@ fun test(repo: Repo, nullable: Repo?, block: MatcherScope.() -> String, check: V
     every <!LOKKI_UNSUPPORTED!>{ withContext<String> { repo.find(1); repo.find(2) } }<!> returns "a"
     <!LOKKI_UNSUPPORTED!>coEvery { repo.find(1) } just Awaits<!>
     <!LOKKI_UNSUPPORTED!>coJustAwait { repo.find(1) }<!>
-    val reference: (MatcherScope.() -> String) -> StubScope<String> = <!LOKKI_UNSUPPORTED!>::every<!>
+    val reference: (MatcherScope.() -> String) -> StubScope<String, String> = <!LOKKI_UNSUPPORTED!>::every<!>
     val adapted: (MatcherScope.() -> String) -> Unit = <!LOKKI_UNSUPPORTED!>::every<!>
 
     <!LOKKI_UNSUPPORTED!>verify(verifyBlock = check)<!>

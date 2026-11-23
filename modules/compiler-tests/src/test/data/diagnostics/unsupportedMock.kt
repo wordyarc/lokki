@@ -16,7 +16,7 @@ sealed interface Shape
 
 interface Car
 
-inline fun <reified T : Any> create(): T = <!LOKKI_UNSUPPORTED!>mock<T>()<!>
+inline fun <reified T : Any> create(): T = mock<T>()
 
 inline fun <reified T : Any> withInterface(): Car = mock<Car>(moreInterfaces = arrayOf(<!LOKKI_UNSUPPORTED!>T::class<!>))
 

@@ -32,7 +32,7 @@ internal class MockableClasses(lokki: LokkiIrContext, private val mockable: Mock
     private fun open(declaration: IrDeclaration) {
         if (declaration !is IrClass || declaration.origin != IrDeclarationOrigin.DEFINED) return
         declaration.declarations.forEach(::open)
-        if (!declaration.isMockable) return
+        if (!declaration.isMockableBy(mockable)) return
         declaration.modality = declaration.modality.opened
         for (member in declaration.declarations) {
             when {
@@ -46,11 +46,6 @@ internal class MockableClasses(lokki: LokkiIrContext, private val mockable: Mock
         }
         mark(declaration)
     }
-
-    private val IrClass.isMockable: Boolean
-        get() = kind == ClassKind.CLASS && !isValue && !isExpect && modality != Modality.SEALED &&
-            !hasAnnotation(JvmStandardClassIds.JVM_RECORD_ANNOTATION_CLASS_ID) &&
-            (mockable.matches(classIdOrFail) || mockable.names.any { hasAnnotation(it) })
 
     private val IrSimpleFunction.isOpenable: Boolean
         get() = correspondingPropertySymbol == null && !isTailrec && !isClassFinalizer && isOpenableAccessor
@@ -78,3 +73,8 @@ internal class MockableClasses(lokki: LokkiIrContext, private val mockable: Mock
     private val Modality.opened: Modality
         get() = if (this == Modality.FINAL) Modality.OPEN else this
 }
+
+internal fun IrClass.isMockableBy(mockable: MockablePatterns): Boolean =
+    kind == ClassKind.CLASS && !isValue && !isExpect && modality != Modality.SEALED &&
+        !hasAnnotation(JvmStandardClassIds.JVM_RECORD_ANNOTATION_CLASS_ID) &&
+        (mockable.matches(classIdOrFail) || mockable.names.any { hasAnnotation(it) })

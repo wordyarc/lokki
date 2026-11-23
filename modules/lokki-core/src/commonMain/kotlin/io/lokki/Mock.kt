@@ -32,6 +32,7 @@ public inline fun <T : Any> mockClass(
 public inline fun <reified T : Any> spy(
     name: String? = null,
     vararg moreInterfaces: KClass<*>,
+    recordPrivateCalls: Boolean = false,
     block: T.() -> Unit = {},
 ): T = pluginNotApplied()
 
@@ -40,6 +41,7 @@ public inline fun <reified T : Any> spy(
     obj: T,
     name: String? = null,
     vararg moreInterfaces: KClass<*>,
+    recordPrivateCalls: Boolean = false,
     block: T.() -> Unit = {},
 ): T = pluginNotApplied()
 
@@ -48,12 +50,15 @@ public inline fun <reified T : Any> spy(
 public annotation class ChainedMocks
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK_OBJECT)
-public fun mockObject(vararg objects: Any): Unit =
+public fun mockObject(vararg objects: Any, recordPrivateCalls: Boolean = false): Unit =
     pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK_OBJECT)
-public inline fun mockObject(vararg objects: Any, block: () -> Unit): Unit =
-    pluginNotApplied()
+public inline fun mockObject(
+    vararg objects: Any,
+    recordPrivateCalls: Boolean = false,
+    block: () -> Unit,
+): Unit = pluginNotApplied()
 
 public fun unmockObject(vararg objects: Any) {
     Redirects.unmock(objects)
@@ -83,6 +88,18 @@ public fun mockStatic(vararg classes: String): Unit =
 public inline fun mockStatic(vararg classes: String, block: () -> Unit): Unit =
     pluginNotApplied()
 
+@LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK_STATIC)
+public fun mockStatic(vararg classes: KClass<*>): Unit =
+    pluginNotApplied()
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK_STATIC)
+public inline fun mockStatic(vararg classes: KClass<*>, block: () -> Unit): Unit =
+    pluginNotApplied()
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.UNMOCK_STATIC)
+public fun unmockStatic(vararg classes: KClass<*>): Unit =
+    pluginNotApplied()
+
 @LokkiIntrinsic(LokkiIntrinsic.Kind.UNMOCK_STATIC)
 public fun unmockStatic(vararg classes: String): Unit =
     pluginNotApplied()
@@ -96,6 +113,14 @@ public fun unmockStatic(vararg functions: KProperty<*>): Unit =
     pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.CLEAR_STATIC_MOCK)
+public fun clearStaticMock(
+    vararg classes: KClass<*>,
+    answers: Boolean = true,
+    recordedCalls: Boolean = true,
+    childMocks: Boolean = true,
+): Unit = pluginNotApplied()
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.CLEAR_STATIC_MOCK)
 public fun clearStaticMock(vararg functions: KFunction<*>): Unit =
     pluginNotApplied()
 
@@ -104,12 +129,15 @@ public fun clearStaticMock(vararg functions: KProperty<*>): Unit =
     pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK_CONSTRUCTOR)
-public fun mockConstructor(vararg classes: KClass<*>): Unit =
+public fun mockConstructor(vararg classes: KClass<*>, recordPrivateCalls: Boolean = false): Unit =
     pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK_CONSTRUCTOR)
-public inline fun mockConstructor(vararg classes: KClass<*>, block: () -> Unit): Unit =
-    pluginNotApplied()
+public inline fun mockConstructor(
+    vararg classes: KClass<*>,
+    recordPrivateCalls: Boolean = false,
+    block: () -> Unit,
+): Unit = pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.UNMOCK_CONSTRUCTOR)
 public fun unmockConstructor(vararg classes: KClass<*>): Unit =

@@ -47,6 +47,7 @@ internal object ParameterNames {
     const val ANSWERS = "answers"
     const val RECORDED_CALLS = "recordedCalls"
     const val CHILD_MOCKS = "childMocks"
+    const val RECORD_PRIVATE_CALLS = "recordPrivateCalls"
     val REFERENCES = setOf("function", "functions", "property", "properties")
 }
 
@@ -72,8 +73,17 @@ internal object MatcherNames {
     val BUILTIN = TYPED + COMPOSITE + VARARG + REF_EQ + setOf(ALL_ANY, "eq", "neq", "isNull", "ofType")
 }
 
+internal object DynamicNames {
+    const val INVOKE = "invoke"
+    const val WITH_ARGUMENTS = "withArguments"
+    const val INVOKE_NO_ARGS = "invokeNoArgs"
+    const val GET_PROPERTY = "getProperty"
+    const val VALUE = "value"
+}
+
 internal object AnswerNames {
     const val RETURNS_ARGUMENT = "returnsArgument"
     val ORIGINAL_CALLS = setOf("callOriginal", "coCallOriginal")
     val BLOCKS = setOf("answers", "coAnswers", "andThenAnswer", "coAndThen")
+    val FIELD_VALUES = setOf("fieldValue", "fieldValueAny")
 }

@@ -6,7 +6,9 @@ import io.lokki.compiler.CoreConstructor
 import io.lokki.compiler.CoreFunction
 import io.lokki.compiler.ParameterNames
 import io.lokki.compiler.ir.LokkiSymbols
+import io.lokki.compiler.ir.ObjectRedirect
 import io.lokki.compiler.ir.Redirect
+import io.lokki.compiler.ir.argument
 import io.lokki.compiler.ir.buildLambda
 import io.lokki.compiler.ir.collect.MockForm
 import io.lokki.compiler.ir.collect.MockedTypes
@@ -28,6 +30,7 @@ import org.jetbrains.kotlin.ir.builders.irTemporary
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.expressions.IrBlock
 import org.jetbrains.kotlin.ir.expressions.IrCall
+import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.types.IrSimpleType
@@ -37,6 +40,7 @@ import org.jetbrains.kotlin.ir.types.makeNullable
 import org.jetbrains.kotlin.ir.types.typeWith
 import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.functions
+import org.jetbrains.kotlin.ir.util.isEnumClass
 import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.ir.util.primaryConstructor
 import org.jetbrains.kotlin.ir.util.render
@@ -45,6 +49,15 @@ internal val MOCK_FLAGS = listOf(
     ParameterNames.RELAXED to BuildConfig.FLAG_RELAXED,
     ParameterNames.RELAX_UNIT_FUN to BuildConfig.FLAG_RELAX_UNIT_FUN,
 )
+
+internal val RECORD_PRIVATE_FLAG = ParameterNames.RECORD_PRIVATE_CALLS to BuildConfig.FLAG_RECORD_PRIVATE_CALLS
+
+internal val IrConstructorCall.recordsPrivateCalls: Int
+    get() = if ((argument(ParameterNames.RECORD_PRIVATE_CALLS) as? IrConst)?.value == false) {
+        0
+    } else {
+        BuildConfig.FLAG_RECORD_PRIVATE_CALLS
+    }
 
 internal val MockForm.spyFlags: Int
     get() = if (this == MockForm.Delegation) BuildConfig.FLAG_SPY or BuildConfig.FLAG_DELEGATE else BuildConfig.FLAG_SPY
@@ -91,19 +104,43 @@ internal fun IrBuilderWithScope.irRedirect(
     mock: IrClass,
     target: IrExpression,
     redirect: Redirect,
+    flags: IrExpression? = null,
+): IrExpression {
+    if (redirect is ObjectRedirect && redirect.target.isEnumClass) {
+        return irBlock {
+            val entry = irTemporary(target)
+            +irRedirect(symbols, mock, irGet(entry), redirect, flags) { irGet(entry) }
+        }
+    }
+    return irRedirect(symbols, mock, target, redirect, flags) { null }
+}
+
+private fun IrBuilderWithScope.irRedirect(
+    symbols: LokkiSymbols,
+    mock: IrClass,
+    target: IrExpression,
+    redirect: Redirect,
+    flags: IrExpression?,
+    receiver: IrBuilderWithScope.() -> IrExpression?,
 ): IrExpression {
     val install = context.buildLambda(startOffset, endOffset, context.irBuiltIns.unitType)
     val value = install.addValueParameter("redirect", context.irBuiltIns.anyNType)
     install.body = DeclarationIrBuilder(context, install.symbol, startOffset, endOffset).irBlockBody {
-        +irInvoke(redirect.property.setter!!, irAs(irGet(value), redirect.redirect.defaultType.makeNullable()))
+        +irInvoke(
+            redirect.property.setter!!,
+            irAs(irGet(value), redirect.redirect.defaultType.makeNullable()),
+            receiver = receiver(),
+        )
     }
-    return irInvoke(
-        symbols[CoreConstructor.REDIRECT],
+    val arguments = listOfNotNull(
         target,
         irString(redirect.name),
         irFactory(symbols, mock, redirect.site.types),
         install.toLambda(context.irBuiltIns),
+        flags,
     )
+    val constructor = if (flags == null) CoreConstructor.REDIRECT else CoreConstructor.REDIRECT_WITH_FLAGS
+    return irInvoke(symbols[constructor], *arguments.toTypedArray())
 }
 
 private fun IrBuilderWithScope.irInstance(

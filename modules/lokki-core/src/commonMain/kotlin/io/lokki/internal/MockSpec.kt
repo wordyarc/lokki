@@ -16,3 +16,4 @@ internal const val DELEGATE = LokkiAbi.FLAG_DELEGATE
 internal const val OBJECT = LokkiAbi.FLAG_OBJECT
 internal const val STATIC = LokkiAbi.FLAG_STATIC
 internal const val CONSTRUCTOR = LokkiAbi.FLAG_CONSTRUCTOR
+internal const val RECORD_PRIVATE_CALLS = LokkiAbi.FLAG_RECORD_PRIVATE_CALLS

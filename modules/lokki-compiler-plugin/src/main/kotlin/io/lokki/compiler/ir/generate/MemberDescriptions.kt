@@ -7,10 +7,19 @@ import io.lokki.compiler.ir.irArrayOf
 import io.lokki.compiler.ir.irInvoke
 import io.lokki.compiler.ir.irJavaClass
 import io.lokki.compiler.ir.isAccessibleFrom
+import io.lokki.compiler.ir.isPrivateHook
+import io.lokki.compiler.ir.redirectedName
 import org.jetbrains.kotlin.backend.jvm.ir.getJvmNameFromAnnotation
+import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
+import org.jetbrains.kotlin.fir.declarations.FirProperty
+import org.jetbrains.kotlin.fir.declarations.FirPropertyAccessor
+import org.jetbrains.kotlin.fir.declarations.impl.FirDefaultPropertyAccessor
+import org.jetbrains.kotlin.fir.declarations.utils.hasBackingField
+import org.jetbrains.kotlin.fir.lazy.AbstractFir2IrLazyDeclaration
 import org.jetbrains.kotlin.ir.builders.IrBuilder
 import org.jetbrains.kotlin.ir.builders.irInt
 import org.jetbrains.kotlin.ir.builders.irString
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.expressions.IrExpression
@@ -56,6 +65,10 @@ internal class MemberDescriptions(lokki: LokkiIrContext) {
         if (declaration.parentAsClass.isSubclassOf(builtIns.functionClass.owner)) {
             flags = flags or BuildConfig.METHOD_FN_CALL
         }
+        if (!declaration.hasDefaultField) flags = flags or BuildConfig.METHOD_NO_DEFAULT_FIELD
+        if (member.isPrivateHook || declaration.visibility == DescriptorVisibilities.PROTECTED) {
+            flags = flags or BuildConfig.METHOD_PRIVATE_CALL
+        }
         val parameters = member.nonDispatchParameters
         return irInvoke(
             symbols[CoreFunction.METHOD_DESCRIPTION],
@@ -78,10 +91,21 @@ internal class MemberDescriptions(lokki: LokkiIrContext) {
     }
 }
 
+private val IrSimpleFunction.hasDefaultField: Boolean
+    get() {
+        val property = correspondingPropertySymbol?.owner ?: return true
+        if (parentAsClass.redirectedName != null) return true
+        val compiled = (property as? AbstractFir2IrLazyDeclaration<*>)?.fir as? FirProperty
+            ?: return property.backingField != null && origin == IrDeclarationOrigin.DEFAULT_PROPERTY_ACCESSOR
+        val accessor = (this as? AbstractFir2IrLazyDeclaration<*>)?.fir as? FirPropertyAccessor
+        return compiled.hasBackingField && (accessor == null || accessor is FirDefaultPropertyAccessor)
+    }
+
 private val IrSimpleFunction.descriptionName: String
     get() {
-        getJvmNameFromAnnotation()?.let { return it }
-        val property = correspondingPropertySymbol?.owner ?: return name.asString()
+        getJvmNameFromAnnotation()?.let { return it.substringBefore(BuildConfig.PRIVATE_HOOK_INFIX) }
+        val property = correspondingPropertySymbol?.owner
+            ?: return name.asString().substringBefore(BuildConfig.PRIVATE_HOOK_INFIX)
         val name = property.name.asString()
         return if (property.getter == this) JvmAbi.getterName(name) else JvmAbi.setterName(name)
     }

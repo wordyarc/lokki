@@ -1,0 +1,7 @@
+/fieldValueUnavailable.kt:22:39: error: 'fieldValue' is not available in the answer of 'custom': the property has a custom accessor, whose value differs from the field. Use 'callOriginal()'.
+
+/fieldValueUnavailable.kt:23:67: error: 'fieldValue' is not available in the answer of 'custom': the property has a custom accessor, whose value differs from the field. Use 'callOriginal()'.
+
+/fieldValueUnavailable.kt:24:41: error: 'fieldValue' is not available in the answer of 'computed': the property has no backing field.
+
+/fieldValueUnavailable.kt:25:43: error: 'fieldValue' is not available in the answer of 'function': it is not a property.

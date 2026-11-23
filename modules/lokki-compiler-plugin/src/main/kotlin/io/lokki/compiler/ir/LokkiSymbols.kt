@@ -73,6 +73,7 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
         finder.findClass(ClassId(KOTLIN_PACKAGE, Name.identifier("DeprecationLevel")))!!.owner
             .declarations.filterIsInstance<IrEnumEntry>().single { it.name.asString() == "HIDDEN" }
     }
+    val typeOf by lazy { finder.findFunctions(CallableId(FqName("kotlin.reflect"), Name.identifier("typeOf"))).single().owner }
     val apply by lazy { finder.findFunctions(CallableId(KOTLIN_PACKAGE, Name.identifier("apply"))).single() }
     val javaClass by lazy {
         finder.findProperties(CallableId(JVM_PACKAGE, Name.identifier("java")))

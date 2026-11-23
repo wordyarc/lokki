@@ -21,7 +21,7 @@ import io.lokki.verifyCount
 import io.lokki.verifyOrder
 
 fun test() {
-    val reference: (MatcherScope.() -> String) -> StubScope<String> = <!LOKKI_CALLABLE_REFERENCE_TO_INTRINSIC!>::every<!>
+    val reference: (MatcherScope.() -> String) -> StubScope<String, String> = <!LOKKI_CALLABLE_REFERENCE_TO_INTRINSIC!>::every<!>
     val adapted: (MatcherScope.() -> String) -> Unit = <!LOKKI_CALLABLE_REFERENCE_TO_INTRINSIC!>::every<!>
     val verification: (Ordering, Boolean, Int, Int, Int, Long, VerificationScope.() -> Any?) -> Unit =
         <!LOKKI_CALLABLE_REFERENCE_TO_INTRINSIC!>::verify<!>
@@ -37,7 +37,7 @@ fun test() {
         <!LOKKI_CALLABLE_REFERENCE_TO_INTRINSIC!>::coExcludeRecords<!>
     val regular: (Any) -> Boolean = ::isMock
     val generic: () -> CapturingSlot<Int> = ::slot
-    val answer = StubScope<String>::returnsArgument
+    val answer = StubScope<String, String>::returnsArgument
 }
 
 fun MatcherScope.helper(): () -> String = <!LOKKI_CALLABLE_REFERENCE_TO_INTRINSIC!>::isNull<!>

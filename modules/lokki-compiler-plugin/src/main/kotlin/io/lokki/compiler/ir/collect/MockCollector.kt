@@ -15,6 +15,7 @@ import io.lokki.compiler.ir.intrinsicKind
 import io.lokki.compiler.ir.isVisibleFrom
 import io.lokki.compiler.ir.links
 import io.lokki.compiler.ir.mockedObjects
+import io.lokki.compiler.ir.staticClassArguments
 import io.lokki.compiler.ir.staticFileArguments
 import io.lokki.compiler.ir.staticReferences
 import io.lokki.compiler.ir.unwrapTemporary
@@ -31,6 +32,7 @@ import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrSpreadElement
 import org.jetbrains.kotlin.ir.expressions.IrVararg
+import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.starProjectedType
 import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.visitors.IrVisitorVoid
@@ -55,7 +57,10 @@ internal class MockSites(
     val classes: Map<MockClassKey, MockClassUsage>,
     val blockStatementCalls: Set<IrCall>,
     val constructed: Map<IrClass, ConstructedSite>,
+    val reifiedCalls: Map<IrCall, List<ReifiedType>>,
 )
+
+internal class ReifiedType(val type: IrType, val site: MockSite.Mocked)
 
 internal fun FileContext.collectMockSites(): MockSites {
     val collector = MockCollector(this)
@@ -67,6 +72,7 @@ internal fun FileContext.collectMockSites(): MockSites {
         collector.usages(),
         collector.blockStatementCalls,
         collector.constructed,
+        collector.reifiedCalls,
     )
 }
 
@@ -78,6 +84,8 @@ private class MockCollector(private val file: FileContext) : IrVisitorVoid() {
     val blockStatementCalls = HashSet<IrCall>()
 
     val constructed = LinkedHashMap<IrClass, ConstructedSite>()
+
+    val reifiedCalls = HashMap<IrCall, List<ReifiedType>>()
 
     private val classes = LinkedHashMap<MockClassKey, Usage>()
 
@@ -123,8 +131,12 @@ private class MockCollector(private val file: FileContext) : IrVisitorVoid() {
 
     override fun visitCall(expression: IrCall) {
         val kind = expression.intrinsicKind
+        addReifiedTypes(expression)
         if (kind == IntrinsicKind.MOCK || kind == IntrinsicKind.SPY) {
-            val site = file.mockability.site(expression.request(kind == IntrinsicKind.SPY))
+            val site = when (expression.reifiedMockParameter) {
+                null -> file.mockability.site(expression.request(kind == IntrinsicKind.SPY))
+                else -> MockSite.Reified
+            }
             calls[expression] = site
             if (site is MockSite.Mocked) {
                 val usage = add(expression, site)
@@ -135,7 +147,8 @@ private class MockCollector(private val file: FileContext) : IrVisitorVoid() {
         val redirected = when (kind) {
             IntrinsicKind.MOCK_OBJECT -> expression.mockedObjects.orEmpty().mapNotNull(file.redirects::of)
             IntrinsicKind.MOCK_STATIC -> expression.staticReferences.orEmpty().mapNotNull(file.redirects::static) +
-                expression.staticFileArguments.orEmpty().mapNotNull { it.fileClassName }.flatMap(file.redirects::file)
+                expression.staticFileArguments.orEmpty().mapNotNull { it.fileClassName }.flatMap(file.redirects::file) +
+                expression.staticClassArguments.orEmpty().mapNotNull(file.redirects::ofStaticClass)
             else -> emptyList()
         }
         for (redirect in redirected) add(expression, redirect.site)
@@ -152,6 +165,21 @@ private class MockCollector(private val file: FileContext) : IrVisitorVoid() {
             add(link.call, site)
         }
         super.visitCall(expression)
+    }
+
+    private fun addReifiedTypes(call: IrCall) {
+        val types = file.reifiedHelpers.concreteTypes(call).mapNotNull { type ->
+            when (val site = file.mockability.reified(type)) {
+                is MockSite.Mocked -> {
+                    val usage = add(call, site)
+                    if (file.chainedMocks) usage.relaxedChildren = true
+                    ReifiedType(type, site)
+                }
+                is MockSite.Rejected -> null.also { file.diagnostics.report(call, site.problem) }
+                MockSite.Reified -> null
+            }
+        }
+        if (types.isNotEmpty()) reifiedCalls[call] = types
     }
 
     private fun addConstructed(use: IrCall, target: IrClass) {

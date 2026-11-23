@@ -55,7 +55,7 @@ abstract class Pump {
     abstract fun pressure(): Int
 }
 
-fun AnswerScope<Int>.original(): Int = callOriginal()
+fun AnswerScope<Int, Int>.original(): Int = callOriginal()
 
 fun box(): String {
     val engine = mock<Engine>()

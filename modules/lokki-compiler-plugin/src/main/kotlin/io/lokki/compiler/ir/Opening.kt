@@ -24,6 +24,9 @@ internal val IrSimpleFunction.isOverridable: Boolean
     get() = modality != Modality.FINAL ||
         (resolveFakeOverride() ?: this).let { it.correspondingPropertySymbol?.owner ?: it }.isOpenedInBytecode
 
+internal val IrSimpleFunction.isPrivateHook: Boolean
+    get() = BuildConfig.PRIVATE_HOOK_INFIX in name.asString()
+
 internal val IrSimpleFunction.isClassFinalizer: Boolean
     get() {
         if (name.asString() != FINALIZE || nonDispatchParameters.isNotEmpty() || !returnType.isUnit()) return false

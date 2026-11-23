@@ -164,7 +164,7 @@ internal class StubBlockLowering(
         }
         val just = justRuns || awaitCancellation != null
         val answered = if (just) builtIns.unitType else every.typeArguments[0]!!
-        val stubType = if (just) symbols[CoreClass.STUB_SCOPE].typeWith(answered) else every.type
+        val stubType = if (just) symbols[CoreClass.STUB_SCOPE].typeWith(answered, answered) else every.type
         val registration = lambda(every, stubType)
         registration.body = builder(registration, every).irBlockBody {
             val call = irRegistration(block, stubbed)
@@ -200,9 +200,9 @@ internal class StubBlockLowering(
         answersClass: IrClass,
         awaitCancellation: IrSimpleFunction,
     ): IrExpression {
-        val type = (dsl.type as IrSimpleType).arguments.single().typeOrFail
+        val (type, field) = (dsl.type as IrSimpleType).arguments.map { it.typeOrFail }
         val answer = lambda(dsl, type, suspend = true)
-        answer.addValueParameter("scope", symbols[CoreClass.ANSWER_SCOPE].typeWith(type))
+        answer.addValueParameter("scope", symbols[CoreClass.ANSWER_SCOPE].typeWith(type, field))
         answer.addValueParameter("call", symbols[CoreClass.CALL].defaultType)
         answer.body = builder(answer, dsl).irBlockBody { +irReturn(irInvoke(awaitCancellation)) }
         val stubs = answersClass == symbols[CoreClass.STUB_SCOPE]

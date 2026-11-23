@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.ir.declarations.IrPackageFragment
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
+import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrClassReference
 import org.jetbrains.kotlin.ir.expressions.IrConst
@@ -31,10 +32,13 @@ import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrVararg
 import org.jetbrains.kotlin.ir.expressions.IrVarargElement
 import org.jetbrains.kotlin.ir.types.classOrNull
+import org.jetbrains.kotlin.ir.types.isString
 import org.jetbrains.kotlin.ir.util.classId
+import org.jetbrains.kotlin.ir.util.companionObject
 import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.erasedUpperBound
 import org.jetbrains.kotlin.ir.util.getPackageFragment
+import org.jetbrains.kotlin.ir.util.isEnumClass
 import org.jetbrains.kotlin.ir.util.isObject
 import org.jetbrains.kotlin.ir.util.isTopLevel
 import org.jetbrains.kotlin.ir.util.kotlinFqName
@@ -56,6 +60,8 @@ internal class RedirectLookup(private val context: IrPluginContext, file: IrFile
 
     fun of(argument: IrExpression): ObjectRedirect? = argument.type.classOrNull?.owner?.let(::of)
 
+    fun ofStaticClass(element: IrVarargElement): ObjectRedirect? = element.staticOwner?.let(::of)
+
     fun static(reference: IrExpression): StaticRedirect? =
         when (val target = reference.referencedDeclaration.takeIf { reference.isUnboundReference }) {
             is IrSimpleFunction, is IrProperty -> static(target)
@@ -69,6 +75,10 @@ internal class RedirectLookup(private val context: IrPluginContext, file: IrFile
     fun member(function: IrSimpleFunction): RedirectMember? {
         val declaration = function.correspondingPropertySymbol?.owner ?: function
         val parent = function.parent
+        if (parent is IrClass && parent.name == REDIRECT) {
+            val owner = parent.parentClassOrNull?.let(::of) ?: return null
+            return RedirectMember(owner, function.memberKeys.first())
+        }
         val redirect = when {
             function.isTopLevel -> static(declaration)
             parent is IrClass -> of(parent)?.takeIf {
@@ -141,7 +151,7 @@ internal class RedirectLookup(private val context: IrPluginContext, file: IrFile
         context.metadataDeclarationRegistrar.getCustomMetadataExtension(declaration, BuildConfig.COMPILER_PLUGIN_ID)
 
     private fun find(target: IrClass): ObjectRedirect? {
-        if (!target.isObject) return null
+        if (!target.isRedirectTarget) return null
         val generated = target.declarations.filterIsInstance<IrClass>().find { it.name == REDIRECT }
         if (generated == null && mark(target) != InterceptionMark.CURRENT) return null
         val classId = target.classId ?: return null
@@ -213,12 +223,15 @@ internal class StaticRedirect(
 
 internal class RedirectMember(val redirect: Redirect, val key: String)
 
+internal val IrClass.isRedirectTarget: Boolean
+    get() = isObject || isEnumClass
+
 internal val IrClass.objectName: String
     get() = classId?.relativeClassName?.asString() ?: kotlinFqName.asString()
 
 internal val IrClass.redirectedName: String?
     get() = when {
-        name == REDIRECT && parentClassOrNull?.isObject == true -> parentClassOrNull!!.objectName
+        name == REDIRECT && parentClassOrNull?.isRedirectTarget == true -> parentClassOrNull!!.objectName
         parent is IrPackageFragment && name.asString().endsWith(FILE_REDIRECT_SUFFIX) ->
             name.asString().removeSuffix(FILE_REDIRECT_SUFFIX)
         else -> null
@@ -242,8 +255,19 @@ internal val IrCall.staticReferences: List<IrExpression>?
     }
 
 internal val IrCall.staticFileArguments: List<IrVarargElement>?
-    get() = symbol.owner.parameters.find { it.name.asString() == ParameterNames.FILE_CLASSES }
+    get() = classesParameter?.takeIf { it.varargElementType?.isString() == true }
         ?.let { parameter -> (arguments[parameter] as? IrVararg)?.elements.orEmpty() }
+
+internal val IrCall.staticClassArguments: List<IrVarargElement>?
+    get() = classesParameter?.takeIf { it.varargElementType?.isString() == false }
+        ?.let { parameter -> (arguments[parameter] as? IrVararg)?.elements.orEmpty() }
+
+private val IrCall.classesParameter: IrValueParameter?
+    get() = symbol.owner.parameters.find { it.name.asString() == ParameterNames.FILE_CLASSES }
+
+private val IrVarargElement.staticOwner: IrClass?
+    get() = (this as? IrClassReference)?.classType?.classOrNull?.owner
+        ?.let { owner -> owner.takeIf { it.isObject } ?: owner.companionObject() }
 
 internal val IrVarargElement.fileClassName: String?
     get() = (this as? IrConst)?.value as? String

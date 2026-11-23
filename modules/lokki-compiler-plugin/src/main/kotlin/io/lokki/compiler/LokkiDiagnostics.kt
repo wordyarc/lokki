@@ -50,6 +50,7 @@ internal object LokkiDiagnostics : KtDiagnosticsContainer() {
     val LOKKI_UNSUPPORTED_INJECTION by error2<KtElement, String, String>()
     val LOKKI_OBJECT_NOT_INTERCEPTABLE by error2<KtElement, String, String>()
     val LOKKI_UNRESOLVED_DYNAMIC_CALL by error1<KtElement, String>()
+    val LOKKI_FIELD_VALUE_UNAVAILABLE by error2<KtElement, String, String>()
     val LOKKI_REFERENCE_NOT_LITERAL by error1<KtElement, String>()
     val LOKKI_FILE_CLASS_NOT_LITERAL by error1<KtElement, String>()
     val LOKKI_RUNTIME_TOO_OLD by error0<KtElement>()
@@ -249,6 +250,12 @@ private object LokkiDiagnosticRenderers : BaseDiagnosticRendererFactory() {
         map.put(
             LokkiDiagnostics.LOKKI_UNRESOLVED_DYNAMIC_CALL,
             "A dynamic call cannot be resolved at compile time: {0}.",
+            CommonRenderers.STRING,
+        )
+        map.put(
+            LokkiDiagnostics.LOKKI_FIELD_VALUE_UNAVAILABLE,
+            "''fieldValue'' is not available in the answer of ''{0}'': {1}.",
+            CommonRenderers.STRING,
             CommonRenderers.STRING,
         )
         map.put(

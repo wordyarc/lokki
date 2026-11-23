@@ -5,6 +5,7 @@ import io.lokki.compiler.LokkiPluginKey
 import io.lokki.compiler.compat.CompilerCompat
 import io.lokki.compiler.ir.collect.MockFields
 import io.lokki.compiler.ir.collect.Mockability
+import io.lokki.compiler.ir.collect.ReifiedHelpers
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.incremental.components.LookupTracker
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
@@ -29,6 +30,7 @@ internal class FileContext(
     lokki: LokkiIrContext,
     val mockability: Mockability,
     val fields: MockFields,
+    val reifiedHelpers: ReifiedHelpers,
 ) {
     val chainedMocks: Boolean = ir.hasAnnotation(CoreClass.CHAINED_MOCKS.id)
     val redirects = RedirectLookup(lokki.pluginContext, ir)

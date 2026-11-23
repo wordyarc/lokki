@@ -13,6 +13,8 @@ internal const val INTERCEPTION_POINTS_KOTLIN = "2.4.20"
 
 internal val INTERCEPTION_MARK = byteArrayOf(1)
 
+internal val REIFIED_HELPER_MARK = byteArrayOf(2)
+
 internal enum class InterceptionMark {
     CURRENT,
     OTHER_FORMAT,
@@ -21,7 +23,7 @@ internal enum class InterceptionMark {
     companion object {
         fun of(data: ByteArray?): InterceptionMark =
             when {
-                data == null -> ABSENT
+                data == null || data.firstOrNull() == REIFIED_HELPER_MARK[0] -> ABSENT
                 data.firstOrNull() == INTERCEPTION_MARK[0] -> CURRENT
                 else -> OTHER_FORMAT
             }

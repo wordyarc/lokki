@@ -15,6 +15,13 @@ internal actual fun GeneratedMock.redirectsFile(type: Any): Boolean {
     }
 }
 
+internal actual fun Any.isStaticOf(type: Any): Boolean {
+    val declaring = type.jvmClass ?: return false
+    return javaClass === declaring || javaClass.declaringClass === declaring && javaClass.simpleName == COMPANION
+}
+
+private const val COMPANION = "Companion"
+
 private val Any.jvmClass: Class<*>?
     get() = when (this) {
         is KClass<*> -> java

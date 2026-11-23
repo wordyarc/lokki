@@ -1352,9 +1352,39 @@ public abstract class MatcherScope internal constructor() {
     @LokkiIntrinsic(LokkiIntrinsic.Kind.DYNAMIC_MEMBER)
     public operator fun Any.get(name: String): DynamicCall = DynamicCall(this, name)
 
+    @Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+    @kotlin.internal.LowPriorityInOverloadResolution
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.DYNAMIC_MEMBER)
+    public infix fun Any.invoke(name: String): DynamicCallLong = DynamicCallLong(this, name)
+
+    @Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+    @kotlin.internal.LowPriorityInOverloadResolution
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.DYNAMIC_CALL)
+    public infix fun Any.invokeNoArgs(name: String): Any? = pluginNotApplied()
+
+    @Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+    @kotlin.internal.LowPriorityInOverloadResolution
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.DYNAMIC_CALL)
+    public infix fun Any.getProperty(name: String): Any? = pluginNotApplied()
+
+    @Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+    @kotlin.internal.LowPriorityInOverloadResolution
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.DYNAMIC_MEMBER)
+    public infix fun Any.setProperty(name: String): DynamicSetProperty = DynamicSetProperty(this, name)
+
+    public class DynamicSetProperty internal constructor(public val self: Any, public val name: String) {
+        @LokkiIntrinsic(LokkiIntrinsic.Kind.DYNAMIC_CALL)
+        public infix fun value(value: Any?): Unit = pluginNotApplied()
+    }
+
     public class DynamicCall internal constructor(public val self: Any, public val methodName: String) {
         @LokkiIntrinsic(LokkiIntrinsic.Kind.DYNAMIC_CALL)
         public operator fun invoke(vararg args: Any?): Any? = pluginNotApplied()
+    }
+
+    public class DynamicCallLong internal constructor(public val self: Any, public val methodName: String) {
+        @LokkiIntrinsic(LokkiIntrinsic.Kind.DYNAMIC_CALL)
+        public infix fun withArguments(args: List<Any?>): Any? = pluginNotApplied()
     }
 
     @PublishedApi

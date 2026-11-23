@@ -8,11 +8,11 @@ import io.lokki.internal.LokkiIntrinsic
 import io.lokki.internal.pluginNotApplied
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.STUB_BLOCK)
-public fun <T> given(stubBlock: MatcherScope.() -> T): StubScope<T> =
+public fun <T> given(stubBlock: MatcherScope.() -> T): StubScope<T, T> =
     pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.STUB_BLOCK)
-public fun <T> coGiven(stubBlock: suspend MatcherScope.() -> T): StubScope<T> =
+public fun <T> coGiven(stubBlock: suspend MatcherScope.() -> T): StubScope<T, T> =
     pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_BLOCK)

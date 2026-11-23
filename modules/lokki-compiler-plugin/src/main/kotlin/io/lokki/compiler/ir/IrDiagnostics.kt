@@ -56,6 +56,7 @@ internal class IrDiagnostics(private val lokki: LokkiIrContext, private val file
             when (site) {
                 is MockSite.Mocked -> site.warning?.let { report(call, it) }
                 is MockSite.Rejected -> report(call, site.problem)
+                MockSite.Reified -> {}
             }
         }
     }

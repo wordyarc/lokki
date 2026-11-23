@@ -55,8 +55,8 @@ context(context: CheckerContext)
 internal fun FirCallableSymbol<*>.objectInterception(receiver: ConeKotlinType? = null): MemberInterception {
     val declaring = getContainingClassSymbol() as? FirRegularClassSymbol
     val receiverObject = receiver?.fullyExpandedType()?.toRegularClassSymbol()
-        ?.takeIf { it.classKind == ClassKind.OBJECT }
-    val owner = receiverObject ?: declaring?.takeIf { it.classKind == ClassKind.OBJECT }
+        ?.takeIf { it.isRedirectTarget }
+    val owner = receiverObject ?: declaring?.takeIf { it.isRedirectTarget }
         ?: return MemberInterception.NotApplicable
     val inherited = declaring != owner || isSubstitutionOrIntersectionOverride
     val reason = propertyProblem() ?: when {
@@ -79,6 +79,9 @@ internal fun FirCallableSymbol<*>.objectInterception(receiver: ConeKotlinType? =
         )
     }
 }
+
+private val FirRegularClassSymbol.isRedirectTarget: Boolean
+    get() = classKind == ClassKind.OBJECT || classKind == ClassKind.ENUM_CLASS
 
 context(context: CheckerContext)
 internal fun FirRegularClassSymbol.constructorInterceptionProblem(): String? {

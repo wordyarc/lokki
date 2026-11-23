@@ -1,0 +1,13 @@
+/dynamicMembersNotLiteral.kt:16:13: error: A dynamic call cannot be resolved at compile time: the name of the member must be a string literal.
+
+/dynamicMembersNotLiteral.kt:17:13: error: A dynamic call cannot be resolved at compile time: pass the arguments as a literal 'listOf(...)': lokki resolves the member at compile time.
+
+/dynamicMembersNotLiteral.kt:18:13: error: A dynamic call cannot be resolved at compile time: the name of the member must be a string literal.
+
+/dynamicMembersNotLiteral.kt:19:13: error: A dynamic call cannot be resolved at compile time: 'Service' has no function 'absent', or it is private to a compiled class.
+
+/dynamicMembersNotLiteral.kt:20:13: error: A dynamic call cannot be resolved at compile time: 'Service' has no property 'absent' with accessors: a private property without custom accessors is read directly from its field.
+
+/dynamicMembersNotLiteral.kt:21:13: error: A call of 'hiddenField' cannot be intercepted: it is private, and a mock cannot override it.
+
+/dynamicMembersNotLiteral.kt:22:13: error: A dynamic call cannot be resolved at compile time: the property 'fixed' of 'Service' is read-only.

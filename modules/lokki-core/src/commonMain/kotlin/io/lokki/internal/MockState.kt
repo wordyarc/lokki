@@ -13,6 +13,7 @@ import io.lokki.MethodDescription
 import io.lokki.StubScope
 import kotlin.concurrent.Volatile
 import kotlin.coroutines.intrinsics.startCoroutineUninterceptedOrReturn
+import kotlin.reflect.KClass
 
 @PublishedApi
 internal class MockState(private val owner: Any, spec: MockSpec, internal val descriptor: MockDescriptor) {
@@ -107,14 +108,25 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         throw LokkiException("no original implementation for ${call(member, arguments.joinToString { it.toStr() })}")
     }
 
-    fun <T> stub(key: String, matchers: Array<Matcher<Any?>>): StubScope<T> {
+    fun <T> stub(key: String, matchers: Array<Matcher<Any?>>): StubScope<T, T> {
         checkNotShared()
-        return PendingStub(this, descriptor.member(key), matchers)
+        return PendingStub(this, stubbedMember(key), matchers)
     }
 
-    fun <T> stubLenient(key: String, matchers: Array<Matcher<Any?>>): StubScope<T> {
+    fun <T> stubLenient(key: String, matchers: Array<Matcher<Any?>>): StubScope<T, T> {
         checkNotShared()
-        return PendingStub(this, descriptor.member(key), matchers, lenient = true)
+        return PendingStub(this, stubbedMember(key), matchers, lenient = true)
+    }
+
+    private fun stubbedMember(key: String): Int {
+        val member = descriptor.member(key)
+        if (flags and DELEGATE != 0 && descriptor.isPrivate(member)) {
+            throw LokkiException(
+                "${memberName(member)} is private and $name delegates to another instance, whose calls of it " +
+                    "the spy does not see; create the spy from a constructor call: spy(${descriptor.name}(...))"
+            )
+        }
+        return member
     }
 
     fun link(key: String, matchers: Array<Matcher<Any?>>, stubs: Boolean, factory: (MockSpec) -> Any): Any {
@@ -153,6 +165,23 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
 
     fun coCaptureDefaults(key: String, names: Array<String?>, call: suspend (Boolean) -> Unit): Array<Any?> =
         captureDefaults(key, names) { alternate -> call.startCoroutineUninterceptedOrReturn(alternate, Abandoned) }
+
+    internal fun fieldAccessor(member: Int, access: FieldAccess): Int {
+        val description = description(member)
+        if (!description.hasDefaultField) {
+            throw LokkiException(
+                "${memberName(member)} has no backing field with default accessors: fieldValue is available for " +
+                    "properties with default accessors, use callOriginal() for the others"
+            )
+        }
+        return descriptor.accessor(member, access) ?: throw LokkiException(
+            when {
+                descriptor.accessor(member, FieldAccess.READ) == null ->
+                    "${memberName(member)} is not a property accessor, so it has no fieldValue"
+                else -> "${memberName(member)} belongs to a read-only property, so fieldValue cannot be written"
+            }
+        )
+    }
 
     internal fun memberName(member: Int): String = "${descriptor.name}.${description(member).name}"
 
@@ -260,7 +289,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         }
         val changesState = !Registration.isActive
         val link = if (changesState) null else Registration.takeLink(this, member)
-        val record = if (changesState && member > TO_STRING) record(member, arguments) else null
+        val record = if (changesState && member > TO_STRING && recordsCalls(member)) record(member, arguments) else null
         val stub = findStub(member, arguments) ?: return when {
             answersWithOriginal(member) -> original(record)
             link?.factory != null -> linkedChild(member, equalTo(arguments), link.stubs, link.factory)
@@ -392,6 +421,8 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         val depth = chained.groupValues[2].ifEmpty { "1" }.toInt()
         return "child^${depth + 1} of ${chained.groupValues[3]}"
     }
+
+    private fun recordsCalls(member: Int): Boolean = flags and RECORD_PRIVATE_CALLS != 0 || !descriptor.isPrivate(member)
 
     private fun answersWithOriginal(member: Int): Boolean =
         flags and SPY != 0 && member != TO_STRING && (member > TO_STRING || flags and DELEGATE == 0)
@@ -540,29 +571,29 @@ internal class StubEntry(
     }
 }
 
-private class PendingStub<T>(
+private class PendingStub<T, B>(
     private val state: MockState,
     private val member: Int,
     private val matchers: Array<Matcher<Any?>>,
     private val lenient: Boolean = false,
-) : StubScope<T>, AdditionalAnswerScope<T> {
+) : StubScope<T, B>, AdditionalAnswerScope<T, B> {
     private var entry: StubEntry? = null
 
-    override fun answers(answer: Answer<T>): AdditionalAnswerScope<T> = add(listOf(answer))
+    override fun answers(answer: Answer<T>): AdditionalAnswerScope<T, B> = add(listOf(answer))
 
-    override fun answers(answer: AnswerScope<T>.(Call) -> T): AdditionalAnswerScope<T> =
-        add(listOf(Answer { call -> AnswerScope<T>(call).answer(call) }))
+    override fun answers(answer: AnswerScope<T, B>.(Call) -> T): AdditionalAnswerScope<T, B> =
+        add(listOf(Answer { call -> AnswerScope<T, B>(call).answer(call) }))
 
-    override fun coAnswers(answer: suspend AnswerScope<T>.(Call) -> T): AdditionalAnswerScope<T> =
-        add(listOf(SuspendingAnswer { call -> AnswerScope<T>(call).answer(call) }))
+    override fun coAnswers(answer: suspend AnswerScope<T, B>.(Call) -> T): AdditionalAnswerScope<T, B> =
+        add(listOf(SuspendingAnswer { call -> AnswerScope<T, B>(call).answer(call) }))
 
-    override fun returns(returnValue: T): AdditionalAnswerScope<T> = add(listOf(ConstantAnswer(returnValue)))
+    override fun returns(returnValue: T): AdditionalAnswerScope<T, B> = add(listOf(ConstantAnswer(returnValue)))
 
-    override fun returnsMany(values: List<T>): AdditionalAnswerScope<T> = add(values.map(::ConstantAnswer))
+    override fun returnsMany(values: List<T>): AdditionalAnswerScope<T, B> = add(values.map(::ConstantAnswer))
 
-    override fun returnsMany(vararg values: T): AdditionalAnswerScope<T> = returnsMany(values.asList())
+    override fun returnsMany(vararg values: T): AdditionalAnswerScope<T, B> = returnsMany(values.asList())
 
-    override fun returnsArgument(n: Int): AdditionalAnswerScope<T> {
+    override fun returnsArgument(n: Int): AdditionalAnswerScope<T, B> {
         if (n !in matchers.indices) {
             throw LokkiException(
                 "returnsArgument($n) is out of range: " +
@@ -572,27 +603,33 @@ private class PendingStub<T>(
         return add(listOf(ArgumentAnswer(n)))
     }
 
-    override fun throws(ex: Throwable): AdditionalAnswerScope<T> = add(listOf(ThrowingAnswer(ex)))
+    override fun throws(ex: Throwable): AdditionalAnswerScope<T, B> = add(listOf(ThrowingAnswer(ex)))
 
-    override fun throwsMany(exList: List<Throwable>): AdditionalAnswerScope<T> = add(exList.map(::ThrowingAnswer))
+    override fun throwsMany(exList: List<Throwable>): AdditionalAnswerScope<T, B> = add(exList.map(::ThrowingAnswer))
 
-    override fun andThenAnswer(answer: Answer<T>): AdditionalAnswerScope<T> = answers(answer)
+    @Suppress("UNCHECKED_CAST")
+    override fun <K : Any> propertyType(cls: KClass<K>): StubScope<T, K> = this as StubScope<T, K>
 
-    override fun andThenAnswer(answer: AnswerScope<T>.(Call) -> T): AdditionalAnswerScope<T> = answers(answer)
+    @Suppress("UNCHECKED_CAST")
+    override fun <K : Any> nullablePropertyType(cls: KClass<K>): StubScope<T, K?> = this as StubScope<T, K?>
 
-    override fun coAndThen(answer: suspend AnswerScope<T>.(Call) -> T): AdditionalAnswerScope<T> = coAnswers(answer)
+    override fun andThenAnswer(answer: Answer<T>): AdditionalAnswerScope<T, B> = answers(answer)
 
-    override fun andThen(returnValue: T): AdditionalAnswerScope<T> = returns(returnValue)
+    override fun andThenAnswer(answer: AnswerScope<T, B>.(Call) -> T): AdditionalAnswerScope<T, B> = answers(answer)
 
-    override fun andThenMany(values: List<T>): AdditionalAnswerScope<T> = returnsMany(values)
+    override fun coAndThen(answer: suspend AnswerScope<T, B>.(Call) -> T): AdditionalAnswerScope<T, B> = coAnswers(answer)
 
-    override fun andThenMany(vararg values: T): AdditionalAnswerScope<T> = returnsMany(values.asList())
+    override fun andThen(returnValue: T): AdditionalAnswerScope<T, B> = returns(returnValue)
 
-    override fun andThenThrows(ex: Throwable): AdditionalAnswerScope<T> = throws(ex)
+    override fun andThenMany(values: List<T>): AdditionalAnswerScope<T, B> = returnsMany(values)
 
-    override fun andThenThrowsMany(exList: List<Throwable>): AdditionalAnswerScope<T> = throwsMany(exList)
+    override fun andThenMany(vararg values: T): AdditionalAnswerScope<T, B> = returnsMany(values.asList())
 
-    private fun add(answers: List<Answer<Any?>>): AdditionalAnswerScope<T> {
+    override fun andThenThrows(ex: Throwable): AdditionalAnswerScope<T, B> = throws(ex)
+
+    override fun andThenThrowsMany(exList: List<Throwable>): AdditionalAnswerScope<T, B> = throwsMany(exList)
+
+    private fun add(answers: List<Answer<Any?>>): AdditionalAnswerScope<T, B> {
         val entry = entry
         when {
             entry != null -> entry.add(answers)

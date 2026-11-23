@@ -21,8 +21,22 @@ internal class MockDescriptor(
 
     private val descriptions = arrayOfNulls<MethodDescription>(keys.size)
 
+    private val privateMembers: BooleanArray? by lazy {
+        BooleanArray(keys.size) { LokkiAbi.PRIVATE_HOOK_INFIX in keys[it] }.takeIf { flags -> flags.any { it } }
+    }
+
     internal val memberCount: Int
         get() = keys.size
+
+    internal fun isPrivate(member: Int): Boolean = privateMembers?.get(member) == true
+
+    internal fun accessor(member: Int, access: FieldAccess): Int? {
+        val signature = keys[member].substringAfter('#')
+        val property = ACCESSOR.find(signature) ?: return null
+        val prefix = signature.substring(0, property.range.first)
+        val wanted = "$prefix<${access.prefix}-${property.groupValues[1]}>("
+        return keys.indexOfFirst { it.substringAfter('#').startsWith(wanted) }.takeIf { it >= 0 }
+    }
 
     internal fun hasSameMembers(other: MockDescriptor): Boolean = keys.contentEquals(other.keys)
 
@@ -36,3 +50,10 @@ internal class MockDescriptor(
         if (put(key, member) != null) throw LokkiException("$name has two members with the key $key")
     }
 }
+
+internal enum class FieldAccess(val prefix: String) {
+    READ("get"),
+    WRITE("set"),
+}
+
+private val ACCESSOR = Regex("<[gs]et-(.+?)>\\(")

@@ -2,6 +2,7 @@ package io.lokki
 
 import io.lokki.internal.LokkiIntrinsic
 import io.lokki.internal.MockFieldsOwner
+import io.lokki.internal.RECORD_PRIVATE_CALLS
 import io.lokki.internal.RELAXED
 import io.lokki.internal.RELAX_UNIT_FUN
 import kotlin.reflect.KClass
@@ -20,7 +21,7 @@ public annotation class RelaxedMock(public val name: String = "")
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.SPY)
 @Target(AnnotationTarget.PROPERTY, AnnotationTarget.VALUE_PARAMETER)
-public annotation class Spy(public val name: String = "")
+public annotation class Spy(public val name: String = "", public val recordPrivateCalls: Boolean = true)
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.ADDITIONAL_INTERFACE)
 @Target(AnnotationTarget.PROPERTY, AnnotationTarget.VALUE_PARAMETER)
@@ -51,8 +52,14 @@ public enum class InjectionLookupType {
 }
 
 public object MockAnnotations {
-    public fun init(vararg obj: Any, relaxUnitFun: Boolean = false, relaxed: Boolean = false) {
-        val flags = (if (relaxed) RELAXED else 0) or (if (relaxUnitFun) RELAX_UNIT_FUN else 0)
+    public fun init(
+        vararg obj: Any,
+        overrideRecordPrivateCalls: Boolean = false,
+        relaxUnitFun: Boolean = false,
+        relaxed: Boolean = false,
+    ) {
+        val flags = (if (relaxed) RELAXED else 0) or (if (relaxUnitFun) RELAX_UNIT_FUN else 0) or
+            (if (overrideRecordPrivateCalls) RECORD_PRIVATE_CALLS else 0)
         for (target in obj) (target as? MockFieldsOwner)?.`lokki$initMockFields`(flags)
     }
 }
