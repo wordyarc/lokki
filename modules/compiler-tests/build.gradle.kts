@@ -44,6 +44,7 @@ dependencies {
 
     compilerTestLibraries(libs.bundles.kotlin.compiler.test.libraries)
     lokkiRuntime(project(":lokki-core"))
+    lokkiRuntime(project(":lokki-bdd"))
     kotlinxCoroutines(libs.kotlinx.coroutines.core)
 }
 

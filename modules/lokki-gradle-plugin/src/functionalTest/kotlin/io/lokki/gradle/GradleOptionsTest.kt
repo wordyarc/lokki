@@ -74,6 +74,63 @@ class GradleOptionsTest {
 
     @ParameterizedTest
     @EnumSource(GradleUnderTest::class)
+    fun testVersionlessBddArtifact(gradle: GradleUnderTest) {
+        val project = TestProject(projectDir, gradle)
+        project.write(
+            "build.gradle.kts",
+            """
+            plugins {
+                kotlin("jvm") version "$KOTLIN_VERSION"
+                id("$LOKKI_PLUGIN_ID") version "$LOKKI_VERSION"
+            }
+
+            dependencies {
+                testImplementation("$LOKKI_GROUP:lokki-bdd")
+            }
+
+            testing {
+                suites {
+                    named<JvmTestSuite>("test") {
+                        useKotlinTest("$KOTLIN_VERSION")
+                    }
+                }
+            }
+            """,
+        )
+        project.write("src/main/kotlin/sample/Car.kt", declaration("interface Car", "fun drive(): String"))
+        project.write(
+            "src/test/kotlin/sample/CarTest.kt",
+            """
+            package sample
+
+            import io.lokki.bdd.given
+            import io.lokki.bdd.then
+            import io.lokki.mock
+            import kotlin.test.Test
+            import kotlin.test.assertEquals
+
+            class CarTest {
+                @Test
+                fun stubsAndVerifies() {
+                    val car = mock<Car>()
+                    given { car.drive() } returns "driven"
+
+                    assertEquals("driven", car.drive())
+                    then(exactly = 1) { car.drive() }
+                }
+            }
+            """,
+        )
+
+        val result = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
+        val classpath = project.build("dependencies", "--configuration", "testCompileClasspath").output
+        assertContains(classpath, "$LOKKI_GROUP:lokki-bdd -> $LOKKI_VERSION")
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
     fun testOlderKotlin(gradle: GradleUnderTest) {
         val project = kotlinVersionProject(gradle, OLDER_KOTLIN)
 

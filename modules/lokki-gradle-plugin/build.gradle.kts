@@ -69,7 +69,7 @@ gradlePlugin {
     }
 }
 
-val publishedProjects = listOf(project, project(":lokki-compiler-plugin"), project(":lokki-core"))
+val publishedProjects = listOf(project, project(":lokki-compiler-plugin"), project(":lokki-core"), project(":lokki-bdd"))
 val functionalTestRepositories = publishedProjects.map { it.functionalTestRepository }
 val minGradleJavaLauncher = javaToolchains.launcherFor {
     languageVersion = JavaLanguageVersion.of(libs.versions.jvm.target.get())

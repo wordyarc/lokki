@@ -487,15 +487,6 @@ public abstract class io/lokki/VerificationScope : io/lokki/MatcherScope {
 	public final fun wasNot (Ljava/util/List;Lio/lokki/Called;)V
 }
 
-public final class io/lokki/bdd/BDDKt {
-	public static final fun coGiven (Lkotlin/jvm/functions/Function2;)Lio/lokki/StubScope;
-	public static final fun coThen (Lio/lokki/Ordering;ZIIIJLkotlin/jvm/functions/Function2;)V
-	public static synthetic fun coThen$default (Lio/lokki/Ordering;ZIIIJLkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
-	public static final fun given (Lkotlin/jvm/functions/Function1;)Lio/lokki/StubScope;
-	public static final fun then (Lio/lokki/Ordering;ZIIIJLkotlin/jvm/functions/Function1;)V
-	public static synthetic fun then$default (Lio/lokki/Ordering;ZIIIJLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
-}
-
 public final class io/lokki/internal/ActiveRedirect {
 }
 

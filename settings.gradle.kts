@@ -20,6 +20,7 @@ rootProject.name = "lokki"
 
 listOf(
     "compiler-tests",
+    "lokki-bdd",
     "lokki-compiler-compat",
     "lokki-compiler-plugin",
     "lokki-core",
