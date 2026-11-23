@@ -22,6 +22,7 @@ import org.junit.jupiter.api.extension.ReflectiveInvocationContext
 import org.junit.jupiter.api.extension.TestInstancePostProcessor
 import org.junit.jupiter.api.extension.TestInstantiationAwareExtension.ExtensionContextScope
 import org.junit.platform.commons.support.AnnotationSupport.isAnnotated
+import java.lang.annotation.Inherited
 import java.lang.reflect.Constructor
 import java.lang.reflect.Method
 
@@ -144,11 +145,28 @@ public open class LokkiExtension :
     ) {
         proceed(invocation, extensionContext)
     }
-}
 
-private const val KEEP_MOCKS = "lokki.junit.extension.keepMocks"
-private const val CONFIRM_VERIFICATION = "lokki.junit.extension.confirmVerification"
-private const val CHECK_UNNECESSARY_STUB = "lokki.junit.extension.checkUnnecessaryStub"
+    @Inherited
+    @Retention(AnnotationRetention.RUNTIME)
+    @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
+    public annotation class KeepMocks
+
+    @Inherited
+    @Retention(AnnotationRetention.RUNTIME)
+    @Target(AnnotationTarget.CLASS)
+    public annotation class ConfirmVerification
+
+    @Inherited
+    @Retention(AnnotationRetention.RUNTIME)
+    @Target(AnnotationTarget.CLASS)
+    public annotation class CheckUnnecessaryStub
+
+    public companion object {
+        public const val KEEP_MOCKS_PROPERTY: String = "lokki.junit.extension.keepMocks"
+        public const val CONFIRM_VERIFICATION_PROPERTY: String = "lokki.junit.extension.confirmVerification"
+        public const val CHECK_UNNECESSARY_STUB_PROPERTY: String = "lokki.junit.extension.checkUnnecessaryStub"
+    }
+}
 
 private val namespace = ExtensionContext.Namespace.create(LokkiExtension::class.java)
 
@@ -190,8 +208,12 @@ private fun close(context: ExtensionContext, failure: Throwable?) {
 }
 
 private fun ExtensionContext.verifyWindow() {
-    if (isEnabled(ConfirmVerification::class.java, CONFIRM_VERIFICATION)) confirmVerified()
-    if (isEnabled(CheckUnnecessaryStub::class.java, CHECK_UNNECESSARY_STUB)) checkUnnecessaryStub()
+    if (isEnabled(LokkiExtension.ConfirmVerification::class.java, LokkiExtension.CONFIRM_VERIFICATION_PROPERTY)) {
+        confirmVerified()
+    }
+    if (isEnabled(LokkiExtension.CheckUnnecessaryStub::class.java, LokkiExtension.CHECK_UNNECESSARY_STUB_PROPERTY)) {
+        checkUnnecessaryStub()
+    }
 }
 
 private fun ExtensionContext.isEnabled(annotation: Class<out Annotation>, parameter: String): Boolean =
@@ -202,7 +224,8 @@ private fun ExtensionContext.testClasses(): Sequence<Class<*>> =
 
 private fun ExtensionContext.keepsMocks(): Boolean {
     val test = lineage().firstOrNull { it.testMethod.isPresent } ?: return false
-    return isAnnotated(test.testMethod, KeepMocks::class.java) || test.isEnabled(KeepMocks::class.java, KEEP_MOCKS)
+    return isAnnotated(test.testMethod, LokkiExtension.KeepMocks::class.java) ||
+        test.isEnabled(LokkiExtension.KeepMocks::class.java, LokkiExtension.KEEP_MOCKS_PROPERTY)
 }
 
 private fun ExtensionContext.parentScope(): LokkiScope =

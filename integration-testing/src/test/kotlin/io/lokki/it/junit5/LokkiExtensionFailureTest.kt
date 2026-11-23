@@ -6,9 +6,6 @@ import io.lokki.confirmVerified
 import io.lokki.every
 import io.lokki.it.Car
 import io.lokki.it.Garage
-import io.lokki.junit5.CheckUnnecessaryStub
-import io.lokki.junit5.ConfirmVerification
-import io.lokki.junit5.KeepMocks
 import io.lokki.junit5.LokkiExtension
 import io.lokki.mock
 import io.lokki.verify
@@ -75,7 +72,7 @@ class LokkiExtensionFailureTest {
     fun confirmVerificationByConfigurationParameter() {
         assertEquals(emptyMap(), runSample(UnverifiedCall::class).testFailures)
 
-        val results = runSample(UnverifiedCall::class, "lokki.junit.extension.confirmVerification" to "true")
+        val results = runSample(UnverifiedCall::class, LokkiExtension.CONFIRM_VERIFICATION_PROPERTY to "true")
 
         assertTrue(results.testFailures.getValue("unverified()").message!!.startsWith("Verification acknowledgment failed"))
     }
@@ -94,7 +91,7 @@ class LokkiExtensionFailureTest {
 
     @Test
     fun checkUnnecessaryStubByConfigurationParameter() {
-        val results = runSample(UnusedStub::class, "lokki.junit.extension.checkUnnecessaryStub" to "true")
+        val results = runSample(UnusedStub::class, LokkiExtension.CHECK_UNNECESSARY_STUB_PROPERTY to "true")
 
         assertTrue(results.testFailures.getValue("unusedStub()").message!!.startsWith("Unnecessary stubbings detected."))
     }
@@ -114,7 +111,7 @@ class LokkiExtensionFailureTest {
 
     @Test
     fun keepMocksByConfigurationParameter() {
-        val results = runSample(StubForNextTest::class, "lokki.junit.extension.keepMocks" to "true")
+        val results = runSample(StubForNextTest::class, LokkiExtension.KEEP_MOCKS_PROPERTY to "true")
 
         assertEquals(emptyMap(), results.testFailures)
     }
@@ -220,7 +217,7 @@ class LokkiExtensionFailureTest {
 
     @Sample
     @ExtendWith(LokkiExtension::class)
-    @ConfirmVerification
+    @LokkiExtension.ConfirmVerification
     class ConfirmedVerification {
         private val car = mock<Car> { every { drive(any()) } returns "driven" }
 
@@ -247,7 +244,7 @@ class LokkiExtensionFailureTest {
 
     @Sample
     @ExtendWith(LokkiExtension::class)
-    @CheckUnnecessaryStub
+    @LokkiExtension.CheckUnnecessaryStub
     @TestInstance(TestInstance.Lifecycle.PER_CLASS)
     class UnnecessaryStubs {
         private val car = mock<Car>()
@@ -305,7 +302,7 @@ class LokkiExtensionFailureTest {
     class StubKeptByAnnotation {
         @Test
         @Order(1)
-        @KeepMocks
+        @LokkiExtension.KeepMocks
         fun stubsClassMock() {
             every { classMock.plate } returns "test"
         }
@@ -329,7 +326,7 @@ class LokkiExtensionFailureTest {
 
     @Sample
     @ExtendWith(LokkiExtension::class)
-    @KeepMocks
+    @LokkiExtension.KeepMocks
     class KeptCallWithoutAnswer {
         @Test
         fun callWithoutAnswer() {

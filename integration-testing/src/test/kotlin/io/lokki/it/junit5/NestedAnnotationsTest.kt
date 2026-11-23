@@ -1,9 +1,6 @@
 package io.lokki.it.junit5
 
 import io.lokki.every
-import io.lokki.junit5.CheckUnnecessaryStub
-import io.lokki.junit5.ConfirmVerification
-import io.lokki.junit5.KeepMocks
 import io.lokki.junit5.LokkiExtension
 import io.lokki.mock
 import org.junit.jupiter.api.MethodOrderer
@@ -20,7 +17,7 @@ private interface Part {
 
 @Sample
 @ExtendWith(LokkiExtension::class)
-@ConfirmVerification
+@LokkiExtension.ConfirmVerification
 class ConfirmInNestedSample {
     @Nested
     inner class Inner {
@@ -35,7 +32,7 @@ class ConfirmInNestedSample {
 
 @Sample
 @ExtendWith(LokkiExtension::class)
-@CheckUnnecessaryStub
+@LokkiExtension.CheckUnnecessaryStub
 class UnnecessaryInNestedSample {
     @Nested
     inner class Inner {
@@ -49,7 +46,7 @@ class UnnecessaryInNestedSample {
 
 @Sample
 @ExtendWith(LokkiExtension::class)
-@ConfirmVerification
+@LokkiExtension.ConfirmVerification
 class StaticNestedSample {
     class Standalone {
         @Test
@@ -63,7 +60,7 @@ class StaticNestedSample {
 
 @Sample
 @ExtendWith(LokkiExtension::class)
-@KeepMocks
+@LokkiExtension.KeepMocks
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
 class KeepInNestedSample {
     @Nested

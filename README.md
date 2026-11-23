@@ -121,9 +121,10 @@ class JobProcessorTest {
 ```
 
 `LokkiExtension` runs every test class, test and dynamic test in its own scope and initializes `@Mock`,
-`@RelaxedMock`, `@Spy` and `@InjectMocks` properties. `@ConfirmVerification` and `@CheckUnnecessaryStub` on a test
-class run `confirmVerified()` and `checkUnnecessaryStub()` after each test. `@KeepMocks` on a test class or method
-keeps the stubs and recorded calls of a test for the rest of the class.
+`@RelaxedMock`, `@Spy` and `@InjectMocks` properties. `@LokkiExtension.ConfirmVerification` and
+`@LokkiExtension.CheckUnnecessaryStub` on a test class run `confirmVerified()` and `checkUnnecessaryStub()` after each
+test. `@LokkiExtension.KeepMocks` on a test class or method keeps the stubs and recorded calls of a test for the rest
+of the class.
 
 Without the extension, `MockAnnotations.init(this)` initializes the properties and `lokkiScope { }` provides the
 scope. Outside a scope, `mockObject`, `mockStatic` and the calls without arguments `confirmVerified()`,

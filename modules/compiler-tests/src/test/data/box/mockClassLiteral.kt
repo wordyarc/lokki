@@ -12,7 +12,13 @@ open class Box<T>(val value: T) {
     open fun size(): Int = 1
 }
 
+private fun returnsFromBlock(): String {
+    mockClass(Repo::class) { return "returned" }
+    return "Fail"
+}
+
 fun box(): String {
+    if (returnsFromBlock() != "returned") return "Fail non-local return"
     val repo = mockClass(Repo::class)
     every { repo.find(1) } returns "one"
     if (repo.find(1) != "one" || !isMock(repo)) return "Fail literal"

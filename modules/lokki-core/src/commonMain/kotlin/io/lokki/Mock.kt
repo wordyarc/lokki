@@ -19,7 +19,7 @@ public inline fun <reified T : Any> mock(
 ): T = pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK)
-public fun <T : Any> mockClass(
+public inline fun <T : Any> mockClass(
     type: KClass<T>,
     name: String? = null,
     relaxed: Boolean = false,
