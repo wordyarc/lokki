@@ -35,7 +35,7 @@ plugin. `mock<T>()` compiles into an ordinary class that implements `T`, and the
 ```kotlin
 plugins {
     kotlin("jvm") version "2.4.20"
-    id("io.github.wordyarc.lokki") version "0.2.0"
+    id("io.github.wordyarc.lokki") version "0.2.1"
 }
 ```
 
