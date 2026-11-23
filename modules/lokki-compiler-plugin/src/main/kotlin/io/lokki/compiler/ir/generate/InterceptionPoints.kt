@@ -2,6 +2,7 @@ package io.lokki.compiler.ir.generate
 
 import io.lokki.compiler.BuildConfig
 import io.lokki.compiler.CONSTRUCTORS
+import io.lokki.compiler.CONSTRUCTORS_HOLDER
 import io.lokki.compiler.FILE_REDIRECT_SUFFIX
 import io.lokki.compiler.INTERCEPTION_MARK
 import io.lokki.compiler.MockablePatterns
@@ -11,7 +12,6 @@ import io.lokki.compiler.StaticInterception
 import io.lokki.compiler.ir.LokkiIrContext
 import io.lokki.compiler.ir.addFriendAwareFakeOverrides
 import io.lokki.compiler.ir.constructName
-import io.lokki.compiler.ir.constructorsPropertyName
 import io.lokki.compiler.ir.createName
 import io.lokki.compiler.ir.irArrayGet
 import io.lokki.compiler.ir.irCast
@@ -30,6 +30,7 @@ import org.jetbrains.kotlin.descriptors.DescriptorVisibility
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.builders.declarations.IrFunctionBuilder
 import org.jetbrains.kotlin.ir.builders.declarations.addBackingField
+import org.jetbrains.kotlin.ir.builders.declarations.addConstructor
 import org.jetbrains.kotlin.ir.builders.declarations.addFunction
 import org.jetbrains.kotlin.ir.builders.declarations.addGetter
 import org.jetbrains.kotlin.ir.builders.declarations.addProperty
@@ -42,6 +43,7 @@ import org.jetbrains.kotlin.ir.builders.irBlock
 import org.jetbrains.kotlin.ir.builders.irBlockBody
 import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irCallOp
+import org.jetbrains.kotlin.ir.builders.irDelegatingConstructorCall
 import org.jetbrains.kotlin.ir.builders.irEqeqeq
 import org.jetbrains.kotlin.ir.builders.irEqualsNull
 import org.jetbrains.kotlin.ir.builders.irGet
@@ -77,6 +79,7 @@ import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrGetValue
 import org.jetbrains.kotlin.ir.expressions.impl.IrCallImpl
+import org.jetbrains.kotlin.ir.expressions.impl.IrInstanceInitializerCallImpl
 import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.types.makeNullable
 import org.jetbrains.kotlin.ir.types.typeWith
@@ -140,7 +143,7 @@ internal class InterceptionPoints(private val lokki: LokkiIrContext, private val
             val constructors = target.constructors.filter { it.visibility.isInterceptable && !it.isExpect }.toList()
             if (constructors.isEmpty()) continue
             val redirect = target.addRedirect(CONSTRUCTORS, target, CONSTRUCTOR_MESSAGE)
-            file.addRedirectProperty(redirect, target.constructorsPropertyName, CONSTRUCTOR_MESSAGE)
+            target.addConstructorsHolder(redirect)
             for (constructor in constructors) {
                 val create = redirect.addCreate(target, constructor)
                 val parameters = constructor.declaredParameters
@@ -150,6 +153,35 @@ internal class InterceptionPoints(private val lokki: LokkiIrContext, private val
             }
             redirect.complete()
         }
+    }
+
+    private fun IrClass.addConstructorsHolder(redirect: IrClass) {
+        val owner = this
+        val holder = context.irFactory.buildClass {
+            startOffset = owner.startOffset
+            endOffset = owner.endOffset
+            name = CONSTRUCTORS_HOLDER
+            kind = ClassKind.OBJECT
+            modality = Modality.FINAL
+            origin = this@InterceptionPoints.origin
+        }
+        holder.createThisReceiverParameter()
+        holder.superTypes = listOf(context.irBuiltIns.anyType)
+        holder.annotations = listOf(DeclarationIrBuilder(context, holder.symbol).irHidden(symbols, CONSTRUCTOR_MESSAGE))
+        addChild(holder)
+        val constructor = holder.addConstructor {
+            startOffset = owner.startOffset
+            endOffset = owner.endOffset
+            origin = this@InterceptionPoints.origin
+            visibility = DescriptorVisibilities.PRIVATE
+            isPrimary = true
+        }
+        constructor.body = DeclarationIrBuilder(context, constructor.symbol).irBlockBody {
+            +irDelegatingConstructorCall(context.irBuiltIns.anyClass.owner.constructors.single())
+            +IrInstanceInitializerCallImpl(startOffset, endOffset, holder.symbol, context.irBuiltIns.unitType)
+        }
+        holder.addRedirectProperty(redirect, REDIRECT_PROPERTY, CONSTRUCTOR_MESSAGE)
+        holder.complete()
     }
 
     private fun IrClass.addCreate(target: IrClass, constructor: IrConstructor): IrSimpleFunction {
@@ -582,7 +614,7 @@ internal class InterceptionPoints(private val lokki: LokkiIrContext, private val
             }
         }
         property.annotations = listOf(DeclarationIrBuilder(context, property.symbol).irHidden(symbols, message))
-        compat.registerPropertyAsMetadataVisible(context.metadataDeclarationRegistrar, property)
+        if (owner?.origin != origin) compat.registerPropertyAsMetadataVisible(context.metadataDeclarationRegistrar, property)
         return field
     }
 

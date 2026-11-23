@@ -486,7 +486,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
     ) {
         val child = children?.let { it::default }
         val defaults = members.withIndex().drop(METHODS_OF_ANY.size).mapNotNull { (index, member) ->
-            relaxedDefaults.of(member.returnType, parameterName, child, suggestsChainedMocks)
+            relaxedDefaults.of(member, parameterName, child, suggestsChainedMocks)
                 ?.let { IndexedValue(index, it) }
         }
         val partSize = PART_BYTES / RELAXED_BRANCH_BYTES

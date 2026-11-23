@@ -2,6 +2,7 @@ package io.lokki.compiler.fir
 
 import io.lokki.compiler.BuildConfig
 import io.lokki.compiler.CONSTRUCTORS
+import io.lokki.compiler.CONSTRUCTORS_HOLDER
 import io.lokki.compiler.INTERCEPTION_POINTS_KOTLIN
 import io.lokki.compiler.InterceptionMark
 import io.lokki.compiler.REDIRECT
@@ -95,7 +96,8 @@ internal fun FirRegularClassSymbol.constructorInterceptionProblem(): String? {
         }
         else -> markProblem("it or its package") ?: (
             "it has no constructor interception point: rebuild the module that declares it".takeIf {
-                context.session.symbolProvider.getClassLikeSymbolByClassId(classId.createNestedClassId(CONSTRUCTORS)) == null
+                context.session.symbolProvider.getClassLikeSymbolByClassId(classId.createNestedClassId(CONSTRUCTORS)) == null ||
+                    context.session.symbolProvider.getClassLikeSymbolByClassId(classId.createNestedClassId(CONSTRUCTORS_HOLDER)) == null
             }
         )
     }

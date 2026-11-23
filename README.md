@@ -161,13 +161,15 @@ fun morning() {
 ```
 
 `every` mocks the object in the current scope by itself; `mockObject(Clock)` records its calls for `verify` without
-a stub. `mockStatic(::function)` does the same for top-level functions and properties, including extensions. An
-overloaded or generic function cannot be passed to it: Kotlin does not resolve such a reference.
+a stub. `mockStatic(::function)` does the same for top-level functions and properties, including extensions, and
+`mockStatic("com.example.FileKt")` for a whole file. An overloaded or generic function cannot be passed by reference:
+Kotlin does not resolve it. `mockConstructor(Foo::class)` with `anyConstructed<Foo>()` intercepts constructor calls in
+code compiled with the plugin. Private functions of these classes are stubbed by name: `every { spy["name"]() }`.
 
 Only the bytecode changes: Kotlin still compiles matching classes as final, so smart casts and initialization rules of
-main code stay as they are, and only mocks override the members. Inline and `tailrec` functions and `@JvmField`
-properties stay final. Every call of an intercepted function reads a volatile field. The plugin warns if the project
-applies `maven-publish`.
+main code stay as they are, and only mocks override the members. Sealed classes stay sealed, with their members open.
+Inline and `tailrec` functions and `@JvmField` properties stay final. Every call of an intercepted function or
+constructor reads a volatile field. The plugin warns if the project applies `maven-publish`.
 
 ## Configuration
 
@@ -185,11 +187,11 @@ Imports move to `io.lokki`, and names that contain `mockk` or `MockK` change:
 | MockK | lokki |
 |---|---|
 | `mockk`, `spyk` | `mock`, `spy` |
-| `mockkObject`, `mockkStatic`, `unmockkAll` | `mockObject`, `mockStatic`, `unmockAll` |
+| `mockkClass` | `mockClass` |
+| `mockkObject`, `mockkStatic`, `mockkConstructor`, `unmockkAll` | `mockObject`, `mockStatic`, `mockConstructor`, `unmockAll` |
 | `@MockK`, `@RelaxedMockK`, `@SpyK`, `@InjectMockKs` | `@Mock`, `@RelaxedMock`, `@Spy`, `@InjectMocks` |
 | `MockKExtension`, `MockKAnnotations`, `MockKException` | `LokkiExtension`, `MockAnnotations`, `LokkiException` |
 | `MockKMatcherScope` | `MatcherScope` |
-| `mockkStatic("com.example.FileKt")`, `mockkStatic(Foo::class)` | `mockStatic(::function)` for each function, or just `every { function() }` |
 
 Behaviour that differs:
 
@@ -198,9 +200,9 @@ Behaviour that differs:
 - A call chain such as `every { car.door().open() }` stubs `car.door()` with a child mock only when the call has no
   answer yet; a stubbed `car.door()` keeps its answer. Relaxed mocks return child mocks only in files annotated with
   `@file:ChainedMocks`.
-- A relaxed mock returns `null` for nullable types and for a type parameter of a Java method (`<T> T query(...)`),
-  and empty values for primitives, strings, collections and arrays. A call that returns any other type throws
-  `LokkiException`.
+- A relaxed mock returns `null` for nullable types and for a type parameter of a Java method that allows it
+  (`<T> T query(...)` without nullability annotations, `<T extends @Nullable Object>` with JSpecify), and empty values
+  for primitives, strings, collections and arrays. A call that returns any other type throws `LokkiException`.
 - A mock call without an answer fails the test even if the code under test catches the exception.
 - Spies are not copies: `spy(Foo(args))` constructs the spy itself, and `spy(existing)` forwards calls to `existing`.
 - Calls of `equals`, `hashCode` and `toString` are not recorded.
@@ -213,12 +215,10 @@ Behaviour that differs:
 - JVM only: Kotlin/JVM, Android and the JVM target of multiplatform projects. Android instrumented tests compile with
   the plugin but have not been run on ART.
 - Mocks are created and stubbed only in Kotlin code compiled with the plugin; Java code can only call them.
-- The mocked type and the stubbed call must be written where they are used: there is no `mockkClass(KClass)`, and
-  `mock<T>()` inside your own `inline reified` helper or a block passed to `every` or `verify` through your own
-  function is an error.
-- Final classes, objects and functions from libraries, Java static methods and constructors (`mockkConstructor`)
-  cannot be mocked.
-- Private members cannot be stubbed or verified: there are no calls by name such as `every { spy["name"]() }`.
+- The mocked type must be known at compile time: `mockClass` takes a class literal or a reified `T::class`, not a
+  `KClass` from a variable. A block passed to `every` or `verify` through your own function is an error.
+- Final classes, objects, functions and constructors from libraries and Java static methods cannot be mocked.
+- Private members of classes outside `mockable` cannot be stubbed or verified.
 - No JUnit 4 integration: use `lokkiScope { }`. Kotest is not supported.
 - IntelliJ IDEA shows `LOKKI_*` diagnostics only with the registry key
   `kotlin.k2.only.bundled.compiler.plugins.enabled` set to `false`; the Gradle build always reports them.

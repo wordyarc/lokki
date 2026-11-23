@@ -3,6 +3,7 @@ package io.lokki.compiler.ir
 import io.lokki.compiler.BuildConfig
 import io.lokki.compiler.CoreClass
 import io.lokki.compiler.CONSTRUCTORS
+import io.lokki.compiler.CONSTRUCTORS_HOLDER
 import io.lokki.compiler.FILE_REDIRECT_SUFFIX
 import io.lokki.compiler.InterceptionMark
 import io.lokki.compiler.ParameterNames
@@ -99,18 +100,19 @@ internal class RedirectLookup(private val context: IrPluginContext, file: IrFile
     private fun findConstructors(target: IrClass): ConstructorRedirect? {
         if (target.kind != ClassKind.CLASS) return null
         val classId = target.classId ?: return null
-        val own = target.getPackageFragment() as? IrFile
-        if (own != null) {
-            val redirect = target.declarations.filterIsInstance<IrClass>().find { it.name == CONSTRUCTORS }
-                ?: return null
-            val property = own.declarations.filterIsInstance<IrProperty>()
-                .find { it.name == target.constructorsPropertyName } ?: return null
+        if (target.getPackageFragment() is IrFile) {
+            val nested = target.declarations.filterIsInstance<IrClass>()
+            val redirect = nested.find { it.name == CONSTRUCTORS } ?: return null
+            val holder = nested.find { it.name == CONSTRUCTORS_HOLDER } ?: return null
+            val property = holder.declarations.filterIsInstance<IrProperty>()
+                .find { it.name == REDIRECT_PROPERTY } ?: return null
             return ConstructorRedirect(target, redirect, property)
         }
         if (mark(target) != InterceptionMark.CURRENT) return null
         val redirect = finder.findClass(classId.createNestedClassId(CONSTRUCTORS))?.owner ?: return null
-        val property = finder.findProperties(CallableId(classId.packageFqName, target.constructorsPropertyName))
-            .singleOrNull()?.owner ?: return null
+        val holder = classId.createNestedClassId(CONSTRUCTORS_HOLDER)
+        val property = finder.findProperties(CallableId(holder, REDIRECT_PROPERTY)).singleOrNull()?.owner
+            ?: return null
         return ConstructorRedirect(target, redirect, property)
     }
 

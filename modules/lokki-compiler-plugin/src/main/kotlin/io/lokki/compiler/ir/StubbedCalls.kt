@@ -133,7 +133,7 @@ private fun IrBlock.safeCall(): StubbedCall? {
 }
 
 internal val IrSimpleFunction.isLink: Boolean
-    get() = isOverridable && !isMethodOfAny()
+    get() = dispatchReceiverParameter != null && isOverridable && !isMethodOfAny()
 
 private val IrExpression?.isAllAny: Boolean
     get() = when (this) {

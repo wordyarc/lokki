@@ -185,7 +185,11 @@ class CompilationApplicabilityTest {
         assertFalse(project.dependsOnLokki("runtimeClasspath"))
         val mainClasses = projectDir.resolve("build/classes/kotlin/main").walk().filter { it.extension == "class" }.toList()
         val generated = if (KOTLIN_VERSION.hasInterceptionPoints) {
-            setOf("Registry\$LokkiRedirect.class", "Engine\$LokkiConstructors.class", "EngineKt.class")
+            setOf(
+                "Registry\$LokkiRedirect.class",
+                "Engine\$LokkiConstructors.class",
+                "Engine\$LokkiConstructorsHolder.class",
+            )
         } else {
             emptySet()
         }

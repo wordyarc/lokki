@@ -7,7 +7,7 @@ internal val REDIRECT = Name.identifier("LokkiRedirect")
 internal val REDIRECT_PROPERTY = Name.identifier("lokki\$redirect")
 internal const val FILE_REDIRECT_SUFFIX = BuildConfig.FILE_REDIRECT_SUFFIX
 internal val CONSTRUCTORS = Name.identifier("LokkiConstructors")
-internal const val CONSTRUCTORS_PROPERTY_SUFFIX = "\$lokkiConstructors"
+internal val CONSTRUCTORS_HOLDER = Name.identifier("LokkiConstructorsHolder")
 
 internal const val INTERCEPTION_POINTS_KOTLIN = "2.4.20"
 

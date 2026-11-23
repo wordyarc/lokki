@@ -79,16 +79,18 @@ internal class LokkiIrGenerationExtension(
         }
         fieldInitializers.declare(files.map { it.fields })
         for (file in files) {
-            file.ir.transform(contextBlocks, null)
-            file.ir.transform(DynamicCalls(lokki, file), null)
-            val sites = file.collectMockSites()
-            file.diagnostics.report(file.fields, sites)
-            val classes = generator.generate(file, sites.classes)
-            fieldInitializers.implement(file, classes)
-            parameterFactories.generate(file, classes)
-            file.ir.transform(DslLowering(lokki, file, sites, classes), null)
-            constructorCalls.rewrite(file.ir)
-            staticInitializers.lower(file.ir)
+            file.ir.locatingInternalErrors {
+                file.ir.transform(contextBlocks, null)
+                file.ir.transform(DynamicCalls(lokki, file), null)
+                val sites = file.collectMockSites()
+                file.diagnostics.report(file.fields, sites)
+                val classes = generator.generate(file, sites.classes)
+                fieldInitializers.implement(file, classes)
+                parameterFactories.generate(file, classes)
+                file.ir.transform(DslLowering(lokki, file, sites, classes), null)
+                constructorCalls.rewrite(file.ir)
+                staticInitializers.lower(file.ir)
+            }
         }
     }
 }

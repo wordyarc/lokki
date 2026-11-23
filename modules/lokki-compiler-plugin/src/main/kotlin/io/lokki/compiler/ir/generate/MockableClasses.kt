@@ -75,6 +75,6 @@ internal class MockableClasses(lokki: LokkiIrContext, private val mockable: Mock
 }
 
 internal fun IrClass.isMockableBy(mockable: MockablePatterns): Boolean =
-    kind == ClassKind.CLASS && !isValue && !isExpect && modality != Modality.SEALED &&
+    kind == ClassKind.CLASS && !isValue && !isExpect &&
         !hasAnnotation(JvmStandardClassIds.JVM_RECORD_ANNOTATION_CLASS_ID) &&
         (mockable.matches(classIdOrFail) || mockable.names.any { hasAnnotation(it) })

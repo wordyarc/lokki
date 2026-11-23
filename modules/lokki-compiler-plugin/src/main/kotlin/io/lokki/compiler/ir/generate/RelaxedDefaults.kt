@@ -39,6 +39,8 @@ import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.defaultValueForType
 import org.jetbrains.kotlin.ir.util.functions
 import org.jetbrains.kotlin.ir.util.hasAnnotation
+import org.jetbrains.kotlin.ir.util.isFromJava
+import org.jetbrains.kotlin.ir.util.isNullable
 import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.util.nonDispatchParameters
 import org.jetbrains.kotlin.ir.util.primaryConstructor
@@ -55,16 +57,17 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
     private val builtIns = context.irBuiltIns
 
     fun of(
-        type: IrType,
+        member: IrSimpleFunction,
         parameterName: (IrTypeParameter) -> String,
         child: ((IrSimpleType) -> RelaxedDefault?)?,
         suggestsChainedMocks: (IrType) -> Boolean,
     ): RelaxedDefault? {
+        val type = member.returnType
         val platform = type.hasAnnotation(StandardClassIds.Annotations.FlexibleNullability)
         if (type.isMarkedNullable() && !platform) return null
         val klass = when (val classifier = type.classifierOrNull) {
             is IrTypeParameterSymbol -> return when {
-                platform && classifier.owner.parent is IrFunction -> null
+                classifier.owner.parent is IrFunction && (platform || member.mayReturnNull(classifier.owner)) -> null
                 else -> missing("type parameter ${parameterName(classifier.owner)}")
             }
             is IrClassSymbol -> classifier
@@ -86,6 +89,15 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
                 ?: missing(type.renderReadable(parameterName), suggestsChainedMocks(type))
         }
     }
+
+    private fun IrSimpleFunction.mayReturnNull(parameter: IrTypeParameter): Boolean =
+        parameter.superTypes.all { it.isNullable() } && isDeclaredInJava()
+
+    private fun IrSimpleFunction.isDeclaredInJava(): Boolean =
+        overriddenSymbols.isNotEmpty() && overriddenSymbols.all { symbol ->
+            val overridden = symbol.owner
+            if (overridden.isFakeOverride) overridden.isDeclaredInJava() else overridden.isFromJava()
+        }
 
     private fun array(type: IrSimpleType, parameterName: (IrTypeParameter) -> String): RelaxedDefault {
         val element = type.arguments.single().typeOrNull ?: builtIns.anyNType

@@ -54,6 +54,7 @@ import org.jetbrains.kotlin.ir.builders.irBlock
 import org.jetbrains.kotlin.ir.builders.irBlockBody
 import org.jetbrains.kotlin.ir.builders.irBoolean
 import org.jetbrains.kotlin.ir.builders.irCallConstructor
+import org.jetbrains.kotlin.ir.builders.irEqualsNull
 import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.builders.irIfThenElse
 import org.jetbrains.kotlin.ir.builders.irIs
@@ -274,7 +275,8 @@ internal class StubBlockLowering(
         val unchained = block.withoutExpectations()
         val receiver = pattern.receiver?.let { irTemporary(irLinks(unchained, it)) }
         val independent = pattern.arguments.all { it == null || it.isIndependentOf(block.function) }
-        val mayBeValue = receiver != null && independent && file.redirects.member(pattern.call.symbol.owner) == null
+        val redirect = file.redirects.member(pattern.call.symbol.owner)?.redirect
+        val mayBeValue = independent && (receiver != null || redirect != null)
         val value = if (mayBeValue) pattern.call.deepCopyWithSymbols() else null
         val call = StubbedCall(pattern.call, receiver?.let(::irGet), pattern.arguments, pattern.order)
         val expectAbsent = irBlock {
@@ -291,17 +293,26 @@ internal class StubBlockLowering(
             +expectAbsent
             return
         }
-        value.dispatchReceiver = irGet(receiver!!)
+        receiver?.let { value.dispatchReceiver = irGet(it) }
         value.symbol.owner.nonDispatchParameters.forEachIndexed { index, parameter ->
             value.arguments[parameter] = pattern.arguments[index]?.deepCopyWithSymbols()
         }
-        val expectValue = irInvoke(symbols.expectNoCalls(expected.mocksClass), value, receiver = irGet(verification))
-        +irIfThenElse(
-            builtIns.unitType,
-            irIs(irGet(receiver), symbols[CoreClass.GENERATED_MOCK].defaultType),
-            expectAbsent,
-            expectValue,
-        )
+        val evaluated = if (value.callsSuspend()) irEvaluate(block, value.type) { value } else value
+        val expectValue = irInvoke(symbols.expectNoCalls(expected.mocksClass), evaluated, receiver = irGet(verification))
+        +when (redirect) {
+            null -> irIfThenElse(
+                builtIns.unitType,
+                irIs(irGet(receiver!!), symbols[CoreClass.GENERATED_MOCK].defaultType),
+                expectAbsent,
+                expectValue,
+            )
+            else -> irIfThenElse(
+                builtIns.unitType,
+                irEqualsNull(irInvoke(redirect.property.getter!!, receiver = receiver?.let(::irGet))),
+                expectValue,
+                expectAbsent,
+            )
+        }
     }
 
     private val IrCall.isLenient: Boolean

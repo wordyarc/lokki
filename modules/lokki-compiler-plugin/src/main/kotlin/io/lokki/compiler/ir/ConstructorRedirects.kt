@@ -1,6 +1,5 @@
 package io.lokki.compiler.ir
 
-import io.lokki.compiler.CONSTRUCTORS_PROPERTY_SUFFIX
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrConstructor
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
@@ -26,9 +25,6 @@ internal class ConstructorRedirect(val target: IrClass, val redirect: IrClass, v
         redirect.functions.singleOrNull { it.name == constructor.constructName }
 }
 
-internal val IrClass.constructorsPropertyName: Name
-    get() = Name.identifier("$flatName$CONSTRUCTORS_PROPERTY_SUFFIX")
-
 internal val IrConstructor.createName: Name
     get() = Name.identifier("create\$$signatureHash")
 
@@ -37,9 +33,6 @@ internal val IrConstructor.constructName: Name
 
 internal val IrConstructor.declaredParameters
     get() = parameters.filter { it.kind == IrParameterKind.Regular }
-
-private val IrClass.flatName: String
-    get() = classIdOrFail.relativeClassName.asString().replace('.', '$')
 
 @OptIn(ExperimentalStdlibApi::class)
 private val IrConstructor.signatureHash: String

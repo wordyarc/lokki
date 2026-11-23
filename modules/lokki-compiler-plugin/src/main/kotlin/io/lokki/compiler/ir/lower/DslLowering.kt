@@ -18,6 +18,7 @@ import io.lokki.compiler.ir.argument
 import io.lokki.compiler.ir.buildLambda
 import io.lokki.compiler.ir.constructorClasses
 import io.lokki.compiler.ir.fileClassName
+import io.lokki.compiler.ir.locatingInternalErrors
 import io.lokki.compiler.ir.staticClassArguments
 import io.lokki.compiler.ir.staticFileArguments
 import io.lokki.compiler.ir.collect.MockClassKey
@@ -99,7 +100,7 @@ internal class DslLowering(
     override fun visitCall(expression: IrCall): IrExpression {
         val kind = expression.intrinsicKind
         super.visitCall(expression)
-        val lowered = lowerIntrinsic(expression, kind)
+        val lowered = file.ir.locatingInternalErrors(expression) { lowerIntrinsic(expression, kind) }
         val reified = sites.reifiedCalls[expression] ?: return lowered
         return builder(expression).irBlock(resultType = lowered.type) {
             for (mocked in reified) {
