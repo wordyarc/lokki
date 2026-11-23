@@ -28,12 +28,26 @@ public annotation class AdditionalInterface(public val type: KClass<*>)
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.INJECT_MOCKS)
 @Target(AnnotationTarget.PROPERTY, AnnotationTarget.VALUE_PARAMETER)
-public annotation class InjectMocks(public val lookupType: InjectionLookupType = InjectionLookupType.BOTH)
+public annotation class InjectMocks(
+    public val lookupType: InjectionLookupType = InjectionLookupType.BOTH,
+    public val overrideValues: Boolean = false,
+)
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.INJECT_MOCKS)
+@Target(AnnotationTarget.PROPERTY, AnnotationTarget.VALUE_PARAMETER)
+public annotation class OverrideMocks(public val lookupType: InjectionLookupType = InjectionLookupType.BOTH)
 
 public enum class InjectionLookupType {
     BY_NAME,
     BY_TYPE,
     BOTH,
+    ;
+
+    public val byName: Boolean
+        get() = this == BY_NAME || this == BOTH
+
+    public val byType: Boolean
+        get() = this == BY_TYPE || this == BOTH
 }
 
 public object MockAnnotations {

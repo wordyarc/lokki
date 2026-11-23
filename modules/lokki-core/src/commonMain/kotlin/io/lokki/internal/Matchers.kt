@@ -91,11 +91,14 @@ internal object Matchers {
     }
 
     @Suppress("UNCHECKED_CAST")
-    inline fun <reified T> match(matcher: Matcher<T>): Matcher<Any?> = filtered(matcher as Matcher<Any?>) { it is T }
+    inline fun <reified T> match(matcher: Matcher<T>): Matcher<Any?> =
+        filtered(matcher as Matcher<Any?>) { it == null || it is T }
 
     @Suppress("UNCHECKED_CAST")
     fun match(matcher: Matcher<*>, kclass: KClass<*>): Matcher<Any?> =
-        filtered(matcher as Matcher<Any?>) { kclass.isInstance(it) }
+        filtered(matcher as Matcher<Any?>) { it == null || kclass.isInstance(it) }
+
+    fun any(classifier: KClass<*>): Matcher<Any?> = filtered(AnyMatcher) { it == null || classifier.isInstance(it) }
 
     @Suppress("UNCHECKED_CAST")
     fun matchNullable(matcher: (Nothing?) -> Boolean): Matcher<Any?> = FunctionMatcher(matcher as (Any?) -> Boolean)
@@ -249,7 +252,17 @@ internal object Matchers {
         matcher: VarargScope.(Any?) -> Boolean,
     ): Matcher<Any?> = VarargMatcher(name, all, accepts, matcher, emptyArray(), emptyArray())
 
+    @Suppress("UNCHECKED_CAST")
+    inline fun <reified T> varargArray(noinline predicate: (Array<out T>) -> Boolean): Matcher<Any?> =
+        varargArrayMatcher { values -> values.all { it is T } && predicate(Array(values.size) { values[it] as T }) }
+
+    fun varargArrayMatcher(predicate: (List<Any?>) -> Boolean): Matcher<Any?> = VarargArrayMatcher(predicate)
+
     fun varargOf(prefix: Array<Matcher<Any?>>, matcher: Matcher<Any?>, postfix: Array<Matcher<Any?>>): Matcher<Any?> {
+        if (matcher is VarargArrayMatcher) {
+            if (prefix.isEmpty() && postfix.isEmpty()) return matcher
+            throw LokkiException("varargArray matches the whole array, so it must be the only vararg argument")
+        }
         if (matcher !is VarargMatcher) {
             throw LokkiException(
                 "$matcher cannot be spread into a vararg parameter: " +
@@ -303,6 +316,12 @@ private fun Matcher<Any?>.isEquivalentTo(other: Matcher<Any?>): Boolean {
             left.prefix.isEquivalentTo(right.prefix) && left.postfix.isEquivalentTo(right.postfix)
         else -> left === right
     }
+}
+
+internal fun Matcher<Any?>.isSameAs(other: Matcher<Any?>): Boolean {
+    val left = equivalent()
+    val right = other.equivalent()
+    return if (left === AnyMatcher || right === AnyMatcher) this === other else left.isEquivalentTo(right)
 }
 
 private fun Matcher<Any?>.equivalent(): Matcher<Any?> =
@@ -461,6 +480,22 @@ private class VarargMatcher(
         .joinToString(prefix = "[", postfix = "]")
 }
 
+private class VarargArrayMatcher(private val predicate: (List<Any?>) -> Boolean) : Matcher<Any?>, ReportingMatcher {
+    override fun match(arg: Any?): Boolean = match(arg, null)
+
+    override fun match(arg: Any?, errors: MutableList<AssertionError>?): Boolean {
+        val actual = arg.arrayElements() ?: return false
+        return try {
+            predicate(actual)
+        } catch (e: AssertionError) {
+            errors?.add(e)
+            false
+        }
+    }
+
+    override fun toString(): String = "varargArray()"
+}
+
 private fun asserting(block: AssertScope.(Any?) -> Unit): (Any?) -> Boolean = { arg ->
     AssertScope(arg).block(arg)
     true
@@ -472,10 +507,10 @@ private fun coAsserting(name: String, block: suspend AssertScope.(Any?) -> Unit)
 }
 
 @Suppress("UNCHECKED_CAST")
-private fun <T> complete(name: String, block: suspend () -> T): T {
+internal fun <T> complete(name: String, subject: String = "a matcher", block: suspend () -> T): T {
     val result = block.startCoroutineUninterceptedOrReturn(Abandoned)
     if (result === COROUTINE_SUSPENDED) {
-        throw LokkiException("$name suspended; a matcher must complete without suspension")
+        throw LokkiException("$name suspended; $subject must complete without suspension")
     }
     return result as T
 }

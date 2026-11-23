@@ -6,7 +6,7 @@ import io.lokki.Matcher
 import io.lokki.MatcherScope
 
 class EndsWith(private val suffix: String) : Matcher<String> {
-    override fun match(arg: String): Boolean = arg.endsWith(suffix)
+    override fun match(arg: String?): Boolean = arg?.endsWith(suffix) == true
 }
 
 fun MatcherScope.between(from: Int, to: Int): Int = and(more(from, andEquals = true), less(to, andEquals = true))

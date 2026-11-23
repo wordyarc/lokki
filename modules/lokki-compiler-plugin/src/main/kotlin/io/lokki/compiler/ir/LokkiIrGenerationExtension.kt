@@ -10,7 +10,9 @@ import io.lokki.compiler.ir.collect.collectMockSites
 import io.lokki.compiler.ir.generate.InterceptionPoints
 import io.lokki.compiler.ir.generate.MockClassGenerator
 import io.lokki.compiler.ir.generate.MockFieldInitializers
+import io.lokki.compiler.ir.generate.MockParameterFactories
 import io.lokki.compiler.ir.generate.MockableClasses
+import io.lokki.compiler.ir.lower.ConstructorCalls
 import io.lokki.compiler.ir.lower.ContextBlocks
 import io.lokki.compiler.ir.lower.DslLowering
 import io.lokki.compiler.ir.lower.StaticInitializers
@@ -56,10 +58,15 @@ internal class LokkiIrGenerationExtension(
             MockableClasses(lokki, it).open(moduleFragment)
             InterceptionPoints(lokki, it).generate(moduleFragment)
         }
-        if (!lokki.symbols.isRuntimeAvailable) return
+        val constructorCalls = ConstructorCalls(lokki)
+        if (!lokki.symbols.isRuntimeAvailable) {
+            moduleFragment.files.forEach(constructorCalls::rewrite)
+            return
+        }
         val generator = MockClassGenerator(lokki)
         val staticInitializers = StaticInitializers(lokki)
         val fieldInitializers = MockFieldInitializers(lokki)
+        val parameterFactories = MockParameterFactories(lokki)
         val contextBlocks = ContextBlocks(lokki)
         val files = moduleFragment.files.map { file ->
             val mockability = Mockability(file)
@@ -72,7 +79,9 @@ internal class LokkiIrGenerationExtension(
             file.diagnostics.report(file.fields, sites)
             val classes = generator.generate(file, sites.classes)
             fieldInitializers.implement(file, classes)
+            parameterFactories.generate(file, classes)
             file.ir.transform(DslLowering(lokki, file, sites, classes), null)
+            constructorCalls.rewrite(file.ir)
             staticInitializers.lower(file.ir)
         }
     }

@@ -1,9 +1,21 @@
-main: ChainTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, equals, hashCode, toString
-main: ChainTest.kt: sample.Car: <SAM-CONSTRUCTOR>, door, plate, seat
-main: ChainTest.kt: sample.Door: <SAM-CONSTRUCTOR>, open
-main: PlainTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, equals, hashCode, toString
-main: PlainTest.kt: sample.Car: <SAM-CONSTRUCTOR>, door, plate, seat
-main: RelaxedTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, equals, hashCode, toString
-main: RelaxedTest.kt: sample.Car: <SAM-CONSTRUCTOR>, door, plate, seat
-main: RelaxedTest.kt: sample.Door: <SAM-CONSTRUCTOR>, open
-main: RelaxedTest.kt: sample.Seat: <SAM-CONSTRUCTOR>, recline
+main: ChainTest.kt: io.lokki.internal.MockDescriptor: LokkiConstructors
+main: ChainTest.kt: io.lokki.internal.MockSpec: LokkiConstructors
+main: ChainTest.kt: io.lokki.internal.MockState: LokkiConstructors
+main: ChainTest.kt: io.lokki.internal.NoRelaxedDefault: LokkiConstructors
+main: ChainTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, LokkiConstructors, equals, hashCode, toString
+main: ChainTest.kt: sample.Car: <SAM-CONSTRUCTOR>, LokkiConstructors, door, plate, seat
+main: ChainTest.kt: sample.Door: <SAM-CONSTRUCTOR>, LokkiConstructors, open
+main: PlainTest.kt: io.lokki.internal.MockDescriptor: LokkiConstructors
+main: PlainTest.kt: io.lokki.internal.MockSpec: LokkiConstructors
+main: PlainTest.kt: io.lokki.internal.MockState: LokkiConstructors
+main: PlainTest.kt: io.lokki.internal.NoRelaxedDefault: LokkiConstructors
+main: PlainTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, LokkiConstructors, equals, hashCode, toString
+main: PlainTest.kt: sample.Car: <SAM-CONSTRUCTOR>, LokkiConstructors, door, plate, seat
+main: RelaxedTest.kt: io.lokki.internal.ChildMock: LokkiConstructors
+main: RelaxedTest.kt: io.lokki.internal.MockDescriptor: LokkiConstructors
+main: RelaxedTest.kt: io.lokki.internal.MockSpec: LokkiConstructors
+main: RelaxedTest.kt: io.lokki.internal.MockState: LokkiConstructors
+main: RelaxedTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, LokkiConstructors, equals, hashCode, toString
+main: RelaxedTest.kt: sample.Car: <SAM-CONSTRUCTOR>, LokkiConstructors, door, plate, seat
+main: RelaxedTest.kt: sample.Door: <SAM-CONSTRUCTOR>, LokkiConstructors, open
+main: RelaxedTest.kt: sample.Seat: <SAM-CONSTRUCTOR>, LokkiConstructors, recline

@@ -4,6 +4,7 @@ public abstract class io/lokki/gradle/LokkiGradleExtension {
 	public final fun getDebug ()Lorg/gradle/api/provider/Property;
 	public final fun getRecordStackTraces ()Lorg/gradle/api/provider/Property;
 	public final fun mockable ([Ljava/lang/String;)V
+	public final fun restricted ([Ljava/lang/String;)V
 }
 
 public final class io/lokki/gradle/LokkiGradleSubplugin : org/jetbrains/kotlin/gradle/plugin/KotlinCompilerPluginSupportPlugin {

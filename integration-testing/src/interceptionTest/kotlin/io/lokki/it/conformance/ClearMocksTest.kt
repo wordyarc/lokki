@@ -180,7 +180,7 @@ class ClearMocksTest {
         assertEquals(24, spyObj.op(1))
         assertEquals(42, mockInOtherThread?.op(1))
 
-        clearAllMocks(currentThreadOnly = true)
+        clearAllMocks()
 
         assertEquals(2, spyObj.op(1))
         assertEquals(42, mockInOtherThread?.op(1))

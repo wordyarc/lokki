@@ -13,10 +13,12 @@ internal fun publicClassId(name: String): ClassId = ClassId(LOKKI_PACKAGE, Name.
 internal fun internalClassId(name: String): ClassId = ClassId(LOKKI_INTERNAL_PACKAGE, Name.identifier(name))
 
 internal val AWAIT_CANCELLATION = CallableId(FqName("kotlinx.coroutines"), Name.identifier("awaitCancellation"))
+internal val OVERRIDE_MOCKS = publicClassId("OverrideMocks")
 internal val ARRAY_OF = CallableId(FqName("kotlin"), Name.identifier("arrayOf"))
 
 internal const val ABI_VERSION = "VERSION"
 internal const val UNORDERED = "UNORDERED"
+internal const val ANY_ORDERING = "ANY"
 internal const val LOOKUP_BY_NAME = "BY_NAME"
 internal const val LOOKUP_BY_TYPE = "BY_TYPE"
 internal const val WITH_CONTEXT = "withContext"
@@ -32,11 +34,17 @@ internal object ParameterNames {
     const val SPIED_INSTANCE = "obj"
     const val INTERFACE_TYPE = "type"
     const val LOOKUP_TYPE = "lookupType"
+    const val OVERRIDE_VALUES = "overrideValues"
+    const val MOCKED_CLASS = "type"
     const val CLEAR = "clear"
     const val ORDERING = "ordering"
     const val EXACTLY = "exactly"
     const val AT_LEAST = "atLeast"
     const val AT_MOST = "atMost"
+    const val FILE_CLASSES = "classes"
+    const val ANSWERS = "answers"
+    const val RECORDED_CALLS = "recordedCalls"
+    const val CHILD_MOCKS = "childMocks"
     val REFERENCES = setOf("function", "functions", "property", "properties")
 }
 
@@ -47,12 +55,13 @@ internal object MatcherNames {
     const val SPREAD_FACTORY = "spread"
     const val VARARG_OF_FACTORY = "varargOf"
     val ANY = setOf("any", "anyNullable", ALL_ANY)
+    val CLASSIFIED = setOf("any", "match")
     val COMPOSITE = setOf("and", "or", "not")
     val CAPTURE = setOf("capture", "captureNullable")
     val WITH_ARG = setOf("withArg", "withNullableArg", "coWithArg", "coWithNullableArg")
     val REF_EQ = setOf("refEq", "nrefEq")
     val VARARG =
-        setOf("anyVararg", "varargAll", "varargAllNullable", "varargAny", "varargAnyNullable") +
+        setOf("anyVararg", "varargAll", "varargAllNullable", "varargAny", "varargAnyNullable", "varargArray") +
             listOf("Boolean", "Byte", "Char", "Short", "Int", "Long", "Float", "Double")
                 .flatMap { listOf("any${it}Vararg", "varargAll$it", "varargAny$it") }
     val TYPED =

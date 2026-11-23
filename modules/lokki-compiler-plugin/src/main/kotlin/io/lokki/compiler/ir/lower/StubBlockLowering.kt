@@ -11,6 +11,7 @@ import io.lokki.compiler.VERIFICATION_ORDERINGS
 import io.lokki.compiler.ir.FileContext
 import io.lokki.compiler.ir.LokkiIrContext
 import io.lokki.compiler.ir.NoCalls
+import io.lokki.compiler.ir.NoConstructedCalls
 import io.lokki.compiler.ir.ObjectRedirect
 import io.lokki.compiler.ir.Redirect
 import io.lokki.compiler.ir.StaticRedirect
@@ -45,6 +46,7 @@ import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.builders.IrBlockBodyBuilder
 import org.jetbrains.kotlin.ir.builders.IrBuilder
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
+import org.jetbrains.kotlin.ir.builders.IrStatementsBuilder
 import org.jetbrains.kotlin.ir.builders.Scope
 import org.jetbrains.kotlin.ir.builders.declarations.addValueParameter
 import org.jetbrains.kotlin.ir.builders.irAs
@@ -54,6 +56,7 @@ import org.jetbrains.kotlin.ir.builders.irBoolean
 import org.jetbrains.kotlin.ir.builders.irCallConstructor
 import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.builders.irIfThenElse
+import org.jetbrains.kotlin.ir.builders.irIs
 import org.jetbrains.kotlin.ir.builders.irNull
 import org.jetbrains.kotlin.ir.builders.irReturn
 import org.jetbrains.kotlin.ir.builders.irString
@@ -100,6 +103,7 @@ import org.jetbrains.kotlin.ir.util.isMethodOfAny
 import org.jetbrains.kotlin.ir.util.isNullable
 import org.jetbrains.kotlin.ir.util.isSubclassOf
 import org.jetbrains.kotlin.ir.util.nonDispatchParameters
+import org.jetbrains.kotlin.ir.util.parentClassOrNull
 import org.jetbrains.kotlin.ir.util.patchDeclarationParents
 import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
@@ -165,7 +169,7 @@ internal class StubBlockLowering(
             val call = irRegistration(block, stubbed)
             +irReturn(
                 irInvoke(
-                    symbols[CoreFunction.STUB],
+                    symbols[if (every.isLenient) CoreFunction.STUB_LENIENT else CoreFunction.STUB],
                     irString(call.key),
                     call.matchers,
                     receiver = irGet(call.state),
@@ -221,18 +225,12 @@ internal class StubBlockLowering(
             check.body = builder(check, verify).irBlockBody {
                 for (expectation in expected) {
                     when (expectation) {
-                        is NoCalls -> {
-                            val mocks = expectation.mocks
-                            if (!mocks.isIndependentOf(block.function)) {
-                                fail(mocks, "The receiver of 'wasNot Called' must not use matchers")
-                            }
-                            val evaluated = when {
-                                mocks.callsSuspend() -> irEvaluate(block, mocks.type) { mocks }
-                                else -> mocks
-                            }
-                            val expectNoCalls = symbols.expectNoCalls(expectation.mocksClass)
-                            +irInvoke(expectNoCalls, evaluated, receiver = irGet(verification))
-                        }
+                        is NoCalls -> irExpectNoCalls(block, verification, expectation)
+                        is NoConstructedCalls -> +irInvoke(
+                            symbols[CoreFunction.EXPECT_NO_CONSTRUCTED_CALLS],
+                            irRepresentative(expectation.call, block),
+                            receiver = irGet(verification),
+                        )
                         is StubbedCall -> {
                             val call = irRegistration(block, expectation)
                             +irInvoke(
@@ -250,6 +248,63 @@ internal class StubBlockLowering(
             +irCompanionCall(symbols[CoreFunction.WITHOUT_STATE_CHANGES], check)
         }.patchDeclarationParents(scope.getLocalDeclarationParent())
     }
+
+    private fun IrStatementsBuilder<*>.irExpectNoCalls(block: StubBlock, verification: IrVariable, expected: NoCalls) {
+        val mocks = expected.mocks
+        if (mocks is IrCall && mocks.intrinsicKind == IntrinsicKind.CONSTRUCTED) {
+            +irInvoke(
+                symbols.expectNoCalls(builtIns.anyClass.owner),
+                irRepresentative(mocks, block),
+                receiver = irGet(verification),
+            )
+            return
+        }
+        val pattern = mocks.memberCall()?.takeIf {
+            it.call.symbol.owner.isLink || file.redirects.member(it.call.symbol.owner) != null
+        }
+        if (pattern == null || pattern.callsSuspend) {
+            if (!mocks.isIndependentOf(block.function)) {
+                fail(mocks, "The receiver of 'wasNot Called' must not use matchers")
+            }
+            val evaluated = if (mocks.callsSuspend()) irEvaluate(block, mocks.type) { mocks } else mocks
+            +irInvoke(symbols.expectNoCalls(expected.mocksClass), evaluated, receiver = irGet(verification))
+            return
+        }
+        val unchained = block.withoutExpectations()
+        val receiver = pattern.receiver?.let { irTemporary(irLinks(unchained, it)) }
+        val independent = pattern.arguments.all { it == null || it.isIndependentOf(block.function) }
+        val mayBeValue = receiver != null && independent && file.redirects.member(pattern.call.symbol.owner) == null
+        val value = if (mayBeValue) pattern.call.deepCopyWithSymbols() else null
+        val call = StubbedCall(pattern.call, receiver?.let(::irGet), pattern.arguments, pattern.order)
+        val expectAbsent = irBlock {
+            val registration = irRegistration(unchained, call)
+            +irInvoke(
+                symbols[CoreFunction.EXPECT_ABSENT],
+                irGet(registration.state),
+                irString(registration.key),
+                registration.matchers,
+                receiver = irGet(verification),
+            )
+        }
+        if (value == null) {
+            +expectAbsent
+            return
+        }
+        value.dispatchReceiver = irGet(receiver!!)
+        value.symbol.owner.nonDispatchParameters.forEachIndexed { index, parameter ->
+            value.arguments[parameter] = pattern.arguments[index]?.deepCopyWithSymbols()
+        }
+        val expectValue = irInvoke(symbols.expectNoCalls(expected.mocksClass), value, receiver = irGet(verification))
+        +irIfThenElse(
+            builtIns.unitType,
+            irIs(irGet(receiver), symbols[CoreClass.GENERATED_MOCK].defaultType),
+            expectAbsent,
+            expectValue,
+        )
+    }
+
+    private val IrCall.isLenient: Boolean
+        get() = symbol.owner.parentClassOrNull?.symbol == symbols[CoreClass.LENIENT_STUBBING_SCOPE].symbol
 
     private fun exclusion(exclude: IrCall, scope: Scope): IrExpression {
         val block = exclude.stubBlock()
@@ -298,7 +353,7 @@ internal class StubBlockLowering(
         return StubBlock(this, block, stubs)
     }
 
-    private fun IrBlockBodyBuilder.irRegistration(block: StubBlock, stubbed: StubbedCall): Registration {
+    private fun IrStatementsBuilder<*>.irRegistration(block: StubBlock, stubbed: StubbedCall): Registration {
         val target = targetOf(stubbed.call)
         if (!stubbed.callsSuspend) return irEvaluatedRegistration(block, stubbed, target)
         val anyN = builtIns.anyNType
@@ -315,7 +370,7 @@ internal class StubBlockLowering(
         )
     }
 
-    private fun IrBlockBodyBuilder.irEvaluatedRegistration(
+    private fun IrStatementsBuilder<*>.irEvaluatedRegistration(
         block: StubBlock,
         stubbed: StubbedCall,
         target: Target,
@@ -332,7 +387,7 @@ internal class StubBlockLowering(
         return Registration(state, target.key, matchers)
     }
 
-    private fun IrBlockBodyBuilder.irArguments(
+    private fun IrStatementsBuilder<*>.irArguments(
         block: StubBlock,
         stubbed: StubbedCall,
         receiver: IrVariable?,
@@ -373,8 +428,11 @@ internal class StubBlockLowering(
         return irArrayOf(matcherType, arguments)
     }
 
-    private fun IrBlockBodyBuilder.irLinks(block: StubBlock, receiver: IrExpression): IrExpression {
+    private fun IrStatementsBuilder<*>.irLinks(block: StubBlock, receiver: IrExpression): IrExpression {
         val verification = block.verification
+        if (receiver is IrCall && receiver.intrinsicKind == IntrinsicKind.CONSTRUCTED) {
+            return irRepresentative(receiver, block)
+        }
         receiver.wrapped?.let { wrapped ->
             receiver.rewrap(irLinks(block, wrapped))
             return receiver
@@ -407,6 +465,28 @@ internal class StubBlockLowering(
         return irLink(block, head, key, call)
     }
 
+    private fun IrStatementsBuilder<*>.irRepresentative(call: IrCall, block: StubBlock): IrExpression {
+        val type = call.typeArguments[0]!!
+        val target = type.classOrNull?.owner ?: fail(call, "'${call.name}' needs a class as its type argument")
+        val redirect = file.redirects.constructors(target)
+            ?: fail(call, "'${target.name}' has no constructor interception point: add it to lokki { mockable(...) }")
+        val key = irString(redirect.key)
+        val name = irString(target.name.asString())
+        val parameter = call.symbol.owner.parameters.find { it.varargElementType != null }
+        val elements = parameter?.let { call.arguments[it] as? IrVararg }?.elements.orEmpty()
+        val representative = if (elements.isEmpty()) {
+            irInvoke(symbols[CoreFunction.CONSTRUCTED], key, name)
+        } else {
+            val matchers = elements.map { element ->
+                val argument = element as? IrExpression
+                    ?: fail(call, "'${call.name}' takes its arguments one by one, not as a spread array")
+                irMatcher(argument, builtIns.anyClass.owner, block)
+            }
+            irInvoke(symbols[CoreFunction.CONSTRUCTED_WITH], key, name, irArrayOf(matcherType, matchers))
+        }
+        return irAs(representative, type)
+    }
+
     private fun IrBuilderWithScope.irLink(block: StubBlock, head: IrVariable, key: String, call: IrCall): IrExpression {
         val type = call.type
         val child = childOf(call)
@@ -425,7 +505,7 @@ internal class StubBlockLowering(
         )
     }
 
-    private fun IrBlockBodyBuilder.irMatchedLink(
+    private fun IrStatementsBuilder<*>.irMatchedLink(
         block: StubBlock,
         link: StubbedCall,
         head: IrVariable,
@@ -578,7 +658,7 @@ internal class StubBlockLowering(
             else -> null
         }
 
-    private fun IrBlockBodyBuilder.irArgumentMatcher(
+    private fun IrStatementsBuilder<*>.irArgumentMatcher(
         argument: IrExpression,
         declared: IrValueParameter,
         block: StubBlock,
@@ -589,7 +669,7 @@ internal class StubBlockLowering(
         return irElementsMatcher(argument, declared.varargElementType!!.erasedUpperBound, arrayType, block, allAny)
     }
 
-    private fun IrBlockBodyBuilder.irElementsMatcher(
+    private fun IrStatementsBuilder<*>.irElementsMatcher(
         argument: IrVararg?,
         elementType: IrClass,
         arrayType: IrClass,
@@ -626,7 +706,7 @@ internal class StubBlockLowering(
         )
     }
 
-    private fun IrBlockBodyBuilder.irSpreadMatcher(
+    private fun IrStatementsBuilder<*>.irSpreadMatcher(
         matcher: IrExpression,
         arrayType: IrClass,
         block: StubBlock,
@@ -641,7 +721,7 @@ internal class StubBlockLowering(
         return irMatcher(matcher, arrayType, block)
     }
 
-    private fun IrBlockBodyBuilder.irMatcher(
+    private fun IrStatementsBuilder<*>.irMatcher(
         argument: IrExpression,
         declared: IrClass,
         block: StubBlock,
@@ -659,9 +739,31 @@ internal class StubBlockLowering(
             )
         }
 
-    private fun IrBlockBodyBuilder.irBuiltinMatcher(call: IrCall, declared: IrClass, block: StubBlock): IrExpression {
+    private fun IrStatementsBuilder<*>.irBuiltinMatcher(call: IrCall, declared: IrClass, block: StubBlock): IrExpression {
         val name = call.name
-        val matcher = when (name) {
+        val classified = name in MatcherNames.CLASSIFIED && call.symbol.owner.nonDispatchParameters.any {
+            it.type.classOrNull == builtIns.kClassClass
+        }
+        val matcher = when {
+            classified -> irFactory(call) { value ->
+                value.takeIf { it.isIndependentOf(block.function) }
+                    ?: fail(value, "An argument of the matcher '$name' must not use matchers")
+            }
+            else -> irBuiltinMatcher(name, call, declared, block)
+        }
+        if (classified) return matcher
+        val type = call.typeArguments.firstOrNull() ?: return matcher
+        if (name !in MatcherNames.TYPED || !type.isStrictSubtypeOf(declared)) return matcher
+        return irInvoke(symbols.matcherFactory(MatcherNames.TYPED_FACTORY), matcher, typeArguments = listOf(type))
+    }
+
+    private fun IrStatementsBuilder<*>.irBuiltinMatcher(
+        name: String,
+        call: IrCall,
+        declared: IrClass,
+        block: StubBlock,
+    ): IrExpression =
+        when (name) {
             in MatcherNames.ANY -> irAny()
             in MatcherNames.COMPOSITE -> irFactory(call) { irMatcher(it, declared, block) }
             MatcherNames.ARRAY -> {
@@ -674,10 +776,6 @@ internal class StubBlockLowering(
                     ?: fail(value, "An argument of the matcher '$name' must not use matchers")
             }
         }
-        val type = call.typeArguments.firstOrNull() ?: return matcher
-        if (name !in MatcherNames.TYPED || !type.isStrictSubtypeOf(declared)) return matcher
-        return irInvoke(symbols.matcherFactory(MatcherNames.TYPED_FACTORY), matcher, typeArguments = listOf(type))
-    }
 
     private inline fun IrBuilder.irFactory(call: IrCall, argument: (IrExpression) -> IrExpression): IrExpression {
         val function = call.symbol.owner
@@ -688,7 +786,7 @@ internal class StubBlockLowering(
         }
     }
 
-    private fun IrBlockBodyBuilder.irHelperMatcher(helper: IrExpression, block: StubBlock): IrExpression {
+    private fun IrStatementsBuilder<*>.irHelperMatcher(helper: IrExpression, block: StubBlock): IrExpression {
         val scope = block.scope
             ?: irTemporary(irInvoke(symbols[CoreConstructor.REGISTRATION_SCOPE]), irType = block.receiverType)
                 .also { block.scope = it }
@@ -777,6 +875,8 @@ private class StubBlock(
     fun nested(): StubBlock = StubBlock(dsl, function, stubs, verification)
 
     fun verifiedBy(verification: IrVariable): StubBlock = StubBlock(dsl, function, stubs, verification)
+
+    fun withoutExpectations(): StubBlock = StubBlock(dsl, function, stubs).also { it.scope = scope }
 }
 
 private class Registration(val state: IrVariable, val key: String, val matchers: IrExpression)

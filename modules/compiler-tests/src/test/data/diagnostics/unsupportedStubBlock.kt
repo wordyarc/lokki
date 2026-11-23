@@ -28,7 +28,7 @@ import io.lokki.mock
 import io.lokki.verify
 import io.lokki.verifyCount
 import io.lokki.verifyOrder
-import io.lokki.withContext
+import io.lokki.context.withContext
 
 @JvmInline
 value class Id(val value: Int)

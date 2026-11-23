@@ -14,10 +14,6 @@
 
 /mockFields.kt:72:5: error: '@Spy' needs a 'lateinit var' or 'var' property: lokki assigns the property after the object is constructed. A 'val' can be a spy only with a constructor call of an open class as the initializer, such as 'val car = Car()'.
 
-/mockFields.kt:88:5: error: '@Mock' on a parameter is not supported yet: lokki initializes only properties declared in the class body. Declare a 'lateinit var' property instead.
+/mockFields.kt:90:5: error: '@Mock' works on parameters of methods and constructors of a non-local class and on properties declared in the class body. Move the annotation to such a declaration.
 
-/mockFields.kt:89:5: error: '@Mock' on a parameter is not supported yet: lokki initializes only properties declared in the class body. Declare a 'lateinit var' property instead.
-
-/mockFields.kt:90:5: error: '@Mock' on a parameter is not supported yet: lokki initializes only properties declared in the class body. Declare a 'lateinit var' property instead.
-
-/mockFields.kt:93:10: error: '@RelaxedMock' on a parameter is not supported yet: lokki initializes only properties declared in the class body. Declare a 'lateinit var' property instead.
+/mockFields.kt:93:10: error: '@RelaxedMock' works on parameters of methods and constructors of a non-local class and on properties declared in the class body. Move the annotation to such a declaration.

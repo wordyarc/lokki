@@ -3,5 +3,3 @@
 /injectMocks.kt:33:5: error: '@InjectMocks' cannot inject 'sample.Service': a property cannot have both '@InjectMocks' and '@Mock'.
 
 /injectMocks.kt:36:5: error: '@InjectMocks' needs a 'lateinit var' or 'var' property: lokki assigns the property after the object is constructed.
-
-/injectMocks.kt:40:18: error: '@InjectMocks' on a parameter is not supported yet: lokki initializes only properties declared in the class body. Declare a 'lateinit var' property instead.

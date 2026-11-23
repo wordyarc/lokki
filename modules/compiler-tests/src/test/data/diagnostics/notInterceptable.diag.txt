@@ -22,7 +22,7 @@
 
 /test.kt:98:18: error: A call of 'toString' cannot be intercepted: its receiver type 'sample.Impl' is final.
 
-/test.kt:99:22: error: A call of 'lookup' cannot be intercepted: 'sample.Registry' is declared in this compilation, and only main compilations with lokki { mockable(...) } get interception points.
+/test.kt:99:22: error: A call of 'lookup' cannot be intercepted: 'sample.Registry' is declared in this compilation and has no interception points: name it in lokki { mockable(...) } (in test sources a package pattern does not apply).
 
 /test.kt:100:22: error: A call of 'LIMIT' cannot be intercepted: it is a constant, which is inlined at compile time.
 

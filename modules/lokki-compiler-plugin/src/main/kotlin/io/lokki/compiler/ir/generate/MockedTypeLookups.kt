@@ -1,5 +1,6 @@
 package io.lokki.compiler.ir.generate
 
+import io.lokki.compiler.CONSTRUCTORS
 import org.jetbrains.kotlin.incremental.components.LookupTracker
 import org.jetbrains.kotlin.incremental.components.Position
 import org.jetbrains.kotlin.incremental.components.ScopeKind
@@ -18,7 +19,7 @@ internal fun LookupTracker.recordMockedTypeLookups(mocked: IrClass, file: IrFile
         val memberNames = type.declarations.filterIsInstance<IrOverridableMember>()
             .filterNot { it.isFakeOverride }
             .map { it.name }
-        for (name in memberNames + SAM_LOOKUP_NAME) {
+        for (name in memberNames + SAM_LOOKUP_NAME + CONSTRUCTORS) {
             record(file.path, Position.NO_POSITION, scope, ScopeKind.CLASSIFIER, name.asString())
         }
     }

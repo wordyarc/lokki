@@ -3,6 +3,8 @@ package io.lokki.internal
 import io.lokki.CapturingSlot
 import io.lokki.LokkiException
 import io.lokki.Matcher
+import io.lokki.checkEquals
+import kotlin.coroutines.suspendCoroutine
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -10,7 +12,6 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
-import kotlin.coroutines.suspendCoroutine
 
 class MatchersTest {
     @Test
@@ -181,7 +182,7 @@ class MatchersTest {
     @Test
     fun testAssertionErrorOfMatcherObjectIsThrown() {
         val failure = AssertionError("not positive")
-        val matcher = Matchers.match(Matcher<Int> { throw failure })
+        val matcher = Matchers.match(object : Matcher<Int> { override fun match(arg: Int?): Boolean = throw failure })
 
         assertSame(failure, assertFailsWith<AssertionError> { matcher.match(1, ArrayList()) })
     }
@@ -418,7 +419,7 @@ class MatchersTest {
     @Test
     fun testMatcherObjectDescribesItself() {
         val even = object : Matcher<Int> {
-            override fun match(arg: Int): Boolean = arg % 2 == 0
+            override fun match(arg: Int?): Boolean = arg != null && arg % 2 == 0
 
             override fun toString(): String = "even()"
         }

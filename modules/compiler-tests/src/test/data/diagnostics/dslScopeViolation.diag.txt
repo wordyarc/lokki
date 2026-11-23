@@ -1,11 +1,11 @@
-/dslScopeViolation.kt:16:34: error: 'fun <reified T> any(): T' cannot be called in this context with an implicit receiver. Use an explicit receiver if necessary.
-
-/dslScopeViolation.kt:16:34: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
+/dslScopeViolation.kt:17:34: error: 'fun <reified T> any(): T' cannot be called in this context with an implicit receiver. Use an explicit receiver if necessary.
 
 /dslScopeViolation.kt:17:34: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/dslScopeViolation.kt:21:27: error: 'fun <reified R> firstArg(): R' cannot be called in this context with an implicit receiver. Use an explicit receiver if necessary.
+/dslScopeViolation.kt:18:34: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
 
-/dslScopeViolation.kt:28:15: error: 'fun Int.times(verifyBlock: VerificationScope.() -> Any?): Unit' cannot be called in this context with an implicit receiver. Use an explicit receiver if necessary.
+/dslScopeViolation.kt:22:27: error: 'fun <reified R> firstArg(): R' cannot be called in this context with an implicit receiver. Use an explicit receiver if necessary.
 
-/dslScopeViolation.kt:28:15: error: A call of 'times' cannot be intercepted: it is final.
+/dslScopeViolation.kt:29:15: error: 'fun Int.times(verifyBlock: VerificationScope.() -> Any?): Unit' cannot be called in this context with an implicit receiver. Use an explicit receiver if necessary.
+
+/dslScopeViolation.kt:29:15: error: A call of 'times' cannot be intercepted: it is final.

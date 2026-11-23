@@ -104,7 +104,8 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
             "kotlin.collections.Set" -> call(symbols.emptySet)
             "kotlin.collections.Map" -> call(symbols.emptyMap)
             "kotlin.sequences.Sequence" -> call(symbols.emptySequence)
-            "java.util.Optional" -> call(symbols.optionalEmpty)
+            "java.util.Optional", "java.util.OptionalInt", "java.util.OptionalLong", "java.util.OptionalDouble" ->
+                call(symbols.optionalEmpty(klass))
             "kotlin.collections.MutableIterable", "kotlin.collections.MutableCollection",
             "kotlin.collections.MutableList", "java.util.ArrayList" -> construct("ArrayList")
             "kotlin.collections.MutableSet", "java.util.LinkedHashSet" -> construct("LinkedHashSet")

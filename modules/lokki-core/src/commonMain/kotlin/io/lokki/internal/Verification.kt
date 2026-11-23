@@ -18,6 +18,8 @@ internal class Verification(
     private val expectations = ArrayList<Expectation>()
     private val followers = ArrayList<Expectation>()
     private val uncalled = ArrayList<MockState>()
+    private val absent = ArrayList<Expectation>()
+    private val constructed = ArrayList<MockState>()
     private var link: Expectation? = null
 
     private val states: List<MockState>
@@ -30,7 +32,8 @@ internal class Verification(
             atLeast < 0 -> "atLeast should be positive"
             atMost < 0 -> "atMost should be positive"
             atLeast > atMost -> "atLeast should less or equal atMost"
-            ordering != Ordering.UNORDERED && (atLeast != 1 || atMost != Int.MAX_VALUE || exactly != -1) ->
+            ordering != Ordering.UNORDERED && ordering != Ordering.ANY &&
+                (atLeast != 1 || atMost != Int.MAX_VALUE || exactly != -1) ->
                 "atLeast, atMost, exactly is only allowed in unordered verify block"
             else -> null
         }
@@ -43,14 +46,18 @@ internal class Verification(
 
     fun expect(state: MockState, key: String, matchers: Array<Matcher<Any?>>) {
         state.checkNotShared()
-        expectations += follower(Expectation(state, key, lazyOf(matchers), min, max, takeLink()))
+        expectations += follower(Expectation(state.root, key, lazyOf(matchers), min, max, takeLink()))
     }
 
     fun expectLink(receiver: Any?, key: String, matchers: (MockState) -> Array<Matcher<Any?>>) {
         val origin = takeLink()
-        val state = (receiver as? GeneratedMock)?.`lokki$state` ?: return
+        val state = (receiver as? GeneratedMock)?.`lokki$state`?.root ?: return
         state.checkNotShared()
-        val expected = ordering != Ordering.UNORDERED || !inverse && min != 0
+        val expected = when (ordering) {
+            Ordering.UNORDERED -> !inverse && min != 0
+            Ordering.ANY -> false
+            else -> true
+        }
         val arguments = if (expected) lazyOf(matchers(state)) else lazy(LazyThreadSafetyMode.NONE) { matchers(state) }
         val link = follower(Expectation(state, key, arguments, 1, Int.MAX_VALUE, origin))
         if (expected) expectations += link
@@ -58,11 +65,26 @@ internal class Verification(
     }
 
     fun expectNoCalls(mock: Any) {
-        uncalled += GeneratedMock.of(mock).`lokki$state`.also { it.checkNotShared() }
+        uncalled += GeneratedMock.of(mock).`lokki$state`.root.constructedStates().onEach { it.checkNotShared() }
+    }
+
+    fun expectNoConstructedCalls(mock: Any) {
+        if (min != 0 || max != 0) {
+            throw LokkiException(
+                "A bare anyConstructed<T>() placeholder can only be verified with exactly = 0, " +
+                    "but bounds ${boundsOf(min, max)} were requested"
+            )
+        }
+        constructed += GeneratedMock.of(mock).`lokki$state`.root
     }
 
     fun expectNoCalls(mocks: List<Any>) {
         for (mock in mocks) expectNoCalls(mock)
+    }
+
+    fun expectAbsent(state: MockState, key: String, matchers: Array<Matcher<Any?>>) {
+        state.checkNotShared()
+        absent += Expectation(state.root, key, lazyOf(matchers), 0, 0, null)
     }
 
     fun check() {
@@ -79,14 +101,27 @@ internal class Verification(
             if (inverse) return
             fail("Verification failed: ${outcome.failure}", outcome.assertions)
         }
-        if (timeout > 0 && uncalled.isNotEmpty()) sleep((deadline - nanoTime()) / NANOS_PER_MILLI)
+        if (timeout > 0 && (uncalled.isNotEmpty() || absent.isNotEmpty() || constructed.isNotEmpty())) {
+            sleep((deadline - nanoTime()) / NANOS_PER_MILLI)
+        }
         val called = uncalled.distinct().map { it to it.records() }.filter { (_, calls) -> calls.isNotEmpty() }
-        if (called.isNotEmpty()) {
+        val present = absent.map { it to it.matchingCalls() }.filter { (_, calls) -> calls.isNotEmpty() }
+        if (called.isNotEmpty() || present.isNotEmpty()) {
             if (inverse) return
-            val calls = called.flatMap { (_, calls) -> calls }
+            val calls = (called.flatMap { (_, calls) -> calls } + present.flatMap { (_, calls) -> calls }).distinct()
+            val names = called.map { (state, _) -> state.name } + present.map { (expectation, _) -> "$expectation" }
             fail(
-                "Verification failed: ${called.joinToString { (state, _) -> state.name }} should not be called:\n" +
+                "Verification failed: ${names.joinToString()} should not be called:\n" +
                     "${calls.numbered()}\n${calls.callSites()}"
+            )
+        }
+        val constructedCalls = constructed.flatMap { it.constructedStates() }.distinct().flatMap { it.records() }
+        if (constructedCalls.isNotEmpty()) {
+            if (inverse) return
+            val classes = constructed.distinct().joinToString { it.descriptor.name }
+            fail(
+                "Expected no calls on constructed instances of $classes, but ${constructedCalls.size} were found\n\n" +
+                    "Calls:\n${constructedCalls.numbered()}\n${constructedCalls.callSites()}"
             )
         }
         val verified = outcome.matches.map { it.call }.distinct()
@@ -121,6 +156,7 @@ internal class Verification(
             Ordering.ALL -> verifyAll()
             Ordering.ORDERED -> verifyOrder()
             Ordering.SEQUENCE -> verifySequence()
+            Ordering.ANY -> verifyAny()
         }
     }
 
@@ -174,6 +210,30 @@ internal class Verification(
         return failure(problem, calls, Lcs(calls, expectations))
     }
 
+    private fun verifyAny(): Outcome {
+        if (expectations.isEmpty()) return Outcome(emptyList())
+        val matches = expectations.flatMap { expectation ->
+            val calls = expectation.matchingCalls()
+            if (calls.size > 1) expectation.checkSlots()
+            calls.map { Match(expectation, it) }
+        }
+        val found = matches.map { it.call }.distinct()
+        if (found.size in min..max) return Outcome(matches)
+        val assertions = expectations.flatMap { it.assertions() }
+        if (min == 0 && max == 0) {
+            val report = "None of the patterns should be called, but ${found.size} matching calls found\n\n" +
+                "Calls:\n${found.numbered()}\n${found.callSites()}"
+            return Outcome(emptyList(), report, assertions)
+        }
+        val calls = involvedCalls()
+        val patterns = expectations.withIndex().joinToString { (index, expectation) ->
+            "call ${index + 1} of ${expectations.size}: $expectation"
+        }
+        val report = "${found.size} matching calls found for the declared patterns: $patterns, " +
+            "but needs ${boundsOf(min, max)}\n\nCalls:\n${calls.numbered()}\n${calls.callSites()}"
+        return Outcome(emptyList(), report, assertions)
+    }
+
     private fun involvedCalls(): List<CallRecord> = states.flatMap { it.records() }.sortedBy { it.sequenceNumber }
 
     private fun failure(problem: String, calls: List<CallRecord>, lcs: Lcs): Outcome {
@@ -188,7 +248,7 @@ internal class Verification(
         if (failure == null) this else Outcome(matches, "$failure (timeout = $timeout ms)", assertions)
 
     private fun fail(message: String, assertions: List<FailedAssertion> = emptyList()): Nothing {
-        val unanswered = (states + uncalled).distinct().flatMap { it.unansweredRecords() }.unansweredReport()
+        val unanswered = (states + uncalled + absent.flatMap { it.states }).distinct().flatMap { it.unansweredRecords() }.unansweredReport()
         val error = AssertionError(unanswered + message + assertions.report())
         assertions.forEach { error.addSuppressed(it.error) }
         throw error
@@ -208,13 +268,13 @@ private class Expectation(
     private val evaluations = LinkedHashMap<CallRecord, Evaluation>()
 
     val follows: Boolean
-        get() = origin != null
+        get() = origin != null || state.group != null
 
-    var states = listOf(state)
+    var states = state.constructedStates()
         private set
 
     fun follow() {
-        if (origin != null) states = (listOf(state) + origin.returned()).distinct()
+        states = (state.constructedStates() + origin?.returned().orEmpty()).distinct()
     }
 
     fun matches(call: CallRecord): Boolean =
@@ -230,13 +290,7 @@ private class Expectation(
             results.all { it } -> callsOfMember
             else -> emptyList()
         }
-        if (matching.size > 1 && matchers.any { it.capturesIntoSlot }) {
-            throw LokkiException(
-                "$this execution is being verified more than once and its arguments are being captured " +
-                    "with a slot.\nThis will store only the argument of the last invocation in the slot.\n" +
-                    "If you want to store all the arguments, use a mutableList to capture arguments."
-            )
-        }
+        if (matching.size > 1) checkSlots()
         val failure = when {
             min == 0 && max == 0 -> when {
                 matching.isEmpty() -> null
@@ -269,6 +323,17 @@ private class Expectation(
         return Outcome(matching.map { Match(this, it) }, failure, assertions)
     }
 
+    fun matchingCalls(): List<CallRecord> = records().filter(::matches)
+
+    fun checkSlots() {
+        if (matchers.none { it.capturesIntoSlot }) return
+        throw LokkiException(
+            "$this execution is being verified more than once and its arguments are being captured " +
+                "with a slot.\nThis will store only the argument of the last invocation in the slot.\n" +
+                "If you want to store all the arguments, use a mutableList to capture arguments."
+        )
+    }
+
     fun assertions(): List<FailedAssertion> = evaluations.values.flatMap { it.assertions }
 
     fun capture(record: CallRecord) {
@@ -291,12 +356,7 @@ private class Expectation(
             "[$index]: argument: ${argument.toStr()}, matcher: ${matchers[index]}, result: $result\n"
         }
 
-    private fun bounds(): String =
-        when {
-            max == Int.MAX_VALUE -> "at least $min calls"
-            min == max -> "exactly $min calls"
-            else -> "at least $min and at most $max calls"
-        }
+    private fun bounds(): String = boundsOf(min, max)
 
     override fun toString(): String = state.call(member, matchers.joinToString())
 
@@ -378,6 +438,13 @@ private fun List<FailedAssertion>.report(): String {
         "${index + 1}) ${assertion.call}, argument [${assertion.argument}]: ${assertion.error}"
     }
 }
+
+private fun boundsOf(min: Int, max: Int): String =
+    when {
+        max == Int.MAX_VALUE -> "at least $min calls"
+        min == max -> "exactly $min calls"
+        else -> "at least $min and at most $max calls"
+    }
 
 private const val NANOS_PER_MILLI = 1_000_000L
 private const val DIAGONAL: Byte = 1

@@ -1,6 +1,7 @@
 package io.lokki.compiler.fir.checkers
 
 import io.lokki.compiler.BuildConfig
+import io.lokki.compiler.CONSTRUCTOR_KINDS
 import io.lokki.compiler.ENTRY_POINTS
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiDiagnostics
@@ -32,6 +33,7 @@ internal object LokkiCallChecker : FirFunctionCallChecker(MppCheckerKind.Common)
             IntrinsicKind.MOCK, IntrinsicKind.SPY -> checkMock(call, function, kind)
             IntrinsicKind.MOCK_OBJECT -> checkMockObject(call, function)
             in STATIC_KINDS -> checkStaticReferences(call, function)
+            in CONSTRUCTOR_KINDS -> checkConstructorClasses(call, function)
             in STUB_BLOCKS -> {
                 checkBlock(call, function, kind)
                 checkStubAnswer(call, function, kind)

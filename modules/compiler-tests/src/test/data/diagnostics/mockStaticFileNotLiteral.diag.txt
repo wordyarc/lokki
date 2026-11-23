@@ -1,0 +1,5 @@
+/mockStaticFileNotLiteral.kt:10:16: error: An argument of 'mockStatic' must be a string literal with the name of a Kotlin file class, such as 'com.acme.UtilsKt': lokki chooses the interception points at compile time.
+
+/mockStaticFileNotLiteral.kt:11:16: error: An argument of 'mockStatic' must be a string literal with the name of a Kotlin file class, such as 'com.acme.UtilsKt': lokki chooses the interception points at compile time.
+
+/mockStaticFileNotLiteral.kt:12:18: error: An argument of 'unmockStatic' must be a string literal with the name of a Kotlin file class, such as 'com.acme.UtilsKt': lokki chooses the interception points at compile time.

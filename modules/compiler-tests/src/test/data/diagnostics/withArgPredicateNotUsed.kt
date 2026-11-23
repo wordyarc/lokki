@@ -4,6 +4,7 @@
 package sample
 
 import io.lokki.VerificationScope
+import io.lokki.checkEquals
 import io.lokki.verify
 import io.lokki.verifyCount
 

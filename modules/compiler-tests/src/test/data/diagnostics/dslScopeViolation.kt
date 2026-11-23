@@ -3,6 +3,7 @@
 
 package sample
 
+import io.lokki.checkEquals
 import io.lokki.every
 import io.lokki.verify
 import io.lokki.verifyCount

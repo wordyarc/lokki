@@ -15,9 +15,11 @@ internal val Project.kotlinModuleName: String
 
 const val MOCKABLE_OPTION = "mockable"
 
+const val RESTRICTED_OPTION = "restricted"
+
 const val DEBUG_OPTION = "debug"
 
-const val LOKKI_ABI_VERSION = 2
+const val LOKKI_ABI_VERSION = 3
 
 val LOKKI_ABI_FLAGS = mapOf(
     "FLAG_RELAXED" to 1,
@@ -26,6 +28,7 @@ val LOKKI_ABI_FLAGS = mapOf(
     "FLAG_DELEGATE" to 8,
     "FLAG_OBJECT" to 16,
     "FLAG_STATIC" to 32,
+    "FLAG_CONSTRUCTOR" to 64,
     "METHOD_RETURN_TYPE_NULLABLE" to 1,
     "METHOD_RETURNS_UNIT" to 2,
     "METHOD_RETURNS_NOTHING" to 4,

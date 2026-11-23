@@ -1,1 +1,1 @@
-/test.kt:20:5: error: 'mockConstructor' requires a newer version of the lokki compiler plugin.
+/test.kt:20:5: error: 'futureDsl' requires a newer version of the lokki compiler plugin.

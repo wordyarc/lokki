@@ -18,10 +18,10 @@ internal class MockablePatterns(patterns: List<String>) {
         callableId.asSingleFqName() in names || packages.any { callableId.packageName.isSubpackageOf(it) }
 }
 
-internal fun mockablePatternProblem(pattern: String): String? {
+internal fun mockablePatternProblem(pattern: String, option: String = BuildConfig.MOCKABLE_OPTION): String? {
     val name = pattern.removeSuffix(SUBPACKAGES)
     if (name.isNotEmpty() && isValidJavaFqName(name)) return null
-    return "Invalid mockable pattern '$pattern': expected a package followed by '$SUBPACKAGES', a class or an " +
+    return "Invalid $option pattern '$pattern': expected a package followed by '$SUBPACKAGES', a class or an " +
         "annotation, e.g. 'com.acme.**', 'com.acme.Engine' or 'com.acme.Mockable'"
 }
 

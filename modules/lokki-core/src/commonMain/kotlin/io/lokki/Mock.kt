@@ -18,6 +18,16 @@ public inline fun <reified T : Any> mock(
     block: T.() -> Unit = {},
 ): T = pluginNotApplied()
 
+@LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK)
+public fun <T : Any> mockClass(
+    type: KClass<T>,
+    name: String? = null,
+    relaxed: Boolean = false,
+    vararg moreInterfaces: KClass<*>,
+    relaxUnitFun: Boolean = false,
+    block: T.() -> Unit = {},
+): T = pluginNotApplied()
+
 @LokkiIntrinsic(LokkiIntrinsic.Kind.SPY)
 public inline fun <reified T : Any> spy(
     name: String? = null,
@@ -65,6 +75,18 @@ public inline fun mockStatic(vararg functions: KFunction<*>, block: () -> Unit):
 public inline fun mockStatic(vararg functions: KProperty<*>, block: () -> Unit): Unit =
     pluginNotApplied()
 
+@LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK_STATIC)
+public fun mockStatic(vararg classes: String): Unit =
+    pluginNotApplied()
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK_STATIC)
+public inline fun mockStatic(vararg classes: String, block: () -> Unit): Unit =
+    pluginNotApplied()
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.UNMOCK_STATIC)
+public fun unmockStatic(vararg classes: String): Unit =
+    pluginNotApplied()
+
 @LokkiIntrinsic(LokkiIntrinsic.Kind.UNMOCK_STATIC)
 public fun unmockStatic(vararg functions: KFunction<*>): Unit =
     pluginNotApplied()
@@ -80,6 +102,26 @@ public fun clearStaticMock(vararg functions: KFunction<*>): Unit =
 @LokkiIntrinsic(LokkiIntrinsic.Kind.CLEAR_STATIC_MOCK)
 public fun clearStaticMock(vararg functions: KProperty<*>): Unit =
     pluginNotApplied()
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK_CONSTRUCTOR)
+public fun mockConstructor(vararg classes: KClass<*>): Unit =
+    pluginNotApplied()
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK_CONSTRUCTOR)
+public inline fun mockConstructor(vararg classes: KClass<*>, block: () -> Unit): Unit =
+    pluginNotApplied()
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.UNMOCK_CONSTRUCTOR)
+public fun unmockConstructor(vararg classes: KClass<*>): Unit =
+    pluginNotApplied()
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.CLEAR_CONSTRUCTOR_MOCK)
+public fun clearConstructorMock(
+    vararg classes: KClass<*>,
+    answers: Boolean = true,
+    recordedCalls: Boolean = true,
+    childMocks: Boolean = true,
+): Unit = pluginNotApplied()
 
 public fun unmockAll() {
     Redirects.unmockAll()
@@ -109,14 +151,14 @@ public fun clearAllMocks(
     objectMocks: Boolean = true,
     staticMocks: Boolean = true,
     constructorMocks: Boolean = true,
-    currentThreadOnly: Boolean = false,
 ) {
     val scope = LokkiScope.requireCurrent("clearAllMocks")
-    if (!regularMocks && !objectMocks && !staticMocks) return
+    if (!regularMocks && !objectMocks && !staticMocks && !constructorMocks) return
     val states = scope.windowStates().filter {
         when {
             it.isObject -> objectMocks
             it.isStatic -> staticMocks
+            it.isConstructor -> constructorMocks
             else -> regularMocks
         }
     }

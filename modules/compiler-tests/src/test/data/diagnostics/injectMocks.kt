@@ -37,4 +37,4 @@ class Fixture {
     val readonly: Service? = null
 }
 
-class Parameters(<!LOKKI_UNSUPPORTED_MOCK_PARAMETER!>@InjectMocks<!> val service: Service)
+class Parameters(@InjectMocks val service: Service)

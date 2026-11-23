@@ -16,7 +16,16 @@ import kotlin.coroutines.intrinsics.startCoroutineUninterceptedOrReturn
 
 @PublishedApi
 internal class MockState(private val owner: Any, spec: MockSpec, internal val descriptor: MockDescriptor) {
-    private val label = "${spec.name.orEmpty()}#${MockIds.next()}"
+    private val representative: MockState? = spec.representative
+
+    private val data: StateData = representative?.data ?: StateData(descriptor.memberCount)
+
+    private val label: String = representative?.label ?: "${spec.name.orEmpty()}#${MockIds.next()}"
+
+    internal val root: MockState
+        get() = representative ?: this
+
+    internal var group: ConstructorMocks? = null
 
     internal val name = "${descriptor.name}($label)"
 
@@ -28,25 +37,42 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
     internal val isStatic: Boolean
         get() = flags and STATIC != 0
 
-    @Volatile
-    private var stubs = arrayOfNulls<Array<StubEntry>>(descriptor.memberCount)
+    internal val isConstructor: Boolean
+        get() = flags and CONSTRUCTOR != 0
 
-    private val records = ArrayList<CallRecord>()
+    private var stubs: Array<Array<StubEntry>?>
+        get() = data.stubs
+        set(value) {
+            data.stubs = value
+        }
 
-    @Volatile
-    private var waiters = emptyArray<RecordSignal>()
+    private val records: ArrayList<CallRecord>
+        get() = data.records
 
-    @Volatile
-    private var exclusions = emptyArray<Exclusion>()
+    private var waiters: Array<RecordSignal>
+        get() = data.waiters
+        set(value) {
+            data.waiters = value
+        }
+
+    private var exclusions: Array<Exclusion>
+        get() = data.exclusions
+        set(value) {
+            data.exclusions = value
+        }
 
     @Volatile
     private var capture: DefaultsCapture? = null
 
-    private val children = ArrayList<Child>()
+    private val children: ArrayList<Child>
+        get() = data.children
 
-    internal val scope: LokkiScope? = LokkiScope.owner()
+    internal val scope: LokkiScope? = if (representative != null) representative.scope else LokkiScope.owner()
 
     init {
+        if (representative != null && !representative.descriptor.hasSameMembers(descriptor)) {
+            throw LokkiException("the constructor mock of ${descriptor.name} has members of another shape")
+        }
         if (descriptor.abi > LokkiAbi.VERSION) {
             throw LokkiException(
                 "the mock of ${descriptor.name} was compiled by a newer lokki compiler plugin than lokki-core on " +
@@ -54,7 +80,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
                     "use the version of the lokki Gradle plugin for all lokki dependencies"
             )
         }
-        scope?.adopt(this)
+        if (representative == null) scope?.adopt(this)
     }
 
     fun answer(member: Int, arguments: Array<Any?>): Any? =
@@ -80,6 +106,11 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         return PendingStub(this, descriptor.member(key), matchers)
     }
 
+    fun <T> stubLenient(key: String, matchers: Array<Matcher<Any?>>): StubScope<T> {
+        checkNotShared()
+        return PendingStub(this, descriptor.member(key), matchers, lenient = true)
+    }
+
     fun link(key: String, matchers: Array<Matcher<Any?>>, stubs: Boolean, factory: (MockSpec) -> Any): Any {
         checkNotShared()
         return linkedChild(descriptor.member(key), matchers, stubs, factory)
@@ -90,12 +121,12 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         if (member <= TO_STRING) return
         checkNotShared()
         val exclusion = Exclusion(member, matchers, nextMark())
-        synchronized(this) { exclusions += exclusion }
+        synchronized(data) { exclusions += exclusion }
         if (current) synchronized(records) { records.removeAll { exclusion.matches(it.member, it.arguments) } }
     }
 
     fun captureDefaults(key: String, names: Array<String?>, call: (Boolean) -> Unit): Array<Any?> =
-        synchronized(this) {
+        synchronized(data) {
             val member = descriptor.member(key)
             val defaults = captureArguments(member, call, alternate = false)
             val alternate = captureArguments(member, call, alternate = true)
@@ -118,7 +149,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
     internal fun description(member: Int): MethodDescription = descriptor.description(mock, member)
 
     internal fun register(member: Int, entry: StubEntry) {
-        synchronized(this) {
+        synchronized(data) {
             val stubs = stubs.copyOf()
             stubs[member] = stubs[member]?.plus(entry) ?: arrayOf(entry)
             this.stubs = stubs
@@ -148,6 +179,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
     }
 
     internal fun confirmVerified(since: Long = ALL) {
+        if (group != null) constructedStates().filter { it !== this }.forEach { it.confirmVerified(since) }
         val recorded = records(since)
         val unverified = synchronized(records) { recorded.filterNot { it.verified } }
         if (unverified.isEmpty()) return
@@ -161,7 +193,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
     }
 
     internal fun checkUnnecessaryStub(since: Long = ALL) {
-        val unused = describeStubs { !it.used && it.mark > since }
+        val unused = describeStubs { !it.used && !it.lenient && it.mark > since }
         if (unused.isEmpty()) return
         throw AssertionError(
             "Unnecessary stubbings detected.\nFollowing stubbings are not used, either because there are " +
@@ -178,7 +210,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         exclusionRules: Boolean,
         since: Long = ALL,
     ) {
-        synchronized(this) {
+        synchronized(data) {
             if (answers) {
                 stubs = stubs.map { entries ->
                     entries?.filter { it.mark <= since }?.takeIf { it.isNotEmpty() }?.toTypedArray()
@@ -207,6 +239,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         original: (CallRecord?) -> Any?,
         answer: (Answer<Any?>, Call, CallRecord?) -> Any?,
     ): Any? {
+        if (representative != null && data.isDetached) return original(null)
         val capture = capture
         if (capture != null && capture.member == member && capture.thread === currentThread()) {
             capture.arguments = arguments
@@ -251,7 +284,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         if (exclusions.isNotEmpty() && exclusions.any { it.matches(member, arguments) }) return null
         val callStack = captureCallStack()
         return synchronized(records) {
-            val record = CallRecord(this, member, arguments, nextSequenceNumber(), callStack)
+            val record = CallRecord(root, member, arguments, nextSequenceNumber(), callStack)
             records += record
             for (waiter in waiters) waiter.signal()
             record
@@ -311,7 +344,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
     ): Any {
         val child = child(member, matchers, factory)
         if (!registers) return child
-        synchronized(this) {
+        synchronized(data) {
             if (stubs[member]?.lastOrNull()?.answersWith(child, matchers) != true) {
                 register(member, StubEntry(matchers, listOf(ConstantAnswer(child)), nextMark()))
             }
@@ -320,7 +353,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
     }
 
     private fun child(member: Int, matchers: Array<Matcher<Any?>>, factory: (MockSpec) -> Any): Any =
-        synchronized(this) {
+        synchronized(data) {
             children.find { it.member == member && it.matchers.isEquivalentTo(matchers) }?.mock
                 ?: factory(MockSpec(childName(), flags and (RELAXED or RELAX_UNIT_FUN)))
                     .also { children += Child(member, matchers, it, nextMark()) }
@@ -344,7 +377,46 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         }
     }
 
-    private fun findStub(member: Int, arguments: Array<Any?>): StubEntry? {
+    private fun findStub(member: Int, arguments: Array<Any?>): StubEntry? = data.findStub(member, arguments)
+
+    internal fun fallBackTo(states: List<MockState>) {
+        data.fallbacks = Array(states.size) { states[it].data }
+    }
+
+    internal fun detach() {
+        data.isDetached = true
+    }
+
+    internal fun constructedStates(): List<MockState> = group?.statesOf(this) ?: listOf(this)
+}
+
+private class StateData(memberCount: Int) {
+    @Volatile
+    var stubs = arrayOfNulls<Array<StubEntry>>(memberCount)
+
+    val records = ArrayList<CallRecord>()
+
+    @Volatile
+    var waiters = emptyArray<RecordSignal>()
+
+    @Volatile
+    var exclusions = emptyArray<Exclusion>()
+
+    val children = ArrayList<Child>()
+
+    @Volatile
+    var isDetached = false
+
+    @Volatile
+    var fallbacks = emptyArray<StateData>()
+
+    fun findStub(member: Int, arguments: Array<Any?>): StubEntry? {
+        ownStub(member, arguments)?.let { return it }
+        for (fallback in fallbacks) fallback.ownStub(member, arguments)?.let { return it }
+        return null
+    }
+
+    private fun ownStub(member: Int, arguments: Array<Any?>): StubEntry? {
         val entries = stubs[member] ?: return null
         for (index in entries.lastIndex downTo 0) {
             val entry = entries[index]
@@ -378,6 +450,7 @@ internal class StubEntry(
     private val matchers: Array<Matcher<Any?>>,
     answers: List<Answer<Any?>>,
     val mark: Long,
+    val lenient: Boolean = false,
 ) {
     private val captures = matchers.any { it is CapturingMatcher }
 
@@ -441,6 +514,7 @@ private class PendingStub<T>(
     private val state: MockState,
     private val member: Int,
     private val matchers: Array<Matcher<Any?>>,
+    private val lenient: Boolean = false,
 ) : StubScope<T>, AdditionalAnswerScope<T> {
     private var entry: StubEntry? = null
 
@@ -493,7 +567,7 @@ private class PendingStub<T>(
         when {
             entry != null -> entry.add(answers)
             answers.isEmpty() -> throw LokkiException("a stub needs at least one answer")
-            else -> this.entry = StubEntry(matchers, answers, nextMark()).also { state.register(member, it) }
+            else -> this.entry = StubEntry(matchers, answers, nextMark(), lenient).also { state.register(member, it) }
         }
         return this
     }

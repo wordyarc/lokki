@@ -24,6 +24,27 @@ public fun coJustRun(stubBlock: suspend MatcherScope.() -> Unit): AdditionalAnsw
 public fun coJustAwait(stubBlock: suspend MatcherScope.() -> Unit): AdditionalAnswerScope<Unit> =
     pluginNotApplied()
 
+public inline fun <T> lenient(block: LenientStubbingScope.() -> T): T = LenientStubbingScope().block()
+
+@LokkiDslMarker
+public class LenientStubbingScope @PublishedApi internal constructor() {
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.STUB_BLOCK)
+    public fun <T> every(stubBlock: MatcherScope.() -> T): StubScope<T> =
+        pluginNotApplied()
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.STUB_BLOCK)
+    public fun <T> coEvery(stubBlock: suspend MatcherScope.() -> T): StubScope<T> =
+        pluginNotApplied()
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.JUST_RUN_BLOCK)
+    public fun justRun(stubBlock: MatcherScope.() -> Unit): AdditionalAnswerScope<Unit> =
+        pluginNotApplied()
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.JUST_RUN_BLOCK)
+    public fun coJustRun(stubBlock: suspend MatcherScope.() -> Unit): AdditionalAnswerScope<Unit> =
+        pluginNotApplied()
+}
+
 public fun checkUnnecessaryStub(vararg mocks: Any) {
     val window = window("checkUnnecessaryStub", mocks)
     window.states.forEach { it.checkUnnecessaryStub(window.since) }

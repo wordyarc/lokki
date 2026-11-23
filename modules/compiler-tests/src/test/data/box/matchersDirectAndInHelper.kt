@@ -14,7 +14,7 @@ interface Sink {
 }
 
 class OneLetter : Matcher<String> {
-    override fun match(arg: String): Boolean = arg.length == 1
+    override fun match(arg: String?): Boolean = arg?.length == 1
 }
 
 fun MatcherScope.anyText(): String = any()

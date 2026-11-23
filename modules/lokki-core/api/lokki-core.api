@@ -35,12 +35,11 @@ public final class io/lokki/AnswerScope {
 	public final fun getNArgs ()I
 	public final fun getNothing ()Ljava/lang/Void;
 	public final fun getSelf ()Ljava/lang/Object;
+	public final fun getValueAny ()Ljava/lang/Object;
 	public final fun lambda ()Lio/lokki/CapturingSlot;
 }
 
 public final class io/lokki/AssertScope {
-	public final fun checkEquals (Ljava/lang/Object;)V
-	public final fun checkEquals (Ljava/lang/String;Ljava/lang/Object;)V
 	public final fun getActual ()Ljava/lang/Object;
 }
 
@@ -49,9 +48,12 @@ public final class io/lokki/Awaits {
 }
 
 public final class io/lokki/Call {
+	public fun equals (Ljava/lang/Object;)Z
 	public final fun getInvocation ()Lio/lokki/Invocation;
 	public final fun getMatcher ()Lio/lokki/InvocationMatcher;
 	public final fun getRetType ()Lkotlin/reflect/KClass;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class io/lokki/CallCountCoVerificationScope {
@@ -79,6 +81,52 @@ public final class io/lokki/CapturingSlot {
 }
 
 public final class io/lokki/CapturingSlotKt {
+	public static final fun coInvoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun coInvoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun coInvoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun coInvoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun coInvoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun coInvoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun coInvoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun coInvoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun coInvoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun coInvoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun coInvoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun coInvoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun coInvoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun coInvoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun coInvoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun coInvoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun coInvoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun coInvoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun coInvoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun coInvoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun coInvoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun coInvoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun coInvoke (Lio/lokki/CapturingSlot;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun invoke (Lio/lokki/CapturingSlot;)Ljava/lang/Object;
+	public static final fun invoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;)Ljava/lang/Object;
+	public static final fun invoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+	public static final fun invoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+	public static final fun invoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+	public static final fun invoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+	public static final fun invoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+	public static final fun invoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+	public static final fun invoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+	public static final fun invoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+	public static final fun invoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+	public static final fun invoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+	public static final fun invoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+	public static final fun invoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+	public static final fun invoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+	public static final fun invoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+	public static final fun invoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+	public static final fun invoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+	public static final fun invoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+	public static final fun invoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+	public static final fun invoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+	public static final fun invoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+	public static final fun invoke (Lio/lokki/CapturingSlot;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
 	public static final fun slot ()Lio/lokki/CapturingSlot;
 }
 
@@ -93,12 +141,15 @@ public abstract interface annotation class io/lokki/ExperimentalLokkiApi : java/
 
 public abstract interface annotation class io/lokki/InjectMocks : java/lang/annotation/Annotation {
 	public abstract fun lookupType ()Lio/lokki/InjectionLookupType;
+	public abstract fun overrideValues ()Z
 }
 
 public final class io/lokki/InjectionLookupType : java/lang/Enum {
 	public static final field BOTH Lio/lokki/InjectionLookupType;
 	public static final field BY_NAME Lio/lokki/InjectionLookupType;
 	public static final field BY_TYPE Lio/lokki/InjectionLookupType;
+	public final fun getByName ()Z
+	public final fun getByType ()Z
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lio/lokki/InjectionLookupType;
 	public static fun values ()[Lio/lokki/InjectionLookupType;
@@ -108,16 +159,30 @@ public abstract interface annotation class io/lokki/InternalLokkiApi : java/lang
 }
 
 public final class io/lokki/Invocation {
+	public fun equals (Ljava/lang/Object;)Z
 	public final fun getArgs ()Ljava/util/List;
 	public final fun getMethod ()Lio/lokki/MethodDescription;
+	public final fun getOriginalCall ()Lkotlin/jvm/functions/Function0;
 	public final fun getSelf ()Ljava/lang/Object;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class io/lokki/InvocationMatcher {
+	public fun equals (Ljava/lang/Object;)Z
 	public final fun getArgs ()Ljava/util/List;
 	public final fun getMethod ()Lio/lokki/MethodDescription;
 	public final fun getSelf ()Ljava/lang/Object;
+	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/lokki/LenientStubbingScope {
+	public fun <init> ()V
+	public final fun coEvery (Lkotlin/jvm/functions/Function2;)Lio/lokki/StubScope;
+	public final fun coJustRun (Lkotlin/jvm/functions/Function2;)Lio/lokki/AdditionalAnswerScope;
+	public final fun every (Lkotlin/jvm/functions/Function1;)Lio/lokki/StubScope;
+	public final fun justRun (Lkotlin/jvm/functions/Function1;)Lio/lokki/AdditionalAnswerScope;
 }
 
 public final class io/lokki/LokkiException : java/lang/RuntimeException {
@@ -134,6 +199,7 @@ public abstract interface class io/lokki/Matcher {
 }
 
 public abstract class io/lokki/MatcherScope {
+	public final fun any (Lkotlin/reflect/KClass;)Ljava/lang/Object;
 	public final fun anyBooleanVararg ()[Z
 	public final fun anyByteVararg ()[B
 	public final fun anyCharVararg ()[C
@@ -234,6 +300,7 @@ public abstract class io/lokki/MatcherScope {
 	public final fun invokeWith (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function20;
 	public final fun invokeWith (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function21;
 	public final fun invokeWith (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function22;
+	public final fun match (Lio/lokki/Matcher;Lkotlin/reflect/KClass;)Ljava/lang/Object;
 	public final fun matcherOf (Ljava/lang/Object;)Lio/lokki/Matcher;
 	public final fun pop ()Lio/lokki/Matcher;
 	public final fun pop (I)[Lio/lokki/Matcher;
@@ -264,7 +331,6 @@ public final class io/lokki/MethodDescription {
 	public final fun getDeclaringClass ()Lkotlin/reflect/KClass;
 	public final fun getName ()Ljava/lang/String;
 	public final fun getParamTypes ()Ljava/util/List;
-	public final fun getPrivateCall ()Z
 	public final fun getReturnType ()Lkotlin/reflect/KClass;
 	public final fun getReturnTypeNullable ()Z
 	public final fun getReturnsNothing ()Z
@@ -292,33 +358,48 @@ public final class io/lokki/MockAnnotations {
 }
 
 public final class io/lokki/MockKt {
-	public static final fun clearAllMocks (ZZZZZZZZ)V
-	public static synthetic fun clearAllMocks$default (ZZZZZZZZILjava/lang/Object;)V
+	public static final fun clearAllMocks (ZZZZZZZ)V
+	public static synthetic fun clearAllMocks$default (ZZZZZZZILjava/lang/Object;)V
+	public static final fun clearConstructorMock ([Lkotlin/reflect/KClass;ZZZ)V
+	public static synthetic fun clearConstructorMock$default ([Lkotlin/reflect/KClass;ZZZILjava/lang/Object;)V
 	public static final fun clearMocks (Ljava/lang/Object;[Ljava/lang/Object;ZZZZZ)V
 	public static synthetic fun clearMocks$default (Ljava/lang/Object;[Ljava/lang/Object;ZZZZZILjava/lang/Object;)V
 	public static final fun clearStaticMock ([Lkotlin/reflect/KFunction;)V
 	public static final fun clearStaticMock ([Lkotlin/reflect/KProperty;)V
 	public static final fun isMock (Ljava/lang/Object;)Z
+	public static final fun mockClass (Lkotlin/reflect/KClass;Ljava/lang/String;Z[Lkotlin/reflect/KClass;ZLkotlin/jvm/functions/Function1;)Ljava/lang/Object;
+	public static synthetic fun mockClass$default (Lkotlin/reflect/KClass;Ljava/lang/String;Z[Lkotlin/reflect/KClass;ZLkotlin/jvm/functions/Function1;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun mockConstructor ([Lkotlin/reflect/KClass;)V
+	public static final fun mockConstructor ([Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function0;)V
 	public static final fun mockObject ([Ljava/lang/Object;)V
 	public static final fun mockObject ([Ljava/lang/Object;Lkotlin/jvm/functions/Function0;)V
+	public static final fun mockStatic ([Ljava/lang/String;)V
+	public static final fun mockStatic ([Ljava/lang/String;Lkotlin/jvm/functions/Function0;)V
 	public static final fun mockStatic ([Lkotlin/reflect/KFunction;)V
 	public static final fun mockStatic ([Lkotlin/reflect/KFunction;Lkotlin/jvm/functions/Function0;)V
 	public static final fun mockStatic ([Lkotlin/reflect/KProperty;)V
 	public static final fun mockStatic ([Lkotlin/reflect/KProperty;Lkotlin/jvm/functions/Function0;)V
 	public static final fun unmockAll ()V
+	public static final fun unmockConstructor ([Lkotlin/reflect/KClass;)V
 	public static final fun unmockObject ([Ljava/lang/Object;)V
+	public static final fun unmockStatic ([Ljava/lang/String;)V
 	public static final fun unmockStatic ([Lkotlin/reflect/KFunction;)V
 	public static final fun unmockStatic ([Lkotlin/reflect/KProperty;)V
 }
 
 public final class io/lokki/Ordering : java/lang/Enum {
 	public static final field ALL Lio/lokki/Ordering;
+	public static final field ANY Lio/lokki/Ordering;
 	public static final field ORDERED Lio/lokki/Ordering;
 	public static final field SEQUENCE Lio/lokki/Ordering;
 	public static final field UNORDERED Lio/lokki/Ordering;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lio/lokki/Ordering;
 	public static fun values ()[Lio/lokki/Ordering;
+}
+
+public abstract interface annotation class io/lokki/OverrideMocks : java/lang/annotation/Annotation {
+	public abstract fun lookupType ()Lio/lokki/InjectionLookupType;
 }
 
 public abstract interface annotation class io/lokki/RelaxedMock : java/lang/annotation/Annotation {
@@ -356,6 +437,7 @@ public final class io/lokki/StubbingKt {
 	public static final fun just (Lio/lokki/StubScope;Lio/lokki/Awaits;)Lio/lokki/AdditionalAnswerScope;
 	public static final fun just (Lio/lokki/StubScope;Lio/lokki/Runs;)Lio/lokki/AdditionalAnswerScope;
 	public static final fun justRun (Lkotlin/jvm/functions/Function1;)Lio/lokki/AdditionalAnswerScope;
+	public static final fun lenient (Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
 }
 
 public final class io/lokki/VarargScope {
@@ -364,13 +446,17 @@ public final class io/lokki/VarargScope {
 }
 
 public final class io/lokki/VerificationKt {
+	public static final fun checkEquals (Lio/lokki/AssertScope;Ljava/lang/Object;)V
+	public static final fun checkEquals (Lio/lokki/AssertScope;Ljava/lang/String;Ljava/lang/Object;)V
 	public static final fun coExcludeRecords (ZLkotlin/jvm/functions/Function2;)V
 	public static synthetic fun coExcludeRecords$default (ZLkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
 	public static final fun coVerify (Lio/lokki/Ordering;ZIIIJLkotlin/jvm/functions/Function2;)V
 	public static synthetic fun coVerify$default (Lio/lokki/Ordering;ZIIIJLkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
 	public static final fun coVerifyAll (ZLkotlin/jvm/functions/Function2;)V
 	public static synthetic fun coVerifyAll$default (ZLkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
-	public static final fun coVerifyCount (Lkotlin/jvm/functions/Function1;)V
+	public static final fun coVerifyAny (ZIIIJLkotlin/jvm/functions/Function2;)V
+	public static synthetic fun coVerifyAny$default (ZIIIJLkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
+	public static final fun coVerifyCount (Lkotlin/jvm/functions/Function2;)V
 	public static final fun coVerifyOrder (ZLkotlin/jvm/functions/Function2;)V
 	public static synthetic fun coVerifyOrder$default (ZLkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
 	public static final fun coVerifySequence (ZLkotlin/jvm/functions/Function2;)V
@@ -387,6 +473,8 @@ public final class io/lokki/VerificationKt {
 	public static synthetic fun verify$default (Lio/lokki/Ordering;ZIIIJLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 	public static final fun verifyAll (ZLkotlin/jvm/functions/Function1;)V
 	public static synthetic fun verifyAll$default (ZLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public static final fun verifyAny (ZIIIJLkotlin/jvm/functions/Function1;)V
+	public static synthetic fun verifyAny$default (ZIIIJLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 	public static final fun verifyCount (Lkotlin/jvm/functions/Function1;)V
 	public static final fun verifyOrder (ZLkotlin/jvm/functions/Function1;)V
 	public static synthetic fun verifyOrder$default (ZLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
@@ -397,6 +485,15 @@ public final class io/lokki/VerificationKt {
 public abstract class io/lokki/VerificationScope : io/lokki/MatcherScope {
 	public final fun wasNot (Ljava/lang/Object;Lio/lokki/Called;)V
 	public final fun wasNot (Ljava/util/List;Lio/lokki/Called;)V
+}
+
+public final class io/lokki/bdd/BDDKt {
+	public static final fun coGiven (Lkotlin/jvm/functions/Function2;)Lio/lokki/StubScope;
+	public static final fun coThen (Lio/lokki/Ordering;ZIIIJLkotlin/jvm/functions/Function2;)V
+	public static synthetic fun coThen$default (Lio/lokki/Ordering;ZIIIJLkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
+	public static final fun given (Lkotlin/jvm/functions/Function1;)Lio/lokki/StubScope;
+	public static final fun then (Lio/lokki/Ordering;ZIIIJLkotlin/jvm/functions/Function1;)V
+	public static synthetic fun then$default (Lio/lokki/Ordering;ZIIIJLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 }
 
 public final class io/lokki/internal/ActiveRedirect {
@@ -418,6 +515,10 @@ public final class io/lokki/internal/ArrayMatcher : io/lokki/Matcher, io/lokki/i
 
 public final class io/lokki/internal/ChildMock {
 	public fun <init> (Lkotlin/jvm/functions/Function1;)V
+}
+
+public final class io/lokki/internal/ConstructorMocks {
+	public final fun spec ([Ljava/lang/Object;)Lio/lokki/internal/MockSpec;
 }
 
 public final class io/lokki/internal/EqMatcher : io/lokki/Matcher {
@@ -458,21 +559,26 @@ public final class io/lokki/internal/LokkiIntrinsic$Kind : java/lang/Enum {
 	public static final field ADDITIONAL_INTERFACE Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field ANSWER Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field AWAITS Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field CLEAR_CONSTRUCTOR_MOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field CLEAR_STATIC_MOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field CONFIRM_VERIFIED_STATIC Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field CONSTRUCTED Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field EXCLUDE_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field INJECT_MOCKS Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field JUST_AWAIT_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field JUST_RUN_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field MATCHER Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field MOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field MOCK_CONSTRUCTOR Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field MOCK_OBJECT Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field MOCK_STATIC Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field RELAXED_MOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field SPY Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field STUB_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field UNMOCK_CONSTRUCTOR Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field UNMOCK_STATIC Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field VERIFY_ALL_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field VERIFY_ANY_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field VERIFY_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field VERIFY_ORDER_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field VERIFY_SEQUENCE_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
@@ -486,6 +592,7 @@ public final class io/lokki/internal/LokkiIntrinsic$Kind : java/lang/Enum {
 public final class io/lokki/internal/Matchers {
 	public static final field INSTANCE Lio/lokki/internal/Matchers;
 	public final fun and (Lio/lokki/Matcher;Lio/lokki/Matcher;)Lio/lokki/Matcher;
+	public final fun any (Lkotlin/reflect/KClass;)Lio/lokki/Matcher;
 	public final fun anyBooleanVararg ()Lio/lokki/Matcher;
 	public final fun anyByteVararg ()Lio/lokki/Matcher;
 	public final fun anyCharVararg ()Lio/lokki/Matcher;
@@ -547,6 +654,7 @@ public final class io/lokki/internal/Matchers {
 	public final fun varargAnyInt (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
 	public final fun varargAnyLong (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
 	public final fun varargAnyShort (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
+	public final fun varargArrayMatcher (Lkotlin/jvm/functions/Function1;)Lio/lokki/Matcher;
 	public final fun varargMatcher (Ljava/lang/String;ZLkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
 	public final fun varargOf ([Lio/lokki/Matcher;Lio/lokki/Matcher;[Lio/lokki/Matcher;)Lio/lokki/Matcher;
 	public final fun withArg (Lkotlin/jvm/functions/Function2;)Lio/lokki/Matcher;
@@ -567,6 +675,21 @@ public abstract interface class io/lokki/internal/MockFieldsOwner {
 	public abstract synthetic fun lokki$initMockFields (I)V
 }
 
+public abstract interface annotation class io/lokki/internal/MockParameter : java/lang/annotation/Annotation {
+	public abstract fun factory ()Ljava/lang/Class;
+	public abstract fun index ()I
+}
+
+public abstract interface class io/lokki/internal/MockParameterFactory {
+	public abstract fun lokki$create (ILio/lokki/internal/MockParameterValues;)Ljava/lang/Object;
+	public abstract fun lokki$inject (ILjava/lang/Object;Lio/lokki/internal/MockParameterValues;)V
+}
+
+public final class io/lokki/internal/MockParameterValues {
+	public fun <init> (Lio/lokki/internal/MockParameterFactory;)V
+	public final fun get (I)Ljava/lang/Object;
+}
+
 public final class io/lokki/internal/MockSpec {
 	public fun <init> (Ljava/lang/String;I)V
 	public final fun getFlags ()I
@@ -584,6 +707,7 @@ public final class io/lokki/internal/MockState {
 	public final fun link (Ljava/lang/String;[Lio/lokki/Matcher;ZLkotlin/jvm/functions/Function1;)Ljava/lang/Object;
 	public final fun noOriginal (I[Ljava/lang/Object;)Ljava/lang/Object;
 	public final fun stub (Ljava/lang/String;[Lio/lokki/Matcher;)Lio/lokki/StubScope;
+	public final fun stubLenient (Ljava/lang/String;[Lio/lokki/Matcher;)Lio/lokki/StubScope;
 }
 
 public final class io/lokki/internal/NoRelaxedDefault {
@@ -600,10 +724,16 @@ public final class io/lokki/internal/Redirect {
 
 public final class io/lokki/internal/Redirects {
 	public static final field INSTANCE Lio/lokki/internal/Redirects;
+	public final fun clearConstructor ([Ljava/lang/String;[Ljava/lang/String;ZZZ)V
 	public final fun clearStatic ([Ljava/lang/Object;)V
 	public final fun confirmVerifiedStatic ([Ljava/lang/Object;Z)V
+	public final fun constructed (Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;
+	public final fun constructedWith (Ljava/lang/String;Ljava/lang/String;[Lio/lokki/Matcher;)Ljava/lang/Object;
 	public final fun install ([Lio/lokki/internal/Redirect;)Ljava/util/List;
+	public final fun installConstructor ([Lio/lokki/internal/Redirect;)Ljava/util/List;
 	public final fun installStatic ([Lio/lokki/internal/Redirect;)Ljava/util/List;
+	public final fun mockConstructor ([Lio/lokki/internal/Redirect;)V
+	public final fun mockConstructor ([Lio/lokki/internal/Redirect;Lkotlin/jvm/functions/Function0;)V
 	public final fun mockObject ([Lio/lokki/internal/Redirect;)V
 	public final fun mockObject ([Lio/lokki/internal/Redirect;Lkotlin/jvm/functions/Function0;)V
 	public final fun mockStatic ([Lio/lokki/internal/Redirect;)V
@@ -644,9 +774,11 @@ public final class io/lokki/internal/Verification {
 	public fun <init> (Lkotlin/ranges/IntRange;)V
 	public final fun check ()V
 	public final fun expect (Lio/lokki/internal/MockState;Ljava/lang/String;[Lio/lokki/Matcher;)V
+	public final fun expectAbsent (Lio/lokki/internal/MockState;Ljava/lang/String;[Lio/lokki/Matcher;)V
 	public final fun expectLink (Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
 	public final fun expectNoCalls (Ljava/lang/Object;)V
 	public final fun expectNoCalls (Ljava/util/List;)V
+	public final fun expectNoConstructedCalls (Ljava/lang/Object;)V
 }
 
 public abstract interface annotation class io/lokki/junit5/CheckUnnecessaryStub : java/lang/annotation/Annotation {
@@ -658,7 +790,7 @@ public abstract interface annotation class io/lokki/junit5/ConfirmVerification :
 public abstract interface annotation class io/lokki/junit5/KeepMocks : java/lang/annotation/Annotation {
 }
 
-public class io/lokki/junit5/LokkiExtension : org/junit/jupiter/api/extension/AfterAllCallback, org/junit/jupiter/api/extension/AfterEachCallback, org/junit/jupiter/api/extension/BeforeAllCallback, org/junit/jupiter/api/extension/BeforeEachCallback, org/junit/jupiter/api/extension/InvocationInterceptor, org/junit/jupiter/api/extension/TestInstancePostProcessor {
+public class io/lokki/junit5/LokkiExtension : org/junit/jupiter/api/extension/AfterAllCallback, org/junit/jupiter/api/extension/AfterEachCallback, org/junit/jupiter/api/extension/BeforeAllCallback, org/junit/jupiter/api/extension/BeforeEachCallback, org/junit/jupiter/api/extension/InvocationInterceptor, org/junit/jupiter/api/extension/ParameterResolver, org/junit/jupiter/api/extension/TestInstancePostProcessor {
 	public fun <init> ()V
 	public final fun afterAll (Lorg/junit/jupiter/api/extension/ExtensionContext;)V
 	public final fun afterEach (Lorg/junit/jupiter/api/extension/ExtensionContext;)V
@@ -675,5 +807,7 @@ public class io/lokki/junit5/LokkiExtension : org/junit/jupiter/api/extension/Af
 	public final fun interceptTestMethod (Lorg/junit/jupiter/api/extension/InvocationInterceptor$Invocation;Lorg/junit/jupiter/api/extension/ReflectiveInvocationContext;Lorg/junit/jupiter/api/extension/ExtensionContext;)V
 	public final fun interceptTestTemplateMethod (Lorg/junit/jupiter/api/extension/InvocationInterceptor$Invocation;Lorg/junit/jupiter/api/extension/ReflectiveInvocationContext;Lorg/junit/jupiter/api/extension/ExtensionContext;)V
 	public final fun postProcessTestInstance (Ljava/lang/Object;Lorg/junit/jupiter/api/extension/ExtensionContext;)V
+	public final fun resolveParameter (Lorg/junit/jupiter/api/extension/ParameterContext;Lorg/junit/jupiter/api/extension/ExtensionContext;)Ljava/lang/Object;
+	public final fun supportsParameter (Lorg/junit/jupiter/api/extension/ParameterContext;Lorg/junit/jupiter/api/extension/ExtensionContext;)Z
 }
 

@@ -1,0 +1,7 @@
+/test.kt:35:10: warning: 'sample.Banned' should not be mocked: 'sample.Banned' is listed in lokki { restricted(...) }.
+
+/test.kt:36:10: warning: 'sample.BannedChild' should not be mocked: 'sample.Banned' is listed in lokki { restricted(...) }.
+
+/test.kt:37:10: warning: 'sample.Marked' should not be mocked: 'sample.Marked' is annotated with 'sample.Forbidden'.
+
+/test.kt:38:10: warning: 'sample.banned.deep.Nested' should not be mocked: 'sample.banned.deep.Nested' is listed in lokki { restricted(...) }.

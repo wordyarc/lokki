@@ -1,4 +1,4 @@
-/unsupportedInjectMocks.kt:19:15: error: '@InjectMocks' on a parameter is not supported yet.
+/unsupportedInjectMocks.kt:19:15: error: '@InjectMocks' cannot create 'sample.Service': no constructor can be called with the parameters of this function: 'Service(repo: Repo)' has no parameter for 'repo'.
 
 /unsupportedInjectMocks.kt:23:5: error: A property cannot have both '@InjectMocks' and '@Mock'.
 

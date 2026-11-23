@@ -30,6 +30,8 @@
 
 /typeNotMockable.kt:55:22: error: 'sample.Bolt' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
 
+/typeNotMockable.kt:61:10: warning: 'kotlin.collections.Map' should not be mocked: use a real 'kotlin.collections.Map' instead.
+
 /typeNotMockable.kt:63:10: warning: 'kotlin.collections.List' should not be mocked: use a real 'kotlin.collections.Collection' instead.
 
 /typeNotMockable.kt:71:10: error: 'Local' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.

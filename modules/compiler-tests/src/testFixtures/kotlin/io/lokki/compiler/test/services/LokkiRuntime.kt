@@ -22,6 +22,7 @@ internal class LokkiEnvironmentConfigurator(testServices: TestServices) : Enviro
     override fun configureCompilerConfiguration(configuration: CompilerConfiguration, module: TestModule) {
         configuration.addJvmClasspathRoots(runtimeClasspath(module))
         configuration.put(LokkiConfigurationKeys.MOCKABLE, module.directives[LokkiDirectives.MOCKABLE])
+        configuration.put(LokkiConfigurationKeys.RESTRICTED, module.directives[LokkiDirectives.RESTRICTED])
     }
 
     override fun provideAdditionalAnalysisFlags(

@@ -5,9 +5,9 @@ import io.lokki.compiler.CoreClass
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.MatcherNames
+import io.lokki.compiler.ORDERED_VERIFY_BLOCKS
 import io.lokki.compiler.SLOT_READS
 import io.lokki.compiler.STUB_BLOCKS
-import io.lokki.compiler.VERIFICATION_ORDERINGS
 import io.lokki.compiler.VERIFY_BLOCKS
 import io.lokki.compiler.WITH_CONTEXT
 import io.lokki.compiler.fir.MemberInterception
@@ -101,7 +101,7 @@ internal fun checkBlock(call: FirFunctionCall, function: FirCallableSymbol<*>, k
     if (block == null) {
         reporter.reportOn(argument.source, LokkiDiagnostics.LOKKI_STUB_BLOCK_NOT_LITERAL, name)
     } else {
-        StubBlock(name, mode, kind in VERIFICATION_ORDERINGS, block, context, reporter).check()
+        StubBlock(name, mode, kind in ORDERED_VERIFY_BLOCKS, block, context, reporter).check()
     }
 }
 
@@ -190,6 +190,7 @@ private class StubBlock(
                 else -> notSingleCall(statement, "is not a call")
             }
             statement is FirFunctionCall && statement.isContextBlock() -> checkContextBlock(statement)
+            statement.isConstructed() -> if (mode != BlockMode.VERIFY) notSingleCall(statement, "is not a call of a member")
             statement is FirFunctionCall -> checkCall(statement, statement, statement.arguments)
             statement is FirPropertyAccessExpression -> checkCall(statement, statement, emptyList())
             mode == BlockMode.VERIFY && statement.isLoop -> notSingleCall(
@@ -216,7 +217,7 @@ private class StubBlock(
         val receiver = call.dispatchReceiver?.unwrapSmartcastExpression()
         when {
             mode == BlockMode.VERIFY && callee.intrinsicKind(session) == IntrinsicKind.WAS_NOT_CALLED &&
-                receiver.isScope() -> checkNoCalls(call)
+                receiver.isScope() -> checkNoCalls(statement, call)
             call.takesScope() -> when {
                 !receiver.isScope() || callee.intrinsicKind(session) == IntrinsicKind.MATCHER ->
                     matcherInCallPosition(statement)
@@ -264,7 +265,7 @@ private class StubBlock(
         when {
             matchers.singleOrNull() === receiver -> matcherInCallPosition(receiver)
             else -> {
-                val linked = receiver.links().flatMap(::checkLink)
+                val linked = receiver.links().filterNot { it.isConstructed() }.flatMap(::checkLink)
                 matchers.filter { it !in linked }
                     .forEach { report(it, LokkiDiagnostics.LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION) }
             }
@@ -336,18 +337,18 @@ private class StubBlock(
         return (first as? FirVarargArgumentsExpression)?.arguments?.firstOrNull()?.unwrapArgument() ?: first
     }
 
-    private fun checkNoCalls(call: FirQualifiedAccessExpression) {
+    private fun Requirement.checkNoCalls(statement: FirStatement, call: FirQualifiedAccessExpression) {
         val mocks = call.extensionReceiver ?: return
-        misplacedMatchers(mocks)
-        val result = mocks.unwrapped(block) as? FirFunctionCall ?: return
-        if (result.explicitReceiver == null || result.dispatchReceiver == null) return
-        val member = result.calleeReference.toResolvedCallableSymbol() ?: return
-        reporter.reportOn(
-            mocks.source,
-            LokkiDiagnostics.LOKKI_WAS_NOT_CALLED_ON_CALL_RESULT,
-            member.name.asString(),
-            context,
-        )
+        val pattern = mocks.unwrapped(block) as? FirQualifiedAccessExpression
+        val arguments = (pattern as? FirCall)?.arguments.orEmpty()
+        val callee = pattern?.calleeReference?.toResolvedCallableSymbol()
+        val intercepted = callee != null && !pattern.takesScope() && (
+            pattern.dispatchReceiver != null ||
+                with(context) { callee.staticInterception() } == MemberInterception.Intercepted
+            )
+        val matched = intercepted &&
+            (arguments.any { it.scopeCalls().isNotEmpty() } || pattern.dispatchReceiver?.scopeCalls().orEmpty().isNotEmpty())
+        if (matched) checkCall(statement, pattern, arguments) else misplacedMatchers(mocks)
     }
 
     private fun checkSlotReads() {
@@ -380,7 +381,7 @@ private class StubBlock(
 
     private fun notInterceptableReason(callee: FirCallableSymbol<*>, receiver: FirExpression): String? {
         val inline = if (callee is FirPropertySymbol) callee.getterSymbol?.isInline == true else callee.isInline
-        val interception = with(context) { callee.objectInterception() }
+        val interception = with(context) { callee.objectInterception(receiver.resolvedType) }
         return when {
             callee is FirFieldSymbol -> "it is a field"
             inline -> "it is inline. $action the member it calls"
@@ -463,14 +464,22 @@ private class StubBlock(
         val calls = ArrayList<FirElement>()
         accept(object : FirVisitorVoid() {
             override fun visitElement(element: FirElement) {
-                if (element.takesScope() || element.isContextValue()) calls += element else element.acceptChildren(this)
+                when {
+                    element.isConstructed() -> {}
+                    element.takesScope() || element.isContextValue() -> calls += element
+                    else -> element.acceptChildren(this)
+                }
             }
         })
         return calls
     }
 
     private fun FirElement.takesScope(): Boolean =
-        this is FirQualifiedAccessExpression && operands().any { it.isScope() }
+        this is FirQualifiedAccessExpression && !isConstructed() && operands().any { it.isScope() }
+
+    private fun FirElement.isConstructed(): Boolean =
+        this is FirFunctionCall &&
+            calleeReference.toResolvedCallableSymbol()?.intrinsicKind(session) == IntrinsicKind.CONSTRUCTED
 
     private fun FirQualifiedAccessExpression.operands(): List<FirExpression> =
         listOfNotNull(dispatchReceiver, extensionReceiver) + contextArguments + (this as? FirCall)?.arguments.orEmpty()

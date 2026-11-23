@@ -2,6 +2,7 @@ package io.lokki
 
 import io.lokki.internal.LokkiIntrinsic
 import io.lokki.internal.Matchers
+import io.lokki.internal.complete
 import io.lokki.internal.deepEquals
 import io.lokki.internal.pluginNotApplied
 import io.lokki.internal.window
@@ -59,9 +60,29 @@ public fun verifyCount(verifyBlock: CallCountVerificationScope.() -> Unit) {
     CallCountVerificationScope().verifyBlock()
 }
 
-public fun coVerifyCount(verifyBlock: CallCountCoVerificationScope.() -> Unit) {
-    CallCountCoVerificationScope().verifyBlock()
+public fun coVerifyCount(verifyBlock: suspend CallCountCoVerificationScope.() -> Unit) {
+    complete("coVerifyCount", "the verification block") { CallCountCoVerificationScope().verifyBlock() }
 }
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_ANY_BLOCK)
+public fun verifyAny(
+    inverse: Boolean = false,
+    atLeast: Int = 1,
+    atMost: Int = Int.MAX_VALUE,
+    exactly: Int = -1,
+    timeout: Long = 0,
+    verifyBlock: VerificationScope.() -> Any?,
+): Unit = pluginNotApplied()
+
+@LokkiIntrinsic(LokkiIntrinsic.Kind.VERIFY_ANY_BLOCK)
+public fun coVerifyAny(
+    inverse: Boolean = false,
+    atLeast: Int = 1,
+    atMost: Int = Int.MAX_VALUE,
+    exactly: Int = -1,
+    timeout: Long = 0,
+    verifyBlock: suspend VerificationScope.() -> Any?,
+): Unit = pluginNotApplied()
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.EXCLUDE_BLOCK)
 public fun excludeRecords(current: Boolean = true, excludeBlock: MatcherScope.() -> Any?): Unit =
@@ -98,17 +119,18 @@ public abstract class VerificationScope internal constructor() : MatcherScope() 
 }
 
 @LokkiDslMarker
-public class AssertScope internal constructor(public val actual: Any?) {
-    public fun checkEquals(expected: Any?) {
-        if (!deepEquals(expected, actual)) throw AssertionError(difference(expected))
-    }
+public class AssertScope internal constructor(public val actual: Any?)
 
-    public fun checkEquals(msg: String, expected: Any?) {
-        if (!deepEquals(expected, actual)) throw AssertionError("$msg ${difference(expected)}")
-    }
-
-    private fun difference(expected: Any?): String = "expected [${expected.toStr()}] but found [${actual.toStr()}]"
+public fun AssertScope.checkEquals(expected: Any?) {
+    if (!deepEquals(expected, actual)) throw AssertionError(difference(expected))
 }
+
+public fun AssertScope.checkEquals(msg: String, expected: Any?) {
+    if (!deepEquals(expected, actual)) throw AssertionError("$msg ${difference(expected)}")
+}
+
+private fun AssertScope.difference(expected: Any?): String =
+    "expected [${expected.toStr()}] but found [${actual.toStr()}]"
 
 public object Called
 
@@ -119,6 +141,7 @@ public enum class Ordering {
     ALL,
     ORDERED,
     SEQUENCE,
+    ANY,
 }
 
 @LokkiDslMarker

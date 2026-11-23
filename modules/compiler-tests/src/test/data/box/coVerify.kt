@@ -3,6 +3,7 @@ package sample
 import io.lokki.Called
 import io.lokki.LokkiException
 import io.lokki.MatcherScope
+import io.lokki.checkEquals
 import io.lokki.coEvery
 import io.lokki.coExcludeRecords
 import io.lokki.coVerify

@@ -1,7 +1,0 @@
-/mockKExtensionParameters.kt:19:9: error: '@Mock' on a parameter is not supported yet: lokki initializes only properties declared in the class body. Declare a 'lateinit var' property instead.
-
-/mockKExtensionParameters.kt:25:9: error: '@RelaxedMock' on a parameter is not supported yet: lokki initializes only properties declared in the class body. Declare a 'lateinit var' property instead.
-
-/mockKExtensionParameters.kt:33:9: error: '@Mock' on a parameter is not supported yet: lokki initializes only properties declared in the class body. Declare a 'lateinit var' property instead.
-
-/mockKExtensionParameters.kt:34:9: error: '@Mock' on a parameter is not supported yet: lokki initializes only properties declared in the class body. Declare a 'lateinit var' property instead.

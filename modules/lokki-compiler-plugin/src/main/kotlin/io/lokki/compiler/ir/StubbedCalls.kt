@@ -52,13 +52,15 @@ internal class NoCalls(val call: IrCall) : Expected {
         get() = receiver.type.erasedUpperBound
 }
 
+internal class NoConstructedCalls(val call: IrCall) : Expected
+
 internal fun IrSimpleFunction.stubbedCall(): StubbedCall? =
     (body as? IrBlockBody)?.statements?.singleOrNull()?.stubbedCall()
 
 internal fun IrSimpleFunction.verifiedStatements(): List<Expected>? {
     val statements = blockStatements()
     if (statements.isEmpty()) return null
-    return statements.map { it.noCalls() ?: it.stubbedCall() ?: return null }
+    return statements.map { it.noCalls() ?: it.noConstructedCalls() ?: it.stubbedCall() ?: return null }
 }
 
 internal fun IrSimpleFunction.excludedCalls(): List<StubbedCall>? {
@@ -80,6 +82,9 @@ private fun IrStatement.stubbedCall(): StubbedCall? = (unwrapped() as? IrExpress
 
 private fun IrStatement.noCalls(): NoCalls? =
     (unwrapped() as? IrCall)?.takeIf { it.intrinsicKind == IntrinsicKind.WAS_NOT_CALLED }?.let(::NoCalls)
+
+private fun IrStatement.noConstructedCalls(): NoConstructedCalls? =
+    (unwrapped() as? IrCall)?.takeIf { it.intrinsicKind == IntrinsicKind.CONSTRUCTED }?.let(::NoConstructedCalls)
 
 private fun IrStatement.unwrapped(): IrStatement? {
     var expression: IrStatement? = if (this is IrReturn) value else this

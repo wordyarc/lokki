@@ -98,11 +98,12 @@ class CoreContractTest {
     @Test
     fun testConstructorsAreDeclaredOnce() {
         val ambiguous = CoreConstructor.entries.filterNot { entry ->
-            val declared = entry.owner.load().declaredConstructors.count { constructor ->
+            val owner = entry.owner.load()
+            val declared = owner.declaredConstructors.count { constructor ->
                 !Modifier.isPrivate(constructor.modifiers) && !constructor.isSynthetic &&
                     constructor.parameterCount == entry.arity
             }
-            declared == 1
+            owner.isAnnotation && owner.declaredMethods.size == entry.arity || declared == 1
         }
         assertTrue(
             ambiguous.isEmpty(),

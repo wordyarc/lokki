@@ -41,8 +41,10 @@ class LokkiCompilerPluginRegistrar : CompilerPluginRegistrar() {
     private fun ExtensionStorage.register(compat: CompilerCompat, configuration: CompilerConfiguration) {
         val mockable = configuration.getList(LokkiConfigurationKeys.MOCKABLE).takeIf { it.isNotEmpty() }
             ?.let(::MockablePatterns)
+        val restricted = configuration.getList(LokkiConfigurationKeys.RESTRICTED).takeIf { it.isNotEmpty() }
+            ?.let(::MockablePatterns)
         try {
-            FirExtensionRegistrarAdapter.registerExtension(LokkiFirExtensionRegistrar(compat))
+            FirExtensionRegistrarAdapter.registerExtension(LokkiFirExtensionRegistrar(compat, mockable, restricted))
             IrGenerationExtension.registerExtension(
                 LokkiIrGenerationExtension(
                     mockable,

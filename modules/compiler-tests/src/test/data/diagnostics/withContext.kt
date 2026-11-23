@@ -6,7 +6,7 @@ package sample
 import io.lokki.every
 import io.lokki.excludeRecords
 import io.lokki.verify
-import io.lokki.withContext
+import io.lokki.context.withContext
 
 class Tenant(val name: String)
 

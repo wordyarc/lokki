@@ -6,6 +6,8 @@ import io.lokki.LokkiScope
 import io.lokki.MockAnnotations
 import io.lokki.checkUnnecessaryStub
 import io.lokki.confirmVerified
+import io.lokki.internal.MockParameter
+import io.lokki.internal.MockParameterValues
 import org.junit.jupiter.api.extension.AfterAllCallback
 import org.junit.jupiter.api.extension.AfterEachCallback
 import org.junit.jupiter.api.extension.BeforeAllCallback
@@ -14,13 +16,14 @@ import org.junit.jupiter.api.extension.DynamicTestInvocationContext
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.junit.jupiter.api.extension.InvocationInterceptor
 import org.junit.jupiter.api.extension.InvocationInterceptor.Invocation
+import org.junit.jupiter.api.extension.ParameterContext
+import org.junit.jupiter.api.extension.ParameterResolver
 import org.junit.jupiter.api.extension.ReflectiveInvocationContext
 import org.junit.jupiter.api.extension.TestInstancePostProcessor
 import org.junit.jupiter.api.extension.TestInstantiationAwareExtension.ExtensionContextScope
 import org.junit.platform.commons.support.AnnotationSupport.isAnnotated
 import java.lang.reflect.Constructor
 import java.lang.reflect.Method
-import java.util.Optional
 
 @SubclassOptInRequired(InternalLokkiApi::class)
 public open class LokkiExtension :
@@ -29,6 +32,7 @@ public open class LokkiExtension :
     AfterEachCallback,
     AfterAllCallback,
     TestInstancePostProcessor,
+    ParameterResolver,
     InvocationInterceptor {
     final override fun getTestInstantiationExtensionContextScope(rootContext: ExtensionContext): ExtensionContextScope =
         ExtensionContextScope.TEST_METHOD
@@ -39,6 +43,20 @@ public open class LokkiExtension :
 
     final override fun postProcessTestInstance(testInstance: Any, context: ExtensionContext) {
         LokkiScope.withCurrent(scope(context)) { MockAnnotations.init(testInstance) }
+    }
+
+    final override fun supportsParameter(parameter: ParameterContext, context: ExtensionContext): Boolean =
+        parameter.isAnnotated(MockParameter::class.java)
+
+    final override fun resolveParameter(parameter: ParameterContext, context: ExtensionContext): Any? {
+        val annotation = parameter.findAnnotation(MockParameter::class.java).get()
+        val key = "${context.uniqueId}:${parameter.declaringExecutable}"
+        val values = context.store.getOrComputeIfAbsent(
+            key,
+            { MockParameterValues(annotation.factory.java.getDeclaredConstructor().newInstance()) },
+            MockParameterValues::class.java,
+        )
+        return LokkiScope.withCurrent(scope(context)) { values[annotation.index] }
     }
 
     final override fun beforeEach(context: ExtensionContext) {
@@ -172,17 +190,19 @@ private fun close(context: ExtensionContext, failure: Throwable?) {
 }
 
 private fun ExtensionContext.verifyWindow() {
-    if (isAnnotated(testClass(), ConfirmVerification::class.java) || flag(CONFIRM_VERIFICATION)) confirmVerified()
-    if (isAnnotated(testClass(), CheckUnnecessaryStub::class.java) || flag(CHECK_UNNECESSARY_STUB)) {
-        checkUnnecessaryStub()
-    }
+    if (isEnabled(ConfirmVerification::class.java, CONFIRM_VERIFICATION)) confirmVerified()
+    if (isEnabled(CheckUnnecessaryStub::class.java, CHECK_UNNECESSARY_STUB)) checkUnnecessaryStub()
 }
+
+private fun ExtensionContext.isEnabled(annotation: Class<out Annotation>, parameter: String): Boolean =
+    testClasses().any { isAnnotated(it, annotation) } || flag(parameter)
+
+private fun ExtensionContext.testClasses(): Sequence<Class<*>> =
+    lineage().mapNotNull { it.testClass.orElse(null) }.distinct()
 
 private fun ExtensionContext.keepsMocks(): Boolean {
     val test = lineage().firstOrNull { it.testMethod.isPresent } ?: return false
-    return isAnnotated(test.testMethod, KeepMocks::class.java) ||
-        isAnnotated(test.testClass, KeepMocks::class.java) ||
-        flag(KEEP_MOCKS)
+    return isAnnotated(test.testMethod, KeepMocks::class.java) || test.isEnabled(KeepMocks::class.java, KEEP_MOCKS)
 }
 
 private fun ExtensionContext.parentScope(): LokkiScope =
@@ -191,9 +211,6 @@ private fun ExtensionContext.parentScope(): LokkiScope =
 
 private fun ExtensionContext.scopeName(): String =
     lineage().filter { it.parent.isPresent }.map { it.displayName }.toList().asReversed().joinToString(" > ")
-
-private fun ExtensionContext.testClass(): Optional<Class<*>> =
-    lineage().map { it.testClass }.firstOrNull { it.isPresent } ?: Optional.empty()
 
 private fun ExtensionContext.flag(name: String): Boolean =
     getConfigurationParameter(name).map { it.toBoolean() }.orElse(false)

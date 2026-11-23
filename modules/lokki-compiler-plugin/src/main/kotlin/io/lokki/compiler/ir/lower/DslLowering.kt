@@ -1,22 +1,30 @@
 package io.lokki.compiler.ir.lower
 
 import io.lokki.compiler.CoreClass
+import io.lokki.compiler.CoreConstructor
 import io.lokki.compiler.CoreFunction
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.ParameterNames
 import io.lokki.compiler.STUB_BLOCKS
 import io.lokki.compiler.VERIFY_BLOCKS
+import io.lokki.compiler.ir.ConstructorRedirect
 import io.lokki.compiler.ir.FileContext
 import io.lokki.compiler.ir.LokkiIrContext
 import io.lokki.compiler.ir.Redirect
 import io.lokki.compiler.ir.StaticRedirect
 import io.lokki.compiler.ir.argument
+import io.lokki.compiler.ir.buildLambda
+import io.lokki.compiler.ir.constructorClasses
+import io.lokki.compiler.ir.fileClassName
+import io.lokki.compiler.ir.staticFileArguments
 import io.lokki.compiler.ir.collect.MockClassKey
 import io.lokki.compiler.ir.collect.MockForm
 import io.lokki.compiler.ir.collect.MockSite
 import io.lokki.compiler.ir.collect.MockSites
 import io.lokki.compiler.ir.collect.spiedInstance
+import io.lokki.compiler.ir.generate.ConstructedClasses
 import io.lokki.compiler.ir.generate.MOCK_FLAGS
+import io.lokki.compiler.ir.generate.irFactory
 import io.lokki.compiler.ir.generate.irConstruct
 import io.lokki.compiler.ir.generate.irDelegatingSpy
 import io.lokki.compiler.ir.generate.irNewMock
@@ -31,30 +39,40 @@ import io.lokki.compiler.ir.mockedObjects
 import io.lokki.compiler.ir.referencedDeclaration
 import io.lokki.compiler.ir.staticReferences
 import io.lokki.compiler.ir.temporary
+import io.lokki.compiler.ir.toLambda
 import io.lokki.compiler.isReferable
 import org.jetbrains.kotlin.backend.common.IrElementTransformerVoidWithContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
+import org.jetbrains.kotlin.ir.builders.declarations.addValueParameter
+import org.jetbrains.kotlin.ir.builders.irAs
+import org.jetbrains.kotlin.ir.builders.irBlockBody
 import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irCallOp
+import org.jetbrains.kotlin.ir.builders.irEqualsNull
 import org.jetbrains.kotlin.ir.builders.irFalse
+import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.builders.irIfThenElse
 import org.jetbrains.kotlin.ir.builders.irInt
 import org.jetbrains.kotlin.ir.builders.irNull
 import org.jetbrains.kotlin.ir.builders.irString
+import org.jetbrains.kotlin.ir.builders.irTrue
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.expressions.IrCall
+import org.jetbrains.kotlin.ir.expressions.IrClassReference
 import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrFunctionReference
 import org.jetbrains.kotlin.ir.expressions.IrRichFunctionReference
+import org.jetbrains.kotlin.ir.types.makeNullable
 import org.jetbrains.kotlin.ir.types.typeWith
 import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.patchDeclarationParents
+import org.jetbrains.kotlin.ir.util.primaryConstructor
 import org.jetbrains.kotlin.ir.util.render
 
 internal class DslLowering(
@@ -66,13 +84,17 @@ internal class DslLowering(
     private val context = lokki.pluginContext
     private val symbols = lokki.symbols
     private val stubBlocks = StubBlockLowering(lokki, file, sites, mocks)
+    private val constructedClasses = ConstructedClasses(lokki).generate(file, sites.constructed, mocks)
 
     override fun visitCall(expression: IrCall): IrExpression {
         val kind = expression.intrinsicKind
         super.visitCall(expression)
         return when (kind) {
             null, IntrinsicKind.MATCHER, IntrinsicKind.ANSWER, IntrinsicKind.RELAXED_MOCK,
-            IntrinsicKind.ADDITIONAL_INTERFACE, IntrinsicKind.INJECT_MOCKS -> expression
+            IntrinsicKind.ADDITIONAL_INTERFACE, IntrinsicKind.INJECT_MOCKS, IntrinsicKind.CONSTRUCTED -> expression
+            IntrinsicKind.MOCK_CONSTRUCTOR -> lowerMockConstructor(expression)
+            IntrinsicKind.UNMOCK_CONSTRUCTOR -> lowerUnmockConstructor(expression)
+            IntrinsicKind.CLEAR_CONSTRUCTOR_MOCK -> lowerClearConstructorMock(expression)
             IntrinsicKind.MOCK, IntrinsicKind.SPY -> lowerMock(expression, kind)
             IntrinsicKind.MOCK_OBJECT -> lowerMockObject(expression)
             IntrinsicKind.MOCK_STATIC -> lowerMockStatic(expression)
@@ -122,6 +144,10 @@ internal class DslLowering(
 
     private fun lowerMock(call: IrCall, kind: IntrinsicKind): IrExpression {
         val site = sites.calls.getValue(call) as? MockSite.Mocked ?: return call
+        call.argument(ParameterNames.MOCKED_CLASS)?.takeIf { it !is IrClassReference }?.let {
+            unsupported(it, "'mockClass' needs a class literal such as 'Car::class'")
+            return call
+        }
         val types = site.types
         val mock = mocks.getValue(site.key)
         val spied = call.spiedInstance?.temporary
@@ -202,8 +228,97 @@ internal class DslLowering(
         }
     }
 
+    private fun lowerMockConstructor(call: IrCall): IrExpression {
+        val targets = call.constructorRedirects() ?: return call
+        val block = call.argument(ParameterNames.BLOCK)
+        return builder(call).run {
+            val installed = targets.map { irConstructorRedirect(call, it) ?: return call }
+            irInstall(CoreFunction.MOCK_CONSTRUCTOR, CoreFunction.MOCK_CONSTRUCTOR_WITH_BLOCK, installed, block)
+        }.also { it.patchDeclarationParents(currentScope!!.scope.getLocalDeclarationParent()) }
+    }
+
+    private fun lowerUnmockConstructor(call: IrCall): IrExpression {
+        val targets = call.constructorRedirects() ?: return call
+        return builder(call).run {
+            val keys = irArrayOf(context.irBuiltIns.anyType, targets.map { irString(it.key) })
+            irInvoke(symbols[CoreFunction.UNMOCK], keys)
+        }
+    }
+
+    private fun lowerClearConstructorMock(call: IrCall): IrExpression {
+        val targets = call.constructorRedirects() ?: return call
+        return builder(call).run {
+            val stringType = context.irBuiltIns.stringType
+            irInvoke(
+                symbols[CoreFunction.CLEAR_CONSTRUCTOR],
+                irArrayOf(stringType, targets.map { irString(it.key) }),
+                irArrayOf(stringType, targets.map { irString(it.target.name.asString()) }),
+                call.argument(ParameterNames.ANSWERS) ?: irTrue(),
+                call.argument(ParameterNames.RECORDED_CALLS) ?: irTrue(),
+                call.argument(ParameterNames.CHILD_MOCKS) ?: irTrue(),
+            )
+        }
+    }
+
+    private fun IrCall.constructorRedirects(): List<ConstructorRedirect>? {
+        val name = symbol.owner.name
+        val classes = constructorClasses
+            ?: return null.also { unsupported(this, "An argument of '$name' must be a class literal") }
+        return classes.map { target ->
+            file.redirects.constructors(target) ?: return null.also {
+                file.diagnostics.notInterceptable(
+                    this,
+                    target.name.asString(),
+                    "it has no constructor interception point: add it to lokki { mockable(...) } of its module",
+                )
+            }
+        }
+    }
+
+    private fun IrBuilderWithScope.irConstructorRedirect(call: IrCall, redirect: ConstructorRedirect): IrExpression? {
+        val site = sites.constructed[redirect.target] ?: return null.also {
+            unsupported(call, "'${redirect.target.name}' cannot be mocked by its constructors")
+        }
+        val implementation = constructedClasses.getValue(redirect.target)
+        val builtIns = context.irBuiltIns
+        val install = context.buildLambda(startOffset, endOffset, builtIns.unitType)
+        val value = install.addValueParameter("mocks", builtIns.anyNType)
+        val redirectType = redirect.redirect.defaultType.makeNullable()
+        install.body = DeclarationIrBuilder(context, install.symbol, startOffset, endOffset).irBlockBody {
+            val created = irInvoke(
+                implementation.primaryConstructor!!,
+                irAs(irGet(value), symbols[CoreClass.CONSTRUCTOR_MOCKS].defaultType),
+            )
+            val installed = irIfThenElse(redirectType, irEqualsNull(irGet(value)), irNull(), created)
+            +irInvoke(redirect.property.setter!!, installed)
+        }
+        return irInvoke(
+            symbols[CoreConstructor.REDIRECT],
+            irString(redirect.key),
+            irString(redirect.target.name.asString()),
+            irFactory(symbols, mocks.getValue(site.representative.key), site.representative.types),
+            install.toLambda(builtIns),
+        )
+    }
+
     private fun IrCall.staticRedirects(): List<StaticRedirect>? {
         val name = symbol.owner.name
+        staticFileArguments?.let { files ->
+            return files.flatMap { element ->
+                val className = element.fileClassName ?: return null.also {
+                    unsupported(this, "An argument of '$name' must be a string literal with the name of a file class")
+                }
+                file.redirects.file(className).ifEmpty {
+                    file.diagnostics.notInterceptable(
+                        element,
+                        className,
+                        "it is not a file class with interception points: add its functions or package to " +
+                            "lokki { mockable(...) } of the module that declares them",
+                    )
+                    return null
+                }
+            }
+        }
         val references = staticReferences
             ?: return null.also { unsupported(this, "Pass references to '$name' directly, not as a spread array") }
         return references.map { reference ->

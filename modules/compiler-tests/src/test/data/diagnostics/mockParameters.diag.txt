@@ -1,0 +1,9 @@
+/mockParameters.kt:20:15: error: 'test.FinalCar' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+
+/mockParameters.kt:22:20: error: '@InjectMocks' cannot inject 'test.Service': a parameter cannot have both '@InjectMocks' and '@Mock'.
+
+/mockParameters.kt:26:13: error: '@Mock' works on parameters of methods and constructors of a non-local class and on properties declared in the class body. Move the annotation to such a declaration.
+
+/mockParameters.kt:29:14: error: '@Mock' works on parameters of methods and constructors of a non-local class and on properties declared in the class body. Move the annotation to such a declaration.
+
+/mockParameters.kt:33:20: error: '@Mock' works on parameters of methods and constructors of a non-local class and on properties declared in the class body. Move the annotation to such a declaration.

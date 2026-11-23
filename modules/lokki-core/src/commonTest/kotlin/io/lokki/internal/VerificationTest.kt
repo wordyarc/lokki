@@ -4,6 +4,7 @@ import io.lokki.CapturingSlot
 import io.lokki.LokkiException
 import io.lokki.Matcher
 import io.lokki.Runs
+import io.lokki.checkEquals
 import io.lokki.just
 import kotlin.test.Test
 import kotlin.test.assertContains

@@ -25,6 +25,7 @@ import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.reportOn
+import org.jetbrains.kotlin.fir.FirAnnotationContainer
 import org.jetbrains.kotlin.fir.analysis.checkers.MppCheckerKind
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.analysis.checkers.declaration.FirPropertyChecker
@@ -35,6 +36,7 @@ import org.jetbrains.kotlin.fir.declarations.findArgumentByName
 import org.jetbrains.kotlin.fir.declarations.getTargetType
 import org.jetbrains.kotlin.fir.declarations.toAnnotationClassLikeSymbol
 import org.jetbrains.kotlin.fir.declarations.utils.correspondingValueParameterFromPrimaryConstructor
+import org.jetbrains.kotlin.fir.declarations.utils.isLocal
 import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
 import org.jetbrains.kotlin.fir.expressions.FirGetClassCall
@@ -43,9 +45,12 @@ import org.jetbrains.kotlin.fir.expressions.arguments
 import org.jetbrains.kotlin.fir.expressions.unwrapArgument
 import org.jetbrains.kotlin.fir.references.toResolvedCallableSymbol
 import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
+import org.jetbrains.kotlin.fir.resolve.getContainingClassSymbol
 import org.jetbrains.kotlin.fir.resolve.toRegularClassSymbol
+import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirConstructorSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.types.ConeDefinitelyNotNullType
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.fir.types.ConeTypeParameterType
@@ -63,6 +68,7 @@ context(context: CheckerContext, reporter: DiagnosticReporter)
 internal fun checkMock(call: FirFunctionCall, function: FirCallableSymbol<*>, kind: IntrinsicKind) {
     val instance = if (kind == IntrinsicKind.SPY) call.argument(ParameterNames.SPIED_INSTANCE) else null
     val argument = call.typeArguments.singleOrNull() ?: return
+    if (kind == IntrinsicKind.MOCK && !call.hasMockedClassLiteral(function)) return
     val source = when {
         instance != null -> instance.source
         else -> argument.source?.takeIf { it.kind is KtRealSourceElementKind } ?: call.source
@@ -72,6 +78,20 @@ internal fun checkMock(call: FirFunctionCall, function: FirCallableSymbol<*>, ki
         ?: return
     val mocked = MockedType(kind, type, source, "The type argument", function.name.asString())
     mocked.check { moreInterfaces(call, function) }
+}
+
+context(context: CheckerContext, reporter: DiagnosticReporter)
+private fun FirFunctionCall.hasMockedClassLiteral(function: FirCallableSymbol<*>): Boolean {
+    val literal = argument(ParameterNames.MOCKED_CLASS) ?: return true
+    if (literal.unwrapArgument() is FirGetClassCall) return true
+    reporter.reportOn(
+        literal.source,
+        LokkiDiagnostics.LOKKI_TYPE_ARGUMENT_NOT_CONCRETE,
+        "The class",
+        function.name.asString(),
+        "it is not a class literal such as 'Car::class'",
+    )
+    return false
 }
 
 internal object MockPropertyChecker : FirPropertyChecker(MppCheckerKind.Common) {
@@ -135,11 +155,42 @@ internal object MockParameterChecker : FirValueParameterChecker(MppCheckerKind.C
     context(context: CheckerContext, reporter: DiagnosticReporter)
     private fun inspect(declaration: FirValueParameter) {
         val session = context.session
-        val annotation = declaration.annotations.find { it.fieldKind(session) != null } ?: return
+        val kinds = declaration.annotations.mapNotNull { annotation ->
+            annotation.fieldKind(session)?.let { annotation to it }
+        }
+        val inject = kinds.find { (_, kind) -> kind == IntrinsicKind.INJECT_MOCKS }?.first
+        val (annotation, kind) = kinds.find { (candidate, _) -> candidate !== inject } ?: kinds.firstOrNull() ?: return
+        checkRuntimeVersion(annotation.source)
         val name = annotation.toAnnotationClassLikeSymbol(session)!!.name.asString()
-        reporter.reportOn(annotation.source, LokkiDiagnostics.LOKKI_UNSUPPORTED_MOCK_PARAMETER, name)
+        if (!declaration.containingDeclarationSymbol.takesMockParameters()) {
+            reporter.reportOn(annotation.source, LokkiDiagnostics.LOKKI_UNSUPPORTED_MOCK_PARAMETER, name)
+            return
+        }
+        val type = declaration.returnTypeRef.coneType.lowerBoundIfFlexible().fullyExpandedType()
+        if (inject != null && kind != IntrinsicKind.INJECT_MOCKS && kind != IntrinsicKind.SPY) {
+            reporter.reportOn(
+                inject.source,
+                LokkiDiagnostics.LOKKI_UNSUPPORTED_INJECTION,
+                type.toRegularClassSymbol(session)?.displayName ?: type.renderReadable(),
+                "a parameter cannot have both '@InjectMocks' and '@$name'",
+            )
+            return
+        }
+        if (kind == IntrinsicKind.INJECT_MOCKS) return
+        val mocked = MockedType(
+            if (kind == IntrinsicKind.SPY) kind else IntrinsicKind.MOCK,
+            type,
+            annotation.source,
+            "The mocked type",
+            "@$name",
+        )
+        mocked.check { additionalInterface(declaration) }
     }
 }
+
+context(context: CheckerContext)
+private fun FirBasedSymbol<*>.takesMockParameters(): Boolean =
+    (this is FirConstructorSymbol || this is FirNamedFunctionSymbol) && getContainingClassSymbol()?.isLocal == false
 
 private class MockedType(
     val kind: IntrinsicKind,
@@ -224,8 +275,8 @@ private fun moreInterfaces(call: FirFunctionCall, function: FirCallableSymbol<*>
 }
 
 context(context: CheckerContext, reporter: DiagnosticReporter)
-private fun additionalInterface(property: FirProperty): Boolean {
-    val annotation = property.annotations
+private fun additionalInterface(declaration: FirAnnotationContainer): Boolean {
+    val annotation = declaration.annotations
         .find { it.toAnnotationClassLikeSymbol(context.session)?.intrinsicKind(context.session) == ADDITIONAL_INTERFACE }
         ?: return true
     val type = annotation.findArgumentByName(INTERFACE_TYPE) ?: return true

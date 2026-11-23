@@ -69,7 +69,6 @@ private fun MethodDescription.render(): String =
             "nothing" to returnsNothing,
             "suspend" to isSuspend,
             "fn" to isFnCall,
-            "private" to privateCall,
         ).filter { it.second }.joinToString("") { " ${it.first}" } +
         if (varArgsArg >= 0) " vararg $varArgsArg" else ""
 

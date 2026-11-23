@@ -20,10 +20,10 @@
 
 /conflictingVerifyArguments.kt:28:21: error: Invalid call counts in 'times': the count is negative.
 
-/conflictingVerifyArguments.kt:29:40: error: Invalid call counts in 'verify': 'atLeast' is only allowed with Ordering.UNORDERED, but 'ordering' is Ordering.ORDERED.
+/conflictingVerifyArguments.kt:29:40: error: Invalid call counts in 'verify': 'atLeast' is only allowed with Ordering.UNORDERED or Ordering.ANY, but 'ordering' is Ordering.ORDERED.
 
-/conflictingVerifyArguments.kt:30:52: error: Invalid call counts in 'verify': 'exactly' is only allowed with Ordering.UNORDERED, but 'ordering' is Ordering.SEQUENCE.
+/conflictingVerifyArguments.kt:30:52: error: Invalid call counts in 'verify': 'exactly' is only allowed with Ordering.UNORDERED or Ordering.ANY, but 'ordering' is Ordering.SEQUENCE.
 
-/conflictingVerifyArguments.kt:31:43: error: Invalid call counts in 'verify': 'atMost' is only allowed with Ordering.UNORDERED, but 'ordering' is Ordering.ORDERED.
+/conflictingVerifyArguments.kt:31:43: error: Invalid call counts in 'verify': 'atMost' is only allowed with Ordering.UNORDERED or Ordering.ANY, but 'ordering' is Ordering.ORDERED.
 
-/conflictingVerifyArguments.kt:32:49: error: Invalid call counts in 'coVerify': 'exactly' is only allowed with Ordering.UNORDERED, but 'ordering' is Ordering.ALL.
+/conflictingVerifyArguments.kt:32:49: error: Invalid call counts in 'coVerify': 'exactly' is only allowed with Ordering.UNORDERED or Ordering.ANY, but 'ordering' is Ordering.ALL.

@@ -3,8 +3,10 @@ package io.lokki.compiler.ir.collect
 import io.lokki.compiler.LOOKUP_BY_NAME
 import io.lokki.compiler.LOOKUP_BY_TYPE
 import io.lokki.compiler.NOT_CLASS_PROBLEM
+import io.lokki.compiler.OVERRIDE_MOCKS
 import io.lokki.compiler.ParameterNames
 import io.lokki.compiler.TYPE_PARAMETER_PROBLEM
+import io.lokki.compiler.ir.annotationClass
 import io.lokki.compiler.ir.argument
 import io.lokki.compiler.ir.isAccessibleOutsideHierarchy
 import io.lokki.compiler.ir.isVisibleFrom
@@ -14,10 +16,13 @@ import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrConstructor
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationWithName
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrProperty
+import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.expressions.IrAnnotation
+import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrGetEnumValue
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.IrSimpleType
@@ -28,6 +33,7 @@ import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.types.isMarkedNullable
 import org.jetbrains.kotlin.ir.types.makeNotNull
 import org.jetbrains.kotlin.ir.types.typeOrNull
+import org.jetbrains.kotlin.ir.util.classId
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.isFakeOverride
 import org.jetbrains.kotlin.ir.util.isInterface
@@ -36,12 +42,15 @@ import org.jetbrains.kotlin.ir.util.resolveFakeOverrideMaybeAbstractOrFail
 import org.jetbrains.kotlin.ir.util.substitute
 import org.jetbrains.kotlin.name.Name
 
-internal class InjectionSource(val property: IrProperty, val type: IrType, val isInjected: Boolean) {
+internal class InjectionSource(val key: IrDeclarationWithName, val type: IrType, val isInjected: Boolean) {
     val name: Name
-        get() = property.name
+        get() = key.name
+
+    val property: IrProperty
+        get() = key as IrProperty
 }
 
-internal class InjectionRequest(val property: IrProperty, val annotation: IrAnnotation)
+internal class InjectionRequest(val target: IrDeclarationWithName, val type: IrType, val annotation: IrAnnotation)
 
 internal class InjectionConstructor(
     val declaration: IrConstructor,
@@ -70,6 +79,7 @@ internal class Injection(
     val constructor: InjectionConstructor,
     val arguments: List<InjectedValue>,
     val properties: List<Pair<InjectionProperty, InjectionSource>>,
+    val overrideValues: Boolean,
 ) : InjectionResult {
     val construction: MockForm.Construction
         get() {
@@ -85,11 +95,14 @@ internal class InjectionProblem(val kind: Kind, val message: String) : Injection
     enum class Kind { UNRESOLVED, AMBIGUOUS, UNSUPPORTED }
 }
 
-internal class InjectionPlan(val order: List<IrProperty>, val results: Map<IrProperty, InjectionResult>)
+internal class InjectionPlan(
+    val order: List<IrDeclarationWithName>,
+    val results: Map<IrDeclarationWithName, InjectionResult>,
+)
 
 internal class InjectionPlanner(private val file: IrFile, private val typeSystem: IrTypeSystemContext) {
     fun plan(owner: IrClass, requests: List<InjectionRequest>): InjectionPlan {
-        val injected = requests.mapTo(HashSet()) { it.property }
+        val injected = requests.mapTo(HashSet()) { it.target }
         val sources = ArrayList<InjectionSource>()
         for (property in owner.declarations.filterIsInstance<IrProperty>()) {
             val getter = property.getter ?: continue
@@ -98,10 +111,20 @@ internal class InjectionPlanner(private val file: IrFile, private val typeSystem
             if (property.isFakeOverride && !inherited.isVisibleFrom(file)) continue
             sources += InjectionSource(property, getter.returnType, property in injected)
         }
-        val results = requests.associateTo(LinkedHashMap()) { request ->
-            request.property to Resolver(sources.filter { it.property != request.property }, target(request)).resolve()
+        return solve(sources, requests, Sources("property", "properties", "this class"))
+    }
+
+    fun planParameters(parameters: List<IrValueParameter>, requests: List<InjectionRequest>): InjectionPlan {
+        val injected = requests.mapTo(HashSet()) { it.target }
+        val sources = parameters.map { InjectionSource(it, it.type, it in injected) }
+        return solve(sources, requests, Sources("parameter", "parameters", "this function"))
+    }
+
+    private fun solve(sources: List<InjectionSource>, requests: List<InjectionRequest>, kind: Sources): InjectionPlan {
+        val results = requests.associateTo(LinkedHashMap<IrDeclarationWithName, InjectionResult>()) { request ->
+            request.target to Resolver(sources.filter { it.key != request.target }, target(request), kind).resolve()
         }
-        val order = ArrayList<IrProperty>()
+        val order = ArrayList<IrDeclarationWithName>()
         val pending = results.filterValues { it is Injection }.keys.toMutableList()
         while (pending.isNotEmpty()) {
             val next = pending.firstOrNull { property ->
@@ -113,7 +136,7 @@ internal class InjectionPlanner(private val file: IrFile, private val typeSystem
                 for (property in pending) {
                     results[property] = InjectionProblem(
                         InjectionProblem.Kind.UNRESOLVED,
-                        "the constructors of the '@InjectMocks' properties $names need each other's objects",
+                        "the constructors of the '@InjectMocks' ${kind.plural} $names need each other's objects",
                     )
                 }
                 break
@@ -132,7 +155,9 @@ internal class InjectionPlanner(private val file: IrFile, private val typeSystem
             ?.symbol?.owner?.name?.asString()
         val byName = lookupType != LOOKUP_BY_TYPE
         val byType = lookupType != LOOKUP_BY_NAME
-        val type = request.property.valueType.makeNotNull() as IrSimpleType
+        val overrideValues = request.annotation.annotationClass?.classId == OVERRIDE_MOCKS ||
+            (request.annotation.argument(ParameterNames.OVERRIDE_VALUES) as? IrConst)?.value == true
+        val type = request.type.makeNotNull() as IrSimpleType
         val injected = type.classOrNull?.owner
         val problem = when {
             type.classifier is IrTypeParameterSymbol -> TYPE_PARAMETER_PROBLEM
@@ -143,7 +168,7 @@ internal class InjectionPlanner(private val file: IrFile, private val typeSystem
             injected.isInner -> "it is an inner class"
             else -> null
         }
-        if (problem != null) return Target(byName, byType, emptyList(), emptyList(), problem)
+        if (problem != null) return Target(byName, byType, overrideValues, emptyList(), emptyList(), problem)
         injected!!
         val substitution = injected.typeParameters.map { it.symbol }.zip(type.arguments.map { it.typeOrNull })
             .mapNotNull { (parameter, argument) -> argument?.let { parameter to it } }
@@ -168,17 +193,18 @@ internal class InjectionPlanner(private val file: IrFile, private val typeSystem
                 return@mapNotNull null
             }
             val propertyType = getter.returnType.substitute(substitution)
-            if (!injectable.isLateinit && !propertyType.isMarkedNullable()) return@mapNotNull null
+            if (!overrideValues && !injectable.isLateinit && !propertyType.isMarkedNullable()) return@mapNotNull null
             val settable = getter.resolveFakeOverrideMaybeAbstractOrFail().isAccessibleOutsideHierarchy(file) &&
                 setter.resolveFakeOverrideMaybeAbstractOrFail().isAccessibleOutsideHierarchy(file)
             InjectionProperty(injectable, propertyType, settable)
         }
-        return Target(byName, byType, constructors, properties)
+        return Target(byName, byType, overrideValues, constructors, properties)
     }
 
     private class Target(
         val byName: Boolean,
         val byType: Boolean,
+        val overrideValues: Boolean,
         val constructors: List<InjectionConstructor>,
         val properties: List<InjectionProperty>,
         val problem: String? = null,
@@ -192,7 +218,13 @@ internal class InjectionPlanner(private val file: IrFile, private val typeSystem
         data object None : Found
     }
 
-    private inner class Resolver(private val sources: List<InjectionSource>, private val target: Target) {
+    private class Sources(val singular: String, val plural: String, val owner: String)
+
+    private inner class Resolver(
+        private val sources: List<InjectionSource>,
+        private val target: Target,
+        private val kind: Sources,
+    ) {
         fun resolve(): InjectionResult {
             target.problem?.let { return InjectionProblem(InjectionProblem.Kind.UNRESOLVED, it) }
             val constructors = target.constructors.map { constructor ->
@@ -240,7 +272,7 @@ internal class InjectionPlanner(private val file: IrFile, private val typeSystem
                     Found.None -> {}
                 }
             }
-            return Injection(constructor, values.map { (it as Found.Value).value }, properties)
+            return Injection(constructor, values.map { (it as Found.Value).value }, properties, target.overrideValues)
         }
 
         private fun find(name: Name, type: IrType, list: Boolean): Found {
@@ -267,18 +299,18 @@ internal class InjectionPlanner(private val file: IrFile, private val typeSystem
             val missing = constructors.joinToString("; ") { (constructor, values) ->
                 val names = constructor.parameters.zip(values).filter { (_, value) -> value == Found.None }
                     .joinToString { (parameter, _) -> "'${parameter.name}'" }
-                "'${constructor.signature}' has no property for $names"
+                "'${constructor.signature}' has no ${kind.singular} for $names"
             }
             return InjectionProblem(
                 InjectionProblem.Kind.UNRESOLVED,
-                "no constructor can be called with the properties of this class: $missing",
+                "no constructor can be called with the ${kind.plural} of ${kind.owner}: $missing",
             )
         }
 
         private fun ambiguous(found: Found.Ambiguous, subject: String, name: Name): InjectionProblem =
             InjectionProblem(
                 InjectionProblem.Kind.AMBIGUOUS,
-                "$subject matches several properties by type: ${found.names.joinToString { "'$it'" }}. " +
+                "$subject matches several ${kind.plural} by type: ${found.names.joinToString { "'$it'" }}. " +
                     "Name one of them '$name' or create the object yourself",
             )
     }
@@ -291,8 +323,8 @@ internal val InjectedValue.sources: List<InjectionSource>
         InjectedValue.Default -> emptyList()
     }
 
-private fun Injection.dependencies(): List<IrProperty> =
-    arguments.flatMap { it.sources }.filter { it.isInjected }.map { it.property }
+private fun Injection.dependencies(): List<IrDeclarationWithName> =
+    arguments.flatMap { it.sources }.filter { it.isInjected }.map { it.key }
 
 private fun IrType.listElement(): IrType? =
     (this as? IrSimpleType)?.takeIf { it.classFqName == StandardNames.FqNames.list }

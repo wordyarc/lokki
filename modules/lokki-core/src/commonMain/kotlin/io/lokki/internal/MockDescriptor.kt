@@ -24,6 +24,8 @@ internal class MockDescriptor(
     internal val memberCount: Int
         get() = keys.size
 
+    internal fun hasSameMembers(other: MockDescriptor): Boolean = keys.contentEquals(other.keys)
+
     internal fun member(key: String): Int = members[key] ?: throw LokkiException("$name has no member $key")
 
     internal fun description(mock: GeneratedMock, member: Int): MethodDescription =

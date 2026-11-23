@@ -50,9 +50,14 @@ public class LokkiGradleSubplugin : KotlinCompilerPluginSupportPlugin {
             }
         }
         if (!test && lokki.mockable.get().isNotEmpty()) kotlinCompilation.warnAboutMockableBytecode()
-        return lokki.debug.zip(lokki.mockable) { debug, patterns ->
-            val mockable = if (test) emptyList() else patterns.map { SubpluginOption(BuildConfig.MOCKABLE_OPTION, it) }
-            mockable + listOfNotNull(SubpluginOption(BuildConfig.DEBUG_OPTION, "true").takeIf { debug })
+        val patterns = lokki.mockable.zip(lokki.restricted) { mockable, restricted -> mockable to restricted }
+        return lokki.debug.zip(patterns) { debug, (mockable, restricted) ->
+            val opened = when {
+                test -> mockable.filterNot { it.endsWith(SUBPACKAGES) }
+                else -> mockable
+            }.map { SubpluginOption(BuildConfig.MOCKABLE_OPTION, it) }
+            val checked = if (test) restricted.map { SubpluginOption(BuildConfig.RESTRICTED_OPTION, it) } else emptyList()
+            opened + checked + listOfNotNull(SubpluginOption(BuildConfig.DEBUG_OPTION, "true").takeIf { debug })
         }
     }
 }
@@ -158,6 +163,7 @@ private val PLATFORM_TYPES = setOf(KotlinPlatformType.jvm, KotlinPlatformType.an
 private val TEST_COMPILATION_NAMES = setOf(KotlinCompilation.TEST_COMPILATION_NAME, "testFixtures", "hostTest", "deviceTest")
 private val ANDROID_TEST_SUFFIXES = listOf("UnitTest", "AndroidTest", "TestFixtures")
 
+private const val SUBPACKAGES = ".**"
 private const val RECORD_STACK_TRACES = "lokki.recordStackTraces"
 private const val MOCKABLE_PUBLICATION_NOWARN = "lokki.mockablePublication.nowarn"
 private const val KOTLIN_COMPATIBILITY_NOWARN = "lokki.kotlinCompatibility.nowarn"

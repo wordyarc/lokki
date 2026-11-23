@@ -49,6 +49,7 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
         }
     }
     val intOr by lazy { context.irBuiltIns.intClass.owner.function("or") }
+    val intAnd by lazy { context.irBuiltIns.intClass.owner.function("and") }
 
     val emptyList by lazy { findFunction(COLLECTIONS_PACKAGE, "emptyList") }
     val listOf by lazy {
@@ -61,7 +62,6 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
     val emptySet by lazy { findFunction(COLLECTIONS_PACKAGE, "emptySet") }
     val emptyMap by lazy { findFunction(COLLECTIONS_PACKAGE, "emptyMap") }
     val emptySequence by lazy { findFunction(SEQUENCES_PACKAGE, "emptySequence") }
-    val optionalEmpty by lazy { findClass(JAVA_UTIL_PACKAGE, "Optional").function("empty") }
 
     val jvmSynthetic by lazy { finder.findConstructors(ClassId(JVM_PACKAGE, Name.identifier("JvmSynthetic"))).single() }
     val volatile by lazy { finder.findConstructors(ClassId(JVM_PACKAGE, Name.identifier("Volatile"))).single() }
@@ -125,6 +125,8 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
             ?: factories.singleOrNull { it.firstParameterClass == function.firstParameterClass }
             ?: noMatcherFactory(function.name.asString())
     }
+
+    fun optionalEmpty(optional: IrClass): IrSimpleFunction = optional.function("empty")
 
     fun javaUtilClass(name: String): IrClass = findClass(JAVA_UTIL_PACKAGE, name)
 

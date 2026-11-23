@@ -10,8 +10,12 @@ import io.lokki.compiler.ir.renderReadable
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrAnnotationContainer
 import org.jetbrains.kotlin.ir.declarations.IrClass
+import org.jetbrains.kotlin.ir.declarations.IrConstructor
 import org.jetbrains.kotlin.ir.declarations.IrFile
+import org.jetbrains.kotlin.ir.declarations.IrFunction
+import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrProperty
+import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.expressions.IrAnnotation
 import org.jetbrains.kotlin.ir.expressions.IrClassReference
@@ -22,6 +26,7 @@ import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.IrTypeSystemContext
 import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.types.makeNotNull
+import org.jetbrains.kotlin.ir.util.isLocal
 import org.jetbrains.kotlin.ir.visitors.IrVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 
@@ -44,10 +49,27 @@ internal class MockField(
         get() = problem == null && (inject != null || !isConstructedSpy)
 }
 
+internal class MockParameterField(
+    val parameter: IrValueParameter,
+    val index: Int,
+    val annotation: IrAnnotation,
+    val kind: IntrinsicKind,
+    val problem: MockProblem?,
+    val site: MockSite.Mocked?,
+    val injection: Injection?,
+) {
+    val name: String
+        get() = ((annotation.argument(ParameterNames.NAME) as? IrConst)?.value as? String)?.takeIf { it.isNotBlank() }
+            ?: parameter.name.asString()
+}
+
+internal class MockParameterGroup(val function: IrFunction, val parameters: List<MockParameterField>)
+
 internal class MockFields(
     val fields: Map<IrProperty, MockField>,
     val owners: Map<IrClass, ClassMockFields>,
-    val annotatedParameters: List<IrValueParameter>,
+    val parameterGroups: List<MockParameterGroup>,
+    val unsupportedParameters: List<IrValueParameter>,
 )
 
 internal class ClassMockFields(val fields: List<MockField>, val injected: List<MockField>)
@@ -55,7 +77,7 @@ internal class ClassMockFields(val fields: List<MockField>, val injected: List<M
 internal fun IrFile.collectMockFields(mockability: Mockability, typeSystem: IrTypeSystemContext): MockFields {
     val collector = MockFieldCollector(mockability, InjectionPlanner(this, typeSystem))
     acceptChildrenVoid(collector)
-    return MockFields(collector.fields, collector.owners, collector.annotatedParameters)
+    return MockFields(collector.fields, collector.owners, collector.parameterGroups, collector.unsupportedParameters)
 }
 
 private class MockFieldCollector(
@@ -64,7 +86,8 @@ private class MockFieldCollector(
 ) : IrVisitorVoid() {
     val fields = LinkedHashMap<IrProperty, MockField>()
     val owners = LinkedHashMap<IrClass, ClassMockFields>()
-    val annotatedParameters = ArrayList<IrValueParameter>()
+    val parameterGroups = ArrayList<MockParameterGroup>()
+    val unsupportedParameters = ArrayList<IrValueParameter>()
 
     override fun visitElement(element: IrElement) {
         element.acceptChildrenVoid(this)
@@ -87,15 +110,82 @@ private class MockFieldCollector(
         super.visitProperty(declaration)
     }
 
-    override fun visitValueParameter(declaration: IrValueParameter) {
-        if (declaration.mockAnnotationName != null) annotatedParameters += declaration
-        super.visitValueParameter(declaration)
+    override fun visitConstructor(declaration: IrConstructor) {
+        collectParameters(declaration)
+        super.visitConstructor(declaration)
+    }
+
+    override fun visitSimpleFunction(declaration: IrSimpleFunction) {
+        collectParameters(declaration)
+        super.visitSimpleFunction(declaration)
+    }
+
+    private fun collectParameters(function: IrFunction) {
+        val annotated = function.parameters.filter { it.mockAnnotationName != null }
+        if (annotated.isEmpty()) return
+        if (!function.takesMockParameters) {
+            unsupportedParameters += annotated
+            return
+        }
+        parameterGroups += resolveParameters(function, annotated)
+    }
+
+    private fun resolveParameters(function: IrFunction, annotated: List<IrValueParameter>): MockParameterGroup {
+        val regular = function.parameters.filter { it.kind == IrParameterKind.Regular }
+        val kinds = annotated.associateWith { it.mockAnnotationKinds }
+        val requests = annotated.mapNotNull { parameter ->
+            val (annotation, kind, inject) = kinds.getValue(parameter)
+            (inject ?: annotation.takeIf { kind == IntrinsicKind.SPY })
+                ?.let { InjectionRequest(parameter, parameter.type, it) }
+        }
+        val plan = planner.planParameters(annotated, requests)
+        val fields = annotated.map { parameter ->
+            val (annotation, kind, inject) = kinds.getValue(parameter)
+            val result = plan.results[parameter]
+            val injection = result as? Injection
+            val type = parameter.type.makeNotNull()
+            val conflict = if (inject != null && kind != IntrinsicKind.INJECT_MOCKS && kind != IntrinsicKind.SPY) {
+                Unsupported("A parameter cannot have both '@InjectMocks' and '@${annotation.annotationClass!!.name}'")
+            } else {
+                null
+            }
+            val failed = (result as? InjectionProblem)?.takeIf { inject != null }
+                ?.let { FailedInjection(it, type.classOrNull?.owner?.displayName ?: type.renderReadable()) }
+            val mocked = inject == null || kind == IntrinsicKind.SPY
+            val site = if (mocked && conflict == null && failed == null) {
+                val additional = parameter.annotations.find { it.annotationKind == IntrinsicKind.ADDITIONAL_INTERFACE }
+                    ?.let { it.argument(ParameterNames.INTERFACE_TYPE) as? IrClassReference }
+                    ?.let { AddedInterface(it.classType, it) }
+                mockability.site(
+                    MockRequest(
+                        kind == IntrinsicKind.SPY,
+                        type,
+                        null,
+                        listOfNotNull(additional),
+                        "'@AdditionalInterface'",
+                        injection?.construction,
+                    )
+                )
+            } else {
+                null
+            }
+            MockParameterField(
+                parameter,
+                regular.indexOf(parameter),
+                annotation,
+                kind,
+                conflict ?: failed ?: (site as? MockSite.Rejected)?.problem,
+                site as? MockSite.Mocked,
+                injection,
+            )
+        }
+        return MockParameterGroup(function, fields)
     }
 
     private fun resolve(owner: IrClass, annotated: List<Annotated>): ClassMockFields {
         val problems = annotated.associateWith { it.declarationProblem() }
         val targets = annotated.filter { it.inject != null && problems[it] == null }
-        val plan = planner.plan(owner, targets.map { InjectionRequest(it.property, it.inject!!) })
+        val plan = planner.plan(owner, targets.map { InjectionRequest(it.property, it.property.valueType, it.inject!!) })
         val fields = annotated.map { field ->
             val result = plan.results[field.property]
             val injection = result as? Injection
@@ -110,14 +200,14 @@ private class MockFieldCollector(
             field.field(problem ?: field.immutableProblem(mocked), mocked, injection)
         }
         val byProperty = fields.associateBy { it.property }
-        val injected = plan.order.map(byProperty::getValue).filter { it.problem == null }
+        val injected = plan.order.map { byProperty.getValue(it as IrProperty) }.filter { it.problem == null }
         return ClassMockFields(fields, injected)
     }
 
     private fun Annotated.declarationProblem(): MockProblem? =
         when {
             property.constructorParameter != null ->
-                Unsupported("'@$annotationName' on a constructor parameter is not supported yet")
+                Unsupported("'@$annotationName' on a property of the primary constructor must be on its parameter")
             property.parent !is IrClass -> Unsupported("'@$annotationName' initializes only properties of classes")
             property.backingField == null -> Unsupported("'@$annotationName' needs a property with a backing field")
             inject == null -> null
@@ -196,6 +286,30 @@ internal val IrProperty.constructorParameter: IrValueParameter?
 
 internal val IrAnnotationContainer.mockAnnotationName: String?
     get() = annotations.find { it.annotationKind in FIELD_KINDS }?.annotationClass?.name?.asString()
+
+private data class ParameterAnnotations(
+    val annotation: IrAnnotation,
+    val kind: IntrinsicKind,
+    val inject: IrAnnotation?,
+)
+
+private val IrValueParameter.mockAnnotationKinds: ParameterAnnotations
+    get() {
+        val kinds = annotations.mapNotNull { annotation ->
+            annotation.annotationKind?.takeIf { it in FIELD_KINDS }?.let { annotation to it }
+        }
+        val inject = kinds.find { (_, kind) -> kind == IntrinsicKind.INJECT_MOCKS }?.first
+        val (annotation, kind) = kinds.find { (_, kind) -> kind != IntrinsicKind.INJECT_MOCKS } ?: kinds.first()
+        return ParameterAnnotations(annotation, kind, inject)
+    }
+
+private val IrFunction.takesMockParameters: Boolean
+    get() {
+        val owner = parent as? IrClass ?: return false
+        if (owner.isLocal) return false
+        return this is IrConstructor || this is IrSimpleFunction && correspondingPropertySymbol == null &&
+            dispatchReceiverParameter != null
+    }
 
 internal val IrProperty.valueType: IrType
     get() = backingField?.type ?: getter!!.returnType

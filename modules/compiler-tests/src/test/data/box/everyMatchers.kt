@@ -126,7 +126,7 @@ fun classifiers(): String? {
     if (canvas.draw(Circle(1)) != "circle" || canvas.draw(Square(1)) != "square") return "any and ofType of a class"
     if (canvas.draw(object : Shape {}) != "shape") return "any of the declared class"
 
-    every { canvas.scale(match(Matcher<Int> { it == 2 }, Int::class)) } returns "two"
+    every { canvas.scale(match(object : Matcher<Int> { override fun match(arg: Int?): Boolean = arg == 2 }, Int::class)) } returns "two"
     if (canvas.scale(2) != "two") return "match with a class"
     if (answer { canvas.scale(2.0) } != "none" || answer { canvas.scale(3) } != "none") return "match of another value"
     return null

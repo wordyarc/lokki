@@ -85,8 +85,8 @@ class Fixture<T : Any> {
 }
 
 class ConstructorParameters(
-    <!LOKKI_UNSUPPORTED_MOCK_PARAMETER!>@Mock<!> val car: Car,
-    <!LOKKI_UNSUPPORTED_MOCK_PARAMETER!>@Mock<!> other: Car,
+    @Mock val car: Car,
+    @Mock other: Car,
     <!LOKKI_UNSUPPORTED_MOCK_PARAMETER!>@property:Mock<!> val propertyOnly: Car,
 )
 

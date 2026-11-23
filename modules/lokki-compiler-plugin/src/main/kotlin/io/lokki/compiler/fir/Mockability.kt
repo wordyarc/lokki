@@ -1,5 +1,6 @@
 package io.lokki.compiler.fir
 
+import io.lokki.compiler.MockablePatterns
 import io.lokki.compiler.declarationKindProblem
 import io.lokki.compiler.memberWithClasses
 import io.lokki.compiler.missingMemberClassesProblem
@@ -78,7 +79,7 @@ internal fun FirRegularClassSymbol.findFinalMembers(): List<String> {
     return members.toList()
 }
 
-internal fun FirRegularClassSymbol.findRestriction(session: FirSession): String? {
+internal fun FirRegularClassSymbol.findRestriction(session: FirSession, restricted: MockablePatterns?): String? {
     val supertypes = lookupSuperTypes(this, lookupInterfaces = true, deep = true, session)
         .mapNotNull { it.toRegularClassSymbol(session) }
     for (type in listOf(this) + supertypes) {
@@ -87,6 +88,13 @@ internal fun FirRegularClassSymbol.findRestriction(session: FirSession): String?
         if (annotation != null) {
             val advice = annotation.getStringArgument(VALUE)?.trimEnd('.')
             return "'${type.displayName}' is annotated with '$DO_NOT_MOCK'" + advice?.let { ": $it" }.orEmpty()
+        }
+        if (restricted != null) {
+            val marked = type.resolvedAnnotationsWithArguments.firstNotNullOfOrNull { candidate ->
+                candidate.toAnnotationClassId(session)?.asSingleFqName()?.takeIf { it in restricted.names }
+            }
+            if (marked != null) return "'${type.displayName}' is annotated with '$marked'"
+            if (restricted.matches(type.classId)) return "'${type.displayName}' is listed in lokki { restricted(...) }"
         }
         if (type.classId in RESTRICTED_TYPES) return "use a real '${type.displayName}' instead"
     }
@@ -154,7 +162,7 @@ private val DO_NOT_MOCK = Name.identifier("DoNotMock")
 private val VALUE = Name.identifier("value")
 private val RESTRICTED_TYPES = setOf(
     StandardClassIds.Collection,
-    ClassId.fromString("java/util/HashMap"),
+    StandardClassIds.Map,
     ClassId.fromString("java/io/File"),
     ClassId.fromString("java/nio/file/Path"),
 )

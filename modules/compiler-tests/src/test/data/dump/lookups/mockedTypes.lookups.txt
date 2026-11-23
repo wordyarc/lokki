@@ -1,16 +1,31 @@
-main: ClassTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, equals, hashCode, toString
-main: ClassTest.kt: sample.Engine: <SAM-CONSTRUCTOR>, power, warmUp
-main: ClassTest.kt: sample.Machine: <SAM-CONSTRUCTOR>, serial, start
-main: GenericTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, equals, hashCode, toString
-main: GenericTest.kt: sample.Crate: <SAM-CONSTRUCTOR>, put, take
-main: InterfaceTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, equals, hashCode, toString
-main: InterfaceTest.kt: sample.Car: <SAM-CONSTRUCTOR>, drive, plate
-main: InterfaceTest.kt: sample.Vehicle: <SAM-CONSTRUCTOR>, park
-main: MoreInterfacesTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, equals, hashCode, toString
-main: MoreInterfacesTest.kt: sample.Named: <SAM-CONSTRUCTOR>, name
-main: MoreInterfacesTest.kt: sample.Vehicle: <SAM-CONSTRUCTOR>, park
-main: SpyTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, equals, hashCode, toString
-main: SpyTest.kt: sample.Car: <SAM-CONSTRUCTOR>, drive, plate
-main: SpyTest.kt: sample.Machine: <SAM-CONSTRUCTOR>, serial, start
-main: SpyTest.kt: sample.Radio: <SAM-CONSTRUCTOR>, play, station
-main: SpyTest.kt: sample.Vehicle: <SAM-CONSTRUCTOR>, park
+main: ClassTest.kt: io.lokki.internal.MockDescriptor: LokkiConstructors
+main: ClassTest.kt: io.lokki.internal.MockSpec: LokkiConstructors
+main: ClassTest.kt: io.lokki.internal.MockState: LokkiConstructors
+main: ClassTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, LokkiConstructors, equals, hashCode, toString
+main: ClassTest.kt: sample.Engine: <SAM-CONSTRUCTOR>, LokkiConstructors, power, warmUp
+main: ClassTest.kt: sample.Machine: <SAM-CONSTRUCTOR>, LokkiConstructors, serial, start
+main: GenericTest.kt: io.lokki.internal.MockDescriptor: LokkiConstructors
+main: GenericTest.kt: io.lokki.internal.MockSpec: LokkiConstructors
+main: GenericTest.kt: io.lokki.internal.MockState: LokkiConstructors
+main: GenericTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, LokkiConstructors, equals, hashCode, toString
+main: GenericTest.kt: sample.Crate: <SAM-CONSTRUCTOR>, LokkiConstructors, put, take
+main: InterfaceTest.kt: io.lokki.internal.MockDescriptor: LokkiConstructors
+main: InterfaceTest.kt: io.lokki.internal.MockSpec: LokkiConstructors
+main: InterfaceTest.kt: io.lokki.internal.MockState: LokkiConstructors
+main: InterfaceTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, LokkiConstructors, equals, hashCode, toString
+main: InterfaceTest.kt: sample.Car: <SAM-CONSTRUCTOR>, LokkiConstructors, drive, plate
+main: InterfaceTest.kt: sample.Vehicle: <SAM-CONSTRUCTOR>, LokkiConstructors, park
+main: MoreInterfacesTest.kt: io.lokki.internal.MockDescriptor: LokkiConstructors
+main: MoreInterfacesTest.kt: io.lokki.internal.MockSpec: LokkiConstructors
+main: MoreInterfacesTest.kt: io.lokki.internal.MockState: LokkiConstructors
+main: MoreInterfacesTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, LokkiConstructors, equals, hashCode, toString
+main: MoreInterfacesTest.kt: sample.Named: <SAM-CONSTRUCTOR>, LokkiConstructors, name
+main: MoreInterfacesTest.kt: sample.Vehicle: <SAM-CONSTRUCTOR>, LokkiConstructors, park
+main: SpyTest.kt: io.lokki.internal.MockDescriptor: LokkiConstructors
+main: SpyTest.kt: io.lokki.internal.MockSpec: LokkiConstructors
+main: SpyTest.kt: io.lokki.internal.MockState: LokkiConstructors
+main: SpyTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, LokkiConstructors, equals, hashCode, toString
+main: SpyTest.kt: sample.Car: <SAM-CONSTRUCTOR>, LokkiConstructors, drive, plate
+main: SpyTest.kt: sample.Machine: <SAM-CONSTRUCTOR>, LokkiConstructors, serial, start
+main: SpyTest.kt: sample.Radio: <SAM-CONSTRUCTOR>, LokkiConstructors, play, station
+main: SpyTest.kt: sample.Vehicle: <SAM-CONSTRUCTOR>, LokkiConstructors, park

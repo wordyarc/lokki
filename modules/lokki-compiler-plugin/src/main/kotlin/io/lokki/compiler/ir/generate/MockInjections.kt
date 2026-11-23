@@ -7,8 +7,9 @@ import io.lokki.compiler.ir.buildLambda
 import io.lokki.compiler.ir.collect.ClassMockFields
 import io.lokki.compiler.ir.collect.InjectedValue
 import io.lokki.compiler.ir.collect.Injection
+import io.lokki.compiler.ir.collect.InjectionSource
 import io.lokki.compiler.ir.collect.MockClassKey
-import io.lokki.compiler.ir.collect.MockField
+import io.lokki.compiler.ir.collect.MockSite
 import io.lokki.compiler.ir.collect.valueType
 import io.lokki.compiler.ir.irCompanionCall
 import io.lokki.compiler.ir.irThrowLokkiException
@@ -17,6 +18,7 @@ import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.irCatch
 import org.jetbrains.kotlin.ir.builders.IrBlockBodyBuilder
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
+import org.jetbrains.kotlin.ir.builders.IrStatementsBuilder
 import org.jetbrains.kotlin.ir.builders.declarations.buildVariable
 import org.jetbrains.kotlin.ir.builders.irBlock
 import org.jetbrains.kotlin.ir.builders.irBlockBody
@@ -75,40 +77,49 @@ internal class MockInjections(lokki: LokkiIrContext) {
         val unit = context.irBuiltIns.unitType
         for (field in fields.filter { !it.isConstructedSpy }) {
             val backingField = field.property.backingField!!
-            val created = irCreate(field, field.injection!!, self, mocks)
+            val type = field.property.valueType.makeNotNull() as IrSimpleType
+            val site = field.site.takeIf { field.kind == IntrinsicKind.SPY }
+            val created = irCreate(type, field.name, site, field.injection!!, mocks) { source, parameterType, subject ->
+                irRequired(source.property, parameterType, self, subject)
+            }
             val assignment = irSetField(irGet(self), backingField, created)
             +irIfThen(unit, irEqualsNull(irGetField(irGet(self), backingField)), assignment)
         }
         for (field in fields) {
             val injection = field.injection!!
             if (injection.properties.isEmpty()) continue
+            val type = field.property.valueType.makeNotNull()
+            val backingField = field.property.backingField!!
+            val read: IrBuilderWithScope.(InjectionSource) -> IrExpression = { irRead(it.property, self) }
             if (field.kind == IntrinsicKind.SPY) {
-                +irWithoutStateChanges(parent) { irInjectProperties(field, injection, self) }
+                +irWithoutStateChanges(parent) {
+                    irInjectProperties(irGetField(irGet(self), backingField), type, injection, read)
+                }
             } else {
-                irInjectProperties(field, injection, self)
+                irInjectProperties(irGetField(irGet(self), backingField), type, injection, read)
             }
         }
     }
 
-    private fun IrBuilderWithScope.irCreate(
-        field: MockField,
+    fun IrBuilderWithScope.irCreate(
+        type: IrSimpleType,
+        name: String,
+        spy: MockSite.Mocked?,
         injection: Injection,
-        self: IrValueParameter,
         mocks: Map<MockClassKey, IrClass>,
+        read: IrBuilderWithScope.(InjectionSource, IrType, String) -> IrExpression,
     ): IrExpression {
-        val type = field.property.valueType.makeNotNull() as IrSimpleType
         val constructor = injection.constructor.declaration
         val parameters = constructor.parameters.filter { it.kind == IrParameterKind.Regular }
         val arguments = parameters.indices.map { index ->
             val parameter = injection.constructor.parameters[index]
             val subject = "parameter '${parameter.name}' of '${type.render()}'"
-            irArgument(injection.arguments[index], parameter.type, self, subject)
+            irArgument(injection.arguments[index], parameter.type, subject, read)
         }
-        if (field.kind == IntrinsicKind.SPY) {
-            val site = field.site!!
-            val types = site.types
-            val mock = mocks.getValue(site.key)
-            val spec = irSpec(symbols, irString(field.name), irInt(types.form.spyFlags))
+        if (spy != null) {
+            val types = spy.types
+            val mock = mocks.getValue(spy.key)
+            val spec = irSpec(symbols, irString(name), irInt(types.form.spyFlags))
             return irConstruct(mock, types.typeArguments, arguments.filterNotNull() + spec)
         }
         val typeArguments = type.arguments.map { it.typeOrNull ?: context.irBuiltIns.anyNType }
@@ -121,15 +132,15 @@ internal class MockInjections(lokki: LokkiIrContext) {
     private fun IrBuilderWithScope.irArgument(
         value: InjectedValue,
         type: IrType,
-        self: IrValueParameter,
         subject: String,
+        read: IrBuilderWithScope.(InjectionSource, IrType, String) -> IrExpression,
     ): IrExpression? =
         when (value) {
             InjectedValue.Default -> null
-            is InjectedValue.Single -> irRequired(value.source.property, type, self, subject)
+            is InjectedValue.Single -> read(value.source, type, subject)
             is InjectedValue.All -> {
                 val element = (type as IrSimpleType).arguments.single().typeOrNull!!
-                val elements = value.sources.map { irRequired(it.property, element, self, subject) }
+                val elements = value.sources.map { read(it, element, subject) }
                 irCall(symbols.listOf.symbol, context.irBuiltIns.listClass.typeWith(element), listOf(element)).apply {
                     arguments[0] = irVararg(element, elements)
                 }
@@ -161,25 +172,30 @@ internal class MockInjections(lokki: LokkiIrContext) {
         }
     }
 
-    private fun IrBlockBodyBuilder.irInjectProperties(
-        field: MockField,
+    fun IrStatementsBuilder<*>.irInjectProperties(
+        target: IrExpression,
+        type: IrType,
         injection: Injection,
-        self: IrValueParameter,
+        read: IrBuilderWithScope.(InjectionSource) -> IrExpression,
     ) {
         val unit = context.irBuiltIns.unitType
-        val target = irGetField(irGet(self), field.property.backingField!!)
-        val instance = irTemporary(irImplicitCast(target, field.property.valueType.makeNotNull()))
+        val instance = irTemporary(irImplicitCast(target, type))
         for ((property, source) in injection.properties) {
             val injectable = property.declaration
-            val read = irRead(source.property, self)
-            val value = irTemporary(read, irType = read.type.makeNullable())
-            val current = irCall(injectable.getter!!.symbol, property.type).apply { arguments[0] = irGet(instance) }
-            val existing = if (injectable.isLateinit) irUninitializedAsNull(current, property.type) else current
+            val current = read(source)
+            val value = irTemporary(current, irType = current.type.makeNullable())
             val assignment = irCall(injectable.setter!!).apply {
                 arguments[0] = irGet(instance)
                 arguments[1] = irImplicitCast(irGet(value), property.type.makeNotNull())
             }
-            +irIfThen(unit, irNotEquals(irGet(value), irNull()), irIfThen(unit, irEqualsNull(existing), assignment))
+            val assigned = if (injection.overrideValues) {
+                assignment
+            } else {
+                val held = irCall(injectable.getter!!.symbol, property.type).apply { arguments[0] = irGet(instance) }
+                val existing = if (injectable.isLateinit) irUninitializedAsNull(held, property.type) else held
+                irIfThen(unit, irEqualsNull(existing), assignment)
+            }
+            +irIfThen(unit, irNotEquals(irGet(value), irNull()), assigned)
         }
     }
 
@@ -195,7 +211,7 @@ internal class MockInjections(lokki: LokkiIrContext) {
         return irTry(type.makeNullable(), read, listOf(irCatch(exception, irNull())), null)
     }
 
-    private fun IrBuilderWithScope.irWithoutStateChanges(
+    fun IrBuilderWithScope.irWithoutStateChanges(
         parent: IrDeclarationParent,
         body: IrBlockBodyBuilder.() -> Unit,
     ): IrExpression {

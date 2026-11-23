@@ -16,7 +16,7 @@ interface Repo
 
 class Service(val repo: Repo)
 
-class Fixture(<!LOKKI_UNSUPPORTED!>@InjectMocks service: Service<!>) {
+class Fixture(<!LOKKI_UNRESOLVED_INJECTION!>@InjectMocks service: Service<!>) {
     @Mock
     lateinit var repo: Repo
 

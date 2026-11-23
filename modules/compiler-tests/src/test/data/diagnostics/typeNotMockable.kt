@@ -58,7 +58,7 @@ fun test() {
     mock<Vehicle>()
     mock<Engine>()
     mock<Wheel>()
-    mock<Map<String, Int>>()
+    mock<<!LOKKI_RESTRICTED_TYPE!>Map<String, Int><!>>()
     mock<() -> Unit>()
     mock<<!LOKKI_RESTRICTED_TYPE!>List<*><!>>()
     mock<Ranged<*>>()

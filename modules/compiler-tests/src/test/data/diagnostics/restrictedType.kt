@@ -50,7 +50,7 @@ fun test() {
     val path: Path = <!LOKKI_RESTRICTED_TYPE!>mock()<!>
 
     mock<Car>()
-    mock<Map<String, Int>>()
+    mock<<!LOKKI_RESTRICTED_TYPE!>Map<String, Int><!>>()
     mock<Iterable<String>>()
     mock<Runnable>()
 }

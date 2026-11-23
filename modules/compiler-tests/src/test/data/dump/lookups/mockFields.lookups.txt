@@ -1,7 +1,14 @@
-main: FieldsTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, equals, hashCode, toString
-main: FieldsTest.kt: sample.Car: <SAM-CONSTRUCTOR>, drive
-main: FieldsTest.kt: sample.Radio: <SAM-CONSTRUCTOR>, play
-main: InjectionTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, equals, hashCode, toString
-main: InjectionTest.kt: sample.Car: <SAM-CONSTRUCTOR>, drive
-main: InjectionTest.kt: sample.Garage: <SAM-CONSTRUCTOR>, spare, workshop
-main: InjectionTest.kt: sample.Workshop: <SAM-CONSTRUCTOR>, car, radio, repair
+main: FieldsTest.kt: io.lokki.internal.MockDescriptor: LokkiConstructors
+main: FieldsTest.kt: io.lokki.internal.MockSpec: LokkiConstructors
+main: FieldsTest.kt: io.lokki.internal.MockState: LokkiConstructors
+main: FieldsTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, LokkiConstructors, equals, hashCode, toString
+main: FieldsTest.kt: sample.Car: <SAM-CONSTRUCTOR>, LokkiConstructors, drive
+main: FieldsTest.kt: sample.Radio: <SAM-CONSTRUCTOR>, LokkiConstructors, play
+main: InjectionTest.kt: io.lokki.LokkiException: LokkiConstructors
+main: InjectionTest.kt: io.lokki.internal.MockDescriptor: LokkiConstructors
+main: InjectionTest.kt: io.lokki.internal.MockSpec: LokkiConstructors
+main: InjectionTest.kt: io.lokki.internal.MockState: LokkiConstructors
+main: InjectionTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, LokkiConstructors, equals, hashCode, toString
+main: InjectionTest.kt: sample.Car: <SAM-CONSTRUCTOR>, LokkiConstructors, drive
+main: InjectionTest.kt: sample.Garage: <SAM-CONSTRUCTOR>, LokkiConstructors, spare, workshop
+main: InjectionTest.kt: sample.Workshop: <SAM-CONSTRUCTOR>, LokkiConstructors, car, radio, repair

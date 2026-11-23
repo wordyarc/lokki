@@ -1,6 +1,7 @@
 package sample
 
 import io.lokki.VerificationScope
+import io.lokki.checkEquals
 import io.lokki.every
 import io.lokki.mock
 import io.lokki.verify

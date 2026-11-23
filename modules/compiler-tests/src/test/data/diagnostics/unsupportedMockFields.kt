@@ -14,7 +14,7 @@ class Bolt
 <!LOKKI_UNSUPPORTED!>@Mock
 lateinit var topLevel: Car<!>
 
-class Fixture(<!LOKKI_UNSUPPORTED!>@Mock car: Car<!>) {
+class Fixture(@Mock car: Car) {
     <!LOKKI_UNSUPPORTED!>@Mock
     val readonly: Car? = null<!>
 

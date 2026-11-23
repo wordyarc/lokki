@@ -71,7 +71,7 @@ class MatcherScopeTest {
 
     @Test
     fun testCustomMatcherReceivesOnlyItsType() {
-        val matcher = scope.matcherOf(scope.match(Matcher<String> { it.isEmpty() }))
+        val matcher = scope.matcherOf(scope.match(object : Matcher<String> { override fun match(arg: String?): Boolean = arg?.isEmpty() == true }))
 
         assertTrue(matcher.match(""))
         assertFalse(matcher.match("a"))

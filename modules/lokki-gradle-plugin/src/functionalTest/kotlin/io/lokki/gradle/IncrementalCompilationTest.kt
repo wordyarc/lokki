@@ -558,19 +558,19 @@ class IncrementalCompilationTest {
     @EnumSource(GradleUnderTest::class)
     fun testFinalClassRemovedFromMockable(gradle: GradleUnderTest) {
         val project = TestProject(projectDir, gradle)
-        project.write("build.gradle.kts", mockableBuildScript("sample.Engine"))
+        project.write("build.gradle.kts", mockableBuildScript("sample.**"))
         project.write("src/main/kotlin/sample/Engine.kt", declaration("class Engine", "fun start(): String = \"started\""))
         project.write("src/main/kotlin/sample/Mechanic.kt", exercise("Engine", "start()"))
         project.write("src/test/kotlin/sample/EngineTest.kt", mockTest("EngineTest", "Engine"))
         project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
         project.build("test")
 
-        project.write("build.gradle.kts", mockableBuildScript("sample.Gear"))
+        project.write("build.gradle.kts", mockableBuildScript("other.**"))
         val failure = project.buildAndFail("test")
 
         assertTrue("'sample.Engine' cannot be mocked: it is a final class" in failure.output, failure.output)
 
-        project.write("build.gradle.kts", mockableBuildScript("sample.Engine"))
+        project.write("build.gradle.kts", mockableBuildScript("sample.**"))
         project.build("test")
 
         assertEquals(setOf("start()"), project.mockedMethods("test", ENGINE_MOCK))
@@ -604,7 +604,7 @@ class IncrementalCompilationTest {
     fun testObjectRemovedFromMockable(gradle: GradleUnderTest) {
         assumeInterceptionPoints()
         val project = TestProject(projectDir, gradle)
-        project.write("build.gradle.kts", mockableBuildScript("sample.Clock"))
+        project.write("build.gradle.kts", mockableBuildScript("sample.**"))
         project.write("src/main/kotlin/sample/Clock.kt", declaration("object Clock", "fun now(): Long = 1"))
         project.write("src/test/kotlin/sample/ClockTest.kt", OBJECT_TEST)
         project.write(
@@ -627,7 +627,7 @@ class IncrementalCompilationTest {
         project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
         project.build("test")
 
-        project.write("build.gradle.kts", mockableBuildScript("sample.Gear"))
+        project.write("build.gradle.kts", mockableBuildScript("other.**"))
         val failure = project.buildAndFail("test")
 
         val errors = failure.output.lines().filter { it.startsWith("e: ") }
@@ -635,7 +635,7 @@ class IncrementalCompilationTest {
         assertTrue(errors.any { "MockObjectTest.kt" in it && noPoints in it }, failure.output)
         assertTrue(errors.any { "ClockTest.kt" in it && "A call of 'now' cannot be intercepted" in it }, failure.output)
 
-        project.write("build.gradle.kts", mockableBuildScript("sample.Clock"))
+        project.write("build.gradle.kts", mockableBuildScript("sample.**"))
         project.build("test")
 
         assertEquals(setOf("now()"), project.mockedMethods("test", CLOCK_REDIRECT_MOCK))
@@ -669,13 +669,13 @@ class IncrementalCompilationTest {
     fun testFunctionRemovedFromMockable(gradle: GradleUnderTest) {
         assumeInterceptionPoints()
         val project = TestProject(projectDir, gradle)
-        project.write("build.gradle.kts", mockableBuildScript("sample.now"))
+        project.write("build.gradle.kts", mockableBuildScript("sample.**"))
         project.write("src/main/kotlin/sample/Clock.kt", "package sample\n\nfun now(): Long = 1\n")
         project.write("src/test/kotlin/sample/ClockTest.kt", STATIC_TEST)
         project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
         project.build("test")
 
-        project.write("build.gradle.kts", mockableBuildScript("sample.Gear"))
+        project.write("build.gradle.kts", mockableBuildScript("other.**"))
         val failure = project.buildAndFail("test")
 
         val errors = failure.output.lines().filter { it.startsWith("e: ") && "ClockTest.kt" in it }
@@ -683,7 +683,7 @@ class IncrementalCompilationTest {
         assertTrue(errors.any { noPoints in it }, failure.output)
         assertTrue(errors.any { "A call of 'now' cannot be intercepted" in it }, failure.output)
 
-        project.write("build.gradle.kts", mockableBuildScript("sample.now"))
+        project.write("build.gradle.kts", mockableBuildScript("sample.**"))
         project.build("test")
 
         assertEquals(setOf("now()"), project.mockedMethods("test", CLOCK_STATIC_MOCK))
@@ -692,8 +692,106 @@ class IncrementalCompilationTest {
     @ParameterizedTest
     @EnumSource(GradleUnderTest::class)
     fun testOpenClassRemovedFromMockable(gradle: GradleUnderTest) {
+        val project = openEngineProject(gradle, "sample.**")
+        project.build("test")
+        assertEquals(setOf("start()"), project.mockedMethods("test", ENGINE_MOCK))
+
+        project.write("build.gradle.kts", mockableBuildScript("other.**"))
+        val result = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
+        assertEquals(setOf("EngineTest.kt"), project.compiledSources(":compileTestKotlin"))
+        assertEquals(emptySet(), project.mockedMethods("test", ENGINE_MOCK))
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testExplicitNameRemovedFromMockable(gradle: GradleUnderTest) {
+        val project = openEngineProject(gradle, "sample.Engine")
+        project.build("test")
+        assertEquals(setOf("start()"), project.mockedMethods("test", ENGINE_MOCK))
+
+        project.write("build.gradle.kts", mockableBuildScript("sample.Gear"))
+        val result = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":compileTestKotlin")?.outcome)
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
+        assertEquals(emptySet(), project.mockedMethods("test", ENGINE_MOCK))
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testConstructorCallOfClassRemovedFromMockable(gradle: GradleUnderTest) {
+        assumeInterceptionPoints()
+        val project = constructorCallProject(gradle, "sample.**")
+        project.write("src/test/kotlin/sample/EngineTest.kt", ENGINE_CALL_TEST)
+        project.build("test")
+
+        project.write("build.gradle.kts", mockableBuildScript("other.**"))
+        val result = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
+        assertEquals(setOf("EngineFactory.kt", "EngineTest.kt"), project.compiledSources(":compileTestKotlin"))
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testConstructorCallOfClassAddedToMockable(gradle: GradleUnderTest) {
+        assumeInterceptionPoints()
+        val project = constructorCallProject(gradle, "other.**")
+        project.write("src/test/kotlin/sample/EngineTest.kt", ENGINE_CALL_TEST)
+        project.build("test")
+
+        project.write("build.gradle.kts", mockableBuildScript("sample.**"))
+        project.write(
+            "src/test/kotlin/sample/EngineTest.kt",
+            """
+            package sample
+
+            import io.lokki.every
+            import io.lokki.lokkiScope
+            import io.lokki.mockConstructor
+            import kotlin.test.Test
+            import kotlin.test.assertEquals
+
+            class EngineTest {
+                @Test
+                fun intercepted() = lokkiScope {
+                    mockConstructor(Engine::class)
+                    every { anyConstructed<Engine>().start() } returns "mocked"
+                    assertEquals("mocked", newEngine().start())
+                }
+            }
+            """,
+        )
+        val result = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
+        assertEquals(setOf("EngineFactory.kt", "EngineTest.kt"), project.compiledSources(":compileTestKotlin"))
+    }
+
+    private fun constructorCallProject(gradle: GradleUnderTest, pattern: String): TestProject {
         val project = TestProject(projectDir, gradle)
-        project.write("build.gradle.kts", mockableBuildScript("sample.Engine"))
+        project.write("build.gradle.kts", mockableBuildScript(pattern))
+        project.write(
+            "src/main/kotlin/sample/Engine.kt",
+            declaration("class Engine", "fun start(): String = \"started\""),
+        )
+        project.write(
+            "src/test/kotlin/sample/EngineFactory.kt",
+            """
+            package sample
+
+            fun newEngine() = Engine()
+            """,
+        )
+        project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
+        return project
+    }
+
+    private fun openEngineProject(gradle: GradleUnderTest, pattern: String): TestProject {
+        val project = TestProject(projectDir, gradle)
+        project.write("build.gradle.kts", mockableBuildScript(pattern))
         project.write(
             "src/main/kotlin/sample/Engine.kt",
             declaration("open class Engine", "fun start(): String = \"started\""),
@@ -717,15 +815,7 @@ class IncrementalCompilationTest {
             """,
         )
         project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
-        project.build("test")
-        assertEquals(setOf("start()"), project.mockedMethods("test", ENGINE_MOCK))
-
-        project.write("build.gradle.kts", mockableBuildScript("sample.Gear"))
-        val result = project.build("test")
-
-        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
-        assertEquals(setOf("EngineTest.kt"), project.compiledSources(":compileTestKotlin"))
-        assertEquals(emptySet(), project.mockedMethods("test", ENGINE_MOCK))
+        return project
     }
 
     private fun mockableBuildScript(pattern: String): String =
@@ -1151,6 +1241,20 @@ class IncrementalCompilationTest {
 }
 
 private const val MOCK_FIELDS_OWNER = "io.lokki.internal.MockFieldsOwner"
+private const val ENGINE_CALL_TEST: String =
+    """
+    package sample
+
+    import kotlin.test.Test
+    import kotlin.test.assertEquals
+
+    class EngineTest {
+        @Test
+        fun real() {
+            assertEquals("started", newEngine().start())
+        }
+    }
+    """
 private const val ENGINE_MOCK = "sample.Engine\$LokkiMock\$dabe4326\$EngineTestKt"
 private const val CLOCK_REDIRECT_MOCK = "sample.LokkiRedirect\$LokkiMock\$40c3b43e\$ClockTestKt"
 private const val OBJECT_TEST: String =

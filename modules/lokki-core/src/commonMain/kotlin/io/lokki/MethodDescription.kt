@@ -26,9 +26,6 @@ public class MethodDescription internal constructor(
     public val isFnCall: Boolean
         get() = flags and FN_CALL != 0
 
-    public val privateCall: Boolean
-        get() = false
-
     public fun argsToStr(): String = paramTypes.joinToString(", ") { argToStr(it).toString() }
 
     public fun argToStr(argType: KClass<*>): String? = argType.simpleName

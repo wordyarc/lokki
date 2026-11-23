@@ -1,0 +1,7 @@
+/mockParameterInjection.kt:18:54: error: '@InjectMocks' cannot choose how to create 'test.Service': parameter 'car' of 'Service(car: Car)' matches several parameters by type: 'left', 'right'. Name one of them 'car' or create the object yourself.
+
+/mockParameterInjection.kt:20:17: error: '@InjectMocks' cannot create 'test.Service': no constructor can be called with the parameters of this function: 'Service(car: Car)' has no parameter for 'car'.
+
+/mockParameterInjection.kt:22:15: error: '@InjectMocks' cannot create 'test.First': the constructors of the '@InjectMocks' parameters 'first', 'second' need each other's objects.
+
+/mockParameterInjection.kt:22:42: error: '@InjectMocks' cannot create 'test.Second': the constructors of the '@InjectMocks' parameters 'first', 'second' need each other's objects.

@@ -8,6 +8,8 @@ import javax.inject.Inject
 public abstract class LokkiGradleExtension @Inject constructor(objects: ObjectFactory) {
     internal val mockable: SetProperty<String> = objects.setProperty(String::class.java)
 
+    internal val restricted: SetProperty<String> = objects.setProperty(String::class.java)
+
     public val applyToMain: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
 
     public val debug: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
@@ -16,5 +18,9 @@ public abstract class LokkiGradleExtension @Inject constructor(objects: ObjectFa
 
     public fun mockable(vararg patterns: String) {
         mockable.addAll(*patterns)
+    }
+
+    public fun restricted(vararg patterns: String) {
+        restricted.addAll(*patterns)
     }
 }

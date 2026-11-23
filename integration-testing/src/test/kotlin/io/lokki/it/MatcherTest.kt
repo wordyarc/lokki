@@ -4,7 +4,7 @@ import io.lokki.LokkiException
 import io.lokki.every
 import io.lokki.mock
 import io.lokki.verify
-import io.lokki.withContext
+import io.lokki.context.withContext
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

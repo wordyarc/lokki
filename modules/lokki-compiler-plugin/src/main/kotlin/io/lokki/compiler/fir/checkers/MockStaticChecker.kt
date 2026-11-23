@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.fir.declarations.utils.isStatic
 import org.jetbrains.kotlin.fir.expressions.FirCallableReferenceAccess
 import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
+import org.jetbrains.kotlin.fir.expressions.FirLiteralExpression
 import org.jetbrains.kotlin.fir.expressions.FirResolvedQualifier
 import org.jetbrains.kotlin.fir.expressions.FirSpreadArgumentExpression
 import org.jetbrains.kotlin.fir.expressions.FirVarargArgumentsExpression
@@ -32,6 +33,14 @@ context(context: CheckerContext, reporter: DiagnosticReporter)
 internal fun checkStaticReferences(call: FirFunctionCall, function: FirCallableSymbol<*>) {
     val name = function.name.asString()
     for ((argument, parameter) in call.resolvedArgumentMapping.orEmpty()) {
+        if (parameter.name.asString() == ParameterNames.FILE_CLASSES) {
+            ((argument as? FirVarargArgumentsExpression)?.arguments ?: listOf(argument)).forEach {
+                if ((it as? FirLiteralExpression)?.value !is String) {
+                    reporter.reportOn(it.source, LokkiDiagnostics.LOKKI_FILE_CLASS_NOT_LITERAL, name)
+                }
+            }
+            continue
+        }
         if (parameter.name.asString() !in ParameterNames.REFERENCES) continue
         val references = (argument as? FirVarargArgumentsExpression)?.arguments ?: listOf(argument)
         references.forEach { checkStaticReference(it, name) }

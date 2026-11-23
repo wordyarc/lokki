@@ -15,8 +15,7 @@ public abstract class MatcherScope internal constructor() {
     public inline fun <reified T> any(): T = push(Matchers.typed<T>(AnyMatcher), T::class)
 
     @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
-    public inline fun <reified T : Any> any(classifier: KClass<T>): T =
-        push(Matchers.typed<T>(AnyMatcher), classifier)
+    public fun <T : Any> any(classifier: KClass<T>): T = push(Matchers.any(classifier), classifier)
 
     @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
     public inline fun <reified T> anyNullable(): T = push(Matchers.typed<T>(AnyMatcher), T::class)
@@ -86,7 +85,7 @@ public abstract class MatcherScope internal constructor() {
     public inline fun <reified T : Any> match(matcher: Matcher<T>): T = push(Matchers.match(matcher), T::class)
 
     @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
-    public inline fun <reified T : Any> match(matcher: Matcher<T>, kclass: KClass<T>): T =
+    public fun <T : Any> match(matcher: Matcher<T>, kclass: KClass<T>): T =
         push(Matchers.match(matcher, kclass), kclass)
 
     @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
@@ -132,6 +131,10 @@ public abstract class MatcherScope internal constructor() {
     @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
     public inline fun <reified T : Any> array(vararg elements: Any?): T =
         push(Matchers.typed<T>(Matchers.array(pop(elements.size))), T::class)
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
+    public inline fun <reified T> varargArray(noinline predicate: (Array<out T>) -> Boolean): Array<T> =
+        pushVararg(Matchers.varargArray(predicate), emptyArray())
 
     @LokkiIntrinsic(LokkiIntrinsic.Kind.MATCHER)
     public inline fun <reified T : Any> anyVararg(): Array<T> = pushVararg(Matchers.anyVararg<T>(), emptyArray())
@@ -1338,6 +1341,12 @@ public abstract class MatcherScope internal constructor() {
             )
         }
 
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.CONSTRUCTED)
+    public inline fun <reified T : Any> anyConstructed(): T = pluginNotApplied()
+
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.CONSTRUCTED)
+    public inline fun <reified T : Any> constructedWith(vararg matchers: Any?): T = pluginNotApplied()
+
     @PublishedApi
     internal fun <T> push(matcher: Matcher<Any?>, type: KClass<*>): T {
         frame += matcher
@@ -1391,40 +1400,6 @@ public abstract class MatcherScope internal constructor() {
 
 @LokkiDslMarker
 public class VarargScope internal constructor(public val position: Int, public val nArgs: Int)
-
-@LokkiIntrinsic(LokkiIntrinsic.Kind.WITH_CONTEXT)
-public inline fun <reified C1 : Any> MatcherScope.withContext(noinline stubBlock: context(C1) () -> Any?): Any? =
-    pluginNotApplied()
-
-@LokkiIntrinsic(LokkiIntrinsic.Kind.WITH_CONTEXT)
-public inline fun <reified C1 : Any, reified C2 : Any> MatcherScope.withContext(
-    noinline stubBlock: context(C1, C2) () -> Any?,
-): Any? =
-    pluginNotApplied()
-
-@LokkiIntrinsic(LokkiIntrinsic.Kind.WITH_CONTEXT)
-public inline fun <reified C1 : Any, reified C2 : Any, reified C3 : Any> MatcherScope.withContext(
-    noinline stubBlock: context(C1, C2, C3) () -> Any?,
-): Any? =
-    pluginNotApplied()
-
-@LokkiIntrinsic(LokkiIntrinsic.Kind.WITH_CONTEXT)
-public inline fun <reified C1 : Any, reified C2 : Any, reified C3 : Any, reified C4 : Any> MatcherScope.withContext(
-    noinline stubBlock: context(C1, C2, C3, C4) () -> Any?,
-): Any? =
-    pluginNotApplied()
-
-@LokkiIntrinsic(LokkiIntrinsic.Kind.WITH_CONTEXT)
-public inline fun <
-    reified C1 : Any,
-    reified C2 : Any,
-    reified C3 : Any,
-    reified C4 : Any,
-    reified C5 : Any,
-> MatcherScope.withContext(
-    noinline stubBlock: context(C1, C2, C3, C4, C5) () -> Any?,
-): Any? =
-    pluginNotApplied()
 
 private fun placeholder(type: KClass<*>): Any? =
     when (type) {

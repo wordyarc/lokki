@@ -2,6 +2,7 @@ package io.lokki.internal
 
 import io.lokki.LokkiException
 import io.lokki.LokkiScope
+import io.lokki.Matcher
 import io.lokki.clearMocks
 import io.lokki.confirmVerified
 
@@ -41,6 +42,31 @@ internal object Redirects {
         } finally {
             uninstall(installed)
         }
+    }
+
+    fun mockConstructor(redirects: Array<Redirect>) {
+        installConstructor(redirects)
+    }
+
+    inline fun mockConstructor(redirects: Array<Redirect>, block: () -> Unit) {
+        val installed = installConstructor(redirects)
+        try {
+            block()
+        } finally {
+            uninstall(installed)
+        }
+    }
+
+    fun installConstructor(redirects: Array<Redirect>): List<ActiveRedirect> =
+        install(redirects, "mockConstructor", CONSTRUCTOR)
+
+    fun constructed(key: String, name: String): Any = constructors(key, name).any
+
+    fun constructedWith(key: String, name: String, matchers: Array<Matcher<Any?>>): Any =
+        constructors(key, name).representative(matchers)
+
+    fun clearConstructor(keys: Array<String>, names: Array<String>, answers: Boolean, recordedCalls: Boolean, childMocks: Boolean) {
+        keys.forEachIndexed { index, key -> constructors(key, names[index]).clear(answers, recordedCalls, childMocks) }
     }
 
     fun install(redirects: Array<Redirect>): List<ActiveRedirect> = install(redirects, "mockObject", OBJECT)
@@ -89,6 +115,15 @@ internal object Redirects {
         return redirects.mapNotNull { install(it, scope, kind) }
     }
 
+    private fun constructors(key: String, name: String): ConstructorMocks {
+        val redirect = synchronized(this) { active.find { it.isFor(key) } }
+        val current = LokkiScope.currentScope
+        val mocks = redirect?.constructors?.takeIf { current == null || current.isWithin(redirect.scope) }
+        return mocks ?: throw LokkiException(
+            "$name is not mocked in the current scope; call mockConstructor($name::class)"
+        )
+    }
+
     private fun of(target: Any, name: String, call: String): GeneratedMock {
         val redirect = synchronized(this) { active.find { it.isFor(target) } }
         val current = LokkiScope.currentScope
@@ -109,12 +144,21 @@ internal object Redirects {
             val existing = active.find { it.isFor(redirect.target) }
             when {
                 existing == null -> {}
-                existing.scope === scope -> active -= existing
+                existing.scope === scope -> {
+                    active -= existing
+                    existing.constructors?.detach()
+                }
                 scope.isWithin(existing.scope) -> return@synchronized null
                 else -> throw LokkiException(
                     "${redirect.name} is already mocked in ${existing.scope}; " +
                         "serialize these tests with @ResourceLock or @Isolated"
                 )
+            }
+            if (kind == CONSTRUCTOR) {
+                val mocks = ConstructorMocks(redirect.name, redirect.factory, scope)
+                redirect.install(mocks)
+                return@synchronized ActiveRedirect(redirect.target, scope, mocks.any, redirect.install, mocks)
+                    .also { active += it }
             }
             val mock = redirect.factory(MockSpec(null, SPY or kind)) as GeneratedMock
             redirect.install(mock)
@@ -123,7 +167,10 @@ internal object Redirects {
 
     private fun remove(redirect: ActiveRedirect) {
         synchronized(this) {
-            if (active.remove(redirect)) redirect.install(null)
+            if (active.remove(redirect)) {
+                redirect.install(null)
+                redirect.constructors?.detach()
+            }
         }
     }
 }
@@ -134,6 +181,7 @@ internal class ActiveRedirect internal constructor(
     internal val scope: LokkiScope,
     internal val mock: GeneratedMock,
     internal val install: (Any?) -> Unit,
+    internal val constructors: ConstructorMocks? = null,
 ) {
     internal fun isFor(other: Any): Boolean = target === other || target is String && target == other
 }

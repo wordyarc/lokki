@@ -4,6 +4,7 @@ import io.lokki.internal.Abandoned
 import io.lokki.internal.GeneratedMock
 import io.lokki.internal.LokkiIntrinsic
 import io.lokki.internal.StubEntry
+import io.lokki.internal.identityHashCode
 import io.lokki.internal.toStr
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import kotlin.coroutines.intrinsics.startCoroutineUninterceptedOrReturn
@@ -21,6 +22,13 @@ public class Call internal constructor(public val invocation: Invocation, privat
 
     public val matcher: InvocationMatcher
         get() = stub.invocationMatcher(invocation.self, invocation.member)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is Call && invocation == other.invocation && matcher == other.matcher
+
+    override fun hashCode(): Int = 31 * invocation.hashCode() + matcher.hashCode()
+
+    override fun toString(): String = "Call(retType=${retType.simpleName}, invocation=$invocation, matcher=$matcher)"
 
     internal fun <F> capturedLambda(function: String, matcher: String): CapturingSlot<F> {
         val lambda = stub.lambda
@@ -44,6 +52,16 @@ public class Invocation internal constructor(
         get() = (self as GeneratedMock).`lokki$state`.description(member)
 
     public val args: List<Any?> = ReadOnlyList(arguments)
+
+    public val originalCall: () -> Any?
+        get() = { callOriginal() }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is Invocation && self === other.self && method == other.method && args == other.args
+
+    override fun hashCode(): Int = 31 * (31 * identityHashCode(self) + method.hashCode()) + args.hashCode()
+
+    override fun toString(): String = describe()
 
     internal fun callOriginal(): Any? {
         val mock = self as GeneratedMock
@@ -78,6 +96,12 @@ public class InvocationMatcher internal constructor(
 
     public val args: List<Matcher<Any?>> = ReadOnlyList(matchers)
 
+    override fun equals(other: Any?): Boolean =
+        this === other || other is InvocationMatcher && self === other.self && method == other.method &&
+            args == other.args
+
+    override fun hashCode(): Int = 31 * (31 * identityHashCode(self) + method.hashCode()) + args.hashCode()
+
     override fun toString(): String = (self as GeneratedMock).`lokki$state`.call(member, args.joinToString())
 }
 
@@ -103,6 +127,9 @@ public class AnswerScope<T> internal constructor(public val call: Call) {
 
     public val nothing: Nothing?
         get() = null
+
+    public val valueAny: Any?
+        get() = args[0]
 
     public inline fun <reified R> firstArg(): R = args[0] as R
 

@@ -1,6 +1,7 @@
 package io.lokki.compiler.ir.generate
 
 import io.lokki.compiler.BuildConfig
+import io.lokki.compiler.CONSTRUCTORS
 import io.lokki.compiler.FILE_REDIRECT_SUFFIX
 import io.lokki.compiler.INTERCEPTION_MARK
 import io.lokki.compiler.MockablePatterns
@@ -9,9 +10,16 @@ import io.lokki.compiler.REDIRECT_PROPERTY
 import io.lokki.compiler.StaticInterception
 import io.lokki.compiler.ir.LokkiIrContext
 import io.lokki.compiler.ir.addFriendAwareFakeOverrides
+import io.lokki.compiler.ir.constructName
+import io.lokki.compiler.ir.constructorsPropertyName
+import io.lokki.compiler.ir.createName
+import io.lokki.compiler.ir.irArrayGet
+import io.lokki.compiler.ir.irCast
 import io.lokki.compiler.ir.irGetObject
 import io.lokki.compiler.ir.irHidden
-import io.lokki.compiler.ir.ownKey
+import io.lokki.compiler.ir.isOverridable
+import io.lokki.compiler.ir.redirectPropertyName
+import io.lokki.compiler.ir.declaredParameters
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.backend.jvm.ir.getJvmNameFromAnnotation
 import org.jetbrains.kotlin.backend.jvm.lower.getFileClassInfo
@@ -31,16 +39,21 @@ import org.jetbrains.kotlin.ir.builders.declarations.buildProperty
 import org.jetbrains.kotlin.ir.builders.irAnnotation
 import org.jetbrains.kotlin.ir.builders.irBlockBody
 import org.jetbrains.kotlin.ir.builders.irCall
+import org.jetbrains.kotlin.ir.builders.irCallOp
 import org.jetbrains.kotlin.ir.builders.irEqualsNull
 import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.builders.irGetField
 import org.jetbrains.kotlin.ir.builders.irGetObjectValue
 import org.jetbrains.kotlin.ir.builders.irIfThen
+import org.jetbrains.kotlin.ir.builders.irIfThenElse
 import org.jetbrains.kotlin.ir.builders.irImplicitCast
+import org.jetbrains.kotlin.ir.builders.irInt
+import org.jetbrains.kotlin.ir.builders.irNotEquals
 import org.jetbrains.kotlin.ir.builders.irReturn
 import org.jetbrains.kotlin.ir.builders.irSetField
 import org.jetbrains.kotlin.ir.builders.irTemporary
 import org.jetbrains.kotlin.ir.declarations.IrClass
+import org.jetbrains.kotlin.ir.declarations.IrConstructor
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationContainer
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
@@ -49,12 +62,21 @@ import org.jetbrains.kotlin.ir.declarations.IrDeclarationWithName
 import org.jetbrains.kotlin.ir.declarations.IrField
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
+import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
+import org.jetbrains.kotlin.ir.declarations.IrValueDeclaration
+import org.jetbrains.kotlin.ir.declarations.IrVariable
+import org.jetbrains.kotlin.ir.expressions.IrExpression
+import org.jetbrains.kotlin.ir.expressions.IrGetValue
+import org.jetbrains.kotlin.ir.expressions.impl.IrCallImpl
 import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.types.makeNullable
+import org.jetbrains.kotlin.ir.types.typeWith
+import org.jetbrains.kotlin.ir.util.IrTypeParameterRemapper
 import org.jetbrains.kotlin.ir.util.addChild
 import org.jetbrains.kotlin.ir.util.classIdOrFail
+import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.copyTo
 import org.jetbrains.kotlin.ir.util.copyTypeParametersFrom
 import org.jetbrains.kotlin.ir.util.createThisReceiverParameter
@@ -66,7 +88,11 @@ import org.jetbrains.kotlin.ir.util.isMethodOfAny
 import org.jetbrains.kotlin.ir.util.makeTypeParameterSubstitutionMap
 import org.jetbrains.kotlin.ir.util.nonDispatchParameters
 import org.jetbrains.kotlin.ir.util.parentAsClass
+import org.jetbrains.kotlin.ir.util.patchDeclarationParents
+import org.jetbrains.kotlin.ir.util.remapTypes
+import org.jetbrains.kotlin.ir.util.resolveFakeOverride
 import org.jetbrains.kotlin.ir.util.substitute
+import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.load.java.JvmAbi
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.JvmStandardClassIds
@@ -83,6 +109,102 @@ internal class InterceptionPoints(private val lokki: LokkiIrContext, private val
         val objects = module.files.flatMap { file -> file.declarations.flatMap(::objects) }
         objects.forEach(::generate)
         module.files.forEach(::generate)
+        module.files.forEach(::generateConstructors)
+    }
+
+    private fun constructible(declaration: IrDeclaration): List<IrClass> {
+        if (declaration !is IrClass || declaration.origin != IrDeclarationOrigin.DEFINED) return emptyList()
+        if (DescriptorVisibilities.isPrivate(declaration.visibility)) return emptyList()
+        val nested = declaration.declarations.flatMap(::constructible)
+        val eligible = declaration.kind == ClassKind.CLASS && !declaration.isInner && !declaration.isValue &&
+            !declaration.isExpect && declaration.modality != Modality.ABSTRACT &&
+            declaration.modality != Modality.SEALED &&
+            !declaration.hasAnnotation(JvmStandardClassIds.JVM_RECORD_ANNOTATION_CLASS_ID) && declaration.matches()
+        return if (eligible) nested + declaration else nested
+    }
+
+    private fun generateConstructors(file: IrFile) {
+        for (target in file.declarations.flatMap(::constructible)) {
+            val constructors = target.constructors.filter { it.visibility.isInterceptable && !it.isExpect }.toList()
+            if (constructors.isEmpty()) continue
+            val redirect = target.addRedirect(CONSTRUCTORS, target, CONSTRUCTOR_MESSAGE)
+            file.addRedirectProperty(redirect, target.constructorsPropertyName, CONSTRUCTOR_MESSAGE)
+            for (constructor in constructors) {
+                val create = redirect.addCreate(target, constructor)
+                val parameters = constructor.declaredParameters
+                if (parameters.any { it.defaultValue != null } && parameters.size <= MAX_MASKED_PARAMETERS) {
+                    redirect.addConstruct(target, constructor, create)
+                }
+            }
+            redirect.complete()
+        }
+    }
+
+    private fun IrClass.addCreate(target: IrClass, constructor: IrConstructor): IrSimpleFunction {
+        val member = addFunction(
+            constructor.createName.asString(),
+            context.irBuiltIns.unitType,
+            Modality.ABSTRACT,
+            origin = this@InterceptionPoints.origin,
+        )
+        member.copyTypeParametersFrom(target)
+        val substitution = makeTypeParameterSubstitutionMap(target, member)
+        val receiver = thisReceiver!!
+        member.parameters = listOf(receiver.copyTo(member, type = receiver.type)) +
+            constructor.declaredParameters.map {
+                it.copyTo(member, type = it.type.substitute(substitution), varargElementType = null, defaultValue = null)
+            }
+        member.returnType = target.symbol.typeWith(member.typeParameters.map { it.defaultType })
+        return member
+    }
+
+    private fun IrClass.addConstruct(target: IrClass, constructor: IrConstructor, create: IrSimpleFunction) {
+        val builtIns = context.irBuiltIns
+        val member = addFunction(
+            constructor.constructName.asString(),
+            builtIns.unitType,
+            Modality.OPEN,
+            origin = this@InterceptionPoints.origin,
+        )
+        member.copyTypeParametersFrom(target)
+        val substitution = makeTypeParameterSubstitutionMap(target, member)
+        val remapper = IrTypeParameterRemapper(target.typeParameters.zip(member.typeParameters).toMap())
+        member.returnType = target.symbol.typeWith(member.typeParameters.map { it.defaultType })
+        val args = member.addValueParameter("args", builtIns.arrayClass.typeWith(builtIns.anyNType))
+        val mask = member.addValueParameter("mask", builtIns.intType)
+        val parameters = constructor.declaredParameters
+        member.body = DeclarationIrBuilder(context, member.symbol).irBlockBody {
+            val values = HashMap<IrValueDeclaration, IrVariable>()
+            parameters.forEachIndexed { index, parameter ->
+                val type = parameter.type.substitute(substitution)
+                val passed = irCast(irArrayGet(symbols, args, index), type)
+                val default = parameter.defaultValue?.expression?.deepCopyWithSymbols(member)
+                val value = if (default == null) {
+                    passed
+                } else {
+                    default.remapTypes(remapper)
+                    val replaced = default.transform(
+                        object : IrElementTransformerVoid() {
+                            override fun visitGetValue(expression: IrGetValue): IrExpression =
+                                values[expression.symbol.owner]?.let { irGet(it) } ?: expression
+                        },
+                        null,
+                    )
+                    val bit = irCallOp(symbols.intAnd.symbol, builtIns.intType, irGet(mask), irInt(1 shl index))
+                    irIfThenElse(type, irNotEquals(bit, irInt(0)), replaced, passed)
+                }
+                values[parameter] = irTemporary(value, irType = type)
+            }
+            +irReturn(
+                irCall(create.symbol, member.returnType, member.typeParameters.map { it.defaultType }).apply {
+                    arguments[0] = irGet(member.dispatchReceiverParameter!!)
+                    parameters.forEachIndexed { index, parameter ->
+                        arguments[index + 1] = irGet(values.getValue(parameter))
+                    }
+                }
+            )
+        }
+        member.patchDeclarationParents(this)
     }
 
     private fun objects(declaration: IrDeclaration): List<IrClass> {
@@ -105,6 +227,10 @@ internal class InterceptionPoints(private val lokki: LokkiIrContext, private val
     private fun generate(target: IrClass) {
         val functions = target.declarations.filterIsInstance<IrSimpleFunction>().filter { it.isInterceptable }
         val properties = target.declarations.filterIsInstance<IrProperty>().filter { it.isInterceptable }
+        val inheritedFunctions = target.declarations.filterIsInstance<IrSimpleFunction>()
+            .filter { it.correspondingPropertySymbol == null && it.isInheritedInterceptable }
+        val inheritedProperties = target.declarations.filterIsInstance<IrProperty>()
+            .filter { it.isInheritedInterceptable }
         val redirect = target.addRedirect(REDIRECT, target, OBJECT_MESSAGE)
         val field = target.addRedirectProperty(redirect, REDIRECT_PROPERTY, OBJECT_MESSAGE)
         for (function in functions) {
@@ -114,6 +240,17 @@ internal class InterceptionPoints(private val lokki: LokkiIrContext, private val
         for (property in properties) {
             target.intercept(property, redirect, field)
             mark(property, INTERCEPTION_MARK)
+        }
+        for (function in inheritedFunctions) {
+            function.overrideInherited(target)
+            target.intercept(function, redirect, field)
+        }
+        for (property in inheritedProperties) {
+            property.isFakeOverride = false
+            property.origin = origin
+            property.getter!!.overrideInherited(target)
+            property.setter?.takeIf { it.isInheritedAccessor }?.overrideInherited(target)
+            target.intercept(property, redirect, field)
         }
         redirect.complete()
         mark(target, INTERCEPTION_MARK)
@@ -146,9 +283,7 @@ internal class InterceptionPoints(private val lokki: LokkiIrContext, private val
         declaration: IrDeclarationWithName,
         function: IrSimpleFunction,
     ): IrField {
-        val hash = function.ownKey.hashCode().toHexString()
-        val name = Name.identifier("${declaration.name}\$lokkiRedirect\$$hash")
-        return addRedirectProperty(redirect, name, STATIC_MESSAGE)
+        return addRedirectProperty(redirect, redirectPropertyName(declaration, function), STATIC_MESSAGE)
     }
 
     private fun IrDeclarationContainer.intercept(function: IrSimpleFunction, redirect: IrClass, field: IrField) {
@@ -205,6 +340,52 @@ internal class InterceptionPoints(private val lokki: LokkiIrContext, private val
 
     private val IrSimpleFunction.isInterceptableAccessor: Boolean
         get() = body != null && visibility.isInterceptable && !isInline && !isExternal && !isExpect
+
+    private val IrSimpleFunction.isInheritedInterceptable: Boolean
+        get() = isFakeOverride && !isMethodOfAny() && isInheritedAccessor
+
+    private val IrSimpleFunction.isInheritedAccessor: Boolean
+        get() {
+            val inherited = resolveFakeOverride() ?: return false
+            return isFakeOverride && visibility.isInterceptable && !isInline && !isExternal && !isExpect &&
+                !inherited.isInline && !inherited.isExternal && inherited.modality != Modality.ABSTRACT &&
+                (modality != Modality.FINAL || inherited.modality != Modality.FINAL || isOverridable)
+        }
+
+    private val IrProperty.isInheritedInterceptable: Boolean
+        get() {
+            val getter = getter ?: return false
+            val inherited = getter.resolveFakeOverride()?.correspondingPropertySymbol?.owner ?: return false
+            return isFakeOverride && visibility.isInterceptable && !isConst && !inherited.isConst &&
+                !inherited.isLateinit && getter.isInheritedAccessor && getter.typeParameters.isEmpty() &&
+                !inherited.hasAnnotation(JvmAbi.JVM_FIELD_ANNOTATION_FQ_NAME) &&
+                inherited.backingField?.hasAnnotation(JvmAbi.JVM_FIELD_ANNOTATION_FQ_NAME) != true
+        }
+
+    private fun IrSimpleFunction.overrideInherited(owner: IrClass) {
+        val inherited = overriddenSymbols.first { it.owner.modality != Modality.ABSTRACT }
+        isFakeOverride = false
+        origin = this@InterceptionPoints.origin
+        modality = Modality.FINAL
+        parameters = parameters.map {
+            if (it.kind == IrParameterKind.DispatchReceiver) owner.dispatchReceiverFor(this) else it
+        }
+        body = DeclarationIrBuilder(context, symbol).irBlockBody {
+            +irReturn(
+                IrCallImpl(
+                    startOffset,
+                    endOffset,
+                    returnType,
+                    inherited,
+                    superQualifierSymbol = inherited.owner.parentAsClass.symbol,
+                ).apply {
+                    typeParameters.forEachIndexed { index, parameter -> typeArguments[index] = parameter.defaultType }
+                    arguments[0] = irGet(dispatchReceiverParameter!!)
+                    nonDispatchParameters.forEach { arguments[it.indexInParameters] = irGet(it) }
+                }
+            )
+        }
+    }
 
     private val IrProperty.isInterceptable: Boolean
         get() {
@@ -356,6 +537,8 @@ internal class InterceptionPoints(private val lokki: LokkiIrContext, private val
 
 private const val OBJECT_MESSAGE = "Generated by lokki for mockObject"
 private const val STATIC_MESSAGE = "Generated by lokki for mockStatic"
+private const val CONSTRUCTOR_MESSAGE = "Generated by lokki for mockConstructor"
+private const val MAX_MASKED_PARAMETERS = 31
 private const val ORIGINAL = "\$lokkiOriginal"
 private const val GETTER = "\$lokkiGet"
 private const val SETTER = "\$lokkiSet"

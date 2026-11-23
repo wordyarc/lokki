@@ -1,6 +1,8 @@
 package io.lokki.compiler.ir
 
 import io.lokki.compiler.BuildConfig
+import io.lokki.compiler.CoreClass
+import io.lokki.compiler.CONSTRUCTORS
 import io.lokki.compiler.FILE_REDIRECT_SUFFIX
 import io.lokki.compiler.InterceptionMark
 import io.lokki.compiler.ParameterNames
@@ -11,6 +13,9 @@ import io.lokki.compiler.ir.collect.MockForm
 import io.lokki.compiler.ir.collect.MockSite
 import io.lokki.compiler.ir.collect.MockedTypes
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
+import org.jetbrains.kotlin.descriptors.ClassKind
+import org.jetbrains.kotlin.fir.lazy.Fir2IrLazyClass
+import org.jetbrains.kotlin.fir.resolve.providers.symbolProvider
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationWithName
@@ -20,23 +25,31 @@ import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.expressions.IrCall
+import org.jetbrains.kotlin.ir.expressions.IrClassReference
+import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrVararg
+import org.jetbrains.kotlin.ir.expressions.IrVarargElement
 import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.util.classId
 import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.erasedUpperBound
+import org.jetbrains.kotlin.ir.util.getPackageFragment
 import org.jetbrains.kotlin.ir.util.isObject
 import org.jetbrains.kotlin.ir.util.isTopLevel
 import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.util.parentClassOrNull
 import org.jetbrains.kotlin.ir.util.simpleFunctions
 import org.jetbrains.kotlin.name.CallableId
+import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.name.Name
 
 internal class RedirectLookup(private val context: IrPluginContext, file: IrFile) {
     private val finder = context.finderForSource(file)
     private val objects = HashMap<IrClass, ObjectRedirect?>()
     private val statics = HashMap<IrDeclaration, StaticRedirect?>()
+    private val constructorRedirects = HashMap<IrClass, ConstructorRedirect?>()
 
     @OptIn(ExperimentalStdlibApi::class)
     fun of(target: IrClass): ObjectRedirect? = objects.getOrPutIfMissing(target) { find(target) }
@@ -58,12 +71,68 @@ internal class RedirectLookup(private val context: IrPluginContext, file: IrFile
         val parent = function.parent
         val redirect = when {
             function.isTopLevel -> static(declaration)
-            parent is IrClass -> of(parent)?.takeIf { mark(declaration) == InterceptionMark.CURRENT }
+            parent is IrClass -> of(parent)?.takeIf {
+                function.isFakeOverride || it.redirect !is Fir2IrLazyClass ||
+                    mark(declaration) == InterceptionMark.CURRENT
+            }
             else -> null
         } ?: return null
         val suffix = function.ownKey.substringAfter('#')
         val member = redirect.members.find { it.ownKey.substringAfter('#') == suffix } ?: return null
         return RedirectMember(redirect, member.memberKeys.first())
+    }
+
+    @OptIn(ExperimentalStdlibApi::class)
+    fun constructors(target: IrClass): ConstructorRedirect? =
+        constructorRedirects.getOrPutIfMissing(target) { findConstructors(target) }
+
+    private fun findConstructors(target: IrClass): ConstructorRedirect? {
+        if (target.kind != ClassKind.CLASS) return null
+        val classId = target.classId ?: return null
+        val own = target.getPackageFragment() as? IrFile
+        if (own != null) {
+            val redirect = target.declarations.filterIsInstance<IrClass>().find { it.name == CONSTRUCTORS }
+                ?: return null
+            val property = own.declarations.filterIsInstance<IrProperty>()
+                .find { it.name == target.constructorsPropertyName } ?: return null
+            return ConstructorRedirect(target, redirect, property)
+        }
+        if (mark(target) != InterceptionMark.CURRENT) return null
+        val redirect = finder.findClass(classId.createNestedClassId(CONSTRUCTORS))?.owner ?: return null
+        val property = finder.findProperties(CallableId(classId.packageFqName, target.constructorsPropertyName))
+            .singleOrNull()?.owner ?: return null
+        return ConstructorRedirect(target, redirect, property)
+    }
+
+    fun file(name: String): List<StaticRedirect> = redirectClasses(FqName(name)).flatMap(::declarationsOf)
+
+    private fun redirectClasses(facade: FqName): List<IrClass> {
+        val packageName = facade.parent()
+        val short = facade.shortName().asString()
+        finder.findClass(ClassId(packageName, Name.identifier("$short$FILE_REDIRECT_SUFFIX")))
+            ?.let { return listOf(it.owner) }
+        val session = (finder.findClass(CoreClass.GENERATED_MOCK.id)?.owner as? Fir2IrLazyClass)?.session
+            ?: return emptyList()
+        return session.symbolProvider.symbolNamesProvider.getTopLevelClassifierNamesInPackage(packageName).orEmpty()
+            .filter { it.asString().startsWith("${short}__") && it.asString().endsWith(FILE_REDIRECT_SUFFIX) }
+            .sortedBy { it.asString() }
+            .mapNotNull { finder.findClass(ClassId(packageName, it))?.owner }
+    }
+
+    private fun declarationsOf(redirect: IrClass): List<StaticRedirect> {
+        val packageName = redirect.getPackageFragment().packageFqName
+        val names = redirect.declarations.mapNotNull { declaration ->
+            when {
+                declaration is IrProperty && !declaration.isFakeOverride -> declaration.name
+                declaration is IrSimpleFunction && !declaration.isFakeOverride &&
+                    declaration.correspondingPropertySymbol == null -> declaration.name
+                else -> null
+            }
+        }
+        return names.distinct().flatMap { name ->
+            val id = CallableId(packageName, name)
+            finder.findFunctions(id).map { it.owner } + finder.findProperties(id).map { it.owner }
+        }.mapNotNull { static(it) }.filter { it.redirect == redirect }
     }
 
     fun mark(declaration: IrDeclaration): InterceptionMark = InterceptionMark.of(data(declaration))
@@ -72,10 +141,13 @@ internal class RedirectLookup(private val context: IrPluginContext, file: IrFile
         context.metadataDeclarationRegistrar.getCustomMetadataExtension(declaration, BuildConfig.COMPILER_PLUGIN_ID)
 
     private fun find(target: IrClass): ObjectRedirect? {
-        if (!target.isObject || mark(target) != InterceptionMark.CURRENT) return null
+        if (!target.isObject) return null
+        val generated = target.declarations.filterIsInstance<IrClass>().find { it.name == REDIRECT }
+        if (generated == null && mark(target) != InterceptionMark.CURRENT) return null
         val classId = target.classId ?: return null
-        val redirect = finder.findClass(classId.createNestedClassId(REDIRECT))?.owner ?: return null
-        val property = finder.findProperties(CallableId(classId, REDIRECT_PROPERTY)).singleOrNull()?.owner
+        val redirect = generated ?: finder.findClass(classId.createNestedClassId(REDIRECT))?.owner ?: return null
+        val property = target.declarations.filterIsInstance<IrProperty>().find { it.name == REDIRECT_PROPERTY }
+            ?: finder.findProperties(CallableId(classId, REDIRECT_PROPERTY)).singleOrNull()?.owner
             ?: return null
         return ObjectRedirect(target, redirect, property)
     }
@@ -83,6 +155,7 @@ internal class RedirectLookup(private val context: IrPluginContext, file: IrFile
     private fun findStatic(declaration: IrDeclarationWithName): StaticRedirect? {
         if (!declaration.isTopLevel) return null
         val function = (declaration as? IrProperty)?.getter ?: declaration as? IrSimpleFunction ?: return null
+        generatedStatic(declaration, function)?.let { return it }
         val interception = StaticInterception.decode(data(declaration)) ?: return null
         val redirect = finder.findClass(interception.redirect)?.owner ?: return null
         val callable = CallableId(interception.redirect.packageFqName, interception.property)
@@ -90,6 +163,19 @@ internal class RedirectLookup(private val context: IrPluginContext, file: IrFile
         return StaticRedirect(declaration, function, redirect, property)
     }
 }
+
+private fun generatedStatic(declaration: IrDeclarationWithName, function: IrSimpleFunction): StaticRedirect? {
+    val generated = (declaration.parent as? IrFile)?.declarations ?: return null
+    val name = redirectPropertyName(declaration, function)
+    val property = generated.filterIsInstance<IrProperty>().find { it.name == name } ?: return null
+    val redirect = generated.filterIsInstance<IrClass>().find { it.name.asString().endsWith(FILE_REDIRECT_SUFFIX) }
+        ?: return null
+    return StaticRedirect(declaration, function, redirect, property)
+}
+
+@OptIn(ExperimentalStdlibApi::class)
+internal fun redirectPropertyName(declaration: IrDeclarationWithName, function: IrSimpleFunction): Name =
+    Name.identifier("${declaration.name}\$lokkiRedirect\$${function.ownKey.hashCode().toHexString()}")
 
 internal sealed class Redirect(val redirect: IrClass, val property: IrProperty) {
     abstract val name: String
@@ -153,4 +239,18 @@ internal val IrCall.staticReferences: List<IrExpression>?
             argument is IrVararg -> argument.elements.map { it as? IrExpression ?: return null }
             else -> listOf(argument)
         }
+    }
+
+internal val IrCall.staticFileArguments: List<IrVarargElement>?
+    get() = symbol.owner.parameters.find { it.name.asString() == ParameterNames.FILE_CLASSES }
+        ?.let { parameter -> (arguments[parameter] as? IrVararg)?.elements.orEmpty() }
+
+internal val IrVarargElement.fileClassName: String?
+    get() = (this as? IrConst)?.value as? String
+
+internal val IrCall.constructorClasses: List<IrClass>?
+    get() {
+        val parameter = symbol.owner.parameters.firstOrNull { it.varargElementType != null }
+        val classes = parameter?.let { arguments[it] } as? IrVararg ?: return emptyList()
+        return classes.elements.map { (it as? IrClassReference)?.classType?.classOrNull?.owner ?: return null }
     }
