@@ -19,6 +19,8 @@ internal class LokkiScope private constructor(private val parent: LokkiScope?, p
 
     private val mocks = ArrayList<WeakReference<MockState>>()
 
+    private val retained = ArrayList<MockState>()
+
     private val children = ArrayList<LokkiScope>()
 
     private val positions: List<StubPosition> = parent?.windowStates()?.flatMap { it.chainPositions() }.orEmpty()
@@ -53,6 +55,7 @@ internal class LokkiScope private constructor(private val parent: LokkiScope?, p
             )
         }
         clearWindow(inherited, answers = true, recordedCalls = true, childMocks = true)
+        synchronized(mocks) { retained.clear() }
         if (unanswered.isEmpty()) return
         val error = AssertionError(unanswered.noAnswerReport(), unanswered.first().failure)
         if (failure == null) throw error
@@ -62,7 +65,10 @@ internal class LokkiScope private constructor(private val parent: LokkiScope?, p
     override fun toString(): String = name
 
     fun adopt(state: MockState) {
-        synchronized(mocks) { mocks += WeakReference(state) }
+        synchronized(mocks) {
+            mocks += WeakReference(state)
+            if (parent != null && !isClosed) retained += state
+        }
     }
 
     fun isWithin(ancestor: LokkiScope): Boolean = generateSequence(this) { it.parent }.any { it === ancestor }

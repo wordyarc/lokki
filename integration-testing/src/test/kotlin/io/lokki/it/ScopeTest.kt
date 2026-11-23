@@ -7,11 +7,14 @@ import io.lokki.every
 import io.lokki.lokkiScope
 import io.lokki.mock
 import io.lokki.verify
+import java.lang.ref.Reference
+import java.lang.ref.WeakReference
 import kotlin.concurrent.thread
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ScopeTest {
@@ -64,6 +67,39 @@ class ScopeTest {
             verify { other.drive(1) }
             confirmVerified()
             checkUnnecessaryStub()
+        }
+    }
+
+    @Test
+    fun scopeKeepsUnreachableMocksUntilItCloses() {
+        assertFailsWith<AssertionError> {
+            lokkiScope {
+                runCatching { Garage(mock()).leave() }
+                collectGarbage()
+            }
+        }
+
+        lokkiScope {
+            Garage(mock<Car>(relaxed = true)).leave()
+            collectGarbage()
+            assertFailsWith<AssertionError> { confirmVerified() }
+        }
+    }
+
+    @Test
+    fun mockThatOutlivesScopeDoesNotKeepOtherMocks() {
+        val (survivor, released) = lokkiScope { mock<Car>() to WeakReference(mock<Car>()) }
+
+        repeat(10) { if (released.get() != null) collectGarbage() }
+
+        assertNull(released.get())
+        Reference.reachabilityFence(survivor)
+    }
+
+    private fun collectGarbage() {
+        repeat(5) {
+            System.gc()
+            Thread.sleep(20)
         }
     }
 
