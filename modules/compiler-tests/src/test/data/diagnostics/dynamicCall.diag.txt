@@ -1,0 +1,9 @@
+/dynamicCall.kt:18:27: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
+
+/dynamicCall.kt:19:14: error: A matcher must be a whole argument of the stubbed or verified call, an operand of 'and', 'or', 'not' or an element of 'array'.
+
+/dynamicCall.kt:20:32: error: A call of 'toString' cannot be intercepted: it is an extension, not a member. Stub the member it calls.
+
+/dynamicCall.kt:21:13: error: The block of 'every' must be a single call of a mock member, but it names a member without calling it. Add the arguments: 'mock["name"]()'.
+
+/dynamicCall.kt:21:40: error: Argument type mismatch: actual type is 'String', but 'MatcherScope.DynamicCall' was expected.

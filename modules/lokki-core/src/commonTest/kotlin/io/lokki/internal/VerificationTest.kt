@@ -238,6 +238,29 @@ class VerificationTest {
     }
 
     @Test
+    fun testTypeMismatchIsReported() {
+        var runs = 0
+        val text = Matchers.typed<String>(Matchers.named("text()") { runs++; true })
+        find(2, true)
+
+        val message = failure(Verification(), FIND to arrayOf(text, AnyMatcher))
+        assertEquals(0, runs)
+        assertContains(
+            message!!,
+            "[0]: argument: 2, matcher: text(), result: - (argument type mismatch: expected String, actual Int)\n",
+        )
+    }
+
+    @Test
+    fun testMatchingTypeIsNotReportedAsMismatch() {
+        val text = Matchers.typed<Int>(Matchers.named("other()") { false })
+        find(2, true)
+
+        val message = failure(Verification(), FIND to arrayOf(text, AnyMatcher))
+        assertContains(message!!, "[0]: argument: 2, matcher: other(), result: -\n")
+    }
+
+    @Test
     fun testAssertionErrorsOfMatchersAreReported() {
         var runs = 0
         val one = Matchers.withArg { _: Int ->

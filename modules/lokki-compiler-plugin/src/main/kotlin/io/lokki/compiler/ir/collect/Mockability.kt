@@ -1,6 +1,7 @@
 package io.lokki.compiler.ir.collect
 
 import io.lokki.compiler.NOT_CLASS_PROBLEM
+import io.lokki.compiler.SEALED_WITHOUT_MOCKABLE_SUBCLASS
 import io.lokki.compiler.TYPE_PARAMETER_PROBLEM
 import io.lokki.compiler.declarationKindProblem
 import io.lokki.compiler.fir.lokkiEnvironment
@@ -30,10 +31,15 @@ import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.IrTypeArgument
+import org.jetbrains.kotlin.ir.types.IrTypeProjection
+import org.jetbrains.kotlin.ir.types.IrTypeSystemContext
 import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.types.classifierOrNull
+import org.jetbrains.kotlin.ir.types.impl.IrStarProjectionImpl
 import org.jetbrains.kotlin.ir.types.makeNotNull
 import org.jetbrains.kotlin.ir.types.removeAnnotations
+import org.jetbrains.kotlin.ir.types.typeWithArguments
 import org.jetbrains.kotlin.ir.util.constructedClass
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.getAllSuperclasses
@@ -41,6 +47,7 @@ import org.jetbrains.kotlin.ir.util.getPackageFragment
 import org.jetbrains.kotlin.ir.util.isFromJava
 import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.ir.util.isLocal
+import org.jetbrains.kotlin.ir.util.isSubtypeOf
 import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.ir.util.resolveFakeOverrideMaybeAbstractOrFail
@@ -102,7 +109,7 @@ internal class MockRequest(
 
 internal class AddedInterface(val type: IrType, val literal: IrElement)
 
-internal class Mockability(private val file: IrFile) {
+internal class Mockability(private val file: IrFile, private val typeSystem: IrTypeSystemContext) {
     private val classProblems = HashMap<IrClass, ClassProblem?>()
 
     private class ClassProblem(val reason: String, val isFrontendRule: Boolean)
@@ -121,8 +128,8 @@ internal class Mockability(private val file: IrFile) {
     fun site(request: MockRequest): MockSite {
         val constructed = request.instance?.takeIf { request.isSpy }?.unwrapTemporary()?.constructorCall()
             ?.takeIf { it.symbol.owner.constructedClass.canBeSubclassed }
-        val mockedType = constructed?.type ?: request.type
-        problemOf(mockedType)?.let { return MockSite.Rejected(it) }
+        val mockedType = constructed?.type ?: if (request.isSpy) request.type else request.type.sealedRepresentative()
+        (if (request.isSpy) problemOf(mockedType) else mockProblem(mockedType))?.let { return MockSite.Rejected(it) }
         val mocked = (mockedType as IrSimpleType).mockedClass
         var warning: MockProblem? = null
         val form = when {
@@ -177,16 +184,60 @@ internal class Mockability(private val file: IrFile) {
     }
 
     fun child(type: IrType): MockSite.Mocked? {
-        val mocked = type.makeNotNull().removeAnnotations()
+        val mocked = type.makeNotNull().removeAnnotations().sealedRepresentative()
         if (problemOf(mocked) != null) return null
         return MockSite.Mocked(MockedTypes((mocked as IrSimpleType).approximated(), emptyList(), MockForm.Mock))
     }
 
-    fun childProblem(type: IrType): NotMockable? = problemOf(type.makeNotNull().removeAnnotations())
+    fun childProblem(type: IrType): NotMockable? =
+        mockProblem(type.makeNotNull().removeAnnotations().sealedRepresentative())
+
+    private fun mockProblem(type: IrType): NotMockable? {
+        val problem = problemOf(type) ?: return null
+        val sealed = type.classOrNull?.owner?.takeIf { it.effectiveModality == Modality.SEALED } ?: return problem
+        return NotMockable(problem.type, SEALED_WITHOUT_MOCKABLE_SUBCLASS, isFrontendRule = !sealed.frontendAcceptsMock)
+    }
+
+    private fun IrType.sealedRepresentative(): IrType {
+        val type = this as? IrSimpleType ?: return this
+        val sealed = type.classOrNull?.owner?.takeIf { it.effectiveModality == Modality.SEALED } ?: return this
+        return sealed.sealedSubclasses.firstNotNullOfOrNull { subclass ->
+            type.asSubclass(subclass.owner)?.sealedRepresentative()?.takeIf {
+                problemOf(it) == null && subclass.owner.isAccessibleFromFile
+            }
+        } ?: this
+    }
+
+    private fun IrSimpleType.asSubclass(subclass: IrClass): IrSimpleType? {
+        if (subclass.isInner) return null
+        val parent = subclass.superTypes.firstOrNull { it.classOrNull == classOrNull } as? IrSimpleType ?: return null
+        val bound = HashMap<IrTypeParameterSymbol, IrTypeArgument>()
+        parent.arguments.zip(arguments).forEach { (declared, requested) ->
+            val parameter = (declared as? IrTypeProjection)?.type?.classifierOrNull as? IrTypeParameterSymbol
+            if (parameter != null && parameter.owner.parent == subclass) bound[parameter] = requested
+        }
+        val candidate = subclass.symbol.typeWithArguments(
+            subclass.typeParameters.map { bound[it.symbol] ?: IrStarProjectionImpl }
+        )
+        return candidate.takeIf { it.isSubtypeOf(this, typeSystem) }
+    }
+
+    private val IrClass.isAccessibleFromFile: Boolean
+        get() = generateSequence(this) { it.parent as? IrClass }.all { owner ->
+            owner.getPackageFragment() == file || owner.isVisibleFrom(file)
+        }
+
+    private val IrClass.frontendAcceptsMock: Boolean
+        get() = when (effectiveModality) {
+            Modality.SEALED -> sealedSubclasses.any { it.owner.frontendAcceptsMock }
+            else -> frontendProblem() == null
+        }
+
+    private fun IrClass.frontendProblem(): String? =
+        declarationKindProblem(kind, effectiveModality, isFromFriendKotlinModule && !isValue) ?: missingClassesProblem()
 
     private fun IrClass.problem(): ClassProblem? {
-        val frontend = declarationKindProblem(kind, effectiveModality, isFromFriendKotlinModule && !isValue)
-            ?: missingClassesProblem()
+        val frontend = frontendProblem()
         if (frontend != null) return ClassProblem(frontend, isFrontendRule = true)
         val reason = when {
             kind == ClassKind.CLASS && constructors.none { it.isVisibleFrom(file) } ->

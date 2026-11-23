@@ -1347,6 +1347,16 @@ public abstract class MatcherScope internal constructor() {
     @LokkiIntrinsic(LokkiIntrinsic.Kind.CONSTRUCTED)
     public inline fun <reified T : Any> constructedWith(vararg matchers: Any?): T = pluginNotApplied()
 
+    @Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+    @kotlin.internal.LowPriorityInOverloadResolution
+    @LokkiIntrinsic(LokkiIntrinsic.Kind.DYNAMIC_MEMBER)
+    public operator fun Any.get(name: String): DynamicCall = DynamicCall(this, name)
+
+    public class DynamicCall internal constructor(public val self: Any, public val methodName: String) {
+        @LokkiIntrinsic(LokkiIntrinsic.Kind.DYNAMIC_CALL)
+        public operator fun invoke(vararg args: Any?): Any? = pluginNotApplied()
+    }
+
     @PublishedApi
     internal fun <T> push(matcher: Matcher<Any?>, type: KClass<*>): T {
         frame += matcher

@@ -1,0 +1,6 @@
+main: SealedTest.kt: io.lokki.internal.MockDescriptor: LokkiConstructors
+main: SealedTest.kt: io.lokki.internal.MockSpec: LokkiConstructors
+main: SealedTest.kt: io.lokki.internal.MockState: LokkiConstructors
+main: SealedTest.kt: kotlin.Any: <SAM-CONSTRUCTOR>, LokkiConstructors, equals, hashCode, toString
+main: SealedTest.kt: sample.Shape: <SAM-CONSTRUCTOR>, LokkiConstructors, area
+main: SealedTest.kt: sample.Square: <SAM-CONSTRUCTOR>, LokkiConstructors, area

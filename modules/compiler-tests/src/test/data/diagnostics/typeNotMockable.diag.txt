@@ -12,9 +12,9 @@
 
 /typeNotMockable.kt:46:10: error: 'sample.Marker' cannot be mocked: it is an annotation class.
 
-/typeNotMockable.kt:47:10: error: 'sample.Shape' cannot be mocked: it is sealed.
+/typeNotMockable.kt:47:10: error: 'sample.Shape' cannot be mocked: it is sealed, and none of its subclasses can be mocked.
 
-/typeNotMockable.kt:48:10: error: 'sample.Part' cannot be mocked: it is sealed.
+/typeNotMockable.kt:48:10: error: 'sample.Part' cannot be mocked: it is sealed, and none of its subclasses can be mocked.
 
 /typeNotMockable.kt:49:10: error: 'sample.Bolt' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
 

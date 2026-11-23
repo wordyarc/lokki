@@ -1,0 +1,5 @@
+/star.kt:24:20: error: A call of 'get' cannot be intercepted: it is an extension, not a member. Stub the member it calls.
+
+/star.kt:25:13: error: The block of 'every' must be a single call of a mock member, but it wraps the call into a lambda. Move the wrapping call outside the block.
+/explicit.kt:38:20: error: A call of 'get' cannot be intercepted: it is an extension, not a member. Stub the member it calls.
+/samePackage.kt:49:20: error: A call of 'get' cannot be intercepted: it is an extension, not a member. Stub the member it calls.

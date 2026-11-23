@@ -32,6 +32,7 @@ testing {
                 implementation(libs.junit.jupiter.params)
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.coroutines.test)
+                implementation(libs.kotlinx.datetime)
             }
         }
     }

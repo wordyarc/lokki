@@ -22,6 +22,8 @@ internal const val ANY_ORDERING = "ANY"
 internal const val LOOKUP_BY_NAME = "BY_NAME"
 internal const val LOOKUP_BY_TYPE = "BY_TYPE"
 internal const val WITH_CONTEXT = "withContext"
+internal const val FINALIZE = "finalize"
+internal const val FINALIZER_REASON = "it is the JVM finalizer of its class, which runs the original code"
 internal val SLOT_READS = setOf("captured", "isCaptured", "isNull")
 
 internal object ParameterNames {

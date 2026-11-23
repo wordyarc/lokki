@@ -1,0 +1,17 @@
+/dynamicCallResolution.kt:21:13: error: A dynamic call cannot be resolved at compile time: 'Template' has no function 'missing', or it is private to a compiled class.
+
+/dynamicCallResolution.kt:22:13: error: A dynamic call cannot be resolved at compile time: the name of the member must be a string literal.
+
+/dynamicCallResolution.kt:23:13: error: A dynamic call cannot be resolved at compile time: no overload of 'hook' takes these arguments. Available: hook(Int).
+
+/dynamicCallResolution.kt:24:13: error: A dynamic call cannot be resolved at compile time: pass the arguments of 'hook' one by one, not as a spread array.
+
+/dynamicCallResolution.kt:25:13: error: A dynamic call cannot be resolved at compile time: the arguments fit several overloads of 'overloaded': overloaded(Int), overloaded(String). Give the matchers a type, such as 'any<Int>()'.
+
+/dynamicCallResolution.kt:26:13: error: A call of 'secret' cannot be intercepted: it is private, and a mock cannot override it.
+
+/dynamicCallResolution.kt:27:13: error: A call of 'closed' cannot be intercepted: it is final.
+
+/dynamicCallResolution.kt:28:13: error: A call of 'inlined' cannot be intercepted: it is inline. Stub the member it calls.
+
+/dynamicCallResolution.kt:29:13: error: A call of 'finalize' cannot be intercepted: it is the JVM finalizer of its class, which runs the original code.

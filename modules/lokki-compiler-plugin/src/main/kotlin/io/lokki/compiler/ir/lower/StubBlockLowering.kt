@@ -134,6 +134,7 @@ internal class StubBlockLowering(
 
     private inline fun IrCall.loweredOrIntact(lower: () -> IrExpression): IrExpression {
         val block = arguments.last() as? IrFunctionExpression
+        if (block != null && block.contains { it is IrCall && it in file.failedDynamicCalls }) return this
         val intact = block?.function?.let { it.deepCopyWithSymbols(it.parent) }
         return try {
             lower()

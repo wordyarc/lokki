@@ -26,6 +26,14 @@ internal class IrDiagnostics(private val lokki: LokkiIrContext, private val file
         at(element).report(LokkiDiagnostics.LOKKI_OBJECT_NOT_INTERCEPTABLE, name, reason)
     }
 
+    fun notInterceptableMember(element: IrElement, name: String, reason: String) {
+        at(element).report(LokkiDiagnostics.LOKKI_NOT_INTERCEPTABLE, name, reason)
+    }
+
+    fun unresolvedDynamicCall(element: IrElement, reason: String) {
+        at(element).report(LokkiDiagnostics.LOKKI_UNRESOLVED_DYNAMIC_CALL, reason)
+    }
+
     fun report(fields: MockFields, sites: MockSites) {
         for (parameter in fields.unsupportedParameters) {
             unsupported(

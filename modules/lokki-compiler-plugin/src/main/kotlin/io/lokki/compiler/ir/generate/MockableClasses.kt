@@ -4,6 +4,7 @@ import io.lokki.compiler.BuildConfig
 import io.lokki.compiler.INTERCEPTION_MARK
 import io.lokki.compiler.MockablePatterns
 import io.lokki.compiler.ir.LokkiIrContext
+import io.lokki.compiler.ir.isClassFinalizer
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
@@ -52,7 +53,7 @@ internal class MockableClasses(lokki: LokkiIrContext, private val mockable: Mock
             (mockable.matches(classIdOrFail) || mockable.names.any { hasAnnotation(it) })
 
     private val IrSimpleFunction.isOpenable: Boolean
-        get() = correspondingPropertySymbol == null && !isTailrec && isOpenableAccessor
+        get() = correspondingPropertySymbol == null && !isTailrec && !isClassFinalizer && isOpenableAccessor
 
     private val IrSimpleFunction.isOpenableAccessor: Boolean
         get() = !isFakeOverride && dispatchReceiverParameter != null && !isInline && !isExpect &&

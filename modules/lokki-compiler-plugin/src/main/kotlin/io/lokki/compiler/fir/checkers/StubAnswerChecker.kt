@@ -142,10 +142,12 @@ private fun FirFunctionCall.isOriginalCallIn(scope: FirBasedSymbol<*>): Boolean 
         receiver.calleeReference.boundSymbol == scope
 }
 
+context(context: CheckerContext)
 private fun FirAnonymousFunction.stubbedMember(): Pair<FirCallableSymbol<*>, Int>? {
     val statement = stubbedStatement()
     val call = (if (statement is FirVariableAssignment) statement.lValue else statement) as? FirQualifiedAccessExpression
     val member = call?.takeIf { it.dispatchReceiver != null }?.calleeReference?.toResolvedCallableSymbol() ?: return null
+    if (member.intrinsicKind(context.session) == IntrinsicKind.DYNAMIC_CALL) return null
     val regular = when {
         statement is FirVariableAssignment -> 1
         member is FirFunctionSymbol<*> -> member.valueParameterSymbols.size

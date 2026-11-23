@@ -92,13 +92,14 @@ internal object Matchers {
 
     @Suppress("UNCHECKED_CAST")
     inline fun <reified T> match(matcher: Matcher<T>): Matcher<Any?> =
-        filtered(matcher as Matcher<Any?>) { it == null || it is T }
+        filtered(matcher as Matcher<Any?>, T::class) { it == null || it is T }
 
     @Suppress("UNCHECKED_CAST")
     fun match(matcher: Matcher<*>, kclass: KClass<*>): Matcher<Any?> =
-        filtered(matcher as Matcher<Any?>) { it == null || kclass.isInstance(it) }
+        filtered(matcher as Matcher<Any?>, kclass) { it == null || kclass.isInstance(it) }
 
-    fun any(classifier: KClass<*>): Matcher<Any?> = filtered(AnyMatcher) { it == null || classifier.isInstance(it) }
+    fun any(classifier: KClass<*>): Matcher<Any?> =
+        filtered(AnyMatcher, classifier) { it == null || classifier.isInstance(it) }
 
     @Suppress("UNCHECKED_CAST")
     fun matchNullable(matcher: (Nothing?) -> Boolean): Matcher<Any?> = FunctionMatcher(matcher as (Any?) -> Boolean)
@@ -167,9 +168,14 @@ internal object Matchers {
 
     fun ofType(cls: KClass<*>): Matcher<Any?> = named("ofType(${cls.simpleName})") { cls.isInstance(it) }
 
-    inline fun <reified T> typed(matcher: Matcher<Any?>): Matcher<Any?> = filtered(matcher) { it == null || it is T }
+    inline fun <reified T> typed(matcher: Matcher<Any?>): Matcher<Any?> =
+        filtered(matcher, T::class) { it == null || it is T }
 
-    fun filtered(matcher: Matcher<Any?>, accepts: (Any?) -> Boolean): Matcher<Any?> = FilteredMatcher(matcher, accepts)
+    fun filtered(matcher: Matcher<Any?>, accepts: (Any?) -> Boolean): Matcher<Any?> =
+        FilteredMatcher(matcher, null, accepts)
+
+    fun filtered(matcher: Matcher<Any?>, type: KClass<*>, accepts: (Any?) -> Boolean): Matcher<Any?> =
+        FilteredMatcher(matcher, type, accepts)
 
     fun named(name: String, matches: (Any?) -> Boolean): Matcher<Any?> = NamedMatcher(name, matches)
 
@@ -331,6 +337,12 @@ private fun Matcher<Any?>.equivalent(): Matcher<Any?> =
         else -> AnyMatcher
     }
 
+internal fun Matcher<Any?>.typeMismatch(arg: Any?): String? {
+    if (this !is FilteredMatcher || arg == null || accepts(arg)) return null
+    val expected = type?.simpleName?.let { "expected $it, " }.orEmpty()
+    return "argument type mismatch: ${expected}actual ${arg::class.simpleName ?: arg::class}"
+}
+
 internal val Matcher<Any?>.capturesIntoSlot: Boolean
     get() = when (this) {
         is CaptureMatcher -> slot
@@ -400,8 +412,11 @@ private class CaptureMatcher(val slot: Boolean, private val capture: (Any?) -> U
     override fun toString(): String = if (slot) "slotCapture()" else "capture()"
 }
 
-private class FilteredMatcher(val matcher: Matcher<Any?>, private val accepts: (Any?) -> Boolean) :
-    Matcher<Any?>, ReportingMatcher, CapturingMatcher {
+private class FilteredMatcher(
+    val matcher: Matcher<Any?>,
+    val type: KClass<*>?,
+    val accepts: (Any?) -> Boolean,
+) : Matcher<Any?>, ReportingMatcher, CapturingMatcher {
     override fun match(arg: Any?): Boolean = match(arg, null)
 
     override fun match(arg: Any?, errors: MutableList<AssertionError>?): Boolean =

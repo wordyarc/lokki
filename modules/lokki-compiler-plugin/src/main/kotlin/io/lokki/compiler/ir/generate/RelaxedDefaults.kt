@@ -4,6 +4,7 @@ import io.lokki.compiler.CoreConstructor
 import io.lokki.compiler.ir.LokkiIrContext
 import io.lokki.compiler.ir.collect.referencedTypeParameters
 import io.lokki.compiler.ir.effectiveModality
+import io.lokki.compiler.ir.irGetObject
 import io.lokki.compiler.ir.irInvoke
 import io.lokki.compiler.ir.renderReadable
 import org.jetbrains.kotlin.descriptors.ClassKind
@@ -15,6 +16,7 @@ import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irCallConstructor
 import org.jetbrains.kotlin.ir.builders.irGetObjectValue
 import org.jetbrains.kotlin.ir.builders.irInt
+import org.jetbrains.kotlin.ir.builders.irLong
 import org.jetbrains.kotlin.ir.builders.irString
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrFunction
@@ -29,16 +31,22 @@ import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.types.classifierOrNull
 import org.jetbrains.kotlin.ir.types.defaultType
+import org.jetbrains.kotlin.ir.types.isLong
 import org.jetbrains.kotlin.ir.types.isMarkedNullable
 import org.jetbrains.kotlin.ir.types.isPrimitiveType
 import org.jetbrains.kotlin.ir.types.makeNullable
 import org.jetbrains.kotlin.ir.types.starProjectedType
 import org.jetbrains.kotlin.ir.types.typeOrNull
 import org.jetbrains.kotlin.ir.types.typeWith
+import org.jetbrains.kotlin.ir.util.companionObject
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.defaultValueForType
+import org.jetbrains.kotlin.ir.util.functions
 import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.util.kotlinFqName
+import org.jetbrains.kotlin.ir.util.nonDispatchParameters
+import org.jetbrains.kotlin.ir.util.primaryConstructor
+import org.jetbrains.kotlin.ir.util.properties
 import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.ir.util.substitute
 import org.jetbrains.kotlin.name.StandardClassIds
@@ -109,6 +117,9 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
             "kotlin.collections.MutableIterable", "kotlin.collections.MutableCollection",
             "kotlin.collections.MutableList", "java.util.ArrayList" -> construct("ArrayList")
             "kotlin.collections.MutableSet", "java.util.LinkedHashSet" -> construct("LinkedHashSet")
+            "kotlin.UByte", "kotlin.UShort", "kotlin.UInt", "kotlin.ULong" -> unsigned(klass)
+            "kotlin.time.Duration" -> zeroDuration(klass)
+            "kotlin.time.Instant", "kotlinx.datetime.Instant" -> epoch(klass)
             "java.util.HashSet" -> construct("HashSet")
             "kotlin.collections.MutableMap", "java.util.LinkedHashMap" -> construct("LinkedHashMap")
             "java.util.HashMap" -> construct("HashMap")
@@ -118,7 +129,32 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
     private fun call(function: IrSimpleFunction): RelaxedDefault {
         val typeArguments = function.typeParameters.map { builtIns.anyNType }
         val type = function.returnType.substitute(function.typeParameters, typeArguments)
-        return RelaxedDefault(function.name.asString()) { irCall(function.symbol, type, typeArguments) }
+        return RelaxedDefault(function.kotlinFqName.asString()) { irCall(function.symbol, type, typeArguments) }
+    }
+
+    private fun unsigned(klass: IrClass): RelaxedDefault? {
+        val constructor = klass.primaryConstructor ?: return null
+        val value = constructor.parameters.singleOrNull()?.type ?: return null
+        return RelaxedDefault(klass.kotlinFqName.asString()) {
+            irInvoke(constructor, IrConstImpl.defaultValueForType(startOffset, endOffset, value))
+        }
+    }
+
+    private fun zeroDuration(klass: IrClass): RelaxedDefault? {
+        val companion = klass.companionObject() ?: return null
+        val zero = companion.properties.singleOrNull { it.name.asString() == "ZERO" }?.getter ?: return null
+        return RelaxedDefault(klass.kotlinFqName.asString()) { irInvoke(zero, receiver = irGetObject(companion)) }
+    }
+
+    private fun epoch(klass: IrClass): RelaxedDefault? {
+        val companion = klass.companionObject() ?: return null
+        val fromMillis = companion.functions.singleOrNull { function ->
+            function.name.asString() == "fromEpochMilliseconds" &&
+                function.nonDispatchParameters.singleOrNull()?.type?.isLong() == true
+        } ?: return null
+        return RelaxedDefault(klass.kotlinFqName.asString()) {
+            irInvoke(fromMillis, irLong(0), receiver = irGetObject(companion))
+        }
     }
 
     private fun construct(name: String): RelaxedDefault {

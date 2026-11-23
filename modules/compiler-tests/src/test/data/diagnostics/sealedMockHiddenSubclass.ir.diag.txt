@@ -1,0 +1,1 @@
+/test.kt:22:5: error: 'shapes.Hidden' cannot be mocked: it is sealed, and none of its subclasses can be mocked.

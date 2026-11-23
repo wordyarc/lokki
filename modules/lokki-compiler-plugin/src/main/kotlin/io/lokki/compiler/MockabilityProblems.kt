@@ -29,6 +29,7 @@ internal fun memberWithClasses(member: String, classes: Collection<String>): Str
 
 internal fun notInterfaceProblem(owner: String): String = "it is not an interface, and $owner takes only interfaces"
 
+internal const val SEALED_WITHOUT_MOCKABLE_SUBCLASS = "it is sealed, and none of its subclasses can be mocked"
 internal const val TYPE_PARAMETER_PROBLEM = "it is a type parameter"
 internal const val NOT_CLASS_PROBLEM = "it is not a class"
 private const val ADD_DEPENDENCY =

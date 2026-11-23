@@ -94,7 +94,7 @@ public class InvocationMatcher internal constructor(
     public val method: MethodDescription
         get() = (self as GeneratedMock).`lokki$state`.description(member)
 
-    public val args: List<Matcher<Any?>> = ReadOnlyList(matchers)
+    public val args: List<Matcher<Any>> = ReadOnlyList(matchers)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is InvocationMatcher && self === other.self && method == other.method &&

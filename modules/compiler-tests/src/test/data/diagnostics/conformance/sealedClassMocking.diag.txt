@@ -1,1 +1,1 @@
-/sealedClassMocking.kt:19:14: error: 'sample.Base' cannot be mocked: it is sealed.
+/sealedClassMocking.kt:19:14: error: 'sample.Base' cannot be mocked: it is sealed, and none of its subclasses can be mocked.

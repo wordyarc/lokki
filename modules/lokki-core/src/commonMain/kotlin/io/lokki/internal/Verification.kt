@@ -352,7 +352,7 @@ private class Expectation(
 
     private fun difference(record: CallRecord, results: BooleanArray): String =
         record.arguments.withIndex().joinToString("") { (index, argument) ->
-            val result = if (results[index]) "+" else "-"
+            val result = matchers[index].typeMismatch(argument)?.let { "- ($it)" } ?: if (results[index]) "+" else "-"
             "[$index]: argument: ${argument.toStr()}, matcher: ${matchers[index]}, result: $result\n"
         }
 

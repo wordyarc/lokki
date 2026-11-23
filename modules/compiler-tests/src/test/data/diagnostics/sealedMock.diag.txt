@@ -1,0 +1,9 @@
+/sealedMock.kt:28:10: error: 'sample.OnlyFinal' cannot be mocked: it is sealed, and none of its subclasses can be mocked.
+
+/sealedMock.kt:29:10: error: 'sample.Empty' cannot be mocked: it is sealed, and none of its subclasses can be mocked.
+
+/sealedMock.kt:30:10: error: 'sample.Nested' cannot be mocked: it is sealed, and none of its subclasses can be mocked.
+
+/sealedMock.kt:32:9: error: 'sample.Mockable' cannot be mocked: it is sealed.
+
+/sealedMock.kt:33:40: error: 'sample.Mockable' cannot be mocked: it is sealed.

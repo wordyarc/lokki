@@ -254,6 +254,7 @@ public abstract class io/lokki/MatcherScope {
 	public final fun coInvokeWith (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function21;
 	public final fun coInvokeWith (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function22;
 	public final fun coInvokeWith (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/FunctionN;
+	public final fun get (Ljava/lang/Object;Ljava/lang/String;)Lio/lokki/MatcherScope$DynamicCall;
 	public final fun invoke ()Lkotlin/jvm/functions/Function0;
 	public final fun invoke (Ljava/lang/Object;)Lkotlin/jvm/functions/Function1;
 	public final fun invoke (Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/jvm/functions/Function2;
@@ -322,6 +323,12 @@ public abstract class io/lokki/MatcherScope {
 	public final fun varargAnyInt (Lkotlin/jvm/functions/Function2;)[I
 	public final fun varargAnyLong (Lkotlin/jvm/functions/Function2;)[J
 	public final fun varargAnyShort (Lkotlin/jvm/functions/Function2;)[S
+}
+
+public final class io/lokki/MatcherScope$DynamicCall {
+	public final fun getMethodName ()Ljava/lang/String;
+	public final fun getSelf ()Ljava/lang/Object;
+	public final fun invoke ([Ljava/lang/Object;)Ljava/lang/Object;
 }
 
 public final class io/lokki/MethodDescription {
@@ -554,6 +561,8 @@ public final class io/lokki/internal/LokkiIntrinsic$Kind : java/lang/Enum {
 	public static final field CLEAR_STATIC_MOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field CONFIRM_VERIFIED_STATIC Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field CONSTRUCTED Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field DYNAMIC_CALL Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field DYNAMIC_MEMBER Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field EXCLUDE_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field INJECT_MOCKS Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field JUST_AWAIT_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
@@ -608,6 +617,7 @@ public final class io/lokki/internal/Matchers {
 	public final fun eq (Ljava/lang/Object;Z)Lio/lokki/Matcher;
 	public static synthetic fun eq$default (Lio/lokki/internal/Matchers;Ljava/lang/Object;ZILjava/lang/Object;)Lio/lokki/Matcher;
 	public final fun filtered (Lio/lokki/Matcher;Lkotlin/jvm/functions/Function1;)Lio/lokki/Matcher;
+	public final fun filtered (Lio/lokki/Matcher;Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;)Lio/lokki/Matcher;
 	public final fun invoke (Ljava/lang/String;[Ljava/lang/Object;Lkotlin/jvm/functions/Function1;)Lio/lokki/Matcher;
 	public final fun isNull (Z)Lio/lokki/Matcher;
 	public static synthetic fun isNull$default (Lio/lokki/internal/Matchers;ZILjava/lang/Object;)Lio/lokki/Matcher;

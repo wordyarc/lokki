@@ -15,6 +15,7 @@ import io.lokki.compiler.ir.generate.MockableClasses
 import io.lokki.compiler.ir.lower.ConstructorCalls
 import io.lokki.compiler.ir.lower.ContextBlocks
 import io.lokki.compiler.ir.lower.DslLowering
+import io.lokki.compiler.ir.lower.DynamicCalls
 import io.lokki.compiler.ir.lower.StaticInitializers
 import io.lokki.compiler.linked
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
@@ -69,12 +70,13 @@ internal class LokkiIrGenerationExtension(
         val parameterFactories = MockParameterFactories(lokki)
         val contextBlocks = ContextBlocks(lokki)
         val files = moduleFragment.files.map { file ->
-            val mockability = Mockability(file)
+            val mockability = Mockability(file, lokki.typeSystem)
             FileContext(file, lokki, mockability, file.collectMockFields(mockability, lokki.typeSystem))
         }
         fieldInitializers.declare(files.map { it.fields })
         for (file in files) {
             file.ir.transform(contextBlocks, null)
+            file.ir.transform(DynamicCalls(lokki, file), null)
             val sites = file.collectMockSites()
             file.diagnostics.report(file.fields, sites)
             val classes = generator.generate(file, sites.classes)

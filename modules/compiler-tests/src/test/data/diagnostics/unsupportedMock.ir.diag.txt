@@ -6,7 +6,7 @@
 
 /unsupportedMock.kt:25:5: error: 'sample.Garage' cannot be mocked: it is an object.
 
-/unsupportedMock.kt:26:5: error: 'sample.Shape' cannot be mocked: it is sealed.
+/unsupportedMock.kt:26:5: error: 'sample.Shape' cannot be mocked: it is sealed, and none of its subclasses can be mocked.
 
 /unsupportedMock.kt:30:5: error: 'moreInterfaces' takes only class literals of interfaces, such as 'Closeable::class'.
 

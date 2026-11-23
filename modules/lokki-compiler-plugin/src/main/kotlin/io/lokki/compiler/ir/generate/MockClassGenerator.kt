@@ -21,6 +21,7 @@ import io.lokki.compiler.ir.irArrayOf
 import io.lokki.compiler.ir.irCast
 import io.lokki.compiler.ir.irInvoke
 import io.lokki.compiler.ir.irThrowLokkiException
+import io.lokki.compiler.ir.isClassFinalizer
 import io.lokki.compiler.ir.isOverridable
 import io.lokki.compiler.ir.isVisibleFrom
 import io.lokki.compiler.ir.memberKeys
@@ -192,7 +193,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
             .filter { it.root.parent != generatedMock }
             .partition { it.isMethodOfAny() }
         val members = METHODS_OF_ANY.map { name -> methodsOfAny.single { it.name == name } } +
-            declared.filter { it.isOverridable }
+            declared.filter { it.isOverridable && !it.isClassFinalizer }
         val delegated = members.filter { form == MockForm.Delegation && it.delegatedTo(mocked) != null }.toSet()
         val (coOriginals, originals) = members.withIndex()
             .filter { (_, member) -> member.modality != Modality.ABSTRACT || member in delegated }

@@ -15,6 +15,7 @@ import io.lokki.compiler.fir.finalMembers
 import io.lokki.compiler.fir.intrinsicKind
 import io.lokki.compiler.fir.isFromFriendKotlinModule
 import io.lokki.compiler.fir.isOpenedInBytecode
+import io.lokki.compiler.fir.mockProblem
 import io.lokki.compiler.fir.mockabilityProblem
 import io.lokki.compiler.fir.restriction
 import io.lokki.compiler.linked
@@ -213,7 +214,7 @@ private fun MockedType.check(interfaces: () -> Boolean): Boolean {
         return false
     }
     val mocked = type.takeUnless { it.isNothing }?.toRegularClassSymbol(context.session) ?: return false
-    val problem = mocked.mockabilityProblem()
+    val problem = if (kind == IntrinsicKind.MOCK) mocked.mockProblem() else mocked.mockabilityProblem()
     if (problem != null) {
         reporter.reportOn(source, LokkiDiagnostics.LOKKI_TYPE_NOT_MOCKABLE, mocked.displayName, problem)
         return false
@@ -252,7 +253,7 @@ internal fun ConeKotlinType.childMockProblem(): Pair<String, String>? {
     }
     if (type is ConeTypeParameterType) return type.classifier.name.asString() to TYPE_PARAMETER_PROBLEM
     val mocked = type.toRegularClassSymbol(context.session) ?: return type.renderReadable() to NOT_CLASS_PROBLEM
-    return mocked.mockabilityProblem()?.let { mocked.displayName to it }
+    return mocked.mockProblem()?.let { mocked.displayName to it }
 }
 
 context(context: CheckerContext)

@@ -6,7 +6,7 @@
 
 /test.kt:89:10: error: 'sample.Rpm' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
 
-/test.kt:90:10: error: 'sample.Fuel' cannot be mocked: it is sealed.
+/test.kt:90:10: error: 'sample.Fuel' cannot be mocked: it is sealed, and none of its subclasses can be mocked.
 
 /test.kt:91:10: error: 'sample.Registry' cannot be mocked: it is an object.
 

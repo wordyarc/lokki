@@ -29,6 +29,8 @@ internal enum class IntrinsicKind {
     UNMOCK_CONSTRUCTOR,
     CLEAR_CONSTRUCTOR_MOCK,
     CONSTRUCTED,
+    DYNAMIC_MEMBER,
+    DYNAMIC_CALL,
     UNKNOWN;
 
     companion object {

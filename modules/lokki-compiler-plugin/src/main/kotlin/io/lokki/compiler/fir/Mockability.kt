@@ -1,11 +1,13 @@
 package io.lokki.compiler.fir
 
 import io.lokki.compiler.MockablePatterns
+import io.lokki.compiler.SEALED_WITHOUT_MOCKABLE_SUBCLASS
 import io.lokki.compiler.declarationKindProblem
 import io.lokki.compiler.memberWithClasses
 import io.lokki.compiler.missingMemberClassesProblem
 import io.lokki.compiler.missingSupertypesProblem
 import org.jetbrains.kotlin.descriptors.ClassKind
+import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.SessionAndScopeSessionHolder
@@ -14,6 +16,7 @@ import org.jetbrains.kotlin.fir.caches.getValue
 import org.jetbrains.kotlin.fir.canSeeInternalsOf
 import org.jetbrains.kotlin.fir.containingClassLookupTag
 import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
+import org.jetbrains.kotlin.fir.declarations.getSealedClassInheritors
 import org.jetbrains.kotlin.fir.declarations.getStringArgument
 import org.jetbrains.kotlin.fir.declarations.toAnnotationClassId
 import org.jetbrains.kotlin.fir.declarations.utils.isFinal
@@ -21,12 +24,14 @@ import org.jetbrains.kotlin.fir.declarations.utils.isInlineOrValue
 import org.jetbrains.kotlin.fir.declarations.utils.visibility
 import org.jetbrains.kotlin.fir.moduleData
 import org.jetbrains.kotlin.fir.resolve.lookupSuperTypes
+import org.jetbrains.kotlin.fir.resolve.providers.symbolProvider
 import org.jetbrains.kotlin.fir.resolve.toRegularClassSymbol
 import org.jetbrains.kotlin.fir.resolve.toSymbol
 import org.jetbrains.kotlin.fir.resolve.toTypeParameterSymbol
 import org.jetbrains.kotlin.fir.scopes.FirTypeScope
 import org.jetbrains.kotlin.fir.scopes.processAllCallables
 import org.jetbrains.kotlin.fir.scopes.unsubstitutedScope
+import org.jetbrains.kotlin.fir.symbols.SymbolInternals
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
@@ -52,6 +57,22 @@ internal fun FirRegularClassSymbol.mockabilityProblem(): String? =
     ) ?: context.session.lokkiEnvironment.missingClassProblems.getValue(this, context.sessionHolder)
 
 context(context: CheckerContext)
+internal fun FirRegularClassSymbol.mockProblem(): String? =
+    when {
+        effectiveModality(context.session) != Modality.SEALED -> mockabilityProblem()
+        hasMockableInheritor() -> null
+        else -> SEALED_WITHOUT_MOCKABLE_SUBCLASS
+    }
+
+@OptIn(SymbolInternals::class)
+context(context: CheckerContext)
+private fun FirRegularClassSymbol.hasMockableInheritor(): Boolean =
+    fir.getSealedClassInheritors(context.session).any { inheritor ->
+        val symbol = context.session.symbolProvider.getClassLikeSymbolByClassId(inheritor) as? FirRegularClassSymbol
+        symbol != null && symbol.mockProblem() == null
+    }
+
+context(context: CheckerContext)
 internal fun FirRegularClassSymbol.restriction(): String? =
     context.session.lokkiEnvironment.restrictions.getValue(this)
 
@@ -71,6 +92,7 @@ internal fun FirRegularClassSymbol.findFinalMembers(): List<String> {
     memberScope().processAllCallables { member ->
         val owner = member.unwrapFakeOverrides().containingClassLookupTag()?.toRegularClassSymbol(holder.session)
         if (member.isFinal && !member.isOpenedInBytecode(holder.session) && member.visibility != Visibilities.Private &&
+            !member.isClassFinalizer(holder.session) &&
             owner != null && holder.session.moduleData.canSeeInternalsOf(owner.moduleData)
         ) {
             members += member.name.asString()

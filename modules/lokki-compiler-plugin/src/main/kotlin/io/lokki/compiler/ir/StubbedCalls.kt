@@ -102,7 +102,7 @@ internal fun IrExpression.memberCall(): StubbedCall? {
         expression = expression.statements.last()
     }
     val call = expression as? IrCall ?: return null
-    if (call.intrinsicKind == IntrinsicKind.WITH_CONTEXT) return null
+    if (call.intrinsicKind == IntrinsicKind.WITH_CONTEXT || call.intrinsicKind == IntrinsicKind.DYNAMIC_CALL) return null
     fun frozenIndex(argument: IrExpression?) = frozen.indexOfFirst { it.symbol == (argument as? IrGetValue)?.symbol }
     fun IrExpression.thawed() = frozen.getOrNull(frozenIndex(this))?.initializer ?: this
     val receiver = call.dispatchReceiver?.thawed()
@@ -173,6 +173,21 @@ internal fun IrCall.blockStatementCalls(): List<IrCall> {
             }
         }
     }
+}
+
+internal fun IrCall.replaceBlockCalls(replacement: (IrCall, IrSimpleFunction) -> IrExpression?) {
+    if (intrinsicKind !in BLOCK_KINDS) return
+    val block = (arguments.lastOrNull() as? IrFunctionExpression)?.function ?: return
+    fun IrExpression.replaced(): IrExpression {
+        val wrapped = wrapped
+        when {
+            this is IrReturn -> value = value.replaced()
+            wrapped != null -> rewrap(wrapped.replaced())
+            this is IrCall -> return replacement(this, block) ?: this
+        }
+        return this
+    }
+    (block.body as? IrBlockBody)?.statements?.replaceAll { if (it is IrExpression) it.replaced() else it }
 }
 
 internal fun IrExpression.links(): List<StubbedCall> {

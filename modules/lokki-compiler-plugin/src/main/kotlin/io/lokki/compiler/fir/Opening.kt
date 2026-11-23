@@ -1,5 +1,6 @@
 package io.lokki.compiler.fir
 
+import io.lokki.compiler.FINALIZE
 import io.lokki.compiler.InterceptionMark
 import io.lokki.compiler.MockablePatterns
 import org.jetbrains.kotlin.descriptors.ClassKind
@@ -19,9 +20,11 @@ import org.jetbrains.kotlin.fir.resolve.providers.symbolProvider
 import org.jetbrains.kotlin.fir.resolve.toRegularClassSymbol
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirPropertyAccessorSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
+import org.jetbrains.kotlin.fir.types.isUnit
 import org.jetbrains.kotlin.fir.unwrapFakeOverrides
 
 internal fun FirRegularClassSymbol.isOpenedInBytecode(session: FirSession): Boolean =
@@ -38,6 +41,15 @@ internal fun FirCallableSymbol<*>.isOpenedInBytecode(session: FirSession): Boole
     val inline = if (declaration is FirPropertySymbol) declaration.getterSymbol?.isInline == true else declaration.isInline
     val opened = owner.isUnmarkedSource(session) || owner.isMockableInThisCompilation(session)
     return opened && !inline && !declaration.isTailRec
+}
+
+internal fun FirCallableSymbol<*>.isClassFinalizer(session: FirSession): Boolean {
+    if (this !is FirNamedFunctionSymbol || name.asString() != FINALIZE) return false
+    if (valueParameterSymbols.isNotEmpty() || receiverParameterSymbol != null) return false
+    if (contextParameterSymbols.isNotEmpty() || !resolvedReturnType.isUnit) return false
+    val declared = unwrapFakeOverrides()
+    val owner = declared.containingClassLookupTag()?.toRegularClassSymbol(session) ?: return false
+    return declared.modality != Modality.ABSTRACT && owner.classKind != ClassKind.INTERFACE
 }
 
 internal fun FirRegularClassSymbol.isMockableInThisCompilation(session: FirSession): Boolean {

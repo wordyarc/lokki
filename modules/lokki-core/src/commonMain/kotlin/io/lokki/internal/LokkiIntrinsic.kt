@@ -35,5 +35,7 @@ public annotation class LokkiIntrinsic(val kind: Kind) {
         UNMOCK_CONSTRUCTOR,
         CLEAR_CONSTRUCTOR_MOCK,
         CONSTRUCTED,
+        DYNAMIC_MEMBER,
+        DYNAMIC_CALL,
     }
 }

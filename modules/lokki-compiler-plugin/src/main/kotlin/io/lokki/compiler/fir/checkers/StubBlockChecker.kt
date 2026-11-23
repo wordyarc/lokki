@@ -2,6 +2,7 @@ package io.lokki.compiler.fir.checkers
 
 import io.lokki.compiler.CHILD_MOCK_NEEDED
 import io.lokki.compiler.CoreClass
+import io.lokki.compiler.FINALIZER_REASON
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.MatcherNames
@@ -15,6 +16,7 @@ import io.lokki.compiler.fir.argument
 import io.lokki.compiler.fir.blockArgument
 import io.lokki.compiler.fir.displayName
 import io.lokki.compiler.fir.intrinsicKind
+import io.lokki.compiler.fir.isClassFinalizer
 import io.lokki.compiler.fir.isFinalType
 import io.lokki.compiler.fir.isMemberOfAny
 import io.lokki.compiler.fir.isOpenedInBytecode
@@ -218,6 +220,10 @@ private class StubBlock(
         when {
             mode == BlockMode.VERIFY && callee.intrinsicKind(session) == IntrinsicKind.WAS_NOT_CALLED &&
                 receiver.isScope() -> checkNoCalls(statement, call)
+            callee.intrinsicKind(session) == IntrinsicKind.DYNAMIC_CALL ->
+                checkDynamicCall(statement, call, callee, receiver, arguments)
+            callee.intrinsicKind(session) == IntrinsicKind.DYNAMIC_MEMBER ->
+                notSingleCall(statement, "names a member without calling it. Add the arguments: 'mock[\"name\"]()'")
             call.takesScope() -> when {
                 !receiver.isScope() || callee.intrinsicKind(session) == IntrinsicKind.MATCHER ->
                     matcherInCallPosition(statement)
@@ -248,6 +254,35 @@ private class StubBlock(
         }
     }
 
+    private fun Requirement.checkDynamicCall(
+        statement: FirStatement,
+        call: FirQualifiedAccessExpression,
+        callee: FirCallableSymbol<*>,
+        access: FirExpression?,
+        arguments: List<FirExpression>,
+    ) {
+        val member = (access?.unwrapArgument() as? FirFunctionCall)?.takeIf {
+            it.calleeReference.toResolvedCallableSymbol()?.intrinsicKind(session) == IntrinsicKind.DYNAMIC_MEMBER &&
+                it.dispatchReceiver.isScope()
+        }
+        val target = member?.extensionReceiver
+            ?: return notSingleCall(statement, "calls a dynamic member that is not written in this call")
+        checkReceiverMatchers(target)
+        checkArguments(call, callee, arguments)
+    }
+
+    private fun checkReceiverMatchers(receiver: FirExpression) {
+        val matchers = receiver.scopeCalls()
+        when {
+            matchers.singleOrNull() === receiver -> matcherInCallPosition(receiver)
+            else -> {
+                val linked = receiver.links().filterNot { it.isConstructed() }.flatMap(::checkLink)
+                matchers.filter { it !in linked }
+                    .forEach { report(it, LokkiDiagnostics.LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION) }
+            }
+        }
+    }
+
     private fun coroutineAdvice(builder: FirCallableSymbol<*>): String =
         when {
             function.startsWith("co") -> "Remove '${builder.name}': '$function' takes suspend calls"
@@ -261,15 +296,7 @@ private class StubBlock(
         receiver: FirExpression,
         arguments: List<FirExpression>,
     ) {
-        val matchers = receiver.scopeCalls()
-        when {
-            matchers.singleOrNull() === receiver -> matcherInCallPosition(receiver)
-            else -> {
-                val linked = receiver.links().filterNot { it.isConstructed() }.flatMap(::checkLink)
-                matchers.filter { it !in linked }
-                    .forEach { report(it, LokkiDiagnostics.LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION) }
-            }
-        }
+        checkReceiverMatchers(receiver)
         val reason = notInterceptableReason(callee, receiver)
         val notRecorded = when (mode) {
             BlockMode.STUB -> null
@@ -342,7 +369,8 @@ private class StubBlock(
         val pattern = mocks.unwrapped(block) as? FirQualifiedAccessExpression
         val arguments = (pattern as? FirCall)?.arguments.orEmpty()
         val callee = pattern?.calleeReference?.toResolvedCallableSymbol()
-        val intercepted = callee != null && !pattern.takesScope() && (
+        val intercepted = callee != null && callee.intrinsicKind(session) != IntrinsicKind.DYNAMIC_CALL &&
+            !pattern.takesScope() && (
             pattern.dispatchReceiver != null ||
                 with(context) { callee.staticInterception() } == MemberInterception.Intercepted
             )
@@ -385,6 +413,7 @@ private class StubBlock(
         return when {
             callee is FirFieldSymbol -> "it is a field"
             inline -> "it is inline. $action the member it calls"
+            callee.isClassFinalizer(session) -> FINALIZER_REASON
             interception is MemberInterception.NotIntercepted -> interception.reason
             interception == MemberInterception.Intercepted -> null
             callee.modality == Modality.FINAL && !callee.isOpenedInBytecode(session) -> "it is final"

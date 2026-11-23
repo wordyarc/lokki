@@ -17,6 +17,10 @@ internal object InstanceAllocator {
                 e,
             )
         }
-        return type.cast(unsafe.allocateInstance(type))
+        return try {
+            type.cast(unsafe.allocateInstance(type))
+        } catch (e: LinkageError) {
+            throw LokkiException("a mock of ${type.superclass.name} cannot be created: its class failed to initialize", e)
+        }
     }
 }

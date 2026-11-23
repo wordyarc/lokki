@@ -91,7 +91,13 @@ internal class DslLowering(
         super.visitCall(expression)
         return when (kind) {
             null, IntrinsicKind.MATCHER, IntrinsicKind.ANSWER, IntrinsicKind.RELAXED_MOCK,
-            IntrinsicKind.ADDITIONAL_INTERFACE, IntrinsicKind.INJECT_MOCKS, IntrinsicKind.CONSTRUCTED -> expression
+            IntrinsicKind.ADDITIONAL_INTERFACE, IntrinsicKind.INJECT_MOCKS, IntrinsicKind.CONSTRUCTED,
+            IntrinsicKind.DYNAMIC_MEMBER -> expression
+            IntrinsicKind.DYNAMIC_CALL -> expression.also {
+                if (it !in file.failedDynamicCalls) {
+                    unsupported(it, "A dynamic call must be a whole statement of a stub, verify or exclusion block")
+                }
+            }
             IntrinsicKind.MOCK_CONSTRUCTOR -> lowerMockConstructor(expression)
             IntrinsicKind.UNMOCK_CONSTRUCTOR -> lowerUnmockConstructor(expression)
             IntrinsicKind.CLEAR_CONSTRUCTOR_MOCK -> lowerClearConstructorMock(expression)
