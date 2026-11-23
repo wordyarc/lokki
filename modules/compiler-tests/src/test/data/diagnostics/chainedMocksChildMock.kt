@@ -1,17 +1,26 @@
 // RUN_PIPELINE_TILL: FIR2IR
 // RENDER_IR_DIAGNOSTICS_FULL_TEXT
 
+// FILE: other/Locked.java
+package other;
+
+public abstract class Locked {
+    abstract void hidden();
+
+    public boolean open() {
+        return false;
+    }
+}
+
+// FILE: chainedMocksChildMock.kt
 package sample
 
 import io.lokki.every
 import io.lokki.verify
+import other.Locked
 
 interface Door {
     fun open(): Boolean
-}
-
-open class Locked private constructor() {
-    open fun open(): Boolean = false
 }
 
 interface Car {

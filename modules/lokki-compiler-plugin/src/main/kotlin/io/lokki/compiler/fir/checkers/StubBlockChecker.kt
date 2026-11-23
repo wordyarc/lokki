@@ -218,6 +218,7 @@ private class StubBlock(
         val callee = call.calleeReference.toResolvedCallableSymbol() ?: return
         val receiver = call.dispatchReceiver?.unwrapSmartcastExpression()
         when {
+            call.configuresStub() -> notSingleCall(statement, "configures a nested stub. Move it outside the block")
             mode == BlockMode.VERIFY && callee.intrinsicKind(session) == IntrinsicKind.WAS_NOT_CALLED &&
                 receiver.isScope() -> checkNoCalls(statement, call)
             callee.intrinsicKind(session) == IntrinsicKind.DYNAMIC_CALL ->
@@ -253,6 +254,11 @@ private class StubBlock(
             else -> notInterceptable(call, callee, "it is not a member")
         }
     }
+
+    private fun FirQualifiedAccessExpression.configuresStub(): Boolean =
+        listOfNotNull(dispatchReceiver, extensionReceiver).any { receiver ->
+            receiver.resolvedType.fullyExpandedType(session).toRegularClassSymbol(session)?.classId in STUB_SCOPES
+        }
 
     private fun Requirement.checkDynamicCall(
         statement: FirStatement,
@@ -618,6 +624,8 @@ private val FirStatement.isCompoundAssignment: Boolean
     }
 
 private const val SINGLE_CALL = "be a single call of a mock member"
+
+private val STUB_SCOPES = setOf(CoreClass.STUB_SCOPE.id, CoreClass.ADDITIONAL_ANSWER_SCOPE.id)
 
 private val COROUTINE_BUILDERS = setOf(
     FqName("kotlinx.coroutines.runBlocking"),

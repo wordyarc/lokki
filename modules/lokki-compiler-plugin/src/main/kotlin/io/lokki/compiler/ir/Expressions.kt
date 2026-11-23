@@ -12,9 +12,13 @@ import org.jetbrains.kotlin.ir.expressions.IrGetValue
 import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.expressions.IrTypeOperator
 import org.jetbrains.kotlin.ir.expressions.IrTypeOperatorCall
+import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.visitors.IrVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
+import org.jetbrains.kotlin.name.FqName
+
+private val CONFIGURING_SCOPE_FUNCTIONS = setOf(FqName("kotlin.apply"), FqName("kotlin.also"))
 
 internal fun IrFunctionAccessExpression.argument(name: String): IrExpression? =
     symbol.owner.parameters.find { it.name.asString() == name }?.let { arguments[it] }
@@ -26,6 +30,13 @@ internal fun IrExpression.constructorCall(): IrConstructorCall? =
             (statements.lastOrNull() as? IrExpression)?.constructorCall()
         else -> null
     }
+
+internal val IrExpression.isConfigurationOfInstance: Boolean
+    get() = this is IrCall && symbol.owner.kotlinFqName in CONFIGURING_SCOPE_FUNCTIONS
+
+internal fun IrExpression.spiedConstructorCall(): IrConstructorCall? =
+    constructorCall() ?: takeIf { it.isConfigurationOfInstance }
+        ?.let { (it as IrCall).arguments[0]?.spiedConstructorCall() }
 
 internal val IrExpression.temporary: IrVariable?
     get() = ((this as? IrGetValue)?.symbol?.owner as? IrVariable)

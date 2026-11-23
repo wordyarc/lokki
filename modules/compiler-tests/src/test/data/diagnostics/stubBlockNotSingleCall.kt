@@ -55,6 +55,7 @@ fun test(repo: Repo, nullable: Repo?, tenant: Tenant, flag: Boolean) {
     every { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>1<!> } returns 1
     every { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>if (flag) repo.find(1) else repo.find(2)<!> } returns "a"
     every<String> { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>throw IllegalStateException()<!> } returns "a"
+    <!LOKKI_STUB_WITHOUT_ANSWER!>every<!> { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>every { repo.find(1) } returns "b"<!> }
 
     every { repo.find(1) } returns "a"
     every { return@every repo.find(1) } returns "a"
@@ -93,6 +94,12 @@ fun testVerify(repo: Repo, nullable: Repo?, flag: Boolean) {
     verifyOrder { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>if (flag) repo.find(1) else repo.find(2)<!> }
     verifyAll <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>{ }<!>
     coVerifySequence { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>for (id in 1..2) repo.find(id)<!> }
+    verify {
+        <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>every { repo.find(1) } returns "a"<!>
+        repo.find(1)
+    }
+    verify { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>every { repo.find(1) } returns "a" andThen "b"<!> }
+    verify { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>every { repo.save("a") } just Runs<!> }
 
     verify {
         repo.find(1)
@@ -122,6 +129,7 @@ fun testExclude(repo: Repo, nullable: Repo?, flag: Boolean) {
     excludeRecords { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>repo.count += 1<!> }
     excludeRecords { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>if (flag) repo.find(1) else repo.find(2)<!> }
     excludeRecords { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>for (id in 1..2) repo.find(id)<!> }
+    excludeRecords { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>every { repo.find(1) } returns "a"<!> }
     verifyCount { 1 * <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>{ }<!> }
     verifyCount { 1 * { <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>for (id in 1..2) repo.find(id)<!> } }
     coVerify <!LOKKI_STUB_BLOCK_NOT_SINGLE_CALL!>{ }<!>

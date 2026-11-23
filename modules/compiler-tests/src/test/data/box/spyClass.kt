@@ -79,7 +79,7 @@ fun box(): String {
 
     if (spyClass.name != "sample.Counter\$LokkiSpy\$a8d358e8\$SpyClassKt") return "Fail name: ${spyClass.name}"
     if (spyClass.superclass != Counter::class.java) return "Fail superclass: ${spyClass.superclass}"
-    if (!isMock(counter)) return "Fail isMock"
+    if (!isMock(counter, regular = false, spy = true)) return "Fail isMock"
     val state = spyClass.getDeclaredField("lokki\$state")
     if (!Modifier.isFinal(state.modifiers) || Modifier.isVolatile(state.modifiers)) return "Fail state field"
 

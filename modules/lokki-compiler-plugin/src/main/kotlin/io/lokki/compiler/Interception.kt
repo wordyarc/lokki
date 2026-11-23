@@ -5,7 +5,7 @@ import org.jetbrains.kotlin.name.Name
 
 internal val REDIRECT = Name.identifier("LokkiRedirect")
 internal val REDIRECT_PROPERTY = Name.identifier("lokki\$redirect")
-internal const val FILE_REDIRECT_SUFFIX = "\$LokkiRedirect"
+internal const val FILE_REDIRECT_SUFFIX = BuildConfig.FILE_REDIRECT_SUFFIX
 internal val CONSTRUCTORS = Name.identifier("LokkiConstructors")
 internal const val CONSTRUCTORS_PROPERTY_SUFFIX = "\$lokkiConstructors"
 

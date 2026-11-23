@@ -39,13 +39,13 @@ class RedirectsTest {
         lokkiScope {
             Redirects.mockObject(arrayOf(redirect))
             val mock = assertNotNull(installed)
-            assertTrue(isMock(clock))
+            assertTrue(isMock(clock, objectMock = true))
             assertSame(mock, Redirects.of(clock, "Clock"))
             assertSame(mock, GeneratedMock.of(clock))
             assertTrue((mock as TestMock).`lokki$state`.isObject)
         }
         assertNull(installed)
-        assertFalse(isMock(clock))
+        assertFalse(isMock(clock, objectMock = true))
         assertEquals(
             "Clock is not mocked in the current scope; call mockObject(Clock)",
             assertFailsWith<LokkiException> { Redirects.of(clock, "Clock") }.message,

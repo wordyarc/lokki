@@ -19,7 +19,9 @@ const val RESTRICTED_OPTION = "restricted"
 
 const val DEBUG_OPTION = "debug"
 
-const val LOKKI_ABI_VERSION = 3
+const val LOKKI_ABI_VERSION = 4
+
+const val FILE_REDIRECT_SUFFIX = "\$LokkiRedirect"
 
 val LOKKI_ABI_FLAGS = mapOf(
     "FLAG_RELAXED" to 1,

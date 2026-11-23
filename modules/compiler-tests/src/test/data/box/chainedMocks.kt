@@ -1,3 +1,15 @@
+// FILE: other/Locked.java
+package other;
+
+public abstract class Locked {
+    abstract void hidden();
+
+    public boolean open() {
+        return false;
+    }
+}
+
+// FILE: chainedMocks.kt
 package sample
 
 import io.lokki.LokkiException
@@ -13,6 +25,7 @@ import io.lokki.verifySequence
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.startCoroutine
+import other.Locked
 
 interface Window {
     fun state(): String
@@ -26,10 +39,6 @@ interface Door {
 
 open class Wheel {
     open fun spin(): Int = 0
-}
-
-open class Locked private constructor() {
-    open fun open(): Boolean = false
 }
 
 interface Engine {
@@ -101,8 +110,8 @@ fun box(): String {
 
     val locked = message { every { car.locked().open() } returns true }
     val lockedHint = "\nThe call is a link of a call chain in a stubbed or verified call: stub it first, " +
-        "a child mock cannot be created: 'sample.Locked' cannot be mocked: none of its constructors is visible " +
-        "from this file"
+        "a child mock cannot be created: 'other.Locked' cannot be mocked: a mock cannot implement its abstract members " +
+        "that are not visible from this file: 'hidden'"
     if (!locked.startsWith("no answer found for $car.locked()") || !locked.endsWith(lockedHint)) {
         return "Fail unmockable link: $locked"
     }

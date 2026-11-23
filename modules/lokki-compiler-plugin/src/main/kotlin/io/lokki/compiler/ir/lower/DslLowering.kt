@@ -35,6 +35,7 @@ import io.lokki.compiler.ir.generate.spyFlags
 import io.lokki.compiler.ir.intrinsicKind
 import io.lokki.compiler.ir.irArrayOf
 import io.lokki.compiler.ir.irInvoke
+import io.lokki.compiler.ir.isConfigurationOfInstance
 import io.lokki.compiler.ir.mockedObjects
 import io.lokki.compiler.ir.referencedDeclaration
 import io.lokki.compiler.ir.staticReferences
@@ -48,6 +49,7 @@ import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
 import org.jetbrains.kotlin.ir.builders.declarations.addValueParameter
 import org.jetbrains.kotlin.ir.builders.irAs
+import org.jetbrains.kotlin.ir.builders.irBlock
 import org.jetbrains.kotlin.ir.builders.irBlockBody
 import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irCallOp
@@ -58,6 +60,7 @@ import org.jetbrains.kotlin.ir.builders.irIfThenElse
 import org.jetbrains.kotlin.ir.builders.irInt
 import org.jetbrains.kotlin.ir.builders.irNull
 import org.jetbrains.kotlin.ir.builders.irString
+import org.jetbrains.kotlin.ir.builders.irTemporary
 import org.jetbrains.kotlin.ir.builders.irTrue
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
@@ -175,9 +178,10 @@ internal class DslLowering(
                     val instance = call.spiedInstance
                     val temporary = instance?.temporary
                     val constructed = temporary?.initializer ?: instance
-                    val spy = constructed?.replaceConstructorCall(mockType) { constructor ->
+                    val created = constructed?.replaceConstructorCall(mockType) { constructor ->
                         irConstruct(mock, typeArguments, constructor.arguments.filterNotNull() + spec)
                     } ?: irConstruct(mock, typeArguments, listOf(spec))
+                    val spy = if (created.isConfigurationOfInstance) irWithoutRecords(created) else created
                     if (temporary == null) spy else instance.also { temporary.initializer = spy }
                 }
             }
@@ -188,6 +192,14 @@ internal class DslLowering(
             }
         }
     }
+
+    private fun IrBuilderWithScope.irWithoutRecords(spy: IrExpression): IrExpression =
+        irBlock(resultType = spy.type) {
+            val configured = irTemporary(spy)
+            val state = irInvoke(symbols.state.getter!!, receiver = irInvoke(symbols[CoreFunction.OF], irGet(configured)))
+            +irInvoke(symbols[CoreFunction.FORGET_RECORDS], receiver = state)
+            +irGet(configured)
+        }
 
     private fun lowerMockObject(call: IrCall): IrExpression {
         val objects = call.mockedObjects

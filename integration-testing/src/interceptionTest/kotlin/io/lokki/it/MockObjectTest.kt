@@ -50,7 +50,7 @@ class MockObjectTest {
     @ParameterizedTest
     @ValueSource(longs = [1, 2, 3])
     fun everyInvocationMocksTheObjectAnew(issued: Long) {
-        assertFalse(isMock(Clock))
+        assertFalse(isMock(Clock, objectMock = true))
         mockObject(Clock)
         every { Clock.now() } returns issued
 

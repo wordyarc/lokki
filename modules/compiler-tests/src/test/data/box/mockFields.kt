@@ -99,7 +99,7 @@ private fun answer(block: () -> Any?): String =
 
 fun box(): String {
     val fixture = Fixture()
-    if (!isMock(fixture.engine) || !isMock(fixture.defaultEngine) || !isMock(fixture.namedSpy)) {
+    if (listOf(fixture.engine, fixture.defaultEngine, fixture.namedSpy).any { !isMock(it, regular = false, spy = true) }) {
         return "Fail: constructed spies are created with the object"
     }
     if (fixture.nullableCar != null || fixture.notAnnotated != null) return "Fail: before init"
@@ -121,9 +121,9 @@ fun box(): String {
     every { fixture.engine.power() } returns 70
     if (fixture.engine.start() != "started at 70") return "Fail: constructed spy calls itself"
     if (fixture.defaultEngine.power() != 100) return "Fail: val spy"
-    if (fixture.lateEngine.power() != 100 || !isMock(fixture.lateEngine)) return "Fail: lateinit spy"
+    if (fixture.lateEngine.power() != 100 || !isMock(fixture.lateEngine, regular = false, spy = true)) return "Fail: lateinit spy"
     val existing = fixture.existingEngine
-    if (existing === Fixture.existing || !isMock(existing)) return "Fail: delegating spy"
+    if (existing === Fixture.existing || !isMock(existing, regular = false, spy = true)) return "Fail: delegating spy"
     every { existing.power() } returns 50
     if (existing.start() != "started at 5") return "Fail: delegating spy forwards to the instance"
     if (existing.power() != 50) return "Fail: delegating spy stub"

@@ -3,6 +3,7 @@ package io.lokki.internal
 import io.lokki.CapturingSlot
 import io.lokki.LokkiException
 import io.lokki.Matcher
+import io.lokki.Ordering
 import io.lokki.Runs
 import io.lokki.checkEquals
 import io.lokki.just
@@ -400,6 +401,25 @@ class VerificationTest {
                 "Not verified calls:\n1) $name.count()\n$CALL_SITES",
             assertFailsWith<AssertionError> { state.confirmVerified() }.message,
         )
+    }
+
+    @Test
+    fun testDivergenceIsNotedOnlyForOrderedVerification() {
+        save("x")
+        assertFailsWith<LokkiException> { state.answer(COUNT_MEMBER, emptyArray()) }
+        val note = "\n\nnote: $name.count() had no stubbed answer / threw during execution" +
+            " — this is likely where the sequence diverged"
+
+        for (ordering in listOf(Ordering.ORDERED, Ordering.SEQUENCE)) {
+            val verification = Verification(ordering)
+            verification.expect(state, SAVE, arrayOf<Matcher<Any?>>(EqMatcher("x")))
+            verification.expect(state, COUNT, emptyArray<Matcher<Any?>>())
+            verification.expect(state, SAVE, arrayOf<Matcher<Any?>>(EqMatcher("y")))
+            assertTrue(assertFailsWith<AssertionError> { verification.check() }.message!!.endsWith(note))
+        }
+        val all = Verification(Ordering.ALL)
+        all.expect(state, SAVE, arrayOf<Matcher<Any?>>(EqMatcher("y")))
+        assertFalse("note:" in assertFailsWith<AssertionError> { all.check() }.message!!)
     }
 
     @Test

@@ -30,52 +30,64 @@
 
 /stubBlockNotSingleCall.kt:57:21: error: The block of 'every' must be a single call of a mock member, but it is not a call.
 
-/stubBlockNotSingleCall.kt:79:12: error: The block of 'verify' must consist of calls of mock members, but it is empty.
+/stubBlockNotSingleCall.kt:58:5: error: 'every' registers nothing without an answer: add 'returns', 'answers', 'throws' or 'just Runs' after the block.
 
-/stubBlockNotSingleCall.kt:82:9: error: The block of 'verify' must consist of calls of mock members, but it is not a call.
+/stubBlockNotSingleCall.kt:58:13: error: The block of 'every' must be a single call of a mock member, but it configures a nested stub. Move it outside the block.
 
-/stubBlockNotSingleCall.kt:86:14: error: The block of 'verify' must consist of calls of mock members, but it compares values with an operator.
+/stubBlockNotSingleCall.kt:80:12: error: The block of 'verify' must consist of calls of mock members, but it is empty.
 
-/stubBlockNotSingleCall.kt:87:14: error: The block of 'verify' must consist of calls of mock members, but it compares values with an operator. Call 'compareTo' explicitly.
+/stubBlockNotSingleCall.kt:83:9: error: The block of 'verify' must consist of calls of mock members, but it is not a call.
 
-/stubBlockNotSingleCall.kt:88:14: error: The block of 'verify' must consist of calls of mock members, but it is a string template.
+/stubBlockNotSingleCall.kt:87:14: error: The block of 'verify' must consist of calls of mock members, but it compares values with an operator.
 
-/stubBlockNotSingleCall.kt:89:14: error: The block of 'verify' must consist of calls of mock members, but it is a compound assignment, which reads and writes the property. Verify the setter with a plain assignment of a matcher.
+/stubBlockNotSingleCall.kt:88:14: error: The block of 'verify' must consist of calls of mock members, but it compares values with an operator. Call 'compareTo' explicitly.
 
-/stubBlockNotSingleCall.kt:90:14: error: The block of 'verify' must consist of calls of mock members, but it wraps the call into a lambda. Move the wrapping call outside the block.
+/stubBlockNotSingleCall.kt:89:14: error: The block of 'verify' must consist of calls of mock members, but it is a string template.
 
-/stubBlockNotSingleCall.kt:91:14: error: The block of 'verify' must consist of calls of mock members, but it is a condition. Call 'verify' in its branches.
+/stubBlockNotSingleCall.kt:90:14: error: The block of 'verify' must consist of calls of mock members, but it is a compound assignment, which reads and writes the property. Verify the setter with a plain assignment of a matcher.
 
-/stubBlockNotSingleCall.kt:92:14: error: The block of 'verify' must consist of calls of mock members, but it is a loop. Call 'verify' in the loop or verify one call with matchers and 'exactly'.
+/stubBlockNotSingleCall.kt:91:14: error: The block of 'verify' must consist of calls of mock members, but it wraps the call into a lambda. Move the wrapping call outside the block.
 
-/stubBlockNotSingleCall.kt:93:19: error: The block of 'verifyOrder' must consist of calls of mock members, but it is a condition. Call 'verifyOrder' in its branches.
+/stubBlockNotSingleCall.kt:92:14: error: The block of 'verify' must consist of calls of mock members, but it is a condition. Call 'verify' in its branches.
 
-/stubBlockNotSingleCall.kt:94:15: error: The block of 'verifyAll' must consist of calls of mock members, but it is empty.
+/stubBlockNotSingleCall.kt:93:14: error: The block of 'verify' must consist of calls of mock members, but it is a loop. Call 'verify' in the loop or verify one call with matchers and 'exactly'.
 
-/stubBlockNotSingleCall.kt:95:24: error: The block of 'coVerifySequence' must consist of calls of mock members, but it is a loop. Write out the calls in the expected order.
+/stubBlockNotSingleCall.kt:94:19: error: The block of 'verifyOrder' must consist of calls of mock members, but it is a condition. Call 'verifyOrder' in its branches.
 
-/stubBlockNotSingleCall.kt:113:20: error: The block of 'excludeRecords' must consist of calls of mock members, but it is empty.
+/stubBlockNotSingleCall.kt:95:15: error: The block of 'verifyAll' must consist of calls of mock members, but it is empty.
 
-/stubBlockNotSingleCall.kt:116:9: error: The block of 'excludeRecords' must consist of calls of mock members, but it is not a call.
+/stubBlockNotSingleCall.kt:96:24: error: The block of 'coVerifySequence' must consist of calls of mock members, but it is a loop. Write out the calls in the expected order.
 
-/stubBlockNotSingleCall.kt:120:22: error: The block of 'excludeRecords' must consist of calls of mock members, but it compares values with an operator.
+/stubBlockNotSingleCall.kt:98:9: error: The block of 'verify' must consist of calls of mock members, but it configures a nested stub. Move it outside the block.
 
-/stubBlockNotSingleCall.kt:121:22: error: The block of 'excludeRecords' must consist of calls of mock members, but it is a string template.
+/stubBlockNotSingleCall.kt:101:14: error: The block of 'verify' must consist of calls of mock members, but it configures a nested stub. Move it outside the block.
 
-/stubBlockNotSingleCall.kt:122:22: error: The block of 'excludeRecords' must consist of calls of mock members, but it is a compound assignment, which reads and writes the property. Exclude the setter with a plain assignment of a matcher.
+/stubBlockNotSingleCall.kt:102:14: error: The block of 'verify' must consist of calls of mock members, but it configures a nested stub. Move it outside the block.
 
-/stubBlockNotSingleCall.kt:123:22: error: The block of 'excludeRecords' must consist of calls of mock members, but it is not a call.
+/stubBlockNotSingleCall.kt:120:20: error: The block of 'excludeRecords' must consist of calls of mock members, but it is empty.
 
-/stubBlockNotSingleCall.kt:124:22: error: The block of 'excludeRecords' must consist of calls of mock members, but it is not a call.
+/stubBlockNotSingleCall.kt:123:9: error: The block of 'excludeRecords' must consist of calls of mock members, but it is not a call.
 
-/stubBlockNotSingleCall.kt:125:23: error: The block of 'times' must consist of calls of mock members, but it is empty.
+/stubBlockNotSingleCall.kt:127:22: error: The block of 'excludeRecords' must consist of calls of mock members, but it compares values with an operator.
 
-/stubBlockNotSingleCall.kt:126:25: error: The block of 'times' must consist of calls of mock members, but it is a loop. Call 'verify' in the loop or verify one call with matchers and 'exactly'.
+/stubBlockNotSingleCall.kt:128:22: error: The block of 'excludeRecords' must consist of calls of mock members, but it is a string template.
 
-/stubBlockNotSingleCall.kt:127:14: error: The block of 'coVerify' must consist of calls of mock members, but it is empty.
+/stubBlockNotSingleCall.kt:129:22: error: The block of 'excludeRecords' must consist of calls of mock members, but it is a compound assignment, which reads and writes the property. Exclude the setter with a plain assignment of a matcher.
 
-/stubBlockNotSingleCall.kt:128:16: error: The block of 'coVerify' must consist of calls of mock members, but it compares values with an operator.
+/stubBlockNotSingleCall.kt:130:22: error: The block of 'excludeRecords' must consist of calls of mock members, but it is not a call.
 
-/stubBlockNotSingleCall.kt:129:24: error: The block of 'coExcludeRecords' must consist of calls of mock members, but it is not a call.
+/stubBlockNotSingleCall.kt:131:22: error: The block of 'excludeRecords' must consist of calls of mock members, but it is not a call.
 
-/stubBlockNotSingleCall.kt:130:27: error: The block of 'times' must consist of calls of mock members, but it is a loop. Call 'verify' in the loop or verify one call with matchers and 'exactly'.
+/stubBlockNotSingleCall.kt:132:22: error: The block of 'excludeRecords' must consist of calls of mock members, but it configures a nested stub. Move it outside the block.
+
+/stubBlockNotSingleCall.kt:133:23: error: The block of 'times' must consist of calls of mock members, but it is empty.
+
+/stubBlockNotSingleCall.kt:134:25: error: The block of 'times' must consist of calls of mock members, but it is a loop. Call 'verify' in the loop or verify one call with matchers and 'exactly'.
+
+/stubBlockNotSingleCall.kt:135:14: error: The block of 'coVerify' must consist of calls of mock members, but it is empty.
+
+/stubBlockNotSingleCall.kt:136:16: error: The block of 'coVerify' must consist of calls of mock members, but it compares values with an operator.
+
+/stubBlockNotSingleCall.kt:137:24: error: The block of 'coExcludeRecords' must consist of calls of mock members, but it is not a call.
+
+/stubBlockNotSingleCall.kt:138:27: error: The block of 'times' must consist of calls of mock members, but it is a loop. Call 'verify' in the loop or verify one call with matchers and 'exactly'.

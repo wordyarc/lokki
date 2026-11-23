@@ -1,21 +1,21 @@
-/test.kt:48:5: error: 'sample.Engine' cannot be mocked: none of its constructors can be called without arguments. Pass a constructor call to 'spy', such as 'spy(Engine(...))'.
+/test.kt:50:5: error: 'sample.Engine' cannot be mocked: none of its constructors can be called without arguments. Pass a constructor call to 'spy', such as 'spy(Engine(...))'.
 
-/test.kt:49:5: error: 'sample.Outer.Inner' cannot be mocked: none of its constructors can be called without arguments. Pass a constructor call to 'spy', such as 'spy(Inner(...))'.
+/test.kt:51:5: error: 'sample.Outer.Inner' cannot be mocked: none of its constructors can be called without arguments. Pass a constructor call to 'spy', such as 'spy(Inner(...))'.
 
-/test.kt:51:9: warning: The spy of 'sample.Settings' delegates to an existing instance: calls that the instance makes on itself bypass the spy, and the spy is a different object. Pass a constructor call, such as 'spy(Settings(...))', to spy on the object itself.
+/test.kt:52:5: error: 'sample.Closed' cannot be mocked: none of its constructors is visible from this file.
 
-/test.kt:52:20: warning: The spy of 'sample.Settings' delegates to an existing instance: calls that the instance makes on itself bypass the spy, and the spy is a different object. Pass a constructor call, such as 'spy(Settings(...))', to spy on the object itself.
+/test.kt:54:9: warning: The spy of 'sample.Settings' delegates to an existing instance: calls that the instance makes on itself bypass the spy, and the spy is a different object. Pass a constructor call, such as 'spy(Settings(...))', to spy on the object itself.
 
-/test.kt:53:9: error: A spy of 'sample.Pump' cannot delegate to an existing instance: it cannot forward 'pressure', 'prime', 'vent' to the instance, so they would run on an object created without a constructor. Pass a constructor call instead, such as 'spy(Pump(...))'.
+/test.kt:56:9: error: A spy of 'sample.Pump' cannot delegate to an existing instance: it cannot forward 'pressure', 'prime', 'vent' to the instance, so they would run on an object created without a constructor. Pass a constructor call instead, such as 'spy(Pump(...))'.
 
-/test.kt:54:9: error: A spy of 'sample.Valve' cannot delegate to an existing instance: it cannot forward 'size' to the instance, so they would run on an object created without a constructor. Pass a constructor call instead, such as 'spy(Valve(...))'.
+/test.kt:57:9: error: A spy of 'sample.Valve' cannot delegate to an existing instance: it cannot forward 'size' to the instance, so they would run on an object created without a constructor. Pass a constructor call instead, such as 'spy(Valve(...))'.
 
-/test.kt:55:9: error: A spy of 'lib.Gauge' cannot delegate to an existing instance: it cannot forward 'calibrate' to the instance, so they would run on an object created without a constructor. Pass a constructor call instead, such as 'spy(Gauge(...))'.
+/test.kt:58:9: error: A spy of 'lib.Gauge' cannot delegate to an existing instance: it cannot forward 'calibrate' to the instance, so they would run on an object created without a constructor. Pass a constructor call instead, such as 'spy(Gauge(...))'.
 
-/test.kt:56:31: warning: The spy of 'sample.Settings' delegates to an existing instance: calls that the instance makes on itself bypass the spy, and the spy is a different object. Pass a constructor call, such as 'spy(Settings(...))', to spy on the object itself.
+/test.kt:59:31: warning: The spy of 'sample.Settings' delegates to an existing instance: calls that the instance makes on itself bypass the spy, and the spy is a different object. Pass a constructor call, such as 'spy(Settings(...))', to spy on the object itself.
 
-/test.kt:64:5: error: 'sample.Engine' cannot be mocked: none of its constructors can be called without arguments. Pass a constructor call to 'spy', such as 'spy(Engine(...))'.
+/test.kt:67:5: error: 'sample.Engine' cannot be mocked: none of its constructors can be called without arguments. Pass a constructor call to 'spy', such as 'spy(Engine(...))'.
 
-/test.kt:68:30: warning: The spy of 'sample.Settings' delegates to an existing instance: calls that the instance makes on itself bypass the spy, and the spy is a different object. Pass a constructor call, such as 'spy(Settings(...))', to spy on the object itself.
+/test.kt:71:30: warning: The spy of 'sample.Settings' delegates to an existing instance: calls that the instance makes on itself bypass the spy, and the spy is a different object. Pass a constructor call, such as 'spy(Settings(...))', to spy on the object itself.
 
-/test.kt:71:22: error: A spy of 'sample.Pump' cannot delegate to an existing instance: it cannot forward 'pressure', 'prime', 'vent' to the instance, so they would run on an object created without a constructor. Pass a constructor call instead, such as 'spy(Pump(...))'.
+/test.kt:74:22: error: A spy of 'sample.Pump' cannot delegate to an existing instance: it cannot forward 'pressure', 'prime', 'vent' to the instance, so they would run on an object created without a constructor. Pass a constructor call instead, such as 'spy(Pump(...))'.

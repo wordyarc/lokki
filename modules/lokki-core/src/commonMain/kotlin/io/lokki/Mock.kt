@@ -127,7 +127,21 @@ public fun unmockAll() {
     Redirects.unmockAll()
 }
 
-public fun isMock(obj: Any): Boolean = obj is GeneratedMock || Redirects.find(obj) != null
+public fun isMock(
+    mock: Any,
+    regular: Boolean = true,
+    spy: Boolean = false,
+    objectMock: Boolean = false,
+    staticMock: Boolean = false,
+    constructorMock: Boolean = false,
+): Boolean {
+    val state = (mock as? GeneratedMock)?.`lokki$state`
+    return regular && state?.isRegular == true ||
+        spy && state?.isSpy == true ||
+        objectMock && Redirects.isObject(mock) ||
+        staticMock && Redirects.isStatic(mock) ||
+        constructorMock && Redirects.isConstructor(mock)
+}
 
 public fun clearMocks(
     firstMock: Any,

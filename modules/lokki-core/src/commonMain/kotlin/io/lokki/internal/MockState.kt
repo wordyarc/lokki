@@ -40,6 +40,12 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
     internal val isConstructor: Boolean
         get() = flags and CONSTRUCTOR != 0
 
+    internal val isRegular: Boolean
+        get() = representative != null || flags and SPY == 0
+
+    internal val isSpy: Boolean
+        get() = representative == null && flags and (SPY or OBJECT or STATIC) == SPY
+
     private var stubs: Array<Array<StubEntry>?>
         get() = data.stubs
         set(value) {
@@ -88,7 +94,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
             member,
             arguments,
             { record -> returned(record, mock.`lokki$original`(member, arguments)) },
-        ) { answer, call, record -> returned(record, answer.answer(call)) }
+        ) { answer, call, record -> returned(record, markingThrown(record) { answer.answer(call) }) }
 
     @Suppress("UNCHECKED_CAST")
     suspend fun <T> coAnswer(member: Int, arguments: Array<Any?>): T =
@@ -114,6 +120,10 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
     fun link(key: String, matchers: Array<Matcher<Any?>>, stubs: Boolean, factory: (MockSpec) -> Any): Any {
         checkNotShared()
         return linkedChild(descriptor.member(key), matchers, stubs, factory)
+    }
+
+    fun forgetRecords() {
+        synchronized(records) { records.clear() }
     }
 
     fun exclude(key: String, matchers: Array<Matcher<Any?>>, current: Boolean = true) {
@@ -161,6 +171,9 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
 
     internal fun unansweredRecords(since: Long = ALL): List<CallRecord> =
         synchronized(records) { records.filter { it.unanswered && it.sequenceNumber > since } }
+
+    internal fun divergedRecords(): List<CallRecord> =
+        synchronized(records) { records.filter { it.unanswered || it.threw } }
 
     internal fun checkNotShared() {
         scope?.checkNotShared(name)
@@ -260,14 +273,29 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
                 if (record != null && state != null) returnedMock(record, state)
                 selected.value
             }
-            is ThrowingAnswer -> throw selected.exception
+            is ThrowingAnswer -> {
+                if (selected.exception is Exception) markThrown(record)
+                throw selected.exception
+            }
             is ArgumentAnswer -> returned(record, arguments[selected.index])
             else -> answer(selected, Call(Invocation(owner, member, arguments), stub), record)
         }
     }
 
     private suspend fun coReturned(record: CallRecord, answer: Answer<Any?>, call: Call): Any? =
-        returned(record, answer.coAnswer(call))
+        returned(record, markingThrown(record) { answer.coAnswer(call) })
+
+    private inline fun <T> markingThrown(record: CallRecord?, answer: () -> T): T =
+        try {
+            answer()
+        } catch (e: Exception) {
+            markThrown(record)
+            throw e
+        }
+
+    private fun markThrown(record: CallRecord?) {
+        if (record != null) synchronized(records) { record.threw = true }
+    }
 
     private fun returned(record: CallRecord?, value: Any?): Any? {
         if (record != null && value is GeneratedMock) returnedMock(record, value.`lokki$state`)
@@ -436,6 +464,8 @@ internal class CallRecord(
     var verified = false
 
     var failure: LokkiException? = null
+
+    var threw = false
 
     @Volatile
     var result: MockState? = null

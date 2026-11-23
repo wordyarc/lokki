@@ -197,7 +197,7 @@ fun box(): String {
 
     val spied = Spied()
     MockAnnotations.init(spied)
-    if (!isMock(spied.service) || spied.service.repo !== spied.repo) return "Fail: spy"
+    if (!isMock(spied.service, regular = false, spy = true) || spied.service.repo !== spied.repo) return "Fail: spy"
     every { spied.repo.find(2) } returns "two"
     every { spied.clock.now() } returns 7
     if (spied.service.describe(2) != "two at 7") return "Fail: spy original ${spied.service.describe(2)}"

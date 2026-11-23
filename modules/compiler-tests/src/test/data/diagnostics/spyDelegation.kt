@@ -44,12 +44,15 @@ class Outer {
     open inner class Inner
 }
 
+open class Closed private constructor()
+
 fun test(settings: Settings, pump: Pump, valve: Valve, gauge: Gauge) {
     <!LOKKI_TYPE_NOT_MOCKABLE!>spy<Engine>()<!>
     <!LOKKI_TYPE_NOT_MOCKABLE!>spy<Outer.Inner>()<!>
+    <!LOKKI_TYPE_NOT_MOCKABLE!>spy<Closed>()<!>
 
     spy(<!LOKKI_SPY_ARGUMENT_NOT_CONSTRUCTOR_CALL!>settings<!>)
-    spy(Settings().<!LOKKI_SPY_ARGUMENT_NOT_CONSTRUCTOR_CALL!>apply { size() }<!>)
+    spy(Settings().apply { size() })
     spy(<!LOKKI_UNSAFE_SPY_DELEGATION!>pump<!>)
     spy(<!LOKKI_UNSAFE_SPY_DELEGATION!>valve<!>)
     spy(<!LOKKI_UNSAFE_SPY_DELEGATION!>gauge<!>)

@@ -157,11 +157,13 @@ private class MockCollector(private val file: FileContext) : IrVisitorVoid() {
     private fun addConstructed(use: IrCall, target: IrClass) {
         if (target in constructed) return
         val redirect = file.redirects.constructors(target) ?: return
+        val constructors = redirect.constructors.filter { it.isVisibleFrom(file.ir) }
+        if (constructors.isEmpty()) return
         val type = target.symbol.starProjectedType
         val representative = file.mockability.site(MockRequest(false, type, null, emptyList(), "")) as? MockSite.Mocked
             ?: return
         add(use, representative)
-        val instances = redirect.constructors.filter { it.isVisibleFrom(file.ir) }.associateWith { constructor ->
+        val instances = constructors.associateWith { constructor ->
             val form = MockForm.Construction(constructor, constructor.parameters.map { true })
             val site = file.mockability.site(MockRequest(true, type, null, emptyList(), "", form)) as? MockSite.Mocked
                 ?: return

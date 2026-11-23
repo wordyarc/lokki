@@ -119,7 +119,7 @@ fun box(): String {
         if (it != "Clock is not mocked in the current scope; call mockObject(Clock)") return "Fail: every without a scope: $it"
     }
     lokkiScope { stubs() }?.let { return it }
-    if (Clock.now() != 1L || isMock(Clock)) return "Fail: the scope did not remove the redirect"
+    if (Clock.now() != 1L || isMock(Clock, objectMock = true)) return "Fail: the scope did not remove the redirect"
     lokkiScope { scopes() }?.let { return it }
     lokkiScope { companion() }?.let { return it }
     lokkiScope { jvmNames() }?.let { return it }
@@ -146,7 +146,7 @@ private fun shape(): String? {
 
 private fun stubs(): String? {
     mockObject(Clock)
-    if (!isMock(Clock)) return "Fail: isMock"
+    if (!isMock(Clock, objectMock = true)) return "Fail: isMock"
     if (Clock.now() != 1L) return "Fail: an unstubbed call runs the original"
     every { Clock.now() } returns 5
     if (Clock.now() != 5L) return "Fail: stub"
@@ -192,21 +192,21 @@ private fun stubs(): String? {
     verify { Clock wasNot Called }
 
     unmockObject(Clock)
-    if (isMock(Clock)) return "Fail: unmockObject"
+    if (isMock(Clock, objectMock = true)) return "Fail: unmockObject"
     failure { verify { Clock.now() } }.let {
         if (it != "Clock is not mocked in the current scope; call mockObject(Clock)") return "Fail: not mocked: $it"
     }
     every { Clock.now() } returns 2
-    if (!isMock(Clock) || Clock.now() != 2L || Clock.twice() != 4L) return "Fail: every mocks an object that is not mocked"
+    if (!isMock(Clock, objectMock = true) || Clock.now() != 2L || Clock.twice() != 4L) return "Fail: every mocks an object that is not mocked"
     unmockObject(Clock)
     mockObject(Shelf)
     every { Shelf.put("a") } returns 9
     if (Shelf.put("a") != 9 || Shelf.put("bb") != 2) return "Fail: an override with another root key"
 
     mockObject(Clock, Empty)
-    if (!isMock(Empty)) return "Fail: an object without members"
+    if (!isMock(Empty, objectMock = true)) return "Fail: an object without members"
     unmockAll()
-    if (isMock(Clock) || isMock(Empty)) return "Fail: unmockAll"
+    if (isMock(Clock, objectMock = true) || isMock(Empty, objectMock = true)) return "Fail: unmockAll"
     return null
 }
 

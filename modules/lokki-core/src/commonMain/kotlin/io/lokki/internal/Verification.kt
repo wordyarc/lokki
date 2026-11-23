@@ -190,12 +190,12 @@ internal class Verification(
     private fun verifyOrder(): Outcome {
         val calls = involvedCalls()
         val lcs = Lcs(calls, expectations)
-        return when {
-            expectations.size > calls.size ->
-                failure("fewer calls happened than demanded by order verification sequence. ", calls, lcs)
-            lcs.isComplete -> Outcome(lcs.matches)
-            else -> failure("calls are not in verification order", calls, lcs)
+        val problem = when {
+            expectations.size > calls.size -> "fewer calls happened than demanded by order verification sequence. "
+            lcs.isComplete -> return Outcome(lcs.matches)
+            else -> "calls are not in verification order"
         }
+        return failure(problem, calls, lcs, divergenceNote())
     }
 
     private fun verifySequence(): Outcome {
@@ -207,7 +207,14 @@ internal class Verification(
                 "calls are not exactly matching verification sequence"
             else -> return Outcome(expectations.zip(calls, ::Match))
         }
-        return failure(problem, calls, Lcs(calls, expectations))
+        return failure(problem, calls, Lcs(calls, expectations), divergenceNote())
+    }
+
+    private fun divergenceNote(): String {
+        val diverged = states.flatMap { it.divergedRecords() }
+        val expectation = expectations.firstOrNull { diverged.any(it::matches) } ?: return ""
+        return "\n\nnote: $expectation had no stubbed answer / threw during execution" +
+            " — this is likely where the sequence diverged"
     }
 
     private fun verifyAny(): Outcome {
@@ -236,11 +243,11 @@ internal class Verification(
 
     private fun involvedCalls(): List<CallRecord> = states.flatMap { it.records() }.sortedBy { it.sequenceNumber }
 
-    private fun failure(problem: String, calls: List<CallRecord>, lcs: Lcs): Outcome {
+    private fun failure(problem: String, calls: List<CallRecord>, lcs: Lcs, note: String = ""): Outcome {
         val matched = lcs.matches.mapTo(HashSet()) { it.expectation }
         val report = "$problem\n\nMatchers: \n" +
             expectations.joinToString("\n") { if (it in matched) "+$it" else "$it" } +
-            "\n\nCalls:\n${calls.numbered(lcs.matches.mapTo(HashSet()) { it.call })}\n${calls.callSites()}"
+            "\n\nCalls:\n${calls.numbered(lcs.matches.mapTo(HashSet()) { it.call })}\n${calls.callSites()}$note"
         return Outcome(emptyList(), report, expectations.flatMap { it.assertions() })
     }
 

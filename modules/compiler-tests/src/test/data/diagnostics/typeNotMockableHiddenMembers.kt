@@ -87,8 +87,8 @@ import other.Hidden
 fun test() {
     <!LOKKI_TYPE_NOT_MOCKABLE!>mock<Plugin>()<!>
     <!LOKKI_TYPE_NOT_MOCKABLE!>mock<Base>()<!>
-    <!LOKKI_TYPE_NOT_MOCKABLE!>mock<Hidden>()<!>
-    <!LOKKI_TYPE_NOT_MOCKABLE!>mock<Singleton>()<!>
-    <!LOKKI_TYPE_NOT_MOCKABLE!>mock<Factory>()<!>
+    mock<Hidden>()
+    mock<Singleton>()
+    mock<Factory>()
     mock<Extension>()
 }

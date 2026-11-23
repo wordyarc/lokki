@@ -373,7 +373,8 @@ public final class io/lokki/MockKt {
 	public static synthetic fun clearMocks$default (Ljava/lang/Object;[Ljava/lang/Object;ZZZZZILjava/lang/Object;)V
 	public static final fun clearStaticMock ([Lkotlin/reflect/KFunction;)V
 	public static final fun clearStaticMock ([Lkotlin/reflect/KProperty;)V
-	public static final fun isMock (Ljava/lang/Object;)Z
+	public static final fun isMock (Ljava/lang/Object;ZZZZZ)Z
+	public static synthetic fun isMock$default (Ljava/lang/Object;ZZZZZILjava/lang/Object;)Z
 	public static final fun mockClass (Lkotlin/reflect/KClass;Ljava/lang/String;Z[Lkotlin/reflect/KClass;ZLkotlin/jvm/functions/Function1;)Ljava/lang/Object;
 	public static synthetic fun mockClass$default (Lkotlin/reflect/KClass;Ljava/lang/String;Z[Lkotlin/reflect/KClass;ZLkotlin/jvm/functions/Function1;ILjava/lang/Object;)Ljava/lang/Object;
 	public static final fun mockConstructor ([Lkotlin/reflect/KClass;)V
@@ -705,6 +706,7 @@ public final class io/lokki/internal/MockState {
 	public final fun coCaptureDefaults (Ljava/lang/String;[Ljava/lang/String;Lkotlin/jvm/functions/Function2;)[Ljava/lang/Object;
 	public final fun exclude (Ljava/lang/String;[Lio/lokki/Matcher;Z)V
 	public static synthetic fun exclude$default (Lio/lokki/internal/MockState;Ljava/lang/String;[Lio/lokki/Matcher;ZILjava/lang/Object;)V
+	public final fun forgetRecords ()V
 	public final fun link (Ljava/lang/String;[Lio/lokki/Matcher;ZLkotlin/jvm/functions/Function1;)Ljava/lang/Object;
 	public final fun noOriginal (I[Ljava/lang/Object;)Ljava/lang/Object;
 	public final fun stub (Ljava/lang/String;[Lio/lokki/Matcher;)Lio/lokki/StubScope;

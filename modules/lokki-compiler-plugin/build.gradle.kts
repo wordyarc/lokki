@@ -3,6 +3,7 @@ import lokki.buildlogic.COMPILER_COMPAT_SERVICE
 import lokki.buildlogic.COMPILER_PLUGIN_ID
 import lokki.buildlogic.ClasspathSystemProperty
 import lokki.buildlogic.DEBUG_OPTION
+import lokki.buildlogic.FILE_REDIRECT_SUFFIX
 import lokki.buildlogic.LOKKI_ABI_FLAGS
 import lokki.buildlogic.LOKKI_ABI_VERSION
 import lokki.buildlogic.MOCKABLE_OPTION
@@ -65,6 +66,7 @@ buildConfig {
     buildConfigField("RESTRICTED_OPTION", RESTRICTED_OPTION)
     buildConfigField("DEBUG_OPTION", DEBUG_OPTION)
     buildConfigField("LOKKI_ABI_VERSION", LOKKI_ABI_VERSION)
+    buildConfigField("FILE_REDIRECT_SUFFIX", FILE_REDIRECT_SUFFIX)
     LOKKI_ABI_FLAGS.forEach { (name, flag) -> buildConfigField(name, flag) }
     buildConfigField("VERSION", version.toString())
     buildConfigField("LATEST_TESTED_KOTLIN", latestTestedKotlin)

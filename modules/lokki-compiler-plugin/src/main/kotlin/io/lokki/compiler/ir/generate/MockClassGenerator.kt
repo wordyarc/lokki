@@ -25,6 +25,7 @@ import io.lokki.compiler.ir.isClassFinalizer
 import io.lokki.compiler.ir.isOverridable
 import io.lokki.compiler.ir.isVisibleFrom
 import io.lokki.compiler.ir.memberKeys
+import io.lokki.compiler.ir.packageFqName
 import io.lokki.compiler.ir.redirectedName
 import io.lokki.compiler.ir.root
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
@@ -118,6 +119,7 @@ import org.jetbrains.kotlin.ir.visitors.IrVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.load.kotlin.PackagePartClassUtils
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.util.OperatorNameConventions
 
@@ -163,7 +165,8 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         val (mockedType, interfaces) = (listOf(usage.mockedTypes.type) + usage.mockedTypes.interfaces)
             .map { it.withOwnParameters(mock, own) }
             .let { it.first() to it.drop(1) }
-        mock.superTypes = listOf(mockedType) + interfaces + symbols[CoreClass.GENERATED_MOCK].defaultType
+        mock.superTypes = listOf(mockedType) + mockedType.functionInterfaces + interfaces +
+            symbols[CoreClass.GENERATED_MOCK].defaultType
         mock.createThisReceiverParameter()
         if (mocked.isLocal) file.addAfter(mocked, mock) else file.addChild(mock)
         val constructor = when {
@@ -225,7 +228,10 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         coOriginal.implementOriginal(mock, forward, state, coOriginals, CO_ORIGINAL_BRANCH_BYTES)
         val names = ownParameters.zip(parameters).associate { (own, parameter) -> own.symbol to parameter.owner.name }
         val children = if (relaxedChildren) Children(usage, classes, path) else null
-        relaxed.implementRelaxed(mock, members, children, suggestsChainedMocks = !classes.file.chainedMocks) {
+        val suggestsChainedMocks = { type: IrType ->
+            !classes.file.chainedMocks && classes.file.mockability.childProblem(type) == null
+        }
+        relaxed.implementRelaxed(mock, members, children, suggestsChainedMocks) {
             (names[it.symbol] ?: it.name).asString()
         }
         describe.implementDescribe(mock, members, file)
@@ -279,7 +285,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         val mocked = mockedType.mockedClass
         val superConstructor = mocked.constructors
             .filter { it.isVisibleFrom(file) }
-            .minBy { it.parameters.size }
+            .minByOrNull { it.parameters.size } ?: return
         val substitution = mockedType.superSubstitution
         val constructor = addConstructor {
             startOffset = this@addUncalledConstructor.startOffset
@@ -472,7 +478,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         mock: IrClass,
         members: List<IrSimpleFunction>,
         children: Children?,
-        suggestsChainedMocks: Boolean,
+        suggestsChainedMocks: (IrType) -> Boolean,
         parameterName: (IrTypeParameter) -> String,
     ) {
         val child = children?.let { it::default }
@@ -679,12 +685,25 @@ private val IrClass.descriptorName: String
 private val IrSimpleType.superSubstitution: Map<IrTypeParameterSymbol, IrType>
     get() = mockedClassTypeParameters.map { it.symbol }.zip(arguments.map { it.typeOrFail }).toMap()
 
+private val IrSimpleType.functionInterfaces: List<IrType>
+    get() {
+        val mocked = mockedClass
+        if (mocked.packageFqName != KOTLIN_REFLECT || !REFLECTED_FUNCTION.matches(mocked.name.asString())) {
+            return emptyList()
+        }
+        return mocked.superTypes
+            .filter { it.classOrNull?.owner?.packageFqName != KOTLIN_REFLECT }
+            .map { it.substitute(superSubstitution) }
+    }
+
 private val IrType.depth: Int
     get() = 1 + ((this as? IrSimpleType)?.arguments.orEmpty().maxOfOrNull { it.typeOrNull?.depth ?: 0 } ?: 0)
 
 private val IrTypeParameter.erasure: IrType
     get() = erasedUpperBound.symbol.starProjectedType.makeNullable()
 
+private val KOTLIN_REFLECT = FqName("kotlin.reflect")
+private val REFLECTED_FUNCTION = Regex("K(Suspend)?Function\\d+")
 private val DESCRIPTOR = Name.identifier("lokki\$descriptor")
 private val DELEGATE = Name.identifier("lokki\$delegate")
 internal val INIT = Name.identifier("lokki\$init")

@@ -6,12 +6,12 @@ import io.lokki.compiler.TYPE_PARAMETER_PROBLEM
 import io.lokki.compiler.declarationKindProblem
 import io.lokki.compiler.fir.lokkiEnvironment
 import io.lokki.compiler.memberWithClasses
-import io.lokki.compiler.ir.constructorCall
 import io.lokki.compiler.ir.effectiveModality
 import io.lokki.compiler.ir.inaccessibleClasses
 import io.lokki.compiler.ir.isOverridable
 import io.lokki.compiler.ir.isVisibleFrom
 import io.lokki.compiler.ir.packageFqName
+import io.lokki.compiler.ir.spiedConstructorCall
 import io.lokki.compiler.ir.typeKey
 import io.lokki.compiler.ir.unwrapTemporary
 import io.lokki.compiler.notInterfaceProblem
@@ -126,7 +126,7 @@ internal class Mockability(private val file: IrFile, private val typeSystem: IrT
     }
 
     fun site(request: MockRequest): MockSite {
-        val constructed = request.instance?.takeIf { request.isSpy }?.unwrapTemporary()?.constructorCall()
+        val constructed = request.instance?.takeIf { request.isSpy }?.unwrapTemporary()?.spiedConstructorCall()
             ?.takeIf { it.symbol.owner.constructedClass.canBeSubclassed }
         val mockedType = constructed?.type ?: if (request.isSpy) request.type else request.type.sealedRepresentative()
         (if (request.isSpy) problemOf(mockedType) else mockProblem(mockedType))?.let { return MockSite.Rejected(it) }
@@ -151,13 +151,7 @@ internal class Mockability(private val file: IrFile, private val typeSystem: IrT
             request.construction != null -> request.construction
             mocked.isInterface -> MockForm.Mock
             else -> mocked.constructorWithoutArguments()?.let { MockForm.Construction(it, it.parameters.map { false }) }
-                ?: return MockSite.Rejected(
-                    NotMockable(
-                        mocked.displayName,
-                        "none of its constructors can be called without arguments. Pass a constructor call to " +
-                            "'spy', such as 'spy(${mocked.name}(...))'",
-                    )
-                )
+                ?: return MockSite.Rejected(NotMockable(mocked.displayName, mocked.spyConstructorProblem()))
         }
         val added = request.interfaces ?: return MockSite.Rejected(
             Unsupported("${request.interfacesOwner} takes only class literals of interfaces, such as 'Closeable::class'")
@@ -239,13 +233,16 @@ internal class Mockability(private val file: IrFile, private val typeSystem: IrT
     private fun IrClass.problem(): ClassProblem? {
         val frontend = frontendProblem()
         if (frontend != null) return ClassProblem(frontend, isFrontendRule = true)
-        val reason = when {
-            kind == ClassKind.CLASS && constructors.none { it.isVisibleFrom(file) } ->
-                "none of its constructors is visible from this file"
-            else -> hiddenAbstractMembers() ?: uninheritedAbstractMembers() ?: membersWithInaccessibleClasses()
-        }
+        val reason = hiddenAbstractMembers() ?: uninheritedAbstractMembers() ?: membersWithInaccessibleClasses()
         return reason?.let { ClassProblem(it, isFrontendRule = false) }
     }
+
+    private fun IrClass.spyConstructorProblem(): String =
+        when {
+            constructors.none { it.isVisibleFrom(file) } -> "none of its constructors is visible from this file"
+            else -> "none of its constructors can be called without arguments. Pass a constructor call to " +
+                "'spy', such as 'spy($name(...))'"
+        }
 
     private val IrClass.isFromFriendKotlinModule: Boolean
         get() {

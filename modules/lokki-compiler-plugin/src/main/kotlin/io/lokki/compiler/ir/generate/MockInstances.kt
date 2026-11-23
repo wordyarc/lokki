@@ -27,6 +27,7 @@ import org.jetbrains.kotlin.ir.builders.irString
 import org.jetbrains.kotlin.ir.builders.irTemporary
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.expressions.IrBlock
+import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.types.IrSimpleType
@@ -137,6 +138,7 @@ internal fun IrExpression.replaceConstructorCall(
 ): IrExpression =
     when (this) {
         is IrConstructorCall -> replacement(this)
+        is IrCall -> apply { arguments[0] = arguments[0]!!.replaceConstructorCall(type, replacement) }
         is IrBlock -> apply {
             statements[statements.lastIndex] =
                 (statements.last() as IrExpression).replaceConstructorCall(type, replacement)

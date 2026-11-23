@@ -37,7 +37,7 @@ class Fixture(@Mock val inConstructor: Dep, @RelaxedMock other: Dep) {
     ): String {
         if (service.dep !== dep || service.tool !== tool) return "Fail constructor arguments"
         if (service.late !== late) return "Fail property injection"
-        if (!isMock(tool) || tool.dep !== dep) return "Fail spy with constructor arguments"
+        if (!isMock(tool, regular = false, spy = true) || tool.dep !== dep) return "Fail spy with constructor arguments"
         every { dep.value() } returns 41
         if (tool.use() != 42) return "Fail spy calls the original"
         if (late.name() != "plain") return "Fail spy"

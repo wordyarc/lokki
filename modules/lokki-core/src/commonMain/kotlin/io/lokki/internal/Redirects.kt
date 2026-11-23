@@ -102,6 +102,15 @@ internal object Redirects {
 
     internal fun find(target: Any): GeneratedMock? = synchronized(this) { active.find { it.isFor(target) }?.mock }
 
+    internal fun isObject(target: Any): Boolean =
+        synchronized(this) { active.any { it.target === target && it.mock.`lokki$state`.isObject } }
+
+    internal fun isStatic(type: Any): Boolean =
+        synchronized(this) { active.any { it.mock.`lokki$state`.isStatic && it.mock.redirectsFile(type) } }
+
+    internal fun isConstructor(type: Any): Boolean =
+        synchronized(this) { active.any { it.constructors != null && it.mock.mocksClass(type) } }
+
     internal fun unmockAll() {
         LokkiScope.currentScope?.let(::release)
     }

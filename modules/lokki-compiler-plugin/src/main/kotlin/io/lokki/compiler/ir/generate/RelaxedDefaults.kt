@@ -3,13 +3,9 @@ package io.lokki.compiler.ir.generate
 import io.lokki.compiler.CoreConstructor
 import io.lokki.compiler.ir.LokkiIrContext
 import io.lokki.compiler.ir.collect.referencedTypeParameters
-import io.lokki.compiler.ir.effectiveModality
 import io.lokki.compiler.ir.irGetObject
 import io.lokki.compiler.ir.irInvoke
 import io.lokki.compiler.ir.renderReadable
-import org.jetbrains.kotlin.descriptors.ClassKind
-import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
-import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
 import org.jetbrains.kotlin.ir.builders.irBoolean
 import org.jetbrains.kotlin.ir.builders.irCall
@@ -62,7 +58,7 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
         type: IrType,
         parameterName: (IrTypeParameter) -> String,
         child: ((IrSimpleType) -> RelaxedDefault?)?,
-        suggestsChainedMocks: Boolean,
+        suggestsChainedMocks: (IrType) -> Boolean,
     ): RelaxedDefault? {
         val platform = type.hasAnnotation(StandardClassIds.Annotations.FlexibleNullability)
         if (type.isMarkedNullable() && !platform) return null
@@ -87,7 +83,7 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
             }
             else -> empty(klass.owner)
                 ?: child?.invoke(type as IrSimpleType)
-                ?: missing(type.renderReadable(parameterName), suggestsChainedMocks && klass.owner.isOpen)
+                ?: missing(type.renderReadable(parameterName), suggestsChainedMocks(type))
         }
     }
 
@@ -171,10 +167,3 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
             irInvoke(symbols[CoreConstructor.NO_RELAXED_DEFAULT], irString(description), irBoolean(mockable))
         }
 }
-
-private val IrClass.isOpen: Boolean
-    get() = effectiveModality != Modality.FINAL && effectiveModality != Modality.SEALED && when (kind) {
-        ClassKind.INTERFACE -> true
-        ClassKind.CLASS -> constructors.any { !DescriptorVisibilities.isPrivate(it.visibility) }
-        else -> false
-    }

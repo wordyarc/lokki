@@ -7,9 +7,7 @@ package shapes
 
 sealed interface Hidden
 
-private class Secret : Hidden
-
-open class Closed private constructor() : Hidden
+private open class Secret : Hidden
 
 // MODULE: test(main)
 // FILE: test.kt

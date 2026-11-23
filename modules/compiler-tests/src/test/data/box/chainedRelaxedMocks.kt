@@ -1,3 +1,14 @@
+// FILE: other/Locked.java
+package other;
+
+public abstract class Locked {
+    abstract void hidden();
+
+    public boolean open() {
+        return false;
+    }
+}
+
 // FILE: chained.kt
 @file:ChainedMocks
 
@@ -40,6 +51,7 @@ import io.lokki.MockAnnotations
 import io.lokki.clearMocks
 import io.lokki.every
 import io.lokki.mock
+import other.Locked
 
 interface Handle {
     fun turn(): Int
@@ -54,10 +66,6 @@ interface Door {
 
 open class Wheel {
     open fun spin(): Int = 1
-}
-
-open class Locked private constructor() {
-    open fun open(): Boolean = false
 }
 
 interface Parser<T> {

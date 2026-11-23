@@ -1,3 +1,4 @@
+import lokki.buildlogic.FILE_REDIRECT_SUFFIX
 import lokki.buildlogic.LOKKI_ABI_FLAGS
 import lokki.buildlogic.LOKKI_ABI_VERSION
 
@@ -14,6 +15,7 @@ buildConfig {
     packageName("io.lokki.internal")
     className("LokkiAbi")
     buildConfigField("VERSION", LOKKI_ABI_VERSION)
+    buildConfigField("FILE_REDIRECT_SUFFIX", FILE_REDIRECT_SUFFIX)
     LOKKI_ABI_FLAGS.forEach { (name, flag) -> buildConfigField(name, flag) }
 }
 

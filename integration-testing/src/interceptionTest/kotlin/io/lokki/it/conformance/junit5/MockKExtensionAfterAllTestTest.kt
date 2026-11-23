@@ -14,7 +14,7 @@ abstract class MockKExtensionAfterAllTestTest {
     @Test
     open fun prepareAfterAllUnmockTest() {
         mockObject(TestMock)
-        assertTrue(isMock(TestMock))
+        assertTrue(isMock(TestMock, objectMock = true))
     }
 
     @ExtendWith(CheckIsNotMock::class, LokkiExtension::class)
@@ -22,7 +22,7 @@ abstract class MockKExtensionAfterAllTestTest {
 
     class CheckIsNotMock : AfterAllCallback {
         override fun afterAll(context: ExtensionContext) {
-            assertFalse(isMock(TestMock))
+            assertFalse(isMock(TestMock, objectMock = true))
         }
     }
 }
