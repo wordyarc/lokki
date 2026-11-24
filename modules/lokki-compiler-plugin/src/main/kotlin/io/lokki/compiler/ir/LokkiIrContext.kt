@@ -32,7 +32,7 @@ internal class FileContext(
     val fields: MockFields,
     val reifiedHelpers: ReifiedHelpers,
 ) {
-    val relaxedChildMocks: Boolean = ir.hasAnnotation(CoreClass.RELAXED_CHILD_MOCKS.id)
+    val chainedMocks: Boolean = ir.hasAnnotation(CoreClass.CHAINED_MOCKS.id)
     val redirects = RedirectLookup(lokki.pluginContext, ir)
     val diagnostics = IrDiagnostics(lokki, ir)
     val failedDynamicCalls = HashSet<IrCall>()

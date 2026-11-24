@@ -1,11 +1,11 @@
 // FILE: test.kt
-@file:RelaxedChildMocks
+@file:ChainedMocks
 
 package sample
 
+import io.lokki.ChainedMocks
 import io.lokki.Mock
 import io.lokki.MockAnnotations
-import io.lokki.RelaxedChildMocks
 import io.lokki.every
 import io.lokki.mock
 import io.lokki.mockClass

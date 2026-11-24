@@ -52,7 +52,7 @@ class MockInterfaceTest {
         assertEquals("", garage.plate())
         assertEquals(
             "relaxed mock has no default for Radio returned by $car.getRadio(); stub the call " +
-                "or annotate MockInterfaceTest.kt, which creates the mock, with @file:RelaxedChildMocks",
+                "or annotate MockInterfaceTest.kt, which creates the mock, with @file:ChainedMocks",
             assertFailsWith<LokkiException> { garage.news() }.message,
         )
     }

@@ -38,7 +38,7 @@ internal enum class CoreClass(val id: ClassId) {
     CALL(publicClassId("Call")),
     CAPTURING_SLOT(publicClassId("CapturingSlot")),
     LENIENT_STUBBING_SCOPE(publicClassId("LenientStubbingScope")),
-    RELAXED_CHILD_MOCKS(publicClassId("RelaxedChildMocks")),
+    CHAINED_MOCKS(publicClassId("ChainedMocks")),
     ORDERING(publicClassId("Ordering")),
     LOKKI_EXCEPTION(publicClassId("LokkiException")),
 }

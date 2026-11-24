@@ -232,10 +232,10 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         coOriginal.implementOriginal(mock, forward, state, coOriginals, CO_ORIGINAL_BRANCH_BYTES)
         val names = ownParameters.zip(parameters).associate { (own, parameter) -> own.symbol to parameter.owner.name }
         val children = if (relaxedChildren) Children(usage, classes, path) else null
-        val suggestsChildMocks = { type: IrType ->
-            !classes.file.relaxedChildMocks && classes.file.mockability.childProblem(type) == null
+        val suggestsChainedMocks = { type: IrType ->
+            !classes.file.chainedMocks && classes.file.mockability.childProblem(type) == null
         }
-        relaxed.implementRelaxed(mock, members, file, children, suggestsChildMocks) {
+        relaxed.implementRelaxed(mock, members, file, children, suggestsChainedMocks) {
             (names[it.symbol] ?: it.name).asString()
         }
         describe.implementDescribe(mock, members, file)
@@ -483,12 +483,12 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         members: List<IrSimpleFunction>,
         file: IrFile,
         children: Children?,
-        suggestsChildMocks: (IrType) -> Boolean,
+        suggestsChainedMocks: (IrType) -> Boolean,
         parameterName: (IrTypeParameter) -> String,
     ) {
         val child = children?.let { it::default }
         val defaults = members.withIndex().drop(METHODS_OF_ANY.size).mapNotNull { (index, member) ->
-            relaxedDefaults.of(member, file, parameterName, child, suggestsChildMocks)
+            relaxedDefaults.of(member, file, parameterName, child, suggestsChainedMocks)
                 ?.let { IndexedValue(index, it) }
         }
         val partSize = PART_BYTES / RELAXED_BRANCH_BYTES

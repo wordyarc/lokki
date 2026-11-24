@@ -11,11 +11,11 @@ public interface JavaValues {
 }
 
 // FILE: children.kt
-@file:RelaxedChildMocks
+@file:ChainedMocks
 
 package sample
 
-import io.lokki.RelaxedChildMocks
+import io.lokki.ChainedMocks
 import io.lokki.mock
 import java.math.BigDecimal
 

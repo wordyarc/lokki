@@ -106,7 +106,7 @@ private class MockCollector(private val file: FileContext) : IrVisitorVoid() {
         for (field in file.fields.parameterGroups.flatMap { it.parameters }) {
             val site = field.site?.takeIf { field.problem == null } ?: continue
             val usage = add(field.parameter, site)
-            if (file.relaxedChildMocks && field.kind != IntrinsicKind.SPY) usage.relaxedChildren = true
+            if (file.chainedMocks && field.kind != IntrinsicKind.SPY) usage.relaxedChildren = true
         }
     }
 
@@ -124,7 +124,7 @@ private class MockCollector(private val file: FileContext) : IrVisitorVoid() {
         val field = file.fields.fields[declaration]?.takeIf { it.problem == null }
         field?.site?.let { site ->
             val usage = add(declaration, site)
-            if (file.relaxedChildMocks && field.kind != IntrinsicKind.SPY) usage.relaxedChildren = true
+            if (file.chainedMocks && field.kind != IntrinsicKind.SPY) usage.relaxedChildren = true
         }
         super.visitProperty(declaration)
     }
@@ -141,7 +141,7 @@ private class MockCollector(private val file: FileContext) : IrVisitorVoid() {
             if (site is MockSite.Mocked) {
                 val usage = add(expression, site)
                 val relaxed = kind == IntrinsicKind.MOCK && expression.mayBeRelaxed
-                if (file.relaxedChildMocks && relaxed) usage.relaxedChildren = true
+                if (file.chainedMocks && relaxed) usage.relaxedChildren = true
             }
         }
         val redirected = when (kind) {
@@ -172,7 +172,7 @@ private class MockCollector(private val file: FileContext) : IrVisitorVoid() {
             when (val site = file.mockability.reified(type)) {
                 is MockSite.Mocked -> {
                     val usage = add(call, site)
-                    if (file.relaxedChildMocks) usage.relaxedChildren = true
+                    if (file.chainedMocks) usage.relaxedChildren = true
                     ReifiedType(type, site)
                 }
                 is MockSite.Rejected -> null.also { file.diagnostics.report(call, site.problem) }

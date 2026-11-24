@@ -1070,11 +1070,11 @@ class IncrementalCompilationTest {
         project.write(
             "src/test/kotlin/sample/CarTest.kt",
             """
-            @file:RelaxedChildMocks
+            @file:ChainedMocks
 
             package sample
 
-            import io.lokki.RelaxedChildMocks
+            import io.lokki.ChainedMocks
             import io.lokki.mock
             import kotlin.test.Test
             import kotlin.test.assertEquals

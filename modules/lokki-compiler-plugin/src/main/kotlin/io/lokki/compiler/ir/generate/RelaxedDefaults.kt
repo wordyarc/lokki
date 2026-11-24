@@ -64,7 +64,7 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
         file: IrFile,
         parameterName: (IrTypeParameter) -> String,
         child: ((IrSimpleType) -> RelaxedDefault?)?,
-        suggestsChildMocks: (IrType) -> Boolean,
+        suggestsChainedMocks: (IrType) -> Boolean,
     ): RelaxedDefault? {
         val type = member.returnType
         val platform = type.hasAnnotation(StandardClassIds.Annotations.FlexibleNullability)
@@ -90,7 +90,7 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
             }
             else -> empty(klass.owner)
                 ?: child?.invoke(type as IrSimpleType)
-                ?: missing(file, type.renderReadable(parameterName), suggestsChildMocks(type))
+                ?: missing(file, type.renderReadable(parameterName), suggestsChainedMocks(type))
         }
     }
 

@@ -173,16 +173,16 @@ class ChildMocksTest {
     }
 
     @Test
-    fun testRelaxedMockSuggestsChildMocksInItsFile() {
+    fun testRelaxedMockSuggestsChainedMocksInItsFile() {
         val relaxed = TestMock(null, FIND, flags = RELAXED)
         val state = relaxed.`lokki$state`
         val noDefault = "relaxed mock has no default for Engine returned by ${state.name}.find(7, true); stub the call"
         fun message(): String? = assertFailsWith<LokkiException> { state.answer(FIND_MEMBER, arrayOf(7, true)) }.message
 
         relaxed.relaxed = { NoRelaxedDefault("Engine", mockable = true, file = "CarTest.kt") }
-        assertEquals("$noDefault or annotate CarTest.kt, which creates the mock, with @file:RelaxedChildMocks", message())
+        assertEquals("$noDefault or annotate CarTest.kt, which creates the mock, with @file:ChainedMocks", message())
         relaxed.relaxed = { NoRelaxedDefault("Engine", mockable = true) }
-        assertEquals("$noDefault or annotate the file that creates the mock with @file:RelaxedChildMocks", message())
+        assertEquals("$noDefault or annotate the file that creates the mock with @file:ChainedMocks", message())
         relaxed.relaxed = { NoRelaxedDefault("Engine", mockable = false, file = "CarTest.kt") }
         assertEquals(noDefault, message())
     }

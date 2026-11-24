@@ -377,8 +377,8 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
             if (value !is NoRelaxedDefault) return value
             val hint = when {
                 !value.mockable || link != null -> ""
-                value.file == null -> " or annotate the file that creates the mock with $RELAXED_CHILD_MOCKS"
-                else -> " or annotate ${value.file}, which creates the mock, with $RELAXED_CHILD_MOCKS"
+                value.file == null -> " or annotate the file that creates the mock with $CHAINED_MOCKS"
+                else -> " or annotate ${value.file}, which creates the mock, with $CHAINED_MOCKS"
             }
             "relaxed mock has no default for ${value.type} returned by " +
                 "${call(member, arguments.joinToString { it.toStr() })}; stub the call$hint"
@@ -674,5 +674,5 @@ private const val EQUALS = 0
 private const val HASH_CODE = 1
 private const val TO_STRING = 2
 private const val LINK_HINT = "The call is a link of a call chain in a stubbed or verified call"
-private const val RELAXED_CHILD_MOCKS = "@file:RelaxedChildMocks"
+private const val CHAINED_MOCKS = "@file:ChainedMocks"
 private val CHILD_NAME = Regex("child(\\^(\\d+))? of (.+)")

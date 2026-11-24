@@ -213,7 +213,7 @@ Behaviour that differs:
   `any()` never creates a placeholder value.
 - A call chain such as `every { car.door().open() }` stubs `car.door()` with a child mock only when the call has no
   answer yet; a stubbed `car.door()` keeps its answer. Relaxed mocks return child mocks only in files annotated with
-  `@file:RelaxedChildMocks`.
+  `@file:ChainedMocks`.
 - A relaxed mock returns `null` for nullable types and for a type parameter of a Java method that allows it
   (`<T> T query(...)` without nullability annotations, `<T extends @Nullable Object>` with JSpecify), empty values
   for primitives, strings, collections, arrays and `Optional`, and the zero or the epoch of a type that names one

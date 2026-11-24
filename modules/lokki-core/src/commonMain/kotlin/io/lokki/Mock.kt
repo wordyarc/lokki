@@ -47,7 +47,7 @@ public inline fun <reified T : Any> spy(
 
 @Target(AnnotationTarget.FILE)
 @Retention(AnnotationRetention.SOURCE)
-public annotation class RelaxedChildMocks
+public annotation class ChainedMocks
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK_OBJECT)
 public fun mockObject(vararg objects: Any, recordPrivateCalls: Boolean = false): Unit =
