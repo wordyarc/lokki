@@ -12,7 +12,9 @@
 
 lokki is a mocking library for Kotlin/JVM with the [MockK](https://mockk.io) DSL, implemented as a K2 compiler
 plugin. `mock<T>()` compiles into an ordinary class that implements `T`, and the blocks of `every { }` and
-`verify { }` compile into calls of the runtime instead of being executed.
+`verify { }` compile into calls of the runtime instead of being executed. lokki keeps the DSL of MockK, not every
+behaviour of its runtime: what MockK does with a Java agent either fails compilation with an alternative or
+[behaves differently](#coming-from-mockk).
 
 - **No instrumentation.** No Java agent, proxies or runtime class generation.
 - **Errors at compile time.** Unmockable types, calls that cannot be intercepted and stubs without an answer fail the
@@ -20,20 +22,15 @@ plugin. `mock<T>()` compiles into an ordinary class that implements `T`, and the
 - **Scoped state.** `mockObject`, `mockStatic` and stubs added to shared mocks last until their scope — a JUnit 5
   test or `lokkiScope { }` — closes.
 
-lokki keeps the DSL of MockK, not every behaviour of its runtime: what MockK does with a Java agent is either a
-compile error that names an alternative or [behaviour that differs](#coming-from-mockk).
-
 **Status:** alpha. Until 1.0, the API may change without a deprecation cycle, and mocks compiled by an older lokki
 may be rejected by a newer runtime: recompile test fixtures and test libraries when upgrading.
 
 ## Requirements
 
-- Kotlin 2.4.0 – 2.5.0-RC: an older Kotlin fails the build, a newer one is untested and gives a warning.
-  `mockObject` and `mockStatic` need Kotlin 2.4.20 or newer.
+- Kotlin 2.4.0 – 2.5.0-RC; `mockObject` and `mockStatic` need 2.4.20 or newer.
 - Gradle 9.0 or newer.
 - JVM target 17 or newer for test code.
 - JUnit Jupiter 5.12 or newer, including 6.x, for `LokkiExtension`; lokki raises an older JUnit 5 to 5.12.2.
-- Spring Framework 6.2.6 or newer for `lokki-spring`.
 
 ## Installation
 
@@ -145,50 +142,10 @@ test. `@LokkiExtension.KeepMocks` on a test class or method keeps the stubs and 
 of the class.
 
 Without JUnit 5, `lokkiScope { }` provides the scope and `MockAnnotations.init(this)` initializes the properties.
-Outside a scope, `mock`, `every` and `verify` work, but nothing is removed or checked when a test ends, and
-`mockObject`, `mockStatic`, `mockConstructor`, a stub of an object or a top-level function and the calls without
-arguments `confirmVerified()`, `checkUnnecessaryStub()` and `clearAllMocks()` throw `LokkiException`.
-
-### Spring
-
-`lokki-spring` replaces beans of a Spring test context with lokki mocks, as springmockk does for MockK:
-
-```kotlin
-dependencies {
-    testImplementation("io.github.wordyarc.lokki:lokki-spring")
-}
-```
-
-```kotlin
-@SpringJUnitConfig(ShopConfig::class)
-class CheckoutTest {
-    @MockBean
-    lateinit var payments: PaymentGateway
-
-    @SpyBean
-    lateinit var orders: OrderRepository
-
-    @Autowired
-    lateinit var checkout: Checkout
-
-    @Test
-    fun pays() {
-        every { payments.charge(any()) } returns Receipt("r-1")
-
-        checkout.place(Order("o-1"))
-
-        verify { orders.save(any()) }
-    }
-}
-```
-
-`@MockBean` (`io.lokki.spring`, not Spring Boot's deprecated Mockito annotation) replaces the bean of the property's
-type with a mock, or adds one, and `@SpyBean` wraps the existing bean in a spy that forwards calls to it. Both
-take springmockk's attributes except `types`: lokki generates mocks at compile time, so they are declared on
-properties only. Stubs and recorded calls are cleared after each test (`clear = MockClear.AFTER`). With
-`LokkiExtension`, the scope of each test rolls them back instead, and `clear` has no effect. Mocks of a cached context
-are shared by the test classes that use it. Spring older than 6.2 ignores both annotations, and 6.2.0 – 6.2.5 fail
-with `LokkiException`.
+Outside a scope, mocks, stubs and verification work, but nothing is removed or checked when a test ends. Calls that
+change global state or act on all mocks of a test throw `LokkiException` there: `mockObject`, `mockStatic`,
+`mockConstructor`, stubs of objects and top-level functions, and `confirmVerified()`, `checkUnnecessaryStub()` and
+`clearAllMocks()` without arguments.
 
 ### Final classes, objects and top-level functions
 
@@ -224,12 +181,12 @@ fun morning() {
 a stub. `mockStatic(::function)` does the same for top-level functions and properties, including extensions, and
 `mockStatic("com.example.FileKt")` for a whole file. An overloaded or generic function cannot be passed by reference:
 Kotlin does not resolve it. `mockConstructor(Foo::class)` with `anyConstructed<Foo>()` intercepts constructor calls in
-code compiled with the plugin. Private functions of these classes are stubbed by name: `every { spy["name"]() }`.
+code compiled with the plugin. Private functions of these classes are stubbed and verified by name:
+`every { spy["name"]() }`.
 
-Only the bytecode changes: Kotlin still compiles matching classes as final, so smart casts and initialization rules of
-main code stay as they are, and only mocks override the members. Sealed classes stay sealed, with their members open.
-Inline and `tailrec` functions and `@JvmField` properties stay final. Every call of an intercepted function or
-constructor reads a volatile field. The plugin warns if the project applies `maven-publish`.
+Only the bytecode changes, so smart casts and initialization rules of main code stay as they are. Sealed classes stay
+sealed with their members open, and inline and `tailrec` functions and `@JvmField` properties stay final. Every call of an intercepted
+function or constructor reads a volatile field, and the plugin warns if the project applies `maven-publish`.
 
 ## Configuration
 
@@ -241,9 +198,6 @@ constructor reads a volatile field. The plugin warns if the project applies `mav
 | `applyToMain = true` | Lets main code create mocks, for modules with test utilities: applies the plugin and adds the runtime to main code. |
 | `recordStackTraces = true` | Adds call sites of mock calls to failure reports. |
 
-Set them in the build script: a change after the plugin has read a setting, for example in `afterEvaluate`, fails the
-build.
-
 | Gradle property | Effect |
 |---|---|
 | `lokki.recordStackTraces=true` | Turns `recordStackTraces` on unless the build script sets it, for example with `-P` for one run. |
@@ -254,7 +208,8 @@ build.
 ## Coming from MockK
 
 Functions, matchers and their parameters keep MockK's names, so the [MockK documentation](https://mockk.io) applies.
-Imports move to `io.lokki`, and names that contain `mockk` or `MockK` change:
+Imports move from `io.mockk` to `io.lokki`, including annotations from `io.mockk.impl.annotations`, and names that
+contain `mockk` or `MockK` change:
 
 | MockK | lokki |
 |---|---|
@@ -264,7 +219,8 @@ Imports move to `io.lokki`, and names that contain `mockk` or `MockK` change:
 | `@MockK`, `@RelaxedMockK`, `@SpyK`, `@InjectMockKs` | `@Mock`, `@RelaxedMock`, `@Spy`, `@InjectMocks` |
 | `MockKExtension`, `MockKAnnotations`, `MockKException` | `LokkiExtension`, `MockAnnotations`, `LokkiException` |
 | `MockKMatcherScope` | `MatcherScope` |
-| springmockk `@MockkBean`, `@MockkSpyBean`, `MockkClear` | `@MockBean`, `@SpyBean`, `MockClear` in `lokki-spring` |
+| `mockk-bdd` | `lokki-bdd` |
+| springmockk `@MockkBean`, `@MockkSpyBean`, `MockkClear` | `@MockBean`, `@SpyBean`, `MockClear` in `lokki-spring`, Spring 6.2.6+ |
 
 Behaviour that differs:
 
@@ -274,11 +230,9 @@ Behaviour that differs:
   answer yet; a stubbed `car.door()` keeps its answer. Relaxed mocks return child mocks only if the declaration that
   creates them — a file, class, function, property or local variable — is annotated with `@ChainedMocks`: lokki
   generates their classes at compile time, so the annotation marks where that cost is paid.
-- A relaxed mock returns `null` for nullable types and for a type parameter of a Java method that allows it
-  (`<T> T query(...)` without nullability annotations, `<T extends @Nullable Object>` with JSpecify), empty values
-  for primitives, strings, collections, arrays and `Optional`, and the zero or the epoch of a type that names one
-  (`Duration.ZERO`, `Instant.EPOCH`, `BigDecimal.ZERO`). A call that returns any other type throws `LokkiException`.
-- In a scope, a mock call without an answer fails the test even if the code under test catches the exception.
+- A relaxed mock returns `null` for nullable types and for a Java type parameter that allows it, such as
+  `<T> T query(...)`, empty values for primitives, strings, collections, arrays and `Optional`, and the `ZERO` or
+  `EPOCH` of a type that declares one, such as `Duration.ZERO`. Any other return type throws `LokkiException`.
 - Spies are not copies: `spy(Foo(args))` constructs the spy itself, and `spy(existing)` forwards calls to `existing`,
   so the calls that `existing` makes on itself bypass stubs and are not recorded.
 - A stub of a property does not write its backing field: MockK copies the value of `returns` into the field. Code that
@@ -304,7 +258,6 @@ Behaviour that differs:
 - A JDK dynamic proxy of a mock, such as an interface-based Spring AOP proxy, is not a mock: `every` and `verify` need
   the mock itself or a class proxy (`proxyTargetClass = true`). Class proxies of mocks work, including Spring's method
   validation.
-- Private members of classes outside `mockable` cannot be stubbed or verified.
 - No JUnit 4 integration: use `lokkiScope { }`. Kotest is not supported.
 - IntelliJ IDEA shows `LOKKI_*` diagnostics only with the registry key
   `kotlin.k2.only.bundled.compiler.plugins.enabled` set to `false`; the Gradle build always reports them.
