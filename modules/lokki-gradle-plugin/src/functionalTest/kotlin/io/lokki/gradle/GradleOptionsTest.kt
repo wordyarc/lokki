@@ -236,7 +236,7 @@ class GradleOptionsTest {
             }
 
             lokki {
-                recordStackTraces = providers.gradleProperty("stackTraces").map { it.toBoolean() }
+                if (providers.gradleProperty("disabledInScript").isPresent) recordStackTraces = false
             }
 
             testing {
@@ -266,14 +266,76 @@ class GradleOptionsTest {
         )
         val property = projectDir.resolve("build/stackTraces.txt")
 
-        project.build("test", "-PstackTraces=true")
+        project.build("test")
+
+        assertEquals("null", property.readText())
+
+        project.build("test", "-Plokki.recordStackTraces=true")
 
         assertEquals("true", property.readText())
 
-        val disabled = project.build("test", "-PstackTraces=false")
+        val disabled = project.build("test", "-Plokki.recordStackTraces=true", "-PdisabledInScript")
 
         assertEquals(TaskOutcome.SUCCESS, disabled.task(":test")?.outcome)
         assertEquals("null", property.readText())
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testGroovyBuildScript(gradle: GradleUnderTest) {
+        val project = TestProject(projectDir, gradle)
+        project.write(
+            "build.gradle",
+            """
+            plugins {
+                id 'org.jetbrains.kotlin.jvm' version '$KOTLIN_VERSION'
+                id '$LOKKI_PLUGIN_ID' version '$LOKKI_VERSION'
+            }
+
+            lokki {
+                mockable 'sample.**', 'sample.Engine'
+                restricted 'sample.Legacy'
+                testCompilations 'integrationTest'
+                recordStackTraces = true
+            }
+            """,
+        )
+
+        val main = project.build("dependencies", "--configuration", "kotlinCompilerPluginClasspathMain").output
+
+        assertContains(main, "$LOKKI_GROUP:lokki-compiler-plugin")
+        assertFalse("$LOKKI_GROUP:" in project.build("dependencies", "--configuration", "compileClasspath").output)
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testSettingChangedAfterItWasRead(gradle: GradleUnderTest) {
+        val project = TestProject(projectDir, gradle)
+        project.write(
+            "build.gradle.kts",
+            """
+            plugins {
+                kotlin("jvm") version "$KOTLIN_VERSION"
+                id("$LOKKI_PLUGIN_ID") version "$LOKKI_VERSION"
+            }
+
+            afterEvaluate {
+                lokki {
+                    if (providers.gradleProperty("lateMockable").isPresent) mockable("sample.**")
+                    if (providers.gradleProperty("lateApplyToMain").isPresent) applyToMain = true
+                }
+            }
+            """,
+        )
+
+        assertContains(
+            project.buildAndFail("help", "-PlateMockable").output,
+            "The value for extension 'lokki' property 'mockable' is final and cannot be changed any further.",
+        )
+        assertContains(
+            project.buildAndFail("help", "-PlateApplyToMain").output,
+            "The value for extension 'lokki' property 'applyToMain' is final and cannot be changed any further.",
+        )
     }
 
     @ParameterizedTest
@@ -288,22 +350,19 @@ class GradleOptionsTest {
                 id("$LOKKI_PLUGIN_ID") version "$LOKKI_VERSION"
             }
 
-            lokki {
-                debug = providers.gradleProperty("lokkiDebug").map { it.toBoolean() }
-            }
             """,
         )
         project.write("src/main/kotlin/sample/Car.kt", declaration("interface Car", "fun drive(): String"))
         project.write("src/test/kotlin/sample/CarTest.kt", "package sample\n\nfun car(): Car = io.lokki.mock<Car>()\n")
         project.write("src/test/kotlin/sample/Unrelated.kt", "package sample\n\nfun unrelated() = 1\n")
 
-        val debug = project.build("compileTestKotlin", "--info", "-PlokkiDebug=true").output
+        val debug = project.build("compileTestKotlin", "--info", "-Plokki.debug=true").output
 
         assertContains(debug, "CarTest.kt:")
         assertContains(debug, "class Car\$LokkiMock\$08768170\$CarTestKt : Car, GeneratedMock")
         assertFalse("Unrelated.kt:" in debug, debug)
 
-        val plain = project.build("compileTestKotlin", "--info", "-PlokkiDebug=false").output
+        val plain = project.build("compileTestKotlin", "--info", "-Plokki.debug=false").output
 
         assertFalse("Car\$LokkiMock\$08768170\$CarTestKt" in plain, plain)
     }

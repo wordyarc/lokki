@@ -1,10 +1,10 @@
 public abstract class io/lokki/gradle/LokkiGradleExtension {
 	public fun <init> (Lorg/gradle/api/model/ObjectFactory;)V
 	public final fun getApplyToMain ()Lorg/gradle/api/provider/Property;
-	public final fun getDebug ()Lorg/gradle/api/provider/Property;
 	public final fun getRecordStackTraces ()Lorg/gradle/api/provider/Property;
 	public final fun mockable ([Ljava/lang/String;)V
 	public final fun restricted ([Ljava/lang/String;)V
+	public final fun testCompilations ([Ljava/lang/String;)V
 }
 
 public final class io/lokki/gradle/LokkiGradleSubplugin : org/jetbrains/kotlin/gradle/plugin/KotlinCompilerPluginSupportPlugin {

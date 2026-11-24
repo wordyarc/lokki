@@ -50,7 +50,8 @@ private fun verified(fixture: Fixture): String? =
     }
 
 fun box(): String {
-    val expected = "lokki compiler plugin is not applied to this compilation"
+    val expected = "lokki compiler plugin is not applied to this compilation: with Gradle, name the compilation in " +
+        "lokki { testCompilations(...) }, or set applyToMain = true for main code"
     val fixture = Fixture()
     val verified = verified(fixture)
     if (verified != expected) return "verify: $verified"

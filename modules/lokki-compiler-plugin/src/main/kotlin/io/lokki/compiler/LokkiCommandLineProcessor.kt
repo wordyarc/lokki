@@ -38,7 +38,7 @@ class LokkiCommandLineProcessor : CommandLineProcessor {
 private val MOCKABLE_OPTION = CliOption(
     BuildConfig.MOCKABLE_OPTION,
     "<pattern>",
-    "A package followed by '.**', a class or an annotation whose classes and their members become open",
+    "A package followed by '.**', a class, an annotation or a function whose declarations become mockable",
     required = false,
     allowMultipleOccurrences = true,
 )

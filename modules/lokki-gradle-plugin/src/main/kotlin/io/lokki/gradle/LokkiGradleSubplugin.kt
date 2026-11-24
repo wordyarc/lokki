@@ -19,6 +19,7 @@ import org.jetbrains.kotlin.gradle.plugin.SubpluginOption
 public class LokkiGradleSubplugin : KotlinCompilerPluginSupportPlugin {
     override fun apply(target: Project) {
         val lokki = target.extensions.create("lokki", LokkiGradleExtension::class.java)
+        lokki.recordStackTraces.convention(target.booleanProperty(RECORD_STACK_TRACES))
         target.alignLokkiVersions()
         target.checkKotlinVersion()
         target.tasks.withType(Test::class.java).configureEach {
@@ -51,7 +52,8 @@ public class LokkiGradleSubplugin : KotlinCompilerPluginSupportPlugin {
         }
         if (!test && lokki.mockable.get().isNotEmpty()) kotlinCompilation.warnAboutMockableBytecode()
         val patterns = lokki.mockable.zip(lokki.restricted) { mockable, restricted -> mockable to restricted }
-        return lokki.debug.zip(patterns) { debug, (mockable, restricted) ->
+        val debugging = kotlinCompilation.target.project.booleanProperty(DEBUG)
+        return debugging.zip(patterns) { debug, (mockable, restricted) ->
             val opened = when {
                 test -> mockable.filterNot { it.endsWith(SUBPACKAGES) }
                 else -> mockable
@@ -71,6 +73,9 @@ private val KotlinCompilation<*>.lokki: LokkiGradleExtension
     get() = target.project.extensions.getByType(LokkiGradleExtension::class.java)
 
 private fun LokkiGradleExtension.appliesToMain(): Boolean = applyToMain.get() || mockable.get().isNotEmpty()
+
+private fun Project.booleanProperty(name: String): Provider<Boolean> =
+    providers.gradleProperty(name).map { it.toBoolean() }.orElse(false)
 
 private fun Project.alignLokkiVersions() {
     configurations.configureEach { configuration ->
@@ -144,6 +149,7 @@ private fun KotlinCompilation<*>.hasDefaultSourceSet(): Boolean =
 
 private fun KotlinCompilation<*>.isTest(): Boolean =
     name in TEST_COMPILATION_NAMES ||
+        name in lokki.testCompilations.get() ||
         name in target.project.testSuiteSourceSetNames() ||
         platformType == KotlinPlatformType.androidJvm && ANDROID_TEST_SUFFIXES.any(name::endsWith)
 
@@ -165,5 +171,6 @@ private val ANDROID_TEST_SUFFIXES = listOf("UnitTest", "AndroidTest", "TestFixtu
 
 private const val SUBPACKAGES = ".**"
 private const val RECORD_STACK_TRACES = "lokki.recordStackTraces"
+private const val DEBUG = "lokki.debug"
 private const val MOCKABLE_PUBLICATION_NOWARN = "lokki.mockablePublication.nowarn"
 private const val KOTLIN_COMPATIBILITY_NOWARN = "lokki.kotlinCompatibility.nowarn"

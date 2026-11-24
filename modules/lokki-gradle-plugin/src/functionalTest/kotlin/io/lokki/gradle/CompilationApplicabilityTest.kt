@@ -141,6 +141,97 @@ class CompilationApplicabilityTest {
 
     @ParameterizedTest
     @EnumSource(GradleUnderTest::class)
+    fun testNamedTestCompilation(gradle: GradleUnderTest) {
+        val project = TestProject(projectDir, gradle)
+        project.write(
+            "build.gradle.kts",
+            """
+            plugins {
+                kotlin("jvm") version "$KOTLIN_VERSION"
+                id("$LOKKI_PLUGIN_ID") version "$LOKKI_VERSION"
+            }
+
+            val integrationTest by sourceSets.creating {
+                compileClasspath += sourceSets.main.get().output
+                runtimeClasspath += sourceSets.main.get().output
+            }
+
+            dependencies {
+                "integrationTestImplementation"(kotlin("test-junit5"))
+                "integrationTestRuntimeOnly"("org.junit.jupiter:junit-jupiter-engine")
+                "integrationTestRuntimeOnly"("org.junit.platform:junit-platform-launcher")
+            }
+
+            lokki {
+                testCompilations("integrationTest")
+            }
+
+            tasks.register<Test>("integrationTest") {
+                testClassesDirs = integrationTest.output.classesDirs
+                classpath = integrationTest.runtimeClasspath
+                useJUnitPlatform()
+            }
+            """,
+        )
+        project.write("src/main/kotlin/sample/Car.kt", declaration("interface Car", "fun drive(): String"))
+        project.write("src/main/kotlin/sample/Driver.kt", exercise("Car", "drive()"))
+        project.write("src/integrationTest/kotlin/sample/CarIntegrationTest.kt", mockTest("CarIntegrationTest", "Car"))
+
+        val result = project.build("integrationTest")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":integrationTest")?.outcome)
+        assertFalse(project.dependsOnLokki("compileClasspath"))
+        assertFalse(project.dependsOnLokki("kotlinCompilerPluginClasspathMain"))
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
+    fun testNamedTestCompilationOfMultiplatformTarget(gradle: GradleUnderTest) {
+        val project = TestProject(projectDir, gradle)
+        project.write(
+            "build.gradle.kts",
+            """
+            plugins {
+                kotlin("multiplatform") version "$KOTLIN_VERSION"
+                id("$LOKKI_PLUGIN_ID") version "$LOKKI_VERSION"
+            }
+
+            kotlin {
+                jvm {
+                    val main = compilations.getByName("main")
+                    val integrationTest = compilations.create("integrationTest") {
+                        associateWith(main)
+                        defaultSourceSet.dependencies {
+                            implementation(kotlin("test-junit5"))
+                            runtimeOnly("org.junit.jupiter:junit-jupiter-engine")
+                            runtimeOnly("org.junit.platform:junit-platform-launcher")
+                        }
+                    }
+                    tasks.register<Test>("jvmIntegrationTest") {
+                        testClassesDirs = integrationTest.output.classesDirs
+                        classpath = integrationTest.runtimeDependencyFiles!! + integrationTest.output.allOutputs
+                        useJUnitPlatform()
+                    }
+                }
+            }
+
+            lokki {
+                testCompilations("integrationTest")
+            }
+            """,
+        )
+        project.write("src/jvmMain/kotlin/sample/Car.kt", declaration("interface Car", "fun drive(): String"))
+        project.write("src/jvmMain/kotlin/sample/Driver.kt", exercise("Car", "drive()"))
+        project.write("src/jvmIntegrationTest/kotlin/sample/CarIntegrationTest.kt", mockTest("CarIntegrationTest", "Car"))
+
+        val result = project.build("jvmIntegrationTest")
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":jvmIntegrationTest")?.outcome)
+        assertFalse(project.dependsOnLokki("jvmCompileClasspath"))
+    }
+
+    @ParameterizedTest
+    @EnumSource(GradleUnderTest::class)
     fun testMockableMain(gradle: GradleUnderTest) {
         val project = mockableProject(gradle, "\"sample.**\"")
         project.write("src/main/kotlin/sample/Engine.kt", declaration("class Engine", "fun start(): String = \"started\""))
@@ -207,7 +298,9 @@ class CompilationApplicabilityTest {
 
         val result = project.buildAndFail("compileKotlin")
 
-        assertTrue("Invalid mockable pattern 'sample.*'" in result.output, result.output)
+        val problem = "Invalid mockable pattern 'sample.*': expected a package followed by '.**', a class, an annotation " +
+            "or a function, e.g. 'com.acme.**', 'com.acme.Engine', 'com.acme.Mockable' or 'com.acme.buildCar'"
+        assertTrue(problem in result.output, result.output)
     }
 
     @ParameterizedTest

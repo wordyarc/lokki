@@ -187,11 +187,23 @@ constructor reads a volatile field. The plugin warns if the project applies `mav
 
 ## Configuration
 
-| `lokki { }` option | Effect |
+| `lokki { }` setting | Effect |
 |---|---|
 | `mockable(vararg patterns)` | Makes final classes, `object`s and top-level functions of main code mockable, see [above](#final-classes-objects-and-top-level-functions). |
-| `applyToMain = true` | Applies the plugin to main code too, for modules with test utilities that create mocks. |
+| `restricted(vararg patterns)` | Adds types whose mocks get the warning `LOKKI_RESTRICTED_TYPE`, as collections, maps, `File`, `Path` and types annotated with `@DoNotMock` do. A pattern is a package with its subpackages, a class or an annotation. |
+| `testCompilations(vararg names)` | Applies the plugin to test compilations it does not recognize, such as a source set created without `jvm-test-suite`. |
+| `applyToMain = true` | Lets main code create mocks, for modules with test utilities: applies the plugin and adds the runtime to main code. |
 | `recordStackTraces = true` | Adds call sites of mock calls to failure reports. |
+
+Set them in the build script: a change after the plugin has read a setting, for example in `afterEvaluate`, fails the
+build.
+
+| Gradle property | Effect |
+|---|---|
+| `lokki.recordStackTraces=true` | Turns `recordStackTraces` on unless the build script sets it, for example with `-P` for one run. |
+| `lokki.debug=true` | Reports the code of every file that lokki changes at the `--info` log level, for bug reports. |
+| `lokki.mockablePublication.nowarn=true` | Disables the warning about `mockable` in published artifacts and non-debug Android variants. |
+| `lokki.kotlinCompatibility.nowarn=true` | Disables the warning about a Kotlin version newer than the tested ones. |
 
 ## Coming from MockK
 

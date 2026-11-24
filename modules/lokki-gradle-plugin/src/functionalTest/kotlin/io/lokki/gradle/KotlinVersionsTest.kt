@@ -19,7 +19,7 @@ class KotlinVersionsTest {
         val project = project(kotlin)
         project.write("src/test/kotlin/sample/GarageTest.kt", MOCKS_TEST)
 
-        val result = project.build("test", "--info")
+        val result = project.build("test", "--info", DEBUG)
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
         assertContains(result.output, "class Car\$LokkiMock\$08768170\$GarageTestKt : Car, GeneratedMock")
@@ -33,12 +33,12 @@ class KotlinVersionsTest {
         project.write("src/test/kotlin/sample/ClockTest.kt", INTERCEPTION_TEST)
 
         if (kotlin.hasInterceptionPoints) {
-            val result = project.build("test")
+            val result = project.build("test", DEBUG)
 
             assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
             assertEquals(2, project.testCount("sample.ClockTest"))
         } else {
-            val failure = project.buildAndFail("test")
+            val failure = project.buildAndFail("test", DEBUG)
 
             val errors = failure.output.lines().filter { it.startsWith("e: ") && "ClockTest.kt" in it }
             val noPoints = "has no interception points: lokki generates them on Kotlin $INTERCEPTION_POINTS_KOTLIN or newer"
@@ -65,7 +65,7 @@ class KotlinVersionsTest {
             """,
         )
 
-        val failure = project.buildAndFail("compileTestKotlin")
+        val failure = project.buildAndFail("compileTestKotlin", DEBUG)
 
         val errors = failure.output.lines().filter { it.startsWith("e: ") }
         assertTrue(errors.any { "BoltTest.kt:7:20 'sample.Bolt' cannot be mocked: it is a final class." in it }, failure.output)
@@ -83,7 +83,6 @@ class KotlinVersionsTest {
 
             lokki {
                 mockable("sample.Engine", "sample.Clock", "sample.now")
-                debug = true
             }
 
             testing {
@@ -118,6 +117,7 @@ class KotlinVersionsTest {
     }
 }
 
+private const val DEBUG = "-Plokki.debug=true"
 private const val MOCKS_TEST_COUNT = 6
 private const val MOCKS_TEST: String =
     """

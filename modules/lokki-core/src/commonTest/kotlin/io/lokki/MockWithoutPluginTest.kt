@@ -12,7 +12,7 @@ class MockWithoutPluginTest {
     fun testMockThrowsWithoutCompilerPlugin() {
         val exception = assertFailsWith<LokkiException> { mock<Car>() }
 
-        assertEquals("lokki compiler plugin is not applied to this compilation", exception.message)
+        assertEquals(PLUGIN_NOT_APPLIED, exception.message)
     }
 
     @Test
@@ -26,3 +26,7 @@ class MockWithoutPluginTest {
         assertFalse(isMock(object : Car {}))
     }
 }
+
+internal const val PLUGIN_NOT_APPLIED: String =
+    "lokki compiler plugin is not applied to this compilation: with Gradle, name the compilation in " +
+        "lokki { testCompilations(...) }, or set applyToMain = true for main code"

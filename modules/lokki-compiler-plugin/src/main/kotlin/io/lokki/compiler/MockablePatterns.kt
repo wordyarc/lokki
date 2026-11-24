@@ -21,8 +21,13 @@ internal class MockablePatterns(patterns: List<String>) {
 internal fun mockablePatternProblem(pattern: String, option: String = BuildConfig.MOCKABLE_OPTION): String? {
     val name = pattern.removeSuffix(SUBPACKAGES)
     if (name.isNotEmpty() && isValidJavaFqName(name)) return null
-    return "Invalid $option pattern '$pattern': expected a package followed by '$SUBPACKAGES', a class or an " +
-        "annotation, e.g. 'com.acme.**', 'com.acme.Engine' or 'com.acme.Mockable'"
+    val names = when (option) {
+        BuildConfig.MOCKABLE_OPTION ->
+            "a class, an annotation or a function, e.g. 'com.acme.**', 'com.acme.Engine', 'com.acme.Mockable' or " +
+                "'com.acme.buildCar'"
+        else -> "a class or an annotation, e.g. 'com.acme.**', 'com.acme.Engine' or 'com.acme.Mockable'"
+    }
+    return "Invalid $option pattern '$pattern': expected a package followed by '$SUBPACKAGES', $names"
 }
 
 private const val SUBPACKAGES = ".**"
