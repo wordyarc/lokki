@@ -1,14 +1,17 @@
 package io.lokki.it
 
+import io.lokki.LokkiException
 import io.lokki.every
 import io.lokki.isMock
 import io.lokki.mock
 import io.lokki.spy
 import io.lokki.verify
 import org.aopalliance.intercept.MethodInterceptor
+import org.aopalliance.intercept.MethodInvocation
 import org.springframework.aop.framework.ProxyFactory
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotSame
 import kotlin.test.assertTrue
 
@@ -52,15 +55,32 @@ class SpringProxyTest {
         assertEquals(listOf("later"), proxy.service(listOf(car)))
     }
 
-    private inline fun <reified T : Any> proxied(target: T): T {
+    @Test
+    fun interfaceProxyOfMockIsNotTakenForTheMock() {
+        val car = mock<Car>()
+        val factory = ProxyFactory(car)
+        factory.setInterfaces(Car::class.java)
+        val proxy = factory.proxy as Car
+
+        val failure = assertFailsWith<LokkiException> { every { proxy.drive(1) } returns "stuck" }
+
+        assertEquals(
+            "the JDK dynamic proxy ${proxy.javaClass.name} is not a lokki mock: stub and verify the mock behind it, " +
+                "or proxy the class of the mock instead of its interfaces (proxyTargetClass = true in Spring AOP)",
+            failure.message,
+        )
+    }
+
+    private inline fun <reified T : Any> proxied(target: T): T =
+        proxied(target) { invocation: MethodInvocation ->
+            advised += invocation.method.name
+            invocation.proceed()
+        }
+
+    private inline fun <reified T : Any> proxied(target: T, interceptor: MethodInterceptor): T {
         val factory = ProxyFactory(target)
         factory.isProxyTargetClass = true
-        factory.addAdvice(
-            MethodInterceptor { invocation ->
-                advised += invocation.method.name
-                invocation.proceed()
-            },
-        )
+        factory.addAdvice(interceptor)
         return (factory.proxy as T).also { assertNotSame(target, it) }
     }
 }

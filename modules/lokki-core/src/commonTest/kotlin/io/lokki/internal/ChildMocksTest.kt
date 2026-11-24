@@ -13,7 +13,7 @@ import kotlin.test.assertTrue
 
 class ChildMocksTest {
     private val parent = TestMock(null, FIND)
-    private val state = parent.`lokki$state`
+    private val state = parent.`lokki$state`()
     private val specs = ArrayList<MockSpec>()
     private val factory: (MockSpec) -> Any = { spec ->
         specs += spec
@@ -57,7 +57,7 @@ class ChildMocksTest {
         assertFailsWith<LokkiException> {
             GeneratedMock.withoutStateChanges {
                 GeneratedMock.link(parent, FIND, true, factory, null) {
-                    other.`lokki$state`.answer(FIND_MEMBER, arrayOf(1, true))
+                    other.`lokki$state`().answer(FIND_MEMBER, arrayOf(1, true))
                 }
             }
         }
@@ -129,7 +129,7 @@ class ChildMocksTest {
     @Test
     fun testChildInheritsRelaxedFlags() {
         val relaxed = TestMock(null, FIND, flags = RELAXED or RELAX_UNIT_FUN or SPY)
-        relaxed.`lokki$state`.link(FIND, arrayOf(AnyMatcher, AnyMatcher), true, factory)
+        relaxed.`lokki$state`().link(FIND, arrayOf(AnyMatcher, AnyMatcher), true, factory)
 
         assertEquals(RELAXED or RELAX_UNIT_FUN, specs.single().flags)
     }
@@ -137,9 +137,9 @@ class ChildMocksTest {
     @Test
     fun testGrandchildIsNamedByDepth() {
         val child = link(stubs = true) as TestMock
-        val grandchild = child.`lokki$state`.link(FIND, arrayOf(AnyMatcher, AnyMatcher), true, factory)
+        val grandchild = child.`lokki$state`().link(FIND, arrayOf(AnyMatcher, AnyMatcher), true, factory)
 
-        val label = child.`lokki$state`.label().removePrefix("child of ")
+        val label = child.`lokki$state`().label().removePrefix("child of ")
         assertEquals("Repo(child^2 of $label#${grandchild.id()})", grandchild.name())
     }
 
@@ -162,7 +162,7 @@ class ChildMocksTest {
     fun testRelaxedMockAnswersWithChild() {
         val relaxed = TestMock(null, FIND, flags = RELAXED)
         relaxed.relaxed = { ChildMock(factory) }
-        val state = relaxed.`lokki$state`
+        val state = relaxed.`lokki$state`()
 
         val one = state.answer(FIND_MEMBER, arrayOf(1, true))
         assertSame(one, state.answer(FIND_MEMBER, arrayOf(1, true)))
@@ -175,14 +175,14 @@ class ChildMocksTest {
     @Test
     fun testRelaxedMockSuggestsChainedMocksInItsFile() {
         val relaxed = TestMock(null, FIND, flags = RELAXED)
-        val state = relaxed.`lokki$state`
+        val state = relaxed.`lokki$state`()
         val noDefault = "relaxed mock has no default for Engine returned by ${state.name}.find(7, true); stub the call"
         fun message(): String? = assertFailsWith<LokkiException> { state.answer(FIND_MEMBER, arrayOf(7, true)) }.message
 
         relaxed.relaxed = { NoRelaxedDefault("Engine", mockable = true, file = "CarTest.kt") }
-        assertEquals("$noDefault or annotate CarTest.kt, which creates the mock, with @file:ChainedMocks", message())
+        assertEquals("$noDefault or annotate the declaration in CarTest.kt that creates the mock with @ChainedMocks", message())
         relaxed.relaxed = { NoRelaxedDefault("Engine", mockable = true) }
-        assertEquals("$noDefault or annotate the file that creates the mock with @file:ChainedMocks", message())
+        assertEquals("$noDefault or annotate the declaration that creates the mock with @ChainedMocks", message())
         relaxed.relaxed = { NoRelaxedDefault("Engine", mockable = false, file = "CarTest.kt") }
         assertEquals(noDefault, message())
     }
@@ -192,7 +192,7 @@ class ChildMocksTest {
 
     private fun find(id: Int): Any? = state.answer(FIND_MEMBER, arrayOf(id, true))
 
-    private fun Any?.name(): String = (this as TestMock).`lokki$state`.name
+    private fun Any?.name(): String = (this as TestMock).`lokki$state`().name
 
     private fun Any?.id(): String = name().substringAfterLast('#').removeSuffix(")")
 

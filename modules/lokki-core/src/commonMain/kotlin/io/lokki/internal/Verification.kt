@@ -51,7 +51,7 @@ internal class Verification(
 
     fun expectLink(receiver: Any?, key: String, matchers: (MockState) -> Array<Matcher<Any?>>) {
         val origin = takeLink()
-        val state = (receiver as? GeneratedMock)?.`lokki$state`?.root ?: return
+        val state = (receiver as? GeneratedMock)?.`lokki$state`()?.root ?: return
         state.checkNotShared()
         val expected = when (ordering) {
             Ordering.UNORDERED -> !inverse && min != 0
@@ -65,7 +65,7 @@ internal class Verification(
     }
 
     fun expectNoCalls(mock: Any) {
-        uncalled += GeneratedMock.of(mock).`lokki$state`.root.constructedStates().onEach { it.checkNotShared() }
+        uncalled += GeneratedMock.of(mock).`lokki$state`().root.constructedStates().onEach { it.checkNotShared() }
     }
 
     fun expectNoConstructedCalls(mock: Any) {
@@ -75,7 +75,7 @@ internal class Verification(
                     "but bounds ${boundsOf(min, max)} were requested"
             )
         }
-        constructed += GeneratedMock.of(mock).`lokki$state`.root
+        constructed += GeneratedMock.of(mock).`lokki$state`().root
     }
 
     fun expectNoCalls(mocks: List<Any>) {
@@ -99,7 +99,7 @@ internal class Verification(
         }
         if (outcome.failure != null) {
             if (inverse) return
-            fail("Verification failed: ${outcome.failure}", outcome.assertions)
+            fail("Verification failed: ${outcome.failure}${forwardingNote()}", outcome.assertions)
         }
         if (timeout > 0 && (uncalled.isNotEmpty() || absent.isNotEmpty() || constructed.isNotEmpty())) {
             sleep((deadline - nanoTime()) / NANOS_PER_MILLI)
@@ -253,6 +253,15 @@ internal class Verification(
 
     private fun Outcome.afterTimeout(): Outcome =
         if (failure == null) this else Outcome(matches, "$failure (timeout = $timeout ms)", assertions)
+
+    private fun forwardingNote(): String {
+        val forwarding = states.filter { it.forwardsCalls }
+        if (forwarding.isEmpty()) return ""
+        val forward = if (forwarding.size == 1) "forwards" else "forward"
+        val spies = forwarding.map { it.descriptor.name }.distinct().joinToString(" or ") { "spy($it(...))" }
+        return "\n\n${forwarding.joinToString { it.name }} $forward calls to the object passed to spy(...): " +
+            "calls that object makes on itself are not recorded. To record them, spy a new instance: $spies"
+    }
 
     private fun fail(message: String, assertions: List<FailedAssertion> = emptyList()): Nothing {
         val unanswered = (states + uncalled + absent.flatMap { it.states }).distinct().flatMap { it.unansweredRecords() }.unansweredReport()

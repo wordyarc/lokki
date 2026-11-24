@@ -21,7 +21,7 @@ internal object Registration {
     }
 
     fun enterLink(receiver: Any?, key: String, stubs: Boolean, factory: ((MockSpec) -> Any)?, problem: String?): Link? {
-        val state = (receiver as? GeneratedMock)?.`lokki$state` ?: return null
+        val state = (receiver as? GeneratedMock)?.`lokki$state`() ?: return null
         val link = Link(currentThread(), state, state.descriptor.member(key), stubs, factory, problem)
         synchronized(this) { links += link }
         return link

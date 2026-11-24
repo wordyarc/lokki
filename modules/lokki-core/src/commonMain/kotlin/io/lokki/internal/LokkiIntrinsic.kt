@@ -37,5 +37,7 @@ public annotation class LokkiIntrinsic(val kind: Kind) {
         CONSTRUCTED,
         DYNAMIC_MEMBER,
         DYNAMIC_CALL,
+        EXTERNAL_MOCK,
+        EXTERNAL_SPY,
     }
 }

@@ -12,12 +12,12 @@ class LokkiScopeThreadTest {
     fun testClosedScopeRollsBackRecordsOfOtherThreads() {
         lokkiScope {
             val repo = TestMock("repo", FIND)
-            repo.`lokki$state`.stub<String>(FIND, arrayOf(AnyMatcher)) returns "found"
+            repo.`lokki$state`().stub<String>(FIND, arrayOf(AnyMatcher)) returns "found"
             lokkiScope {
-                thread { repo.`lokki$state`.answer(FIND_MEMBER, arrayOf(1)) }.join()
-                assertEquals(1, repo.`lokki$state`.records().size)
+                thread { repo.`lokki$state`().answer(FIND_MEMBER, arrayOf(1)) }.join()
+                assertEquals(1, repo.`lokki$state`().records().size)
             }
-            assertEquals(0, repo.`lokki$state`.records().size)
+            assertEquals(0, repo.`lokki$state`().records().size)
         }
     }
 
@@ -26,7 +26,7 @@ class LokkiScopeThreadTest {
         val error = runCatching {
             lokkiScope {
                 val repo = TestMock("repo", FIND)
-                thread { runCatching { repo.`lokki$state`.answer(FIND_MEMBER, arrayOf(1)) } }.join()
+                thread { runCatching { repo.`lokki$state`().answer(FIND_MEMBER, arrayOf(1)) } }.join()
             }
         }.exceptionOrNull()
 
@@ -38,7 +38,7 @@ class LokkiScopeThreadTest {
         lokkiScope {
             var repo: TestMock? = null
             thread { repo = TestMock("repo", FIND) }.join()
-            assertNull(repo!!.`lokki$state`.scope)
+            assertNull(repo!!.`lokki$state`().scope)
         }
     }
 

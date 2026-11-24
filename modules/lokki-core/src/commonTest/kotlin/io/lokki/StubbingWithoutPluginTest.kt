@@ -33,7 +33,7 @@ class StubbingWithoutPluginTest {
 
     @Test
     fun testJustAwaitsThrowsWithoutCompilerPlugin() {
-        val state = TestMock(null, "Repo#find()").`lokki$state`
+        val state = TestMock(null, "Repo#find()").`lokki$state`()
         val exceptions = listOf(
             assertFailsWith<LokkiException> { state.stub<Int>("Repo#find()", emptyArray()) just Awaits },
             assertFailsWith<LokkiException> { state.stub<Int>("Repo#find()", emptyArray()) returns 1 andThenJust Awaits },

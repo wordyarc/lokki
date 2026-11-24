@@ -1,6 +1,7 @@
 package io.lokki.compiler.fir
 
 import io.lokki.compiler.CoreClass
+import io.lokki.compiler.EXTERNAL_KINDS
 import io.lokki.compiler.FIELD_KINDS
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.ParameterNames
@@ -22,6 +23,9 @@ internal fun FirBasedSymbol<*>.intrinsicKind(session: FirSession): IntrinsicKind
 }
 
 private val KIND = Name.identifier(ParameterNames.KIND)
+
+internal fun FirAnnotation.externalKind(session: FirSession): IntrinsicKind? =
+    toAnnotationClassLikeSymbol(session)?.intrinsicKind(session)?.takeIf { it in EXTERNAL_KINDS }
 
 internal fun FirAnnotation.fieldKind(session: FirSession): IntrinsicKind? =
     toAnnotationClassLikeSymbol(session)?.intrinsicKind(session)?.takeIf { it in FIELD_KINDS }

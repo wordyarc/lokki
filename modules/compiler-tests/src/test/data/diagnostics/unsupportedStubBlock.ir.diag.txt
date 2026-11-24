@@ -1,81 +1,79 @@
-/unsupportedStubBlock.kt:49:39: error: 'withContext' must be a statement of a stub, verify or exclusion block, and its lambda must be a single call of a mock member.
+/unsupportedStubBlock.kt:48:39: error: 'withContext' must be a statement of a stub, verify or exclusion block, and its lambda must be a single call of a mock member.
 
-/unsupportedStubBlock.kt:52:5: error: 'wasNot Called' must be a statement of a verify block.
+/unsupportedStubBlock.kt:51:5: error: 'wasNot Called' must be a statement of a verify block.
 
-/unsupportedStubBlock.kt:57:5: error: The block of 'every' must be a lambda literal.
+/unsupportedStubBlock.kt:56:5: error: The block of 'every' must be a lambda literal.
+
+/unsupportedStubBlock.kt:57:11: error: The block of 'every' must be a single call of a mock member.
 
 /unsupportedStubBlock.kt:58:11: error: The block of 'every' must be a single call of a mock member.
 
-/unsupportedStubBlock.kt:59:11: error: The block of 'every' must be a single call of a mock member.
+/unsupportedStubBlock.kt:59:13: error: 'top' has no interception point: lokki intercepts top-level functions and properties of main compilations with lokki { mockable(...) }.
 
-/unsupportedStubBlock.kt:60:13: error: 'top' has no interception point: lokki intercepts top-level functions and properties of main compilations with lokki { mockable(...) }.
+/unsupportedStubBlock.kt:60:18: error: 'first' has no interception point: lokki intercepts top-level functions and properties of main compilations with lokki { mockable(...) }.
 
-/unsupportedStubBlock.kt:61:18: error: 'first' has no interception point: lokki intercepts top-level functions and properties of main compilations with lokki { mockable(...) }.
+/unsupportedStubBlock.kt:61:13: error: A matcher in the receiver of the stubbed or verified call must be an argument of a link of the call chain.
 
-/unsupportedStubBlock.kt:62:13: error: A matcher in the receiver of the stubbed or verified call must be an argument of a link of the call chain.
+/unsupportedStubBlock.kt:62:23: error: A matcher inside an expression is not supported: pass the matcher as a whole argument.
 
-/unsupportedStubBlock.kt:63:23: error: A matcher inside an expression is not supported: pass the matcher as a whole argument.
+/unsupportedStubBlock.kt:63:42: error: A matcher inside an expression is not supported: pass the matcher as a whole argument.
 
-/unsupportedStubBlock.kt:64:42: error: A matcher inside an expression is not supported: pass the matcher as a whole argument.
+/unsupportedStubBlock.kt:64:26: error: An argument of the matcher 'eq' must not use matchers.
 
-/unsupportedStubBlock.kt:65:26: error: An argument of the matcher 'eq' must not use matchers.
+/unsupportedStubBlock.kt:65:23: error: An argument of the stubbed or verified call must not return from the block.
 
-/unsupportedStubBlock.kt:66:23: error: An argument of the stubbed or verified call must not return from the block.
+/unsupportedStubBlock.kt:66:23: error: A matcher of a value class cannot be combined with omitted arguments: pass all arguments explicitly.
 
 /unsupportedStubBlock.kt:67:23: error: A matcher of a value class cannot be combined with omitted arguments: pass all arguments explicitly.
 
-/unsupportedStubBlock.kt:68:23: error: A matcher of a value class cannot be combined with omitted arguments: pass all arguments explicitly.
+/unsupportedStubBlock.kt:68:25: error: The matcher 'any' cannot be spread into a vararg parameter: only 'anyVararg', 'varargAll' and 'varargAny' match a part of the array.
 
-/unsupportedStubBlock.kt:69:26: error: A matcher of the extension receiver cannot be combined with omitted arguments: pass all arguments explicitly.
+/unsupportedStubBlock.kt:69:44: error: A vararg argument cannot contain more than one vararg matcher.
 
-/unsupportedStubBlock.kt:70:25: error: The matcher 'any' cannot be spread into a vararg parameter: only 'anyVararg', 'varargAll' and 'varargAny' match a part of the array.
+/unsupportedStubBlock.kt:70:26: error: A matcher in the receiver of the stubbed or verified call must be an argument of a link of the call chain.
 
-/unsupportedStubBlock.kt:71:44: error: A vararg argument cannot contain more than one vararg matcher.
+/unsupportedStubBlock.kt:71:11: error: The block of 'every' must be a single call of a mock member.
 
-/unsupportedStubBlock.kt:72:26: error: A matcher in the receiver of the stubbed or verified call must be an argument of a link of the call chain.
+/unsupportedStubBlock.kt:72:5: error: 'just Awaits' needs kotlinx.coroutines.awaitCancellation(), which is not on the classpath.
 
-/unsupportedStubBlock.kt:73:11: error: The block of 'every' must be a single call of a mock member.
+/unsupportedStubBlock.kt:73:5: error: 'coJustAwait' needs kotlinx.coroutines.awaitCancellation(), which is not on the classpath.
 
-/unsupportedStubBlock.kt:74:5: error: 'just Awaits' needs kotlinx.coroutines.awaitCancellation(), which is not on the classpath.
+/unsupportedStubBlock.kt:74:79: error: 'every' must be called directly: a reference to it is not supported.
 
-/unsupportedStubBlock.kt:75:5: error: 'coJustAwait' needs kotlinx.coroutines.awaitCancellation(), which is not on the classpath.
+/unsupportedStubBlock.kt:75:56: error: 'every' must be called directly: a reference to it is not supported.
 
-/unsupportedStubBlock.kt:76:79: error: 'every' must be called directly: a reference to it is not supported.
+/unsupportedStubBlock.kt:77:5: error: The block of 'verify' must be a lambda literal.
 
-/unsupportedStubBlock.kt:77:56: error: 'every' must be called directly: a reference to it is not supported.
+/unsupportedStubBlock.kt:78:12: error: The block of 'verify' must consist of calls of mock members.
 
-/unsupportedStubBlock.kt:79:5: error: The block of 'verify' must be a lambda literal.
+/unsupportedStubBlock.kt:79:12: error: The block of 'verify' must consist of calls of mock members.
 
-/unsupportedStubBlock.kt:80:12: error: The block of 'verify' must consist of calls of mock members.
+/unsupportedStubBlock.kt:83:19: error: 'toString' is not recorded: calls of equals, hashCode and toString cannot be verified.
 
-/unsupportedStubBlock.kt:81:12: error: The block of 'verify' must consist of calls of mock members.
+/unsupportedStubBlock.kt:84:14: error: A matcher in the receiver of the stubbed or verified call must be an argument of a link of the call chain.
 
-/unsupportedStubBlock.kt:85:19: error: 'toString' is not recorded: calls of equals, hashCode and toString cannot be verified.
+/unsupportedStubBlock.kt:85:24: error: A matcher inside an expression is not supported: pass the matcher as a whole argument.
 
-/unsupportedStubBlock.kt:86:14: error: A matcher in the receiver of the stubbed or verified call must be an argument of a link of the call chain.
+/unsupportedStubBlock.kt:86:32: error: An argument of the matcher 'withArg' must not use matchers.
 
-/unsupportedStubBlock.kt:87:24: error: A matcher inside an expression is not supported: pass the matcher as a whole argument.
+/unsupportedStubBlock.kt:88:9: error: 'verify' must be called directly: a reference to it is not supported.
 
-/unsupportedStubBlock.kt:88:32: error: An argument of the matcher 'withArg' must not use matchers.
+/unsupportedStubBlock.kt:89:66: error: 'verifyOrder' must be called directly: a reference to it is not supported.
 
-/unsupportedStubBlock.kt:90:9: error: 'verify' must be called directly: a reference to it is not supported.
+/unsupportedStubBlock.kt:90:14: error: The receiver of 'wasNot Called' must not use matchers.
 
-/unsupportedStubBlock.kt:91:66: error: 'verifyOrder' must be called directly: a reference to it is not supported.
+/unsupportedStubBlock.kt:91:21: error: The block of 'times' must be a lambda literal.
 
-/unsupportedStubBlock.kt:92:14: error: The receiver of 'wasNot Called' must not use matchers.
+/unsupportedStubBlock.kt:92:23: error: The block of 'times' must consist of calls of mock members.
 
-/unsupportedStubBlock.kt:93:21: error: The block of 'times' must be a lambda literal.
+/unsupportedStubBlock.kt:94:5: error: The block of 'excludeRecords' must be a lambda literal.
 
-/unsupportedStubBlock.kt:94:23: error: The block of 'times' must consist of calls of mock members.
+/unsupportedStubBlock.kt:95:20: error: The block of 'excludeRecords' must consist of calls of mock members.
 
-/unsupportedStubBlock.kt:96:5: error: The block of 'excludeRecords' must be a lambda literal.
+/unsupportedStubBlock.kt:96:20: error: The block of 'excludeRecords' must consist of calls of mock members.
 
-/unsupportedStubBlock.kt:97:20: error: The block of 'excludeRecords' must consist of calls of mock members.
+/unsupportedStubBlock.kt:100:22: error: A matcher in the receiver of the stubbed or verified call must be an argument of a link of the call chain.
 
-/unsupportedStubBlock.kt:98:20: error: The block of 'excludeRecords' must consist of calls of mock members.
+/unsupportedStubBlock.kt:101:32: error: A matcher inside an expression is not supported: pass the matcher as a whole argument.
 
-/unsupportedStubBlock.kt:102:22: error: A matcher in the receiver of the stubbed or verified call must be an argument of a link of the call chain.
-
-/unsupportedStubBlock.kt:103:32: error: A matcher inside an expression is not supported: pass the matcher as a whole argument.
-
-/unsupportedStubBlock.kt:104:65: error: 'excludeRecords' must be called directly: a reference to it is not supported.
+/unsupportedStubBlock.kt:102:65: error: 'excludeRecords' must be called directly: a reference to it is not supported.

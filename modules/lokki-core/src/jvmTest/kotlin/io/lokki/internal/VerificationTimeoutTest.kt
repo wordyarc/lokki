@@ -11,7 +11,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class VerificationTimeoutTest {
-    private val state = TestMock("bell", RING).`lokki$state`
+    private val state = TestMock("bell", RING).`lokki$state`()
     private val name = state.name
 
     init {
@@ -84,7 +84,7 @@ class VerificationTimeoutTest {
         verification.check()
 
         val silent = TestMock(null, RING)
-        val silentState = silent.`lokki$state`
+        val silentState = silent.`lokki$state`()
         silentState.stub<Unit>(RING, arrayOf(AnyMatcher)) just Runs
         later(30) { silentState.answer(RING_MEMBER, arrayOf(1)) }
         assertFailsWith<AssertionError> {
@@ -95,21 +95,21 @@ class VerificationTimeoutTest {
     @Test
     fun testVerificationWaitsForCallOfMockThatLinkReturnsLater() {
         val house = TestMock("house", RING)
-        house.`lokki$state`.stub<Any>(RING, arrayOf(AnyMatcher)) answers {
-            TestMock("door", RING).also { it.`lokki$state`.stub<Unit>(RING, arrayOf(AnyMatcher)) just Runs }
+        house.`lokki$state`().stub<Any>(RING, arrayOf(AnyMatcher)) answers {
+            TestMock("door", RING).also { it.`lokki$state`().stub<Unit>(RING, arrayOf(AnyMatcher)) just Runs }
         }
         later(50) {
-            val door = house.`lokki$state`.answer(RING_MEMBER, arrayOf(1)) as TestMock
+            val door = house.`lokki$state`().answer(RING_MEMBER, arrayOf(1)) as TestMock
             Thread.sleep(50)
-            door.`lokki$state`.answer(RING_MEMBER, arrayOf(2))
+            door.`lokki$state`().answer(RING_MEMBER, arrayOf(2))
         }
 
         val start = System.nanoTime()
         val verification = Verification(timeout = 5_000)
         GeneratedMock.withoutStateChanges {
             verification.expectLink(house, RING) { arrayOf(EqMatcher(1)) }
-            val door = house.`lokki$state`.answer(RING_MEMBER, arrayOf(1)) as TestMock
-            verification.expect(door.`lokki$state`, RING, arrayOf(EqMatcher(2)))
+            val door = house.`lokki$state`().answer(RING_MEMBER, arrayOf(1)) as TestMock
+            verification.expect(door.`lokki$state`(), RING, arrayOf(EqMatcher(2)))
             verification.check()
         }
         assertTrue(System.nanoTime() - start < 4_000_000_000, "waited for the whole timeout")

@@ -2,6 +2,7 @@ package io.lokki.compiler.ir
 
 import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.ir.collect.DelegatingSpy
+import io.lokki.compiler.ir.collect.ExternalMocks
 import io.lokki.compiler.ir.collect.FailedInjection
 import io.lokki.compiler.ir.collect.InjectionProblem
 import io.lokki.compiler.ir.collect.MockFields
@@ -9,8 +10,8 @@ import io.lokki.compiler.ir.collect.MockProblem
 import io.lokki.compiler.ir.collect.MockSite
 import io.lokki.compiler.ir.collect.MockSites
 import io.lokki.compiler.ir.collect.NotMockable
-import io.lokki.compiler.ir.collect.Unsupported
 import io.lokki.compiler.ir.collect.UnsafeSpyDelegation
+import io.lokki.compiler.ir.collect.Unsupported
 import io.lokki.compiler.ir.collect.constructorParameter
 import io.lokki.compiler.ir.collect.mockAnnotationName
 import org.jetbrains.kotlin.ir.IrDiagnosticReporter
@@ -59,6 +60,13 @@ internal class IrDiagnostics(private val lokki: LokkiIrContext, private val file
                 MockSite.Reified -> {}
             }
         }
+    }
+
+    fun report(external: ExternalMocks) {
+        for (annotation in external.misplaced) {
+            unsupported(annotation, "'@${annotation.annotationClass?.name}' works only on properties of classes")
+        }
+        for (field in external.fields.values) (field.site as? MockSite.Rejected)?.let { report(field.annotation, it.problem) }
     }
 
     fun report(element: IrElement, problem: MockProblem) {

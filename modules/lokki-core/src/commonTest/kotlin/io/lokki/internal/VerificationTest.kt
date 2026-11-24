@@ -17,7 +17,7 @@ import kotlin.test.fail
 
 class VerificationTest {
     private val mock = TestMock("repo", FIND, SAVE, COUNT)
-    private val state = mock.`lokki$state`
+    private val state = mock.`lokki$state`()
     private val name = state.name
 
     init {
@@ -44,7 +44,7 @@ class VerificationTest {
 
     @Test
     fun testCallsAreRecordedInOrderEvenWithoutAnswer() {
-        val other = TestMock(null, FIND, SAVE, COUNT).`lokki$state`
+        val other = TestMock(null, FIND, SAVE, COUNT).`lokki$state`()
         find(1, false)
         assertFailsWith<LokkiException> { other.answer(SAVE_MEMBER, arrayOf("x")) }
         find(2, true)
@@ -61,6 +61,22 @@ class VerificationTest {
         assertEquals(
             "Verification failed: call 1 of 1: $name.find(eq(1), any()) was not called",
             failure(Verification(), expectation(1)),
+        )
+    }
+
+    @Test
+    fun testFailureOnForwardingSpyExplainsCallsOfTheObjectOnItself() {
+        val spy = TestMock("spy", FIND, flags = SPY or DELEGATE).`lokki$state`()
+        val verification = Verification()
+        verification.expect(spy, FIND, arrayOf(EqMatcher(1), AnyMatcher))
+
+        val message = assertFailsWith<AssertionError> { verification.check() }.message
+
+        assertEquals(
+            "Verification failed: call 1 of 1: ${spy.name}.find(eq(1), any()) was not called\n\n" +
+                "${spy.name} forwards calls to the object passed to spy(...): calls that object makes on itself " +
+                "are not recorded. To record them, spy a new instance: spy(Repo(...))",
+            message,
         )
     }
 
@@ -435,9 +451,9 @@ class VerificationTest {
     @Test
     fun testCalledMocksAreReported() {
         val other = TestMock("other", FIND)
-        val otherName = other.`lokki$state`.name
+        val otherName = other.`lokki$state`().name
         find(1, false)
-        assertFailsWith<LokkiException> { other.`lokki$state`.answer(FIND_MEMBER, arrayOf(2, true)) }
+        assertFailsWith<LokkiException> { other.`lokki$state`().answer(FIND_MEMBER, arrayOf(2, true)) }
         val verification = Verification()
 
         verification.expectNoCalls(listOf(mock, other, mock))

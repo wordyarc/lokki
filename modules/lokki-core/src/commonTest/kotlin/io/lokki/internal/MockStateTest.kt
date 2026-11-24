@@ -23,7 +23,7 @@ class MockStateTest {
         "sample.Repo#kotlin.String.label()",
         aliases = arrayOf("sample.Named#kotlin.String.label()", "sample.Repo#kotlin.String.label()"),
     )
-    private val state = owner.`lokki$state`
+    private val state = owner.`lokki$state`()
     private val name = state.answer(TO_STRING, emptyArray())
 
     @Test
@@ -58,7 +58,7 @@ class MockStateTest {
         val counting = object : GeneratedMock by mock {
             override fun `lokki$describe`(member: Int) = describe(member).also { descriptions += member }
         }
-        val descriptor = mock.`lokki$state`.descriptor
+        val descriptor = mock.`lokki$state`().descriptor
 
         assertSame(descriptor.description(counting, FIND_MEMBER), descriptor.description(counting, FIND_MEMBER))
         assertEquals(listOf(FIND_MEMBER), descriptions)
@@ -87,7 +87,7 @@ class MockStateTest {
 
     @Test
     fun testNameOfMockPrecedesItsNumber() {
-        val named = TestMock("repo", FIND).`lokki$state`
+        val named = TestMock("repo", FIND).`lokki$state`()
 
         assertTrue(Regex("""Repo\(repo#\d+\)""").matches(named.answer(TO_STRING, emptyArray()) as String))
     }
@@ -101,7 +101,7 @@ class MockStateTest {
 
     @Test
     fun testKeyOfTwoMembersIsRejected() {
-        val state = TestMock(null, FIND, FIND).`lokki$state`
+        val state = TestMock(null, FIND, FIND).`lokki$state`()
 
         val exception = assertFailsWith<LokkiException> { state.stub<String>(FIND, arrayOf(AnyMatcher, AnyMatcher)) }
 
@@ -260,7 +260,22 @@ class MockStateTest {
                 "use the version of the lokki Gradle plugin for all lokki dependencies",
             exception.message,
         )
-        MockState(owner, MockSpec(null, 0), MockDescriptor("Repo", LokkiAbi.VERSION - 1, emptyArray()))
+        MockState(owner, MockSpec(null, 0), MockDescriptor("Repo", OLDEST_ABI, emptyArray()))
+    }
+
+    @Test
+    fun testMockOfOlderAbiThanSupportedIsRejected() {
+        val older = OLDEST_ABI - 1
+        val exception = assertFailsWith<LokkiException> {
+            MockState(owner, MockSpec(null, 0), MockDescriptor("Repo", older, emptyArray()))
+        }
+
+        assertEquals(
+            "the mock of Repo was compiled by an older lokki compiler plugin than lokki-core on the classpath " +
+                "supports: it has ABI $older, lokki-core needs ABI $OLDEST_ABI or newer; " +
+                "recompile it with the version of the lokki Gradle plugin for all lokki dependencies",
+            exception.message,
+        )
     }
 
     @Test
@@ -367,10 +382,10 @@ class MockStateTest {
         val mock = TestMock("repo", FIND)
         val calls = ArrayList<Pair<Int, Array<Any?>>>()
         mock.original = { member, arguments -> calls += member to arguments; "original ${arguments[0]}" }
-        mock.`lokki$state`.stub<String>(FIND, arrayOf(AnyMatcher, AnyMatcher)) answers { callOriginal() + "!" }
+        mock.`lokki$state`().stub<String>(FIND, arrayOf(AnyMatcher, AnyMatcher)) answers { callOriginal() + "!" }
         val arguments = arrayOf<Any?>(7, true)
 
-        assertEquals("original 7!", mock.`lokki$state`.answer(FIND_MEMBER, arguments))
+        assertEquals("original 7!", mock.`lokki$state`().answer(FIND_MEMBER, arguments))
         assertEquals(FIND_MEMBER, calls.single().first)
         assertSame(arguments, calls.single().second)
     }
@@ -378,12 +393,12 @@ class MockStateTest {
     @Test
     fun testMemberWithoutOriginal() {
         val mock = TestMock("repo", FIND)
-        mock.`lokki$state`.stub<String>(FIND, arrayOf(AnyMatcher, AnyMatcher)) answers { callOriginal() }
-        val name = mock.`lokki$state`.answer(TO_STRING, emptyArray())
+        mock.`lokki$state`().stub<String>(FIND, arrayOf(AnyMatcher, AnyMatcher)) answers { callOriginal() }
+        val name = mock.`lokki$state`().answer(TO_STRING, emptyArray())
 
         assertEquals(
             "no original implementation for $name.find(7, true)",
-            assertFailsWith<LokkiException> { mock.`lokki$state`.answer(FIND_MEMBER, arrayOf(7, true)) }.message,
+            assertFailsWith<LokkiException> { mock.`lokki$state`().answer(FIND_MEMBER, arrayOf(7, true)) }.message,
         )
     }
 
@@ -397,10 +412,10 @@ class MockStateTest {
             suspendCoroutine { pending = it }
             "original ${arguments[0]}"
         }
-        mock.`lokki$state`.stub<String>(FIND, arrayOf(AnyMatcher, AnyMatcher)) coAnswers { coCallOriginal() + "!" }
+        mock.`lokki$state`().stub<String>(FIND, arrayOf(AnyMatcher, AnyMatcher)) coAnswers { coCallOriginal() + "!" }
         val arguments = arrayOf<Any?>(7, true)
 
-        val outcome = start { mock.`lokki$state`.coAnswer<String>(FIND_MEMBER, arguments) }
+        val outcome = start { mock.`lokki$state`().coAnswer<String>(FIND_MEMBER, arguments) }
         assertNull(outcome())
         pending!!.resume(Unit)
 
@@ -417,7 +432,7 @@ class MockStateTest {
             if (arguments[0] == 2) suspendCoroutine<Unit> { }
             "original ${arguments[0]}"
         }
-        val state = mock.`lokki$state`
+        val state = mock.`lokki$state`()
         val name = state.answer(TO_STRING, emptyArray())
         state.stub<String>(FIND, arrayOf(AnyMatcher, AnyMatcher)) answers { callOriginal() + "!" }
 
@@ -432,9 +447,9 @@ class MockStateTest {
     fun testCoCallOriginalOfNonSuspendMember() {
         val mock = TestMock("repo", FIND)
         mock.original = { _, arguments -> "original ${arguments[0]}" }
-        mock.`lokki$state`.stub<String>(FIND, arrayOf(AnyMatcher, AnyMatcher)) coAnswers { coCallOriginal() + "!" }
+        mock.`lokki$state`().stub<String>(FIND, arrayOf(AnyMatcher, AnyMatcher)) coAnswers { coCallOriginal() + "!" }
 
-        assertEquals("original 7!", mock.`lokki$state`.answer(FIND_MEMBER, arrayOf(7, true)))
+        assertEquals("original 7!", mock.`lokki$state`().answer(FIND_MEMBER, arrayOf(7, true)))
     }
 
     @Test
@@ -462,7 +477,7 @@ class MockStateTest {
                 else -> "original ${arguments[0]}"
             }
         }
-        val state = mock.`lokki$state`
+        val state = mock.`lokki$state`()
         state.stub<String>(FIND, arrayOf(EqMatcher(1), AnyMatcher)) returns "one"
 
         assertEquals("one", state.answer(FIND_MEMBER, arrayOf(1, true)))
@@ -481,7 +496,7 @@ class MockStateTest {
             if (member <= TO_STRING) throw AssertionError("member $member was delegated")
             "delegate ${arguments[0]}"
         }
-        val state = mock.`lokki$state`
+        val state = mock.`lokki$state`()
 
         assertEquals("delegate 2", state.answer(FIND_MEMBER, arrayOf(2, true)))
         assertEquals(true, state.answer(EQUALS, arrayOf(mock)))
@@ -498,7 +513,7 @@ class MockStateTest {
             "original ${arguments[0]}"
         }
 
-        val outcome = start { mock.`lokki$state`.coAnswer<String>(FIND_MEMBER, arrayOf(7, true)) }
+        val outcome = start { mock.`lokki$state`().coAnswer<String>(FIND_MEMBER, arrayOf(7, true)) }
         assertNull(outcome())
         pending!!.resume(Unit)
 
@@ -508,7 +523,7 @@ class MockStateTest {
     @Test
     fun testAbstractUnitMemberOfSpyDoesNothing() {
         val mock = TestMock("repo", FIND, SAVE, flags = SPY, units = setOf(SAVE))
-        val state = mock.`lokki$state`
+        val state = mock.`lokki$state`()
         val name = state.answer(TO_STRING, emptyArray())
 
         assertEquals(Unit, state.answer(SAVE_MEMBER, emptyArray()))
@@ -522,7 +537,7 @@ class MockStateTest {
     @Test
     fun testAbstractUnitMemberOfMockHasNoOriginal() {
         val mock = TestMock("repo", SAVE, units = setOf(SAVE))
-        val state = mock.`lokki$state`
+        val state = mock.`lokki$state`()
         state.stub<Unit>(SAVE, emptyArray()) answers { callOriginal() }
 
         assertFailsWith<LokkiException> { state.answer(3, emptyArray()) }
@@ -533,7 +548,7 @@ class MockStateTest {
         val mock = TestMock("repo", FIND, SAVE, flags = RELAXED)
         val defaults = mapOf<Int, Any?>(FIND_MEMBER to null, SAVE_MEMBER to Unit)
         mock.relaxed = defaults::getValue
-        val state = mock.`lokki$state`
+        val state = mock.`lokki$state`()
         state.stub<String>(FIND, arrayOf(EqMatcher(1), AnyMatcher)) returns "one"
 
         assertEquals("one", state.answer(FIND_MEMBER, arrayOf(1, true)))
@@ -547,7 +562,7 @@ class MockStateTest {
     fun testRelaxedMockWithoutDefaultFails() {
         val mock = TestMock("repo", FIND, flags = RELAXED)
         mock.relaxed = { NoRelaxedDefault("Engine", mockable = false) }
-        val state = mock.`lokki$state`
+        val state = mock.`lokki$state`()
         val name = state.answer(TO_STRING, emptyArray())
 
         assertEquals(
@@ -562,7 +577,7 @@ class MockStateTest {
         val mock = TestMock("repo", FIND, SAVE, flags = RELAX_UNIT_FUN)
         val defaults = mapOf(FIND_MEMBER to "", SAVE_MEMBER to Unit)
         mock.relaxed = defaults::getValue
-        val state = mock.`lokki$state`
+        val state = mock.`lokki$state`()
         val name = state.answer(TO_STRING, emptyArray())
 
         assertEquals(Unit, state.answer(SAVE_MEMBER, emptyArray()))
@@ -579,7 +594,7 @@ class MockStateTest {
         mock.relaxed = { throw AssertionError("a strict mock asked for the default of member $it") }
 
         assertTrue(
-            assertFailsWith<LokkiException> { mock.`lokki$state`.answer(FIND_MEMBER, arrayOf(7, true)) }
+            assertFailsWith<LokkiException> { mock.`lokki$state`().answer(FIND_MEMBER, arrayOf(7, true)) }
                 .message!!.startsWith("no answer found for "),
         )
     }

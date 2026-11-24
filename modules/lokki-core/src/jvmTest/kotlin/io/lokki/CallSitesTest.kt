@@ -11,7 +11,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class CallSitesTest {
-    private val state = TestMock("repo").`lokki$state`
+    private val state = TestMock("repo").`lokki$state`()
 
     @Test
     fun testCallStacksAreNotCapturedByDefault() {

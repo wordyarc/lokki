@@ -2,7 +2,7 @@ package io.lokki.internal
 
 import io.lokki.LokkiScope
 
-internal fun states(mocks: Array<out Any>): List<MockState> = mocks.map { GeneratedMock.of(it).`lokki$state` }
+internal fun states(mocks: Array<out Any>): List<MockState> = mocks.map { GeneratedMock.of(it).`lokki$state`() }
 
 internal class Window(val states: List<MockState>, val since: Long)
 

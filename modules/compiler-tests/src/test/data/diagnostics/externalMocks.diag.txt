@@ -1,0 +1,3 @@
+/externalMocks.kt:27:5: error: '@Bean' needs a 'lateinit var' or 'var' property: the test framework that reads the annotation assigns the property after the object is constructed.
+
+/externalMocks.kt:30:5: error: 'sample.Final' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.

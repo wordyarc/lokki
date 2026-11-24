@@ -33,6 +33,7 @@ internal object ParameterNames {
     const val RELAXED = "relaxed"
     const val RELAX_UNIT_FUN = "relaxUnitFun"
     const val MORE_INTERFACES = "moreInterfaces"
+    const val EXTRA_INTERFACES = "extraInterfaces"
     const val SPIED_INSTANCE = "obj"
     const val INTERFACE_TYPE = "type"
     const val LOOKUP_TYPE = "lookupType"

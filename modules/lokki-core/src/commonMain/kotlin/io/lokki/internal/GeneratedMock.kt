@@ -7,8 +7,7 @@ import kotlin.coroutines.intrinsics.startCoroutineUninterceptedOrReturn
 
 @PublishedApi
 internal interface GeneratedMock {
-    @get:JvmSynthetic
-    val `lokki$state`: MockState
+    fun `lokki$state`(): MockState
 
     @JvmSynthetic
     fun `lokki$original`(member: Int, args: Array<Any?>): Any?
@@ -24,8 +23,13 @@ internal interface GeneratedMock {
 
     companion object {
         fun of(instance: Any?): GeneratedMock =
-            instance as? GeneratedMock ?: instance?.let(Redirects::find)
-                ?: throw LokkiException("$instance is not a lokki mock")
+            instance as? GeneratedMock ?: instance?.let(Redirects::find) ?: throw LokkiException(notAMock(instance))
+
+        private fun notAMock(instance: Any?): String {
+            val proxy = instance?.let(::dynamicProxyClass) ?: return "$instance is not a lokki mock"
+            return "the JDK dynamic proxy $proxy is not a lokki mock: stub and verify the mock behind it, " +
+                "or proxy the class of the mock instead of its interfaces (proxyTargetClass = true in Spring AOP)"
+        }
 
         inline fun <T> withoutStateChanges(block: () -> T): T {
             Registration.enter()

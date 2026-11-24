@@ -14,12 +14,13 @@ internal class TestMock(
 ) : GeneratedMock {
     private val keys = ANY_KEYS + keys
 
-    override val `lokki$state`: MockState =
-        MockState(this, MockSpec(name, flags), MockDescriptor("Repo", LokkiAbi.VERSION, this.keys, aliases))
+    private val state = MockState(this, MockSpec(name, flags), MockDescriptor("Repo", LokkiAbi.VERSION, this.keys, aliases))
 
-    var original: (Int, Array<Any?>) -> Any? = `lokki$state`::noOriginal
+    var original: (Int, Array<Any?>) -> Any? = state::noOriginal
 
-    var coOriginal: suspend (Int, Array<Any?>) -> Any? = `lokki$state`::noOriginal
+    var coOriginal: suspend (Int, Array<Any?>) -> Any? = state::noOriginal
+
+    override fun `lokki$state`(): MockState = state
 
     var relaxed: (Int) -> Any? = { NoRelaxedDefault("Any", mockable = false) }
 

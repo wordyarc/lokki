@@ -243,7 +243,7 @@ internal class DslLowering(
     private fun IrBuilderWithScope.irWithoutRecords(spy: IrExpression): IrExpression =
         irBlock(resultType = spy.type) {
             val configured = irTemporary(spy)
-            val state = irInvoke(symbols.state.getter!!, receiver = irInvoke(symbols[CoreFunction.OF], irGet(configured)))
+            val state = irInvoke(symbols[CoreFunction.STATE], receiver = irInvoke(symbols[CoreFunction.OF], irGet(configured)))
             +irInvoke(symbols[CoreFunction.FORGET_RECORDS], receiver = state)
             +irGet(configured)
         }

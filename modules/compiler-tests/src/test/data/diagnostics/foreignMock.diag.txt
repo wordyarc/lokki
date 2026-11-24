@@ -1,0 +1,3 @@
+/test.kt:35:17: error: 'repo' is annotated with '@org.springframework.boot.test.mock.mockito.MockBean', which does not create a lokki mock: lokki stubs and verifies only its own mocks. Use '@io.lokki.spring.MockBean'.
+
+/test.kt:36:18: error: 'spied' is annotated with '@org.springframework.test.context.bean.override.mockito.MockitoSpyBean', which does not create a lokki mock: lokki stubs and verifies only its own mocks. Use '@io.lokki.spring.SpyBean'.

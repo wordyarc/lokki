@@ -16,11 +16,11 @@ import kotlin.test.assertSame
 class LokkiScopeTest {
     @Test
     fun testMockBelongsToCurrentScope() {
-        assertNull(repo().`lokki$state`.scope)
+        assertNull(repo().`lokki$state`().scope)
         lokkiScope {
             val repo = repo()
-            lokkiScope { assertNotSame(repo.`lokki$state`.scope, repo().`lokki$state`.scope) }
-            assertEquals("lokkiScope", repo.`lokki$state`.scope.toString())
+            lokkiScope { assertNotSame(repo.`lokki$state`().scope, repo().`lokki$state`().scope) }
+            assertEquals("lokkiScope", repo.`lokki$state`().scope.toString())
         }
     }
 
@@ -33,10 +33,10 @@ class LokkiScopeTest {
             lokkiScope {
                 stub(repo, EqMatcher(2), "inner")
                 assertEquals("inner", find(repo, 2))
-                assertEquals(2, repo.`lokki$state`.records().size)
+                assertEquals(2, repo.`lokki$state`().records().size)
             }
             assertEquals("outer", find(repo, 2))
-            assertEquals(listOf(1, 2), repo.`lokki$state`.records().map { it.arguments.single() })
+            assertEquals(listOf(1, 2), repo.`lokki$state`().records().map { it.arguments.single() })
         }
     }
 
@@ -48,7 +48,7 @@ class LokkiScopeTest {
 
         val message = assertFailsWith<LokkiException> { find(repo, 1) }.message!!
 
-        assertContains(message, "no answer found for ${repo.`lokki$state`.name}.find(1)")
+        assertContains(message, "no answer found for ${repo.`lokki$state`().name}.find(1)")
         assertContains(message, "\nThe mock belongs to lokkiScope, which is closed: the call came after its end")
     }
 
@@ -56,7 +56,7 @@ class LokkiScopeTest {
     fun testClosedScopeRestoresAnswerPositionsOfOuterStubs() {
         lokkiScope {
             val repo = repo()
-            repo.`lokki$state`.stub<String>(FIND, arrayOf(AnyMatcher)).returnsMany("a", "b", "c")
+            repo.`lokki$state`().stub<String>(FIND, arrayOf(AnyMatcher)).returnsMany("a", "b", "c")
             assertEquals("a", find(repo, 1))
             lokkiScope { assertEquals(listOf("b", "c", "c"), List(3) { find(repo, 1) }) }
             assertEquals("b", find(repo, 1))
@@ -70,16 +70,16 @@ class LokkiScopeTest {
             stub(repo, AnyMatcher, "found")
             val outerChild = link(repo, 1)
             val innerChild = lokkiScope {
-                repo.`lokki$state`.exclude(FIND, arrayOf(EqMatcher(3)))
+                repo.`lokki$state`().exclude(FIND, arrayOf(EqMatcher(3)))
                 find(repo, 3)
-                assertEquals(0, repo.`lokki$state`.records().size)
+                assertEquals(0, repo.`lokki$state`().records().size)
                 assertSame(outerChild, link(repo, 1))
                 link(repo, 2).also { child -> lokkiScope { assertSame(child, link(repo, 2)) } }
             }
             assertNotSame(innerChild, link(repo, 2))
             assertSame(outerChild, link(repo, 1))
             find(repo, 3)
-            assertEquals(1, repo.`lokki$state`.records().size)
+            assertEquals(1, repo.`lokki$state`().records().size)
         }
     }
 
@@ -97,7 +97,7 @@ class LokkiScopeTest {
             }
         }
 
-        val name = repo.`lokki$state`.name
+        val name = repo.`lokki$state`().name
         assertEquals(
             "2 calls to mocks had no answer:\n1) $name.find(2)\n2) $name.find(3)\n\n" +
                 "Call sites are not recorded; rerun with -Dlokki.recordStackTraces=true",
@@ -139,16 +139,16 @@ class LokkiScopeTest {
                 val inner = repo()
                 stub(inner, AnyMatcher, "inner")
                 val unused = assertFailsWith<AssertionError> { checkUnnecessaryStub() }.message!!
-                assertContains(unused, "\n\n1) ${inner.`lokki$state`.name}.find(any())")
+                assertContains(unused, "\n\n1) ${inner.`lokki$state`().name}.find(any())")
                 find(repo, 2)
                 val unverified = assertFailsWith<AssertionError> { confirmVerified() }.message!!
                 assertContains(unverified, "Verified call count: 0\nRecorded call count: 1\n")
-                repo.`lokki$state`.let { it.markVerified(it.records().takeLast(1)) }
-                inner.`lokki$state`.stub<String>(FIND, arrayOf(AnyMatcher)).returns("used")
+                repo.`lokki$state`().let { it.markVerified(it.records().takeLast(1)) }
+                inner.`lokki$state`().stub<String>(FIND, arrayOf(AnyMatcher)).returns("used")
                 find(inner, 1)
-                inner.`lokki$state`.let { it.markVerified(it.records()) }
+                inner.`lokki$state`().let { it.markVerified(it.records()) }
                 confirmVerified(clear = true)
-                assertEquals(1, repo.`lokki$state`.records().size)
+                assertEquals(1, repo.`lokki$state`().records().size)
             }
             assertContains(assertFailsWith<AssertionError> { checkUnnecessaryStub() }.message!!, "find(eq(1))")
             assertFailsWith<AssertionError> { confirmVerified() }
@@ -159,7 +159,7 @@ class LokkiScopeTest {
     fun testClearAllMocksClearsTheWindow() {
         lokkiScope {
             val repo = repo()
-            repo.`lokki$state`.stub<String>(FIND, arrayOf(AnyMatcher)).returnsMany("a", "b")
+            repo.`lokki$state`().stub<String>(FIND, arrayOf(AnyMatcher)).returnsMany("a", "b")
             find(repo, 1)
             lokkiScope {
                 stub(repo, EqMatcher(2), "inner")
@@ -168,12 +168,12 @@ class LokkiScopeTest {
 
                 clearAllMocks()
 
-                assertEquals(listOf(1), repo.`lokki$state`.records().map { it.arguments.single() })
+                assertEquals(listOf(1), repo.`lokki$state`().records().map { it.arguments.single() })
                 assertEquals("b", find(repo, 2))
                 stub(repo, EqMatcher(3), "kept")
                 clearAllMocks(answers = false)
                 assertEquals("kept", find(repo, 3))
-                assertEquals(2, repo.`lokki$state`.records().size)
+                assertEquals(2, repo.`lokki$state`().records().size)
             }
         }
     }
@@ -193,9 +193,9 @@ class LokkiScopeTest {
             assertEquals("test", find(repo, 2))
         }
 
-        assertSame(LokkiScope.root, repo.`lokki$state`.scope)
+        assertSame(LokkiScope.root, repo.`lokki$state`().scope)
         assertEquals("static", find(repo, 2))
-        assertEquals(1, repo.`lokki$state`.records().size)
+        assertEquals(1, repo.`lokki$state`().records().size)
     }
 
     @Test
@@ -210,7 +210,7 @@ class LokkiScopeTest {
         lokkiScope { stub(repo(), AnyMatcher, "own") }
 
         assertEquals(
-            "mock ${repo.`lokki$state`.name} of class Outer is used by concurrently running tests; " +
+            "mock ${repo.`lokki$state`().name} of class Outer is used by concurrently running tests; " +
                 "create it per test or serialize them with @ResourceLock",
             message,
         )
@@ -245,24 +245,24 @@ class LokkiScopeTest {
     @Test
     fun testCurrentScopeIsRestored() {
         lokkiScope {
-            val outer = repo().`lokki$state`.scope
+            val outer = repo().`lokki$state`().scope
             assertFailsWith<IllegalStateException> { lokkiScope { error("failed") } }
-            assertSame(outer, repo().`lokki$state`.scope)
+            assertSame(outer, repo().`lokki$state`().scope)
         }
-        assertNull(repo().`lokki$state`.scope)
+        assertNull(repo().`lokki$state`().scope)
     }
 
     private fun repo(name: String = "repo"): TestMock = TestMock(name, FIND)
 
     private fun stub(repo: TestMock, matcher: Matcher<*>, answer: String) {
         @Suppress("UNCHECKED_CAST")
-        repo.`lokki$state`.stub<String>(FIND, arrayOf(matcher as Matcher<Any?>)) returns answer
+        repo.`lokki$state`().stub<String>(FIND, arrayOf(matcher as Matcher<Any?>)) returns answer
     }
 
-    private fun find(repo: TestMock, id: Int): Any? = repo.`lokki$state`.answer(FIND_MEMBER, arrayOf(id))
+    private fun find(repo: TestMock, id: Int): Any? = repo.`lokki$state`().answer(FIND_MEMBER, arrayOf(id))
 
     private fun link(repo: TestMock, id: Int): Any =
-        repo.`lokki$state`.link(FIND, arrayOf(EqMatcher(id)), stubs = false) { spec: MockSpec ->
+        repo.`lokki$state`().link(FIND, arrayOf(EqMatcher(id)), stubs = false) { spec: MockSpec ->
             TestMock(spec.name, FIND, flags = spec.flags)
         }
 

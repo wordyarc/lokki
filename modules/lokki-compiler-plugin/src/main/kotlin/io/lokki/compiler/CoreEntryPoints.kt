@@ -19,6 +19,8 @@ internal enum class CoreClass(val id: ClassId) {
     MOCK_PARAMETER(internalClassId("MockParameter")),
     MOCK_PARAMETER_FACTORY(internalClassId("MockParameterFactory")),
     MOCK_PARAMETER_VALUES(internalClassId("MockParameterValues")),
+    EXTERNAL_MOCK_FIELD(internalClassId("ExternalMockField")),
+    EXTERNAL_MOCK_FACTORY(internalClassId("ExternalMockFactory")),
     STATIC_INITIALIZER(internalClassId("StaticInitializer")),
     INSTANCE_ALLOCATOR(internalClassId("InstanceAllocator")),
     MOCK_DESCRIPTOR(internalClassId("MockDescriptor")),
@@ -44,6 +46,7 @@ internal enum class CoreClass(val id: ClassId) {
 }
 
 internal enum class CoreFunction(val owner: CoreClass, val functionName: String, val arity: Int) {
+    STATE(CoreClass.GENERATED_MOCK, "lokki\$state", 0),
     ORIGINAL(CoreClass.GENERATED_MOCK, "lokki\$original", 2),
     CO_ORIGINAL(CoreClass.GENERATED_MOCK, "lokki\$coOriginal", 2),
     RELAXED(CoreClass.GENERATED_MOCK, "lokki\$relaxed", 1),
@@ -77,6 +80,7 @@ internal enum class CoreFunction(val owner: CoreClass, val functionName: String,
     PARAMETER_CREATE(CoreClass.MOCK_PARAMETER_FACTORY, "lokki\$create", 2),
     PARAMETER_INJECT(CoreClass.MOCK_PARAMETER_FACTORY, "lokki\$inject", 3),
     PARAMETER_VALUE(CoreClass.MOCK_PARAMETER_VALUES, "get", 1),
+    EXTERNAL_CREATE(CoreClass.EXTERNAL_MOCK_FACTORY, "lokki\$create", 3),
     ENTER_STATIC_INITIALIZER(CoreClass.STATIC_INITIALIZER, "enter", 0),
     EXIT_STATIC_INITIALIZER(CoreClass.STATIC_INITIALIZER, "exit", 0),
     ALLOCATE(CoreClass.INSTANCE_ALLOCATOR, "allocate", 1),
@@ -108,6 +112,7 @@ internal enum class CoreConstructor(val owner: CoreClass, val arity: Int) {
     REDIRECT(CoreClass.REDIRECT, 4),
     REDIRECT_WITH_FLAGS(CoreClass.REDIRECT, 5),
     MOCK_PARAMETER(CoreClass.MOCK_PARAMETER, 2),
+    EXTERNAL_MOCK_FIELD(CoreClass.EXTERNAL_MOCK_FIELD, 2),
     MOCK_DESCRIPTOR(CoreClass.MOCK_DESCRIPTOR, 3),
     MOCK_DESCRIPTOR_WITH_ALIASES(CoreClass.MOCK_DESCRIPTOR, 4),
     MOCK_SPEC(CoreClass.MOCK_SPEC, 2),
@@ -119,7 +124,6 @@ internal enum class CoreConstructor(val owner: CoreClass, val arity: Int) {
     LOKKI_EXCEPTION(CoreClass.LOKKI_EXCEPTION, 2),
 }
 
-internal const val STATE_PROPERTY_NAME = "lokki\$state"
 internal const val INIT_MOCK_FIELDS_NAME = "lokki\$initMockFields"
 
 internal class IncompatibleRuntimeException(val problem: String) : RuntimeException(problem)

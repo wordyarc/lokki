@@ -42,7 +42,7 @@ class RedirectsTest {
             assertTrue(isMock(clock, objectMock = true))
             assertSame(mock, Redirects.of(clock, "Clock"))
             assertSame(mock, GeneratedMock.of(clock))
-            assertTrue((mock as TestMock).`lokki$state`.isObject)
+            assertTrue((mock as TestMock).`lokki$state`().isObject)
         }
         assertNull(installed)
         assertFalse(isMock(clock, objectMock = true))
@@ -125,7 +125,7 @@ class RedirectsTest {
             val regular = TestMock("regular", NOW)
             Redirects.mockObject(arrayOf(redirect))
             val redirected = installed as TestMock
-            for (mock in listOf(regular, redirected)) mock.`lokki$state`.stub<Int>(NOW, arrayOf(AnyMatcher)) returns 5
+            for (mock in listOf(regular, redirected)) mock.`lokki$state`().stub<Int>(NOW, arrayOf(AnyMatcher)) returns 5
 
             clearAllMocks(regularMocks = false, objectMocks = false)
             assertEquals(listOf(5, 5), listOf(regular, redirected).map { now(it) })
@@ -150,8 +150,8 @@ class RedirectsTest {
             Redirects.mockStatic(arrayOf(static))
             val mock = assertNotNull(installed) as TestMock
             assertSame(mock, Redirects.ofStatic(NOW, "::now"))
-            assertTrue(mock.`lokki$state`.isStatic)
-            mock.`lokki$state`.stub<Int>(NOW, arrayOf(AnyMatcher)) returns 5
+            assertTrue(mock.`lokki$state`().isStatic)
+            mock.`lokki$state`().stub<Int>(NOW, arrayOf(AnyMatcher)) returns 5
             clearAllMocks(staticMocks = false)
             assertEquals(5, now(mock))
             clearAllMocks(regularMocks = false, objectMocks = false)
@@ -171,7 +171,7 @@ class RedirectsTest {
         }
     }
 
-    private fun now(mock: TestMock, argument: Int = 1): Any? = mock.`lokki$state`.answer(NOW_MEMBER, arrayOf(argument))
+    private fun now(mock: TestMock, argument: Int = 1): Any? = mock.`lokki$state`().answer(NOW_MEMBER, arrayOf(argument))
 
     private companion object {
         const val NOW = "sample.Clock#now(kotlin.Int)"

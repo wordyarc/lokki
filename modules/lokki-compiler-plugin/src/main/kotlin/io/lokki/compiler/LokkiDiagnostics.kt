@@ -43,7 +43,7 @@ internal object LokkiDiagnostics : KtDiagnosticsContainer() {
     val LOKKI_REF_EQ_OF_VALUE_CLASS by error2<KtElement, String, String>()
     val LOKKI_UNSAFE_SPY_DELEGATION by error3<KtElement, String, String, String>()
     val LOKKI_SPY_ARGUMENT_NOT_CONSTRUCTOR_CALL by warning2<KtElement, String, String>()
-    val LOKKI_MOCK_PROPERTY_NOT_MUTABLE by error2<KtElement, String, String>()
+    val LOKKI_MOCK_PROPERTY_NOT_MUTABLE by error3<KtElement, String, String, String>()
     val LOKKI_UNSUPPORTED_MOCK_PARAMETER by error1<KtElement, String>()
     val LOKKI_UNRESOLVED_INJECTION by error2<KtElement, String, String>()
     val LOKKI_AMBIGUOUS_INJECTION by error2<KtElement, String, String>()
@@ -54,6 +54,7 @@ internal object LokkiDiagnostics : KtDiagnosticsContainer() {
     val LOKKI_REFERENCE_NOT_LITERAL by error1<KtElement, String>()
     val LOKKI_FILE_CLASS_NOT_LITERAL by error1<KtElement, String>()
     val LOKKI_RUNTIME_TOO_OLD by error0<KtElement>()
+    val LOKKI_FOREIGN_MOCK by error3<KtElement, String, String, String>()
     val LOKKI_DEBUG by SourcelessDiagnosticFactoryDelegateProvider(Severity.INFO, this)
     val LOKKI_CANNOT_START by errorWithoutSource()
     val LOKKI_RUNTIME_INCOMPATIBLE by errorWithoutSource()
@@ -212,8 +213,9 @@ private object LokkiDiagnosticRenderers : BaseDiagnosticRendererFactory() {
         )
         map.put(
             LokkiDiagnostics.LOKKI_MOCK_PROPERTY_NOT_MUTABLE,
-            "''@{0}'' needs a ''lateinit var'' or ''var'' property: lokki assigns the property after the object " +
-                "is constructed{1}.",
+            "''@{0}'' needs a ''lateinit var'' or ''var'' property: {1} assigns the property after the object " +
+                "is constructed{2}.",
+            CommonRenderers.STRING,
             CommonRenderers.STRING,
             CommonRenderers.STRING,
         )
@@ -262,6 +264,14 @@ private object LokkiDiagnosticRenderers : BaseDiagnosticRendererFactory() {
             LokkiDiagnostics.LOKKI_REFERENCE_NOT_LITERAL,
             "An argument of ''{0}'' must be an unbound reference like ''::f'' or ''Type::f'': " +
                 "lokki chooses the interception point at compile time.",
+            CommonRenderers.STRING,
+        )
+        map.put(
+            LokkiDiagnostics.LOKKI_FOREIGN_MOCK,
+            "''{0}'' is annotated with ''@{1}'', which does not create a lokki mock: lokki stubs and verifies only " +
+                "its own mocks. Use ''@{2}''.",
+            CommonRenderers.STRING,
+            CommonRenderers.STRING,
             CommonRenderers.STRING,
         )
         map.put(

@@ -1,6 +1,7 @@
 package io.lokki.compiler.ir.collect
 
 import io.lokki.compiler.ARRAY_OF
+import io.lokki.compiler.CoreClass
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.ParameterNames
 import io.lokki.compiler.STUB_BLOCKS
@@ -24,6 +25,7 @@ import org.jetbrains.kotlin.descriptors.DescriptorVisibility
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrConstructor
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationBase
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.expressions.IrCall
@@ -34,6 +36,7 @@ import org.jetbrains.kotlin.ir.expressions.IrSpreadElement
 import org.jetbrains.kotlin.ir.expressions.IrVararg
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.starProjectedType
+import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.visitors.IrVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
@@ -42,8 +45,11 @@ internal class MockClassUsage(
     val firstUse: IrElement,
     val mockedTypes: MockedTypes,
     val visibility: DescriptorVisibility,
-    val relaxedChildren: Boolean,
-)
+    val strictOnly: Boolean = false,
+) {
+    val relaxedChildren: Boolean
+        get() = mockedTypes.chained
+}
 
 internal class ConstructedSite(
     val redirect: ConstructorRedirect,
@@ -91,28 +97,39 @@ private class MockCollector(private val file: FileContext) : IrVisitorVoid() {
 
     private var enclosingInlineFunctions = 0
 
+    private var enclosingChainedMocks = if (file.chainsMocks) 1 else 0
+
     private class Usage(val firstUse: IrElement, val mockedTypes: MockedTypes) {
         var visibility: DescriptorVisibility = DescriptorVisibilities.PRIVATE
 
-        var relaxedChildren = false
+        var strictOnly = true
     }
 
     fun usages(): Map<MockClassKey, MockClassUsage> =
         classes.mapValues { (_, usage) ->
-            MockClassUsage(usage.firstUse, usage.mockedTypes, usage.visibility, usage.relaxedChildren)
+            MockClassUsage(usage.firstUse, usage.mockedTypes, usage.visibility, usage.strictOnly)
         }
 
     fun addParameters() {
         for (field in file.fields.parameterGroups.flatMap { it.parameters }) {
             val site = field.site?.takeIf { field.problem == null } ?: continue
-            val usage = add(field.parameter, site)
-            if (file.chainedMocks && field.kind != IntrinsicKind.SPY) usage.relaxedChildren = true
+            add(field.parameter, site)
         }
     }
 
     override fun visitElement(element: IrElement) {
         element.acceptChildrenVoid(this)
     }
+
+    override fun visitDeclaration(declaration: IrDeclarationBase) {
+        val chains = declaration.hasAnnotation(CoreClass.CHAINED_MOCKS.id)
+        if (chains) enclosingChainedMocks++
+        super.visitDeclaration(declaration)
+        if (chains) enclosingChainedMocks--
+    }
+
+    private fun MockSite.Mocked.chainedIf(condition: Boolean): MockSite.Mocked =
+        if (condition && enclosingChainedMocks > 0) chained() else this
 
     override fun visitSimpleFunction(declaration: IrSimpleFunction) {
         if (declaration.isInline) enclosingInlineFunctions++
@@ -122,10 +139,8 @@ private class MockCollector(private val file: FileContext) : IrVisitorVoid() {
 
     override fun visitProperty(declaration: IrProperty) {
         val field = file.fields.fields[declaration]?.takeIf { it.problem == null }
-        field?.site?.let { site ->
-            val usage = add(declaration, site)
-            if (file.chainedMocks && field.kind != IntrinsicKind.SPY) usage.relaxedChildren = true
-        }
+        field?.site?.let { site -> add(declaration, site) }
+        (file.external.fields[declaration]?.site as? MockSite.Mocked)?.let { site -> add(declaration, site) }
         super.visitProperty(declaration)
     }
 
@@ -137,12 +152,10 @@ private class MockCollector(private val file: FileContext) : IrVisitorVoid() {
                 null -> file.mockability.site(expression.request(kind == IntrinsicKind.SPY))
                 else -> MockSite.Reified
             }
-            calls[expression] = site
-            if (site is MockSite.Mocked) {
-                val usage = add(expression, site)
-                val relaxed = kind == IntrinsicKind.MOCK && expression.mayBeRelaxed
-                if (file.chainedMocks && relaxed) usage.relaxedChildren = true
-            }
+            val relaxed = kind == IntrinsicKind.MOCK && expression.mayBeRelaxed
+            val used = (site as? MockSite.Mocked)?.chainedIf(relaxed) ?: site
+            calls[expression] = used
+            if (used is MockSite.Mocked) add(expression, used, strict = kind == IntrinsicKind.MOCK && !relaxed)
         }
         val redirected = when (kind) {
             IntrinsicKind.MOCK_OBJECT -> expression.mockedObjects.orEmpty().mapNotNull(file.redirects::of)
@@ -160,7 +173,7 @@ private class MockCollector(private val file: FileContext) : IrVisitorVoid() {
         }
         blockStatementCalls += expression.blockStatementCalls()
         for (link in expression.blockCalls().flatMap { it.receiver?.links().orEmpty() }) {
-            val site = file.mockability.child(link.call.type) ?: continue
+            val site = file.mockability.child(link.call.type)?.chainedIf(true) ?: continue
             links[link.call] = site
             add(link.call, site)
         }
@@ -171,9 +184,9 @@ private class MockCollector(private val file: FileContext) : IrVisitorVoid() {
         val types = file.reifiedHelpers.concreteTypes(call).mapNotNull { type ->
             when (val site = file.mockability.reified(type)) {
                 is MockSite.Mocked -> {
-                    val usage = add(call, site)
-                    if (file.chainedMocks) usage.relaxedChildren = true
-                    ReifiedType(type, site)
+                    val chained = site.chainedIf(true)
+                    add(call, chained)
+                    ReifiedType(type, chained)
                 }
                 is MockSite.Rejected -> null.also { file.diagnostics.report(call, site.problem) }
                 MockSite.Reified -> null
@@ -201,9 +214,10 @@ private class MockCollector(private val file: FileContext) : IrVisitorVoid() {
         constructed[target] = ConstructedSite(redirect, representative, instances)
     }
 
-    private fun add(use: IrElement, site: MockSite.Mocked): Usage {
+    private fun add(use: IrElement, site: MockSite.Mocked, strict: Boolean = false): Usage {
         val usage = classes.getOrPut(site.key) { Usage(use, site.types) }
         if (enclosingInlineFunctions > 0) usage.visibility = DescriptorVisibilities.PUBLIC
+        usage.strictOnly = usage.strictOnly && strict
         return usage
     }
 }

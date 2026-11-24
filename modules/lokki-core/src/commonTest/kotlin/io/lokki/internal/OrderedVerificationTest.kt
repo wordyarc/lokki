@@ -11,9 +11,9 @@ import kotlin.test.assertFailsWith
 
 class OrderedVerificationTest {
     private val mock = TestMock("repo", FIND, SAVE)
-    private val state = mock.`lokki$state`
+    private val state = mock.`lokki$state`()
     private val name = state.name
-    private val other = TestMock("other", FIND, SAVE).`lokki$state`
+    private val other = TestMock("other", FIND, SAVE).`lokki$state`()
 
     init {
         for (state in listOf(state, other)) {

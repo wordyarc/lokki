@@ -8,6 +8,10 @@ import io.lokki.checkUnnecessaryStub
 import io.lokki.confirmVerified
 import io.lokki.internal.MockParameter
 import io.lokki.internal.MockParameterValues
+import io.lokki.internal.ScopedTests
+import java.lang.annotation.Inherited
+import java.lang.reflect.Constructor
+import java.lang.reflect.Method
 import org.junit.jupiter.api.extension.AfterAllCallback
 import org.junit.jupiter.api.extension.AfterEachCallback
 import org.junit.jupiter.api.extension.BeforeAllCallback
@@ -22,9 +26,6 @@ import org.junit.jupiter.api.extension.ReflectiveInvocationContext
 import org.junit.jupiter.api.extension.TestInstancePostProcessor
 import org.junit.jupiter.api.extension.TestInstantiationAwareExtension.ExtensionContextScope
 import org.junit.platform.commons.support.AnnotationSupport.isAnnotated
-import java.lang.annotation.Inherited
-import java.lang.reflect.Constructor
-import java.lang.reflect.Method
 
 @SubclassOptInRequired(InternalLokkiApi::class)
 public open class LokkiExtension :
@@ -43,6 +44,7 @@ public open class LokkiExtension :
     }
 
     final override fun postProcessTestInstance(testInstance: Any, context: ExtensionContext) {
+        ScopedTests.add(testInstance)
         LokkiScope.withCurrent(scope(context)) { MockAnnotations.init(testInstance) }
     }
 
@@ -182,7 +184,12 @@ private fun <T> proceed(invocation: Invocation<T>, context: ExtensionContext): T
     LokkiScope.withCurrent(scope(context)) { invocation.proceed() }
 
 private fun scope(context: ExtensionContext): LokkiScope {
-    if (!supportsTestInstantiationScope) throw LokkiException("LokkiExtension requires JUnit Jupiter 5.12+")
+    if (!supportsTestInstantiationScope) {
+        throw LokkiException(
+            "LokkiExtension requires JUnit Jupiter 5.12+: upgrade JUnit Jupiter, or set " +
+                "junit.jupiter.extensions.autodetection.enabled=false if it is registered by autodetection"
+        )
+    }
     if (context.keepsMocks()) return context.parentScope()
     return context.store.getOrComputeIfAbsent(
         context.uniqueId,

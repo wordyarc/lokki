@@ -26,6 +26,7 @@ listOf(
     "lokki-core",
     "lokki-gradle-plugin",
     "lokki-maven",
+    "lokki-spring",
 ).forEach { module ->
     include(module)
     project(":$module").projectDir = file("modules/$module")

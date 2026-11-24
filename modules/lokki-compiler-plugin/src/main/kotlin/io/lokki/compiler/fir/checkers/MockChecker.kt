@@ -1,8 +1,8 @@
 package io.lokki.compiler.fir.checkers
 
+import io.lokki.compiler.ARRAY_OF
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiDiagnostics
-import io.lokki.compiler.ARRAY_OF
 import io.lokki.compiler.NOT_CLASS_PROBLEM
 import io.lokki.compiler.ParameterNames
 import io.lokki.compiler.TYPE_PARAMETER_PROBLEM
@@ -10,6 +10,7 @@ import io.lokki.compiler.fir.argument
 import io.lokki.compiler.fir.classifier
 import io.lokki.compiler.fir.displayName
 import io.lokki.compiler.fir.effectiveModality
+import io.lokki.compiler.fir.externalKind
 import io.lokki.compiler.fir.fieldKind
 import io.lokki.compiler.fir.finalMembers
 import io.lokki.compiler.fir.intrinsicKind
@@ -38,6 +39,7 @@ import org.jetbrains.kotlin.fir.declarations.getTargetType
 import org.jetbrains.kotlin.fir.declarations.toAnnotationClassLikeSymbol
 import org.jetbrains.kotlin.fir.declarations.utils.correspondingValueParameterFromPrimaryConstructor
 import org.jetbrains.kotlin.fir.declarations.utils.isLocal
+import org.jetbrains.kotlin.fir.expressions.FirAnnotation
 import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
 import org.jetbrains.kotlin.fir.expressions.FirGetClassCall
@@ -117,6 +119,9 @@ internal object MockPropertyChecker : FirPropertyChecker(MppCheckerKind.Common) 
     context(context: CheckerContext, reporter: DiagnosticReporter)
     private fun inspect(declaration: FirProperty) {
         val session = context.session
+        val external = (declaration.annotations + declaration.backingField?.annotations.orEmpty())
+            .firstNotNullOfOrNull { annotation -> annotation.externalKind(session)?.let { annotation to it } }
+        if (external != null) return inspectExternal(declaration, external.first, external.second)
         val kinds = declaration.annotations.mapNotNull { annotation ->
             annotation.fieldKind(session)?.let { annotation to it }
         }
@@ -144,7 +149,7 @@ internal object MockPropertyChecker : FirPropertyChecker(MppCheckerKind.Common) 
         }
         if (kind == IntrinsicKind.INJECT_MOCKS) {
             if (!declaration.isVar) {
-                reporter.reportOn(annotation.source, LokkiDiagnostics.LOKKI_MOCK_PROPERTY_NOT_MUTABLE, name, "")
+                reporter.reportOn(annotation.source, LokkiDiagnostics.LOKKI_MOCK_PROPERTY_NOT_MUTABLE, name, LOKKI, "")
             }
             return
         }
@@ -159,10 +164,38 @@ internal object MockPropertyChecker : FirPropertyChecker(MppCheckerKind.Common) 
         if (!mocked.check { additionalInterface(declaration) }) return
         if (!declaration.isVar && (inject != null || constructed == null)) {
             val hint = if (kind == IntrinsicKind.SPY && inject == null) SPY_VAL_HINT else ""
-            reporter.reportOn(annotation.source, LokkiDiagnostics.LOKKI_MOCK_PROPERTY_NOT_MUTABLE, name, hint)
+            reporter.reportOn(annotation.source, LokkiDiagnostics.LOKKI_MOCK_PROPERTY_NOT_MUTABLE, name, LOKKI, hint)
         }
     }
 }
+
+context(context: CheckerContext, reporter: DiagnosticReporter)
+private fun inspectExternal(declaration: FirProperty, annotation: FirAnnotation, kind: IntrinsicKind) {
+    checkRuntimeVersion(annotation.source)
+    val name = annotation.toAnnotationClassLikeSymbol(context.session)!!.name.asString()
+    val type = declaration.returnTypeRef.coneType.lowerBoundIfFlexible().fullyExpandedType()
+    val mocked = MockedType(
+        if (kind == IntrinsicKind.EXTERNAL_SPY) IntrinsicKind.SPY else IntrinsicKind.MOCK,
+        type,
+        annotation.source,
+        "The mocked type",
+        "@$name",
+    )
+    if (!mocked.check { true }) return
+    if (!declaration.isVar) {
+        reporter.reportOn(
+            annotation.source,
+            LokkiDiagnostics.LOKKI_MOCK_PROPERTY_NOT_MUTABLE,
+            name,
+            TEST_FRAMEWORK,
+            "",
+        )
+    }
+}
+
+private const val LOKKI = "lokki"
+
+private const val TEST_FRAMEWORK = "the test framework that reads the annotation"
 
 internal object MockParameterChecker : FirValueParameterChecker(MppCheckerKind.Common) {
     context(context: CheckerContext, reporter: DiagnosticReporter)

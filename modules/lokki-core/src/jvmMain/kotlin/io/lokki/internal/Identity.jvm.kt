@@ -1,5 +1,6 @@
 package io.lokki.internal
 
+import java.lang.reflect.Proxy
 import kotlin.reflect.KClass
 
 internal actual fun identityHashCode(instance: Any): Int = System.identityHashCode(instance)
@@ -19,6 +20,9 @@ internal actual fun Any.isStaticOf(type: Any): Boolean {
     val declaring = type.jvmClass ?: return false
     return javaClass === declaring || javaClass.declaringClass === declaring && javaClass.simpleName == COMPANION
 }
+
+internal actual fun dynamicProxyClass(instance: Any): String? =
+    instance.javaClass.takeIf(Proxy::isProxyClass)?.name
 
 private const val COMPANION = "Companion"
 

@@ -109,7 +109,7 @@ private fun noDefault(type: String, call: String): String =
     "relaxed mock has no default for $type returned by $call; stub the call"
 
 private fun noChild(type: String, call: String): String =
-    noDefault(type, call) + " or annotate test.kt, which creates the mock, with @file:ChainedMocks"
+    noDefault(type, call) + " or annotate the declaration in test.kt that creates the mock with @ChainedMocks"
 
 fun box(): String {
     val defaults = mock<Defaults>(relaxed = true)

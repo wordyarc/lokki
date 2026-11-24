@@ -47,6 +47,9 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
     internal val isSpy: Boolean
         get() = representative == null && flags and (SPY or OBJECT or STATIC) == SPY
 
+    internal val forwardsCalls: Boolean
+        get() = flags and DELEGATE != 0
+
     private var stubs: Array<Array<StubEntry>?>
         get() = data.stubs
         set(value) {
@@ -85,6 +88,13 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
                 "the mock of ${descriptor.name} was compiled by a newer lokki compiler plugin than lokki-core on " +
                     "the classpath: it needs ABI ${descriptor.abi}, lokki-core has ABI ${LokkiAbi.VERSION}; " +
                     "use the version of the lokki Gradle plugin for all lokki dependencies"
+            )
+        }
+        if (descriptor.abi < OLDEST_ABI) {
+            throw LokkiException(
+                "the mock of ${descriptor.name} was compiled by an older lokki compiler plugin than lokki-core on " +
+                    "the classpath supports: it has ABI ${descriptor.abi}, lokki-core needs ABI $OLDEST_ABI or newer; " +
+                    "recompile it with the version of the lokki Gradle plugin for all lokki dependencies"
             )
         }
         if (representative == null) scope?.adopt(this)
@@ -327,7 +337,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
     }
 
     private fun returned(record: CallRecord?, value: Any?): Any? {
-        if (record != null && value is GeneratedMock) returnedMock(record, value.`lokki$state`)
+        if (record != null && value is GeneratedMock) returnedMock(record, value.`lokki$state`())
         return value
     }
 
@@ -377,8 +387,8 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
             if (value !is NoRelaxedDefault) return value
             val hint = when {
                 !value.mockable || link != null -> ""
-                value.file == null -> " or annotate the file that creates the mock with $CHAINED_MOCKS"
-                else -> " or annotate ${value.file}, which creates the mock, with $CHAINED_MOCKS"
+                value.file == null -> " or annotate the declaration that creates the mock with $CHAINED_MOCKS"
+                else -> " or annotate the declaration in ${value.file} that creates the mock with $CHAINED_MOCKS"
             }
             "relaxed mock has no default for ${value.type} returned by " +
                 "${call(member, arguments.joinToString { it.toStr() })}; stub the call$hint"
@@ -670,9 +680,11 @@ private object MockIds {
 
 internal const val ALL = -1L
 
+internal const val OLDEST_ABI = 7
+
 private const val EQUALS = 0
 private const val HASH_CODE = 1
 private const val TO_STRING = 2
 private const val LINK_HINT = "The call is a link of a call chain in a stubbed or verified call"
-private const val CHAINED_MOCKS = "@file:ChainedMocks"
+private const val CHAINED_MOCKS = "@ChainedMocks"
 private val CHILD_NAME = Regex("child(\\^(\\d+))? of (.+)")

@@ -60,6 +60,8 @@ internal sealed interface MockSite {
     class Mocked(val types: MockedTypes, val warning: MockProblem? = null) : MockSite {
         val key: MockClassKey
             get() = types.key
+
+        fun chained(): Mocked = if (types.chained) this else Mocked(types.chained(), warning)
     }
 
     class Rejected(val problem: MockProblem) : MockSite

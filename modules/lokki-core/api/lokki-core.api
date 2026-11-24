@@ -560,13 +560,29 @@ public final class io/lokki/internal/EqMatcher : io/lokki/Matcher {
 	public fun toString ()Ljava/lang/String;
 }
 
+public abstract interface class io/lokki/internal/ExternalMockFactory {
+	public abstract fun lokki$create (ILjava/lang/String;Ljava/lang/Object;)Ljava/lang/Object;
+}
+
+public abstract interface annotation class io/lokki/internal/ExternalMockField : java/lang/annotation/Annotation {
+	public abstract fun factory ()Ljava/lang/Class;
+	public abstract fun index ()I
+}
+
+public final class io/lokki/internal/ExternalMocks {
+	public static final field INSTANCE Lio/lokki/internal/ExternalMocks;
+	public final fun isScoped (Ljava/lang/Object;)Z
+	public final fun mock (Ljava/lang/reflect/Field;Ljava/lang/String;)Ljava/lang/Object;
+	public final fun spy (Ljava/lang/reflect/Field;Ljava/lang/String;Ljava/lang/Object;)Ljava/lang/Object;
+}
+
 public abstract interface class io/lokki/internal/GeneratedMock {
 	public static final field Companion Lio/lokki/internal/GeneratedMock$Companion;
-	public abstract synthetic fun getLokki$state ()Lio/lokki/internal/MockState;
 	public abstract synthetic fun lokki$coOriginal (I[Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract synthetic fun lokki$describe (I)Lio/lokki/MethodDescription;
 	public abstract synthetic fun lokki$original (I[Ljava/lang/Object;)Ljava/lang/Object;
 	public abstract synthetic fun lokki$relaxed (I)Ljava/lang/Object;
+	public abstract fun lokki$state ()Lio/lokki/internal/MockState;
 }
 
 public final class io/lokki/internal/GeneratedMock$Companion {
@@ -599,6 +615,8 @@ public final class io/lokki/internal/LokkiIntrinsic$Kind : java/lang/Enum {
 	public static final field DYNAMIC_CALL Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field DYNAMIC_MEMBER Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field EXCLUDE_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field EXTERNAL_MOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
+	public static final field EXTERNAL_SPY Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field INJECT_MOCKS Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field JUST_AWAIT_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;
 	public static final field JUST_RUN_BLOCK Lio/lokki/internal/LokkiIntrinsic$Kind;

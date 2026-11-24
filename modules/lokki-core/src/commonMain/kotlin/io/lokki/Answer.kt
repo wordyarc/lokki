@@ -50,7 +50,7 @@ public class Invocation internal constructor(
     private val arguments: Array<Any?>,
 ) {
     public val method: MethodDescription
-        get() = (self as GeneratedMock).`lokki$state`.description(member)
+        get() = (self as GeneratedMock).`lokki$state`().description(member)
 
     public val args: List<Any?> = ReadOnlyList(arguments)
 
@@ -75,11 +75,11 @@ public class Invocation internal constructor(
     }
 
     internal fun readField(): Any? =
-        (self as GeneratedMock).`lokki$original`(self.`lokki$state`.fieldAccessor(member, FieldAccess.READ), emptyArray())
+        (self as GeneratedMock).`lokki$original`(self.`lokki$state`().fieldAccessor(member, FieldAccess.READ), emptyArray())
 
     internal fun writeField(value: Any?) {
         val mock = self as GeneratedMock
-        mock.`lokki$original`(mock.`lokki$state`.fieldAccessor(member, FieldAccess.WRITE), arrayOf(value))
+        mock.`lokki$original`(mock.`lokki$state`().fieldAccessor(member, FieldAccess.WRITE), arrayOf(value))
     }
 
     internal suspend fun coCallOriginal(): Any? {
@@ -92,7 +92,7 @@ public class Invocation internal constructor(
     }
 
     internal fun describe(): String =
-        (self as GeneratedMock).`lokki$state`.call(member, arguments.joinToString { it.toStr() })
+        (self as GeneratedMock).`lokki$state`().call(member, arguments.joinToString { it.toStr() })
 }
 
 public class InvocationMatcher internal constructor(
@@ -101,7 +101,7 @@ public class InvocationMatcher internal constructor(
     matchers: Array<Matcher<Any?>>,
 ) {
     public val method: MethodDescription
-        get() = (self as GeneratedMock).`lokki$state`.description(member)
+        get() = (self as GeneratedMock).`lokki$state`().description(member)
 
     public val args: List<Matcher<Any>> = ReadOnlyList(matchers)
 
@@ -111,7 +111,7 @@ public class InvocationMatcher internal constructor(
 
     override fun hashCode(): Int = 31 * (31 * identityHashCode(self) + method.hashCode()) + args.hashCode()
 
-    override fun toString(): String = (self as GeneratedMock).`lokki$state`.call(member, args.joinToString())
+    override fun toString(): String = (self as GeneratedMock).`lokki$state`().call(member, args.joinToString())
 }
 
 @LokkiDslMarker

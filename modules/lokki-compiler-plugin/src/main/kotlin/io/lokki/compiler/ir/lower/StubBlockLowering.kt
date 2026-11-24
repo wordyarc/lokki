@@ -420,7 +420,7 @@ internal class StubBlockLowering(
                 values[index] = irTemporary(argument)
                 continue
             }
-            if (capturesDefaults) placeholderProblem(member, parameter, argument)?.let { fail(argument, it) }
+            if (capturesDefaults) placeholderProblem(argument)?.let { fail(argument, it) }
             val declaredParameter = declared[parameter.indexInParameters]
             matchers[index] = irTemporary(irArgumentMatcher(argument, declaredParameter, block, stubbed.allAny))
         }
@@ -655,19 +655,11 @@ internal class StubBlockLowering(
     private fun builder(scope: Scope, dsl: IrCall): DeclarationIrBuilder =
         DeclarationIrBuilder(context, scope.scopeOwnerSymbol, dsl.startOffset, dsl.endOffset)
 
-    private fun placeholderProblem(
-        member: IrSimpleFunction,
-        parameter: IrValueParameter,
-        argument: IrExpression,
-    ): String? =
-        when {
-            argument.type.classOrNull?.owner?.isValue == true ->
-                "A matcher of a value class cannot be combined with omitted arguments: pass all arguments explicitly"
-            parameter.kind == IrParameterKind.ExtensionReceiver && !member.isSuspend &&
-                !parameter.type.isNullable() && !argument.type.isPrimitiveType() ->
-                "A matcher of the extension receiver cannot be combined with omitted arguments: " +
-                    "pass all arguments explicitly"
-            else -> null
+    private fun placeholderProblem(argument: IrExpression): String? =
+        if (argument.type.classOrNull?.owner?.isValue == true) {
+            "A matcher of a value class cannot be combined with omitted arguments: pass all arguments explicitly"
+        } else {
+            null
         }
 
     private fun IrStatementsBuilder<*>.irArgumentMatcher(
@@ -838,11 +830,11 @@ internal class StubBlockLowering(
             redirect is ObjectRedirect -> irInvoke(symbols[CoreFunction.STUBBED_REDIRECT], irRedirect(symbols, mock, target, redirect))
             else -> irInvoke(symbols[CoreFunction.STUBBED_STATIC_REDIRECT], irRedirect(symbols, mock, target, redirect))
         }
-        return irInvoke(symbols.state.getter!!, receiver = redirected)
+        return irInvoke(symbols[CoreFunction.STATE], receiver = redirected)
     }
 
     private fun IrBuilder.irStateOf(instance: IrExpression): IrExpression =
-        irInvoke(symbols.state.getter!!, receiver = irInvoke(symbols[CoreFunction.OF], instance))
+        irInvoke(symbols[CoreFunction.STATE], receiver = irInvoke(symbols[CoreFunction.OF], instance))
 
     private fun IrBuilder.irEq(value: IrExpression): IrExpression = irInvoke(symbols[CoreConstructor.EQ_MATCHER], value)
 

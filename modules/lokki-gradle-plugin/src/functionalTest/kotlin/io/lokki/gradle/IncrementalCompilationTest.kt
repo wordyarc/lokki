@@ -1088,7 +1088,7 @@ class IncrementalCompilationTest {
             """,
         )
         project.write("src/test/kotlin/sample/UnrelatedTest.kt", UNRELATED_TEST)
-        val child = "sample.Door\$LokkiMock\$065a5592\$CarTestKt"
+        val child = "sample.Door\$LokkiMock\$7c6b7692\$CarTestKt"
 
         project.build("test")
         assertEquals(setOf("knock()"), project.mockedMethods("test", child))

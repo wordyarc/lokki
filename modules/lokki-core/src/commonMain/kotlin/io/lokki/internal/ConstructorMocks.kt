@@ -16,13 +16,13 @@ internal class ConstructorMocks internal constructor(
     internal val any: GeneratedMock = representative("")
 
     init {
-        any.`lokki$state`.group = this
+        any.`lokki$state`().group = this
     }
 
     internal val states: List<MockState>
         get() = synchronized(constructed) {
             buildList {
-                add(any.`lokki$state`)
+                add(any.`lokki$state`())
                 selected.mapTo(this) { it.state }
                 constructed.mapTo(this) { it.state }
             }
@@ -50,7 +50,7 @@ internal class ConstructorMocks internal constructor(
     }
 
     internal fun statesOf(state: MockState): List<MockState> {
-        if (state === any.`lokki$state`) return states
+        if (state === any.`lokki$state`()) return states
         return synchronized(constructed) {
             val owner = selected.first { it.state === state }
             listOf(state) + constructed.filter { owner.matches(it.arguments) }.map { it.state }
@@ -79,12 +79,12 @@ internal class ConstructorMocks internal constructor(
         }
 
     private fun Constructed.linkStubs() {
-        state.fallBackTo(selected.filter { it.matches(arguments) }.map { it.state } + any.`lokki$state`)
+        state.fallBackTo(selected.filter { it.matches(arguments) }.map { it.state } + any.`lokki$state`())
     }
 
     private inner class Constructed(val arguments: Array<Any?>) {
         private val matchers = equalTo(arguments)
-        val state: MockState = representative(arguments.joinToString { "eq(${it.toStr()})" }).`lokki$state`
+        val state: MockState = representative(arguments.joinToString { "eq(${it.toStr()})" }).`lokki$state`()
 
         fun hasArguments(other: Array<Any?>): Boolean = matchers.size == other.size && matchers.match(other)
     }
@@ -92,7 +92,7 @@ internal class ConstructorMocks internal constructor(
     private inner class Selected(private val matchers: Array<Matcher<Any?>>) {
         val mock: GeneratedMock = representative(matchers.joinToString())
         val state: MockState
-            get() = mock.`lokki$state`
+            get() = mock.`lokki$state`()
 
         fun matches(arguments: Array<Any?>): Boolean = matchers.size == arguments.size && matchers.match(arguments)
 

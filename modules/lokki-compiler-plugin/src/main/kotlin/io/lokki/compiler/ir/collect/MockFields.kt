@@ -165,7 +165,7 @@ private class MockFieldCollector(
                         "'@AdditionalInterface'",
                         injection?.construction,
                     )
-                )
+                ).chainedIf(kind != IntrinsicKind.SPY && function.chainsMocks)
             } else {
                 null
             }
@@ -192,6 +192,7 @@ private class MockFieldCollector(
             val failed = (result as? InjectionProblem)?.let { FailedInjection(it, field.typeName) }
             val site = if (field.isMock && problems[field] == null && failed == null) {
                 mockability.site(field.request(injection))
+                    .chainedIf(field.kind != IntrinsicKind.SPY && field.property.chainsMocks)
             } else {
                 null
             }
@@ -275,6 +276,9 @@ private val IrProperty.annotated: Annotated?
             ?: return null
         return Annotated(this, annotation, kind, inject)
     }
+
+private fun MockSite.chainedIf(condition: Boolean): MockSite =
+    if (condition && this is MockSite.Mocked) chained() else this
 
 private fun IrProperty.constructsSpy(kind: IntrinsicKind, site: MockSite.Mocked?): Boolean =
     kind == IntrinsicKind.SPY && backingField?.initializer != null && site?.types?.form is MockForm.Construction

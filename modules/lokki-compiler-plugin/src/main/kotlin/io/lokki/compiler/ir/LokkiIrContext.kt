@@ -3,6 +3,7 @@ package io.lokki.compiler.ir
 import io.lokki.compiler.CoreClass
 import io.lokki.compiler.LokkiPluginKey
 import io.lokki.compiler.compat.CompilerCompat
+import io.lokki.compiler.ir.collect.ExternalMocks
 import io.lokki.compiler.ir.collect.MockFields
 import io.lokki.compiler.ir.collect.Mockability
 import io.lokki.compiler.ir.collect.ReifiedHelpers
@@ -30,9 +31,10 @@ internal class FileContext(
     lokki: LokkiIrContext,
     val mockability: Mockability,
     val fields: MockFields,
+    val external: ExternalMocks,
     val reifiedHelpers: ReifiedHelpers,
 ) {
-    val chainedMocks: Boolean = ir.hasAnnotation(CoreClass.CHAINED_MOCKS.id)
+    val chainsMocks: Boolean = ir.hasAnnotation(CoreClass.CHAINED_MOCKS.id)
     val redirects = RedirectLookup(lokki.pluginContext, ir)
     val diagnostics = IrDiagnostics(lokki, ir)
     val failedDynamicCalls = HashSet<IrCall>()

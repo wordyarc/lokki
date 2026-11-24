@@ -6,8 +6,10 @@ import io.lokki.compiler.MockablePatterns
 import io.lokki.compiler.compat.CompilerCompat
 import io.lokki.compiler.ir.collect.Mockability
 import io.lokki.compiler.ir.collect.ReifiedHelpers
+import io.lokki.compiler.ir.collect.collectExternalMocks
 import io.lokki.compiler.ir.collect.collectMockFields
 import io.lokki.compiler.ir.collect.collectMockSites
+import io.lokki.compiler.ir.generate.ExternalMockFactories
 import io.lokki.compiler.ir.generate.InterceptionPoints
 import io.lokki.compiler.ir.generate.MockClassGenerator
 import io.lokki.compiler.ir.generate.MockFieldInitializers
@@ -71,11 +73,13 @@ internal class LokkiIrGenerationExtension(
         val staticInitializers = StaticInitializers(lokki)
         val fieldInitializers = MockFieldInitializers(lokki)
         val parameterFactories = MockParameterFactories(lokki)
+        val externalFactories = ExternalMockFactories(lokki)
         val contextBlocks = ContextBlocks(lokki)
         val reifiedHelpers = ReifiedHelpers(lokki).apply { collect(moduleFragment) }
         val files = moduleFragment.files.map { file ->
             val mockability = Mockability(file, lokki.typeSystem)
-            FileContext(file, lokki, mockability, file.collectMockFields(mockability, lokki.typeSystem), reifiedHelpers)
+            val fields = file.collectMockFields(mockability, lokki.typeSystem)
+            FileContext(file, lokki, mockability, fields, file.collectExternalMocks(mockability), reifiedHelpers)
         }
         fieldInitializers.declare(files.map { it.fields })
         for (file in files) {
@@ -84,9 +88,11 @@ internal class LokkiIrGenerationExtension(
                 file.ir.transform(DynamicCalls(lokki, file), null)
                 val sites = file.collectMockSites()
                 file.diagnostics.report(file.fields, sites)
+                file.diagnostics.report(file.external)
                 val classes = generator.generate(file, sites.classes)
                 fieldInitializers.implement(file, classes)
                 parameterFactories.generate(file, classes)
+                externalFactories.generate(file, classes)
                 file.ir.transform(DslLowering(lokki, file, sites, classes), null)
                 constructorCalls.rewrite(file.ir)
                 staticInitializers.lower(file.ir)

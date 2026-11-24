@@ -36,7 +36,6 @@ value class Id(val value: Int)
 interface Repo {
     fun find(id: Int, limit: Int = 10): String
     fun load(id: Id, limit: Int = 10): String
-    fun String.label(width: Int = 2): String
     fun names(vararg names: String): Int
 }
 
@@ -66,7 +65,6 @@ fun test(repo: Repo, nullable: Repo?, block: MatcherScope.() -> String, check: V
     every { repo.find(<!LOKKI_UNSUPPORTED!>return@every "b"<!>) } returns "a"
     every { repo.load(<!LOKKI_UNSUPPORTED!>any()<!>) } returns "a"
     every { repo.load(<!LOKKI_UNSUPPORTED!>anyId()<!>) } returns "a"
-    with(repo) { every { <!LOKKI_UNSUPPORTED!>any<String>()<!>.label() } returns "a" }
     every { repo.names(*<!LOKKI_UNSUPPORTED!>any()<!>) } returns 1
     every { repo.names(*anyVararg(), "a", *<!LOKKI_UNSUPPORTED!>varargAny { it.isEmpty() }<!>) } returns 1
     mock<Repo> { every { <!LOKKI_UNSUPPORTED!>toString()<!> } returns "a" }

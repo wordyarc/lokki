@@ -86,10 +86,11 @@ fun box(): String {
 
     val state = mockClass.getDeclaredField("lokki\$state")
     val descriptor = mockClass.getDeclaredField("lokki\$descriptor")
-    val getters = listOf(mockClass, mockClass.interfaces[1]).map { it.getDeclaredMethod("getLokki\$state") }
+    val accessors = listOf(mockClass, mockClass.interfaces[1]).map { it.getDeclaredMethod("lokki\$state") }
     if (!state.isSynthetic || !descriptor.isSynthetic) return "Fail: fields of the mock class are not synthetic"
     if (!Modifier.isFinal(state.modifiers) || Modifier.isVolatile(state.modifiers)) return "Fail: state field is not final"
-    if (!getters.all { it.isSynthetic }) return "Fail: getter of the state is not synthetic"
+    if (accessors.any { it.isSynthetic }) return "Fail: the state accessor is synthetic"
+    if (mockClass.methods.any { it.name.startsWith("getLokki") }) return "Fail: the mock has a getter of lokki state"
 
     return "OK"
 }

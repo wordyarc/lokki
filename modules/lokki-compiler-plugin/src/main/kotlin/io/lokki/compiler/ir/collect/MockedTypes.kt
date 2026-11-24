@@ -1,9 +1,12 @@
 package io.lokki.compiler.ir.collect
 
+import io.lokki.compiler.CoreClass
 import io.lokki.compiler.ir.typeKey
 import org.jetbrains.kotlin.ir.builders.declarations.addTypeParameter
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrConstructor
+import org.jetbrains.kotlin.ir.declarations.IrDeclaration
+import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrTypeParameter
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
@@ -22,6 +25,7 @@ import org.jetbrains.kotlin.ir.types.typeWith
 import org.jetbrains.kotlin.ir.types.typeWithArguments
 import org.jetbrains.kotlin.ir.util.constructedClass
 import org.jetbrains.kotlin.ir.util.erasedUpperBound
+import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.util.substitute
 import org.jetbrains.kotlin.types.Variance
 
@@ -55,11 +59,18 @@ internal sealed interface MockForm {
     }
 }
 
-internal class MockedTypes(val type: IrSimpleType, val interfaces: List<IrSimpleType>, val form: MockForm) {
+internal class MockedTypes(
+    val type: IrSimpleType,
+    val interfaces: List<IrSimpleType>,
+    val form: MockForm,
+    val chained: Boolean = false,
+) {
     val key: MockClassKey = MockClassKey(
         type.typeKey(type.referencedTypeParameters) + interfaces.joinToString("") { "&" + it.typeKey(emptyList()) } +
-            form.keySuffix
+            form.keySuffix + if (chained) CHAINED_SUFFIX else ""
     )
+
+    fun chained(): MockedTypes = if (chained) this else MockedTypes(type, interfaces, form, chained = true)
 
     val classes: List<IrClass>
         get() = (listOf(type) + interfaces).map { it.mockedClass }
@@ -68,6 +79,13 @@ internal class MockedTypes(val type: IrSimpleType, val interfaces: List<IrSimple
         get() = type.referencedTypeParameters.map { it.defaultType } +
             (listOf(type) + interfaces).flatMap { it.starParameters }.map { it.instantiationArgument }
 }
+
+internal val IrDeclaration.chainsMocks: Boolean
+    get() = hasAnnotation(CoreClass.CHAINED_MOCKS.id) || when (val parent = parent) {
+        is IrDeclaration -> parent.chainsMocks
+        is IrFile -> parent.hasAnnotation(CoreClass.CHAINED_MOCKS.id)
+        else -> false
+    }
 
 internal val IrType.referencedTypeParameters: List<IrTypeParameterSymbol>
     get() = LinkedHashSet<IrTypeParameterSymbol>().also(::collectTypeParameters).toList()
@@ -126,3 +144,5 @@ private fun IrSimpleType.genericStars(): List<IrTypeParameter> {
         parameter.superTypes.size != 1 || parameter.superTypes.single().referencedTypeParameters.any { it in symbols }
     }
 }
+
+private const val CHAINED_SUFFIX = " chained"

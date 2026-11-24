@@ -117,12 +117,12 @@ internal object Redirects {
     internal fun find(target: Any): GeneratedMock? = synchronized(this) { active.find { it.isFor(target) }?.mock }
 
     internal fun isObject(target: Any): Boolean =
-        synchronized(this) { active.any { it.target === target && it.mock.`lokki$state`.isObject } }
+        synchronized(this) { active.any { it.target === target && it.mock.`lokki$state`().isObject } }
 
     internal fun isStatic(type: Any): Boolean =
         synchronized(this) {
             active.any { active ->
-                active.mock.`lokki$state`.isStatic &&
+                active.mock.`lokki$state`().isStatic &&
                     (active.mock.redirectsFile(type) || active.target !is String && active.target.isStaticOf(type))
             }
         }

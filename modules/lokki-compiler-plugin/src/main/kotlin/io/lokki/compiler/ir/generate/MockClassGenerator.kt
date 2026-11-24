@@ -36,7 +36,6 @@ import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.builders.IrBlockBodyBuilder
 import org.jetbrains.kotlin.ir.builders.IrBuilder
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
-import org.jetbrains.kotlin.ir.builders.declarations.addBackingField
 import org.jetbrains.kotlin.ir.builders.declarations.addConstructor
 import org.jetbrains.kotlin.ir.builders.declarations.addField
 import org.jetbrains.kotlin.ir.builders.declarations.addFunction
@@ -57,6 +56,7 @@ import org.jetbrains.kotlin.ir.builders.irExprBody
 import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.builders.irGetField
 import org.jetbrains.kotlin.ir.builders.irIfThen
+import org.jetbrains.kotlin.ir.builders.irImplicitCast
 import org.jetbrains.kotlin.ir.builders.irInt
 import org.jetbrains.kotlin.ir.builders.irNull
 import org.jetbrains.kotlin.ir.builders.irReturn
@@ -111,6 +111,7 @@ import org.jetbrains.kotlin.ir.util.functions
 import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.ir.util.isLocal
 import org.jetbrains.kotlin.ir.util.isMethodOfAny
+import org.jetbrains.kotlin.ir.util.isNullable
 import org.jetbrains.kotlin.ir.util.nonDispatchParameters
 import org.jetbrains.kotlin.ir.util.parentAsClass
 import org.jetbrains.kotlin.ir.util.patchDeclarationParents
@@ -137,7 +138,8 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         val (relaxedRoots, others) = usages.entries.partition { it.value.relaxedChildren }
         for ((key, usage) in relaxedRoots + others) {
             if (key in classes.generated) continue
-            generate(key, usage, classes, usage.relaxedChildren, listOf(usage.mockedTypes.type))
+            val chained = classes.generated[usage.mockedTypes.chained().key]?.takeIf { usage.sharesChained(it) }
+            if (chained != null) classes.generated[key] = chained else generate(key, usage, classes, listOf(usage.mockedTypes.type))
         }
         return classes.generated
     }
@@ -146,7 +148,6 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         key: MockClassKey,
         usage: MockClassUsage,
         classes: FileClasses,
-        relaxedChildren: Boolean,
         path: List<IrSimpleType>,
     ): IrClass {
         val file = classes.file.ir
@@ -186,9 +187,8 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
             }
         }
 
-        val stateProperty = mock.declarations.filterIsInstance<IrProperty>()
-            .single { symbols.state.symbol in it.overriddenSymbols }
         val functions = mock.declarations.filterIsInstance<IrSimpleFunction>()
+        val stateAccessor = functions.single { symbols[CoreFunction.STATE].symbol in it.overriddenSymbols }
         val original = functions.single { symbols[CoreFunction.ORIGINAL].symbol in it.overriddenSymbols }
         val coOriginal = functions.single { symbols[CoreFunction.CO_ORIGINAL].symbol in it.overriddenSymbols }
         val relaxed = functions.single { symbols[CoreFunction.RELAXED].symbol in it.overriddenSymbols }
@@ -206,7 +206,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
             .filter { (_, member) -> member.modality != Modality.ABSTRACT || member in delegated }
             .partition { (_, member) -> member.isSuspend }
         val descriptor = mock.addDescriptor(mocked, members)
-        val state = stateProperty.implementState(mock, isFinal = constructor != null)
+        val state = stateAccessor.implementState(mock, isFinal = constructor != null)
         val delegate = if (form == MockForm.Delegation) {
             mock.addDelegate(mockedType, isFinal = constructor != null)
         } else {
@@ -231,9 +231,9 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         original.implementOriginal(mock, forward, state, originals, ORIGINAL_BRANCH_BYTES)
         coOriginal.implementOriginal(mock, forward, state, coOriginals, CO_ORIGINAL_BRANCH_BYTES)
         val names = ownParameters.zip(parameters).associate { (own, parameter) -> own.symbol to parameter.owner.name }
-        val children = if (relaxedChildren) Children(usage, classes, path) else null
+        val children = if (usage.relaxedChildren) Children(usage, classes, path) else null
         val suggestsChainedMocks = { type: IrType ->
-            !classes.file.chainedMocks && classes.file.mockability.childProblem(type) == null
+            !usage.relaxedChildren && classes.file.mockability.childProblem(type) == null
         }
         relaxed.implementRelaxed(mock, members, file, children, suggestsChainedMocks) {
             (names[it.symbol] ?: it.name).asString()
@@ -353,21 +353,20 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         return descriptor
     }
 
-    private fun IrProperty.implementState(mock: IrClass, isFinal: Boolean): IrField {
+    private fun IrSimpleFunction.implementState(mock: IrClass, isFinal: Boolean): IrField {
         materialize()
-        val state = addBackingField {
+        parameters = listOf(mock.dispatchReceiverFor(this))
+        val state = mock.addField {
+            name = STATE
             type = symbols[CoreClass.MOCK_STATE].defaultType
+            origin = this@MockClassGenerator.origin
+            visibility = DescriptorVisibilities.PRIVATE
             this.isFinal = isFinal
         }
         state.markSynthetic()
         if (!isFinal) state.annotations += DeclarationIrBuilder(context, state.symbol).irAnnotation(symbols.volatile)
-        getter!!.run {
-            materialize()
-            markSynthetic()
-            parameters = listOf(mock.dispatchReceiverFor(this))
-            body = DeclarationIrBuilder(context, symbol).irBlockBody {
-                +irReturn(irGetField(irGet(dispatchReceiverParameter!!), state))
-            }
+        body = DeclarationIrBuilder(context, symbol).irBlockBody {
+            +irReturn(irGetField(irGet(dispatchReceiverParameter!!), state))
         }
         return state
     }
@@ -404,7 +403,8 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         val abstract = modality == Modality.ABSTRACT
         materialize()
         correspondingPropertySymbol?.owner?.materialize()
-        adoptParameters(mock)
+        val declared = nonDispatchParameters.map { it.type }
+        acceptNullArguments(mock)
         body = DeclarationIrBuilder(context, symbol).irBlockBody {
             val self = dispatchReceiverParameter!!
             val current = irGetField(irGet(self), state)
@@ -419,7 +419,9 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
                         this@implement,
                         irGet(self),
                         typeParameters.map { it.defaultType },
-                        nonDispatchParameters.map(::irGet),
+                        nonDispatchParameters.zip(declared) { parameter, type ->
+                            if (parameter.type == type) irGet(parameter) else irImplicitCast(irGet(parameter), type)
+                        },
                     )
                 }
                 +irIfThen(context.irBuiltIns.unitType, irEqualsNull(irGet(initialized)), irReturn(original))
@@ -502,6 +504,9 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         patchDeclarationParents(mock)
     }
 
+    private fun MockClassUsage.sharesChained(chained: IrClass): Boolean =
+        strictOnly && (visibility == DescriptorVisibilities.PRIVATE || chained.visibility == visibility)
+
     private class FileClasses(val file: FileContext, val usages: Map<MockClassKey, MockClassUsage>) {
         val generated = LinkedHashMap<MockClassKey, IrClass>()
     }
@@ -514,12 +519,10 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         fun default(type: IrSimpleType): RelaxedDefault? {
             if (type.referencedTypeParameters.isNotEmpty()) return null
             if (path.any { it.classOrNull == type.classOrNull && type.depth > it.depth }) return null
-            val site = classes.file.mockability.child(type) ?: return null
+            val site = classes.file.mockability.child(type)?.chained() ?: return null
             val (types, key) = site.types to site.key
-            val childUsage = classes.usages[key]
-                ?: MockClassUsage(usage.firstUse, types, DescriptorVisibilities.PRIVATE, relaxedChildren = true)
-            val child = classes.generated[key]
-                ?: generate(key, childUsage, classes, relaxedChildren = true, path + types.type)
+            val childUsage = classes.usages[key] ?: MockClassUsage(usage.firstUse, types, DescriptorVisibilities.PRIVATE)
+            val child = classes.generated[key] ?: generate(key, childUsage, classes, path + types.type)
             return RelaxedDefault("child ${key.typeKey}") {
                 irInvoke(symbols[CoreConstructor.CHILD_MOCK], irFactory(symbols, child, types))
             }
@@ -637,6 +640,16 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         return irThrowLokkiException(symbols, message)
     }
 
+    private fun IrSimpleFunction.acceptNullArguments(mock: IrClass) {
+        parameters = parameters.map { parameter ->
+            when {
+                parameter.kind == IrParameterKind.DispatchReceiver -> mock.dispatchReceiverFor(this)
+                parameter.type.isNonNullReference -> parameter.apply { type = type.makeNullable() }
+                else -> parameter
+            }
+        }
+    }
+
     private fun IrSimpleFunction.adoptParameters(mock: IrClass) {
         parameters = parameters.map { parameter ->
             if (parameter.kind == IrParameterKind.DispatchReceiver) {
@@ -704,6 +717,9 @@ private val IrSimpleType.functionInterfaces: List<IrType>
 private val IrType.depth: Int
     get() = 1 + ((this as? IrSimpleType)?.arguments.orEmpty().maxOfOrNull { it.typeOrNull?.depth ?: 0 } ?: 0)
 
+private val IrType.isNonNullReference: Boolean
+    get() = !isNullable() && !isPrimitiveType() && classOrNull?.owner?.isValue != true
+
 private val IrTypeParameter.erasure: IrType
     get() = erasedUpperBound.symbol.starProjectedType.makeNullable()
 
@@ -711,6 +727,7 @@ private val KOTLIN_REFLECT = FqName("kotlin.reflect")
 private val REFLECTED_FUNCTION = Regex("K(Suspend)?Function\\d+")
 private val DESCRIPTOR = Name.identifier("lokki\$descriptor")
 private val DELEGATE = Name.identifier("lokki\$delegate")
+private val STATE = Name.identifier("lokki\$state")
 internal val INIT = Name.identifier("lokki\$init")
 private val MOCK_PARAMETER = IrDeclarationOriginImpl("LOKKI_MOCK_PARAMETER", isSynthetic = true)
 private val METHODS_OF_ANY =

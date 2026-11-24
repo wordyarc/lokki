@@ -5,7 +5,6 @@ import io.lokki.compiler.CoreClass
 import io.lokki.compiler.CoreConstructor
 import io.lokki.compiler.CoreFunction
 import io.lokki.compiler.IncompatibleRuntimeException
-import io.lokki.compiler.STATE_PROPERTY_NAME
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrConstructor
@@ -19,7 +18,6 @@ import org.jetbrains.kotlin.ir.util.erasedUpperBound
 import org.jetbrains.kotlin.ir.util.functions
 import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.util.parentAsClass
-import org.jetbrains.kotlin.ir.util.properties
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
@@ -35,11 +33,6 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
     val isRuntimeAvailable: Boolean
         get() = finder.findClass(CoreClass.GENERATED_MOCK.id) != null
 
-    val state by lazy {
-        val generatedMock = this[CoreClass.GENERATED_MOCK]
-        generatedMock.properties.singleOrNull { it.name.asString() == STATE_PROPERTY_NAME }
-            ?: incompatible("'${generatedMock.name}' has no property '$STATE_PROPERTY_NAME'")
-    }
     val awaitCancellation by lazy { finder.findFunctions(AWAIT_CANCELLATION).singleOrNull()?.owner }
 
     val arrayGet by lazy { context.irBuiltIns.arrayClass.owner.function("get") }

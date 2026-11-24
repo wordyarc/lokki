@@ -35,7 +35,7 @@ class LinkVerificationTest {
             "Inverse verification failed.\n\nVerified calls:\n1) ${first.name}.open()",
             failure(Verification(inverse = true)),
         )
-        first.`lokki$state`.confirmVerified()
+        first.`lokki$state`().confirmVerified()
     }
 
     @Test
@@ -88,7 +88,7 @@ class LinkVerificationTest {
         val verification = Verification(exactly = 0)
 
         verification.expectLink(house, DOOR) { fail("matchers of a link that was not called") }
-        verification.expect(first.`lokki$state`, OPEN, emptyArray())
+        verification.expect(first.`lokki$state`(), OPEN, emptyArray())
         verification.check()
     }
 
@@ -112,17 +112,17 @@ class LinkVerificationTest {
     fun testEveryLinkOfChainIsFollowed() {
         val street = TestMock("street", HOUSE)
         val other = TestMock("other", DOOR)
-        street.`lokki$state`.stub<Any>(HOUSE, emptyArray()).returnsMany(house, other)
+        street.`lokki$state`().stub<Any>(HOUSE, emptyArray()).returnsMany(house, other)
         house.stub().returns(first)
         other.stub().returns(second)
-        open(enter(street.`lokki$state`.answer(MEMBER, emptyArray()) as TestMock))
+        open(enter(street.`lokki$state`().answer(MEMBER, emptyArray()) as TestMock))
 
         fun verifyChain(verification: Verification) {
             GeneratedMock.withoutStateChanges {
                 verification.expectLink(street, HOUSE) { emptyArray() }
-                val current = street.`lokki$state`.answer(MEMBER, emptyArray()) as TestMock
+                val current = street.`lokki$state`().answer(MEMBER, emptyArray()) as TestMock
                 verification.expectLink(current, DOOR) { arrayOf(EqMatcher(1)) }
-                verification.expect(enter(current).`lokki$state`, OPEN, emptyArray())
+                verification.expect(enter(current).`lokki$state`(), OPEN, emptyArray())
                 verification.check()
             }
         }
@@ -150,7 +150,7 @@ class LinkVerificationTest {
     fun testMocksOfArgumentsOriginalsAndRelaxedChildrenAreFollowed() {
         val echo = TestMock("echo", DOOR)
         echo.stub() returnsArgument 0
-        assertSame(first, echo.`lokki$state`.answer(MEMBER, arrayOf(first)))
+        assertSame(first, echo.`lokki$state`().answer(MEMBER, arrayOf(first)))
         val spy = TestMock("spy", DOOR, flags = SPY)
         spy.original = { _, _ -> first }
         enter(spy)
@@ -159,8 +159,8 @@ class LinkVerificationTest {
         enter(relaxed)
 
         assertEquals(
-            listOf(first, first, second).map { it.`lokki$state` },
-            listOf(echo, spy, relaxed).map { it.`lokki$state`.records().single().result },
+            listOf(first, first, second).map { it.`lokki$state`() },
+            listOf(echo, spy, relaxed).map { it.`lokki$state`().records().single().result },
         )
     }
 
@@ -174,31 +174,31 @@ class LinkVerificationTest {
         }
         var returned: Any? = null
 
-        suspend { suspending.`lokki$state`.coAnswer<Any>(MEMBER, arrayOf(1)) }
+        suspend { suspending.`lokki$state`().coAnswer<Any>(MEMBER, arrayOf(1)) }
             .startCoroutine(Continuation(EmptyCoroutineContext) { returned = it.getOrThrow() })
-        val record = suspending.`lokki$state`.records().single()
+        val record = suspending.`lokki$state`().records().single()
         assertEquals(null, record.result)
         pending!!.resume(Unit)
 
         assertSame(first, returned)
-        assertSame(first.`lokki$state`, record.result)
+        assertSame(first.`lokki$state`(), record.result)
     }
 
     private fun door(name: String): TestMock =
-        TestMock(name, OPEN, units = setOf(OPEN)).also { it.`lokki$state`.stub<Unit>(OPEN, emptyArray()) just Runs }
+        TestMock(name, OPEN, units = setOf(OPEN)).also { it.`lokki$state`().stub<Unit>(OPEN, emptyArray()) just Runs }
 
-    private fun TestMock.stub() = `lokki$state`.stub<Any>(DOOR, arrayOf(AnyMatcher))
+    private fun TestMock.stub() = `lokki$state`().stub<Any>(DOOR, arrayOf(AnyMatcher))
 
-    private fun enter(house: TestMock, id: Int = 1): TestMock = house.`lokki$state`.answer(MEMBER, arrayOf(id)) as TestMock
+    private fun enter(house: TestMock, id: Int = 1): TestMock = house.`lokki$state`().answer(MEMBER, arrayOf(id)) as TestMock
 
     private fun open(door: TestMock) {
-        door.`lokki$state`.answer(MEMBER, emptyArray())
+        door.`lokki$state`().answer(MEMBER, emptyArray())
     }
 
     private fun verifyOpened(verification: Verification, id: Int = 1) {
         GeneratedMock.withoutStateChanges {
             verification.expectLink(house, DOOR) { arrayOf(EqMatcher(id)) }
-            verification.expect(enter(house, id).`lokki$state`, OPEN, emptyArray())
+            verification.expect(enter(house, id).`lokki$state`(), OPEN, emptyArray())
             verification.check()
         }
     }
@@ -207,7 +207,7 @@ class LinkVerificationTest {
         assertFailsWith<AssertionError> { verifyOpened(verification, id) }.message
 
     private val TestMock.name: String
-        get() = `lokki$state`.name
+        get() = `lokki$state`().name
 
     private companion object {
         const val HOUSE = "sample.Street#house()"

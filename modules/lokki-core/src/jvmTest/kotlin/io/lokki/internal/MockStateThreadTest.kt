@@ -6,7 +6,7 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 
 class MockStateThreadTest {
-    private val state = TestMock(null, FIND).`lokki$state`
+    private val state = TestMock(null, FIND).`lokki$state`()
 
     @Test
     fun testCallFromAnotherThreadAnswersWhileDefaultsAreCaptured() {

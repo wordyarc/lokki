@@ -12,6 +12,7 @@ interface Repo {
     fun find(id: Int, includeDeleted: Boolean = false, limit: Int = defaultLimit()): String
     fun rename(id: Int, name: String, suffix: String = "!"): String
     fun page(offset: Int, size: Int = offset * 2): String
+    fun String.label(width: Int = 2): String
 }
 
 private fun answer(block: () -> String): String =
@@ -41,6 +42,12 @@ fun box(): String {
     if (repo.page(3) != "page" || repo.page(3, 6) != "page") return "Fail: default that depends on an argument"
     if (answer { repo.page(3, 7) } != "no answer found for Repo.page") return "Fail: size"
 
+    with(repo) {
+        every { any<String>().label() } returns "label"
+        if ("a".label() != "label" || "b".label(2) != "label") return "Fail: matcher of the extension receiver"
+        if (answer { "a".label(3) } != "no answer found for Repo.label") return "Fail: width"
+    }
+
     val log = StringBuilder()
     val receiver = { log.append("receiver;"); repo }
     val id = { log.append("id;"); 7 }
@@ -54,5 +61,7 @@ fun box(): String {
 // 1 checkNotNullParameter
 // 1 LOCALVARIABLE name Ljava/lang/String;
 // 1 LOCALVARIABLE suffix Ljava/lang/String;
-// 1 parameter synthetic  name
-// 1 parameter synthetic  suffix
+// 0 parameter synthetic  name
+// 0 parameter synthetic  suffix
+// 2 parameter  name
+// 2 parameter  suffix

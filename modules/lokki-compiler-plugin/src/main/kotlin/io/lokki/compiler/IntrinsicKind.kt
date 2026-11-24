@@ -31,6 +31,8 @@ internal enum class IntrinsicKind {
     CONSTRUCTED,
     DYNAMIC_MEMBER,
     DYNAMIC_CALL,
+    EXTERNAL_MOCK,
+    EXTERNAL_SPY,
     UNKNOWN;
 
     companion object {
@@ -66,6 +68,8 @@ internal val CONSTRUCTOR_KINDS = setOf(
     IntrinsicKind.UNMOCK_CONSTRUCTOR,
     IntrinsicKind.CLEAR_CONSTRUCTOR_MOCK,
 )
+
+internal val EXTERNAL_KINDS = setOf(IntrinsicKind.EXTERNAL_MOCK, IntrinsicKind.EXTERNAL_SPY)
 
 internal val FIELD_KINDS =
     setOf(IntrinsicKind.MOCK, IntrinsicKind.RELAXED_MOCK, IntrinsicKind.SPY, IntrinsicKind.INJECT_MOCKS)

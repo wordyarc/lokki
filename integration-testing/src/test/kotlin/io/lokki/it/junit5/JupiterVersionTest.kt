@@ -22,7 +22,11 @@ class JupiterVersionTest {
         } else {
             val failure = results.containerFailures.single()
             assertIs<LokkiException>(failure)
-            assertEquals("LokkiExtension requires JUnit Jupiter 5.12+", failure.message)
+            assertEquals(
+                "LokkiExtension requires JUnit Jupiter 5.12+: upgrade JUnit Jupiter, or set " +
+                    "junit.jupiter.extensions.autodetection.enabled=false if it is registered by autodetection",
+                failure.message,
+            )
         }
     }
 

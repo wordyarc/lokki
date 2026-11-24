@@ -1,0 +1,27 @@
+public abstract interface annotation class io/lokki/spring/MockBean : java/lang/annotation/Annotation {
+	public abstract fun clear ()Lio/lokki/spring/MockClear;
+	public abstract fun contextName ()Ljava/lang/String;
+	public abstract fun enforceOverride ()Z
+	public abstract fun extraInterfaces ()[Ljava/lang/Class;
+	public abstract fun name ()Ljava/lang/String;
+	public abstract fun relaxUnitFun ()Z
+	public abstract fun relaxed ()Z
+	public abstract fun value ()Ljava/lang/String;
+}
+
+public final class io/lokki/spring/MockClear : java/lang/Enum {
+	public static final field AFTER Lio/lokki/spring/MockClear;
+	public static final field BEFORE Lio/lokki/spring/MockClear;
+	public static final field NONE Lio/lokki/spring/MockClear;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/lokki/spring/MockClear;
+	public static fun values ()[Lio/lokki/spring/MockClear;
+}
+
+public abstract interface annotation class io/lokki/spring/SpyBean : java/lang/annotation/Annotation {
+	public abstract fun clear ()Lio/lokki/spring/MockClear;
+	public abstract fun contextName ()Ljava/lang/String;
+	public abstract fun name ()Ljava/lang/String;
+	public abstract fun value ()Ljava/lang/String;
+}
+

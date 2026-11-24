@@ -45,7 +45,13 @@ public inline fun <reified T : Any> spy(
     block: T.() -> Unit = {},
 ): T = pluginNotApplied()
 
-@Target(AnnotationTarget.FILE)
+@Target(
+    AnnotationTarget.FILE,
+    AnnotationTarget.CLASS,
+    AnnotationTarget.FUNCTION,
+    AnnotationTarget.PROPERTY,
+    AnnotationTarget.LOCAL_VARIABLE,
+)
 @Retention(AnnotationRetention.SOURCE)
 public annotation class ChainedMocks
 
@@ -163,7 +169,7 @@ public fun isMock(
     staticMock: Boolean = false,
     constructorMock: Boolean = false,
 ): Boolean {
-    val state = (mock as? GeneratedMock)?.`lokki$state`
+    val state = (mock as? GeneratedMock)?.`lokki$state`()
     return regular && state?.isRegular == true ||
         spy && state?.isSpy == true ||
         objectMock && Redirects.isObject(mock) ||
