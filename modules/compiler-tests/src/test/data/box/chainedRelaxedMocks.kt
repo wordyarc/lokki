@@ -10,12 +10,12 @@ public abstract class Locked {
 }
 
 // FILE: chained.kt
-@file:ChainedMocks
+@file:RelaxedChildMocks
 
 package sample
 
-import io.lokki.ChainedMocks
 import io.lokki.Mock
+import io.lokki.RelaxedChildMocks
 import io.lokki.RelaxedMock
 import io.lokki.Spy
 import io.lokki.mock
@@ -140,8 +140,8 @@ fun box(): String {
 
     val plain = mock<Car>(relaxed = true)
     val hinted = message { plain.door(1) }
-    val hint = "relaxed mock has no default for Door returned by $plain.door(1); stub the call or annotate the file " +
-        "that creates the mock with @file:ChainedMocks"
+    val hint = "relaxed mock has no default for Door returned by $plain.door(1); stub the call or annotate test.kt, " +
+        "which creates the mock, with @file:RelaxedChildMocks"
     if (hinted != hint) return "Fail hint: $hinted"
     val final = message { plain.locked() }
     if (final != "relaxed mock has no default for Locked returned by $plain.locked(); stub the call") {

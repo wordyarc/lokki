@@ -38,7 +38,7 @@ internal enum class CoreClass(val id: ClassId) {
     CALL(publicClassId("Call")),
     CAPTURING_SLOT(publicClassId("CapturingSlot")),
     LENIENT_STUBBING_SCOPE(publicClassId("LenientStubbingScope")),
-    CHAINED_MOCKS(publicClassId("ChainedMocks")),
+    RELAXED_CHILD_MOCKS(publicClassId("RelaxedChildMocks")),
     ORDERING(publicClassId("Ordering")),
     LOKKI_EXCEPTION(publicClassId("LokkiException")),
 }
@@ -103,7 +103,7 @@ internal enum class CoreFunction(val owner: CoreClass, val functionName: String,
 }
 
 internal enum class CoreConstructor(val owner: CoreClass, val arity: Int) {
-    NO_RELAXED_DEFAULT(CoreClass.NO_RELAXED_DEFAULT, 2),
+    NO_RELAXED_DEFAULT(CoreClass.NO_RELAXED_DEFAULT, 3),
     CHILD_MOCK(CoreClass.CHILD_MOCK, 1),
     REDIRECT(CoreClass.REDIRECT, 4),
     REDIRECT_WITH_FLAGS(CoreClass.REDIRECT, 5),

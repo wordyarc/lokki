@@ -30,11 +30,11 @@ fun chained(): Car {
 }
 
 // FILE: RelaxedTest.kt
-@file:ChainedMocks
+@file:RelaxedChildMocks
 
 package sample
 
-import io.lokki.ChainedMocks
+import io.lokki.RelaxedChildMocks
 import io.lokki.mock
 
 fun relaxed(): Car = mock<Car>(relaxed = true)

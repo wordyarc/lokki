@@ -64,7 +64,9 @@ internal interface GeneratedMock {
 }
 
 @PublishedApi
-internal class NoRelaxedDefault(internal val type: String, internal val mockable: Boolean)
+internal class NoRelaxedDefault(internal val type: String, internal val mockable: Boolean, internal val file: String?) {
+    constructor(type: String, mockable: Boolean) : this(type, mockable, null)
+}
 
 @PublishedApi
 internal class ChildMock(internal val factory: (MockSpec) -> Any)

@@ -135,9 +135,6 @@ public final class io/lokki/CapturingSlotKt {
 	public static final fun slot ()Lio/lokki/CapturingSlot;
 }
 
-public abstract interface annotation class io/lokki/ChainedMocks : java/lang/annotation/Annotation {
-}
-
 public abstract interface annotation class io/lokki/DelicateLokkiApi : java/lang/annotation/Annotation {
 }
 
@@ -439,6 +436,9 @@ public final class io/lokki/Ordering : java/lang/Enum {
 
 public abstract interface annotation class io/lokki/OverrideMocks : java/lang/annotation/Annotation {
 	public abstract fun lookupType ()Lio/lokki/InjectionLookupType;
+}
+
+public abstract interface annotation class io/lokki/RelaxedChildMocks : java/lang/annotation/Annotation {
 }
 
 public abstract interface annotation class io/lokki/RelaxedMock : java/lang/annotation/Annotation {
@@ -749,6 +749,7 @@ public final class io/lokki/internal/MockState {
 
 public final class io/lokki/internal/NoRelaxedDefault {
 	public fun <init> (Ljava/lang/String;Z)V
+	public fun <init> (Ljava/lang/String;ZLjava/lang/String;)V
 }
 
 public final class io/lokki/internal/PluginNotAppliedKt {

@@ -86,8 +86,11 @@ fun box(): String {
     if (mockClass.superclass != Engine::class.java) return "Fail superclass: ${mockClass.superclass}"
     val interfaces = mockClass.interfaces.map { it.name }
     if (interfaces != listOf("io.lokki.internal.GeneratedMock")) return "Fail interfaces: $interfaces"
-    if (Modifier.isPublic(mockClass.modifiers) || !Modifier.isFinal(mockClass.modifiers)) return "Fail modifiers"
-    if (!mockClass.declaredConstructors.all { Modifier.isPrivate(it.modifiers) }) return "Fail: public constructor"
+    if (Modifier.isPublic(mockClass.modifiers) || Modifier.isFinal(mockClass.modifiers)) return "Fail modifiers"
+    if (!mockClass.declaredConstructors.all { Modifier.isProtected(it.modifiers) }) return "Fail: constructor"
+    mockClass.declaredMethods.find { Modifier.isFinal(it.modifiers) && !Modifier.isPrivate(it.modifiers) }?.let {
+        return "Fail: final member $it"
+    }
     if (mock<Engine>().javaClass != mockClass) return "Fail: second mock in the file has another class"
 
     if (engine.power != 0 || (engine.serial as String?) != null) return "Fail: the constructor of Engine ran"

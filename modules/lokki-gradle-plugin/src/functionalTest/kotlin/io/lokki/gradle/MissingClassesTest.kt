@@ -110,12 +110,12 @@ class MissingClassesTest {
         project.write(
             "src/test/kotlin/sample/SessionsTest.kt",
             """
-            @file:ChainedMocks
+            @file:RelaxedChildMocks
 
             package sample
 
-            import io.lokki.ChainedMocks
             import io.lokki.LokkiException
+            import io.lokki.RelaxedChildMocks
             import io.lokki.every
             import io.lokki.mock
             import library.Session

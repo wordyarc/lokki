@@ -126,7 +126,7 @@ fun box(): String {
         if (!it.startsWith("no active LokkiScope for mockStatic()")) return "Fail: mockStatic without a scope: $it"
     }
     failure { every { buildCar() } returns "a" }.let {
-        if (it != "::buildCar is not mocked in the current scope; call mockStatic(::buildCar)") {
+        if (it != "::buildCar is not mocked and there is no active LokkiScope: use LokkiExtension or lokkiScope { }") {
             return "Fail: every without a scope: $it"
         }
     }

@@ -55,7 +55,8 @@ fun box(): String {
     every { relaxed.door(6).handle().turn() } returns 6
     val child = relaxed.door(5)
     if (!child.open() || relaxed.door(6).handle().turn() != 6) return "Fail relaxed parent"
-    val hint = "; stub the call or annotate the file that creates the mock with @file:ChainedMocks"
+    val hint = "; stub the call or annotate chainedCallsWithoutAnnotation.kt, which creates the mock, " +
+        "with @file:RelaxedChildMocks"
     val grandchild = message { child.handle() }
     if (!grandchild.endsWith("returned by $child.handle()$hint")) return "Fail relaxed child: $grandchild"
     val noDefault = message { relaxed.door(7) }

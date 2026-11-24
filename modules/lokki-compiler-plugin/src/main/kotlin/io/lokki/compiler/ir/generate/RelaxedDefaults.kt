@@ -10,14 +10,17 @@ import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
 import org.jetbrains.kotlin.ir.builders.irBoolean
 import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irCallConstructor
+import org.jetbrains.kotlin.ir.builders.irGetField
 import org.jetbrains.kotlin.ir.builders.irGetObjectValue
 import org.jetbrains.kotlin.ir.builders.irInt
 import org.jetbrains.kotlin.ir.builders.irLong
 import org.jetbrains.kotlin.ir.builders.irString
 import org.jetbrains.kotlin.ir.declarations.IrClass
+import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.declarations.IrTypeParameter
+import org.jetbrains.kotlin.ir.declarations.name
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
@@ -58,9 +61,10 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
 
     fun of(
         member: IrSimpleFunction,
+        file: IrFile,
         parameterName: (IrTypeParameter) -> String,
         child: ((IrSimpleType) -> RelaxedDefault?)?,
-        suggestsChainedMocks: (IrType) -> Boolean,
+        suggestsChildMocks: (IrType) -> Boolean,
     ): RelaxedDefault? {
         val type = member.returnType
         val platform = type.hasAnnotation(StandardClassIds.Annotations.FlexibleNullability)
@@ -68,10 +72,10 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
         val klass = when (val classifier = type.classifierOrNull) {
             is IrTypeParameterSymbol -> return when {
                 classifier.owner.parent is IrFunction && (platform || member.mayReturnNull(classifier.owner)) -> null
-                else -> missing("type parameter ${parameterName(classifier.owner)}")
+                else -> missing(file, "type parameter ${parameterName(classifier.owner)}")
             }
             is IrClassSymbol -> classifier
-            else -> return missing(type.render())
+            else -> return missing(file, type.render())
         }
         return when {
             klass == builtIns.unitClass -> RelaxedDefault("kotlin.Unit") { irGetObjectValue(builtIns.unitType, klass) }
@@ -79,14 +83,14 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
             klass.defaultType.isPrimitiveType() -> RelaxedDefault(klass.owner.kotlinFqName.asString()) {
                 IrConstImpl.defaultValueForType(startOffset, endOffset, klass.defaultType)
             }
-            klass == builtIns.arrayClass -> array(type as IrSimpleType, parameterName)
+            klass == builtIns.arrayClass -> array(type as IrSimpleType, file, parameterName)
             klass in builtIns.primitiveArraysToPrimitiveTypes -> RelaxedDefault(klass.owner.kotlinFqName.asString()) {
                 irCallConstructor(klass.owner.constructors.single { it.parameters.size == 1 }.symbol, emptyList())
                     .apply { arguments[0] = irInt(0) }
             }
             else -> empty(klass.owner)
                 ?: child?.invoke(type as IrSimpleType)
-                ?: missing(type.renderReadable(parameterName), suggestsChainedMocks(type))
+                ?: missing(file, type.renderReadable(parameterName), suggestsChildMocks(type))
         }
     }
 
@@ -99,13 +103,13 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
             if (overridden.isFakeOverride) overridden.isDeclaredInJava() else overridden.isFromJava()
         }
 
-    private fun array(type: IrSimpleType, parameterName: (IrTypeParameter) -> String): RelaxedDefault {
+    private fun array(type: IrSimpleType, file: IrFile, parameterName: (IrTypeParameter) -> String): RelaxedDefault {
         val element = type.arguments.single().typeOrNull ?: builtIns.anyNType
         val elementClass = element.classOrNull
         val elementType = when {
             element.referencedTypeParameters.isEmpty() -> element
             elementClass != null && elementClass != builtIns.arrayClass -> elementClass.starProjectedType
-            else -> return missing(type.renderReadable(parameterName))
+            else -> return missing(file, type.renderReadable(parameterName))
         }
         return RelaxedDefault("kotlin.Array<${elementType.render()}>") {
             irCall(builtIns.arrayOfNulls, builtIns.arrayClass.typeWith(elementType.makeNullable()), listOf(elementType))
@@ -128,6 +132,9 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
             "kotlin.UByte", "kotlin.UShort", "kotlin.UInt", "kotlin.ULong" -> unsigned(klass)
             "kotlin.time.Duration" -> zeroDuration(klass)
             "kotlin.time.Instant", "kotlinx.datetime.Instant" -> epoch(klass)
+            "java.time.Instant", "java.time.LocalDate" -> constant(klass, "EPOCH")
+            "java.time.Duration", "java.time.Period", "java.math.BigDecimal", "java.math.BigInteger" ->
+                constant(klass, "ZERO")
             "java.util.HashSet" -> construct("HashSet")
             "kotlin.collections.MutableMap", "java.util.LinkedHashMap" -> construct("LinkedHashMap")
             "java.util.HashMap" -> construct("HashMap")
@@ -165,6 +172,11 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
         }
     }
 
+    private fun constant(klass: IrClass, name: String): RelaxedDefault? {
+        val field = klass.properties.singleOrNull { it.name.asString() == name }?.backingField ?: return null
+        return RelaxedDefault(klass.kotlinFqName.asString()) { irGetField(null, field) }
+    }
+
     private fun construct(name: String): RelaxedDefault {
         val klass = symbols.javaUtilClass(name)
         val typeArguments = klass.typeParameters.map { builtIns.anyNType }
@@ -174,8 +186,13 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
         }
     }
 
-    private fun missing(description: String, mockable: Boolean = false): RelaxedDefault =
+    private fun missing(file: IrFile, description: String, mockable: Boolean = false): RelaxedDefault =
         RelaxedDefault("missing $description $mockable") {
-            irInvoke(symbols[CoreConstructor.NO_RELAXED_DEFAULT], irString(description), irBoolean(mockable))
+            irInvoke(
+                symbols[CoreConstructor.NO_RELAXED_DEFAULT],
+                irString(description),
+                irBoolean(mockable),
+                irString(file.name),
+            )
         }
 }

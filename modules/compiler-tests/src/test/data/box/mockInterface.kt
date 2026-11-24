@@ -48,7 +48,10 @@ fun box(): String {
 
     if (mockClass.name != "sample.Car\$LokkiMock\$08768170\$MockInterfaceKt") return "Fail name: ${mockClass.name}"
     if (Modifier.isPublic(mockClass.modifiers)) return "Fail: mock class is public"
-    if (!Modifier.isFinal(mockClass.modifiers)) return "Fail: mock class is not final"
+    if (Modifier.isFinal(mockClass.modifiers)) return "Fail: mock class is final"
+    mockClass.declaredMethods.find { Modifier.isFinal(it.modifiers) && !Modifier.isPrivate(it.modifiers) }?.let {
+        return "Fail: final member $it"
+    }
     if (mockClass.interfaces.map { it.name } != listOf("sample.Car", "io.lokki.internal.GeneratedMock")) {
         return "Fail: ${mockClass.interfaces.toList()}"
     }

@@ -16,13 +16,13 @@ class Fixture {
 }
 
 // FILE: chained.kt
-@file:ChainedMocks
+@file:RelaxedChildMocks
 @file:Suppress("LOKKI_MATCHER_NOT_IN_ARGUMENT_POSITION", "LOKKI_UNSUPPORTED")
 
 package sample
 
-import io.lokki.ChainedMocks
 import io.lokki.LokkiException
+import io.lokki.RelaxedChildMocks
 import io.lokki.every
 
 fun stubbed(fixture: Fixture): String? =

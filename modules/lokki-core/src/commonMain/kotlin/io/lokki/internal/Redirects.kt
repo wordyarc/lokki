@@ -147,20 +147,25 @@ internal object Redirects {
         val redirect = synchronized(this) { active.find { it.isFor(key) } }
         val current = LokkiScope.currentScope
         val mocks = redirect?.constructors?.takeIf { current == null || current.isWithin(redirect.scope) }
-        return mocks ?: throw LokkiException(
-            "$name is not mocked in the current scope; call mockConstructor($name::class)"
-        )
+        return mocks ?: notMocked(name, "mockConstructor($name::class)")
     }
 
     private fun of(target: Any, name: String, call: String): GeneratedMock {
         val redirect = synchronized(this) { active.find { it.isFor(target) } }
         val current = LokkiScope.currentScope
         if (redirect == null || current != null && !current.isWithin(redirect.scope)) {
-            val shown = if (target is Enum<*>) "$name.${target.name}" else name
-            throw LokkiException("$shown is not mocked in the current scope; call $call")
+            notMocked(if (target is Enum<*>) "$name.${target.name}" else name, call)
         }
         return redirect.mock
     }
+
+    private fun notMocked(name: String, call: String): Nothing = throw LokkiException(
+        if (LokkiScope.currentScope == null) {
+            "$name is not mocked and there is no active LokkiScope: use LokkiExtension or lokkiScope { }"
+        } else {
+            "$name is not mocked in the current scope; call $call"
+        }
+    )
 
     private fun stubbed(redirect: Redirect, call: String, kind: Int): GeneratedMock {
         val scope = LokkiScope.currentScope ?: return of(redirect.target, redirect.name, call)

@@ -33,6 +33,7 @@ testing {
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.coroutines.test)
                 implementation(libs.kotlinx.datetime)
+                implementation(libs.spring.aop)
             }
         }
     }

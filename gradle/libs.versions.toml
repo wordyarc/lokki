@@ -23,6 +23,7 @@ jupiter6 = "6.1.3"
 jupiter-unsupported = "5.10.1"
 kotlinx-coroutines = "1.11.0"
 kotlinx-datetime = "0.6.2"
+spring = "7.0.9"
 buildconfig = "5.6.5"
 maven-publish = "0.37.0"
 plugin-publish = "2.2.1"
@@ -49,6 +50,7 @@ junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
+spring-aop = { module = "org.springframework:spring-aop", version.ref = "spring" }
 
 # -- Compiler test libraries --------------------------------------------------
 kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", version.ref = "kotlin" }

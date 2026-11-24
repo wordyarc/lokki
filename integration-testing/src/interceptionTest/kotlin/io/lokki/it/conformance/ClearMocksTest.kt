@@ -1,8 +1,7 @@
-@file:ChainedMocks
+@file:RelaxedChildMocks
 
 package io.lokki.it.conformance
 
-import io.lokki.ChainedMocks
 import io.lokki.clearAllMocks
 import io.lokki.clearMocks
 import io.lokki.confirmVerified
@@ -10,6 +9,7 @@ import io.lokki.every
 import io.lokki.junit5.LokkiExtension
 import io.lokki.mock
 import io.lokki.mockStatic
+import io.lokki.RelaxedChildMocks
 import io.lokki.spy
 import io.lokki.verify
 import org.junit.jupiter.api.extension.ExtendWith

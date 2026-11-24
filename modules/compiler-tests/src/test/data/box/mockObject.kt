@@ -116,7 +116,9 @@ fun box(): String {
         if (!it.startsWith("no active LokkiScope for mockObject()")) return "Fail: mockObject without a scope: $it"
     }
     failure { every { Clock.now() } returns 2 }.let {
-        if (it != "Clock is not mocked in the current scope; call mockObject(Clock)") return "Fail: every without a scope: $it"
+        if (it != "Clock is not mocked and there is no active LokkiScope: use LokkiExtension or lokkiScope { }") {
+            return "Fail: every without a scope: $it"
+        }
     }
     lokkiScope { stubs() }?.let { return it }
     if (Clock.now() != 1L || isMock(Clock, objectMock = true)) return "Fail: the scope did not remove the redirect"

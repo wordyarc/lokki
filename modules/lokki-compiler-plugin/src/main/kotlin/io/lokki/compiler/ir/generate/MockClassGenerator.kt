@@ -158,6 +158,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
             name = file.mockClassName(key, mocked, form)
             origin = this@MockClassGenerator.origin
             visibility = if (mocked.isLocal) DescriptorVisibilities.LOCAL else usage.visibility
+            modality = Modality.OPEN
         }
         classes.generated[key] = mock
         val parameters = usage.mockedTypes.type.referencedTypeParameters
@@ -231,10 +232,10 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         coOriginal.implementOriginal(mock, forward, state, coOriginals, CO_ORIGINAL_BRANCH_BYTES)
         val names = ownParameters.zip(parameters).associate { (own, parameter) -> own.symbol to parameter.owner.name }
         val children = if (relaxedChildren) Children(usage, classes, path) else null
-        val suggestsChainedMocks = { type: IrType ->
-            !classes.file.chainedMocks && classes.file.mockability.childProblem(type) == null
+        val suggestsChildMocks = { type: IrType ->
+            !classes.file.relaxedChildMocks && classes.file.mockability.childProblem(type) == null
         }
-        relaxed.implementRelaxed(mock, members, children, suggestsChainedMocks) {
+        relaxed.implementRelaxed(mock, members, file, children, suggestsChildMocks) {
             (names[it.symbol] ?: it.name).asString()
         }
         describe.implementDescribe(mock, members, file)
@@ -294,7 +295,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
             startOffset = this@addUncalledConstructor.startOffset
             endOffset = this@addUncalledConstructor.endOffset
             origin = this@MockClassGenerator.origin
-            visibility = DescriptorVisibilities.PRIVATE
+            visibility = DescriptorVisibilities.PROTECTED
             isPrimary = true
         }
         constructor.body = DeclarationIrBuilder(context, constructor.symbol).irBlockBody {
@@ -381,7 +382,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         }.apply { markSynthetic() }
 
     private fun IrClass.addInit(state: IrField, descriptor: IrField, delegate: IrField?) {
-        val init = addFunction(INIT.asString(), context.irBuiltIns.unitType, origin = origin)
+        val init = addFunction(INIT.asString(), context.irBuiltIns.unitType, modality = Modality.OPEN, origin = origin)
         val instance = delegate?.let { init.addValueParameter("delegate", it.type, MOCK_PARAMETER) }
         val spec = init.addValueParameter("spec", symbols[CoreClass.MOCK_SPEC].defaultType, MOCK_PARAMETER)
         init.markSynthetic()
@@ -480,13 +481,14 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
     private fun IrSimpleFunction.implementRelaxed(
         mock: IrClass,
         members: List<IrSimpleFunction>,
+        file: IrFile,
         children: Children?,
-        suggestsChainedMocks: (IrType) -> Boolean,
+        suggestsChildMocks: (IrType) -> Boolean,
         parameterName: (IrTypeParameter) -> String,
     ) {
         val child = children?.let { it::default }
         val defaults = members.withIndex().drop(METHODS_OF_ANY.size).mapNotNull { (index, member) ->
-            relaxedDefaults.of(member, parameterName, child, suggestsChainedMocks)
+            relaxedDefaults.of(member, file, parameterName, child, suggestsChildMocks)
                 ?.let { IndexedValue(index, it) }
         }
         val partSize = PART_BYTES / RELAXED_BRANCH_BYTES
@@ -652,7 +654,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
     private fun IrOverridableDeclaration<*>.materialize() {
         isFakeOverride = false
         origin = this@MockClassGenerator.origin
-        modality = Modality.FINAL
+        modality = Modality.OPEN
         if (this is IrProperty) isLateinit = false
     }
 }

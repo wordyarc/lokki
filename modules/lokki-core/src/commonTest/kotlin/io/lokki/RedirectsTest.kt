@@ -46,10 +46,20 @@ class RedirectsTest {
         }
         assertNull(installed)
         assertFalse(isMock(clock, objectMock = true))
-        assertEquals(
-            "Clock is not mocked in the current scope; call mockObject(Clock)",
-            assertFailsWith<LokkiException> { Redirects.of(clock, "Clock") }.message,
-        )
+        lokkiScope {
+            assertEquals(
+                "Clock is not mocked in the current scope; call mockObject(Clock)",
+                assertFailsWith<LokkiException> { Redirects.of(clock, "Clock") }.message,
+            )
+        }
+    }
+
+    @Test
+    fun testMissingScopeIsNamedInsteadOfMockObject() {
+        val message = "Clock is not mocked and there is no active LokkiScope: use LokkiExtension or lokkiScope { }"
+        assertEquals(message, assertFailsWith<LokkiException> { Redirects.of(clock, "Clock") }.message)
+        assertEquals(message, assertFailsWith<LokkiException> { Redirects.stubbed(redirect) }.message)
+        assertNull(installed)
     }
 
     @Test
@@ -150,9 +160,15 @@ class RedirectsTest {
             assertNull(installed)
         }
         assertEquals(
-            "::now is not mocked in the current scope; call mockStatic(::now)",
+            "::now is not mocked and there is no active LokkiScope: use LokkiExtension or lokkiScope { }",
             assertFailsWith<LokkiException> { Redirects.ofStatic(NOW, "::now") }.message,
         )
+        lokkiScope {
+            assertEquals(
+                "::now is not mocked in the current scope; call mockStatic(::now)",
+                assertFailsWith<LokkiException> { Redirects.ofStatic(NOW, "::now") }.message,
+            )
+        }
     }
 
     private fun now(mock: TestMock, argument: Int = 1): Any? = mock.`lokki$state`.answer(NOW_MEMBER, arrayOf(argument))

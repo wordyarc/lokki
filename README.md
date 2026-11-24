@@ -41,7 +41,14 @@ plugins {
 
 The plugin applies to test compilations — `test`, `testFixtures`, JVM test suites, `jvmTest` of multiplatform
 projects and Android test variants — and adds the runtime, `io.github.wordyarc.lokki:lokki-core`, to them. The
-runtime includes the JUnit 5 extension.
+runtime includes the JUnit 5 extension. Register it for all tests in `src/test/resources/junit-platform.properties`:
+
+```properties
+junit.jupiter.extensions.autodetection.enabled=true
+junit.jupiter.extensions.autodetection.include=io.lokki.junit5.*
+```
+
+Every test then runs in its own [scope](#scopes).
 
 ## Usage
 
@@ -101,10 +108,16 @@ every { queue.complete(any()) }
 //    or 'just Runs' after the block.
 ```
 
-### JUnit 5
+### Scopes
+
+A scope is the lifetime of what a test does to mocks. When it closes, the stubs and recorded calls added in the test
+are removed, mocked objects, functions and constructors are restored, and the test fails if a mock call had no answer,
+even if the code under test caught the exception.
+
+`LokkiExtension` runs every test class, test and dynamic test in its own scope and initializes `@Mock`,
+`@RelaxedMock`, `@Spy` and `@InjectMocks` properties:
 
 ```kotlin
-@ExtendWith(LokkiExtension::class) // io.lokki.junit5
 class JobProcessorTest {
     @Mock
     lateinit var queue: JobQueue
@@ -120,15 +133,16 @@ class JobProcessorTest {
 }
 ```
 
-`LokkiExtension` runs every test class, test and dynamic test in its own scope and initializes `@Mock`,
-`@RelaxedMock`, `@Spy` and `@InjectMocks` properties. `@LokkiExtension.ConfirmVerification` and
+The properties file from [Installation](#installation) registers the extension for all tests, and
+`@ExtendWith(LokkiExtension::class)` for one class. `@LokkiExtension.ConfirmVerification` and
 `@LokkiExtension.CheckUnnecessaryStub` on a test class run `confirmVerified()` and `checkUnnecessaryStub()` after each
 test. `@LokkiExtension.KeepMocks` on a test class or method keeps the stubs and recorded calls of a test for the rest
 of the class.
 
-Without the extension, `MockAnnotations.init(this)` initializes the properties and `lokkiScope { }` provides the
-scope. Outside a scope, `mockObject`, `mockStatic` and the calls without arguments `confirmVerified()`,
-`checkUnnecessaryStub()` and `clearAllMocks()` throw `LokkiException`.
+Without JUnit 5, `lokkiScope { }` provides the scope and `MockAnnotations.init(this)` initializes the properties.
+Outside a scope, `mock`, `every` and `verify` work, but nothing is removed or checked when a test ends, and
+`mockObject`, `mockStatic`, `mockConstructor`, a stub of an object or a top-level function and the calls without
+arguments `confirmVerified()`, `checkUnnecessaryStub()` and `clearAllMocks()` throw `LokkiException`.
 
 ### Final classes, objects and top-level functions
 
@@ -152,7 +166,7 @@ object Clock {
 ```
 
 ```kotlin
-// src/test/kotlin, in a test with LokkiExtension
+// src/test/kotlin, in a scope
 @Test
 fun morning() {
     every { Clock.hour() } returns 9
@@ -199,12 +213,16 @@ Behaviour that differs:
   `any()` never creates a placeholder value.
 - A call chain such as `every { car.door().open() }` stubs `car.door()` with a child mock only when the call has no
   answer yet; a stubbed `car.door()` keeps its answer. Relaxed mocks return child mocks only in files annotated with
-  `@file:ChainedMocks`.
+  `@file:RelaxedChildMocks`.
 - A relaxed mock returns `null` for nullable types and for a type parameter of a Java method that allows it
-  (`<T> T query(...)` without nullability annotations, `<T extends @Nullable Object>` with JSpecify), and empty values
-  for primitives, strings, collections and arrays. A call that returns any other type throws `LokkiException`.
-- A mock call without an answer fails the test even if the code under test catches the exception.
+  (`<T> T query(...)` without nullability annotations, `<T extends @Nullable Object>` with JSpecify), empty values
+  for primitives, strings, collections, arrays and `Optional`, and the zero or the epoch of a type that names one
+  (`Duration.ZERO`, `Instant.EPOCH`, `BigDecimal.ZERO`). A call that returns any other type throws `LokkiException`.
+- In a scope, a mock call without an answer fails the test even if the code under test catches the exception.
 - Spies are not copies: `spy(Foo(args))` constructs the spy itself, and `spy(existing)` forwards calls to `existing`.
+- A stub of a property does not write its backing field: MockK copies the value of `returns` into the field. Code that
+  reads fields by reflection, such as Bean Validation of `@field:` constraints, needs a real object or
+  `spy(Foo(args))`.
 - Calls of `equals`, `hashCode` and `toString` are not recorded.
 - `mock.javaClass` is a generated subclass of the mocked class, not the class itself.
 - `coVerify` does not run coroutines that are still waiting to be dispatched: MockK runs them as a side effect of its
@@ -217,7 +235,9 @@ Behaviour that differs:
 - Mocks are created and stubbed only in Kotlin code compiled with the plugin; Java code can only call them.
 - The mocked type must be known at compile time: `mockClass` takes a class literal or a reified `T::class`, not a
   `KClass` from a variable. A block passed to `every` or `verify` through your own function is an error.
-- Final classes, objects, functions and constructors from libraries and Java static methods cannot be mocked.
+- Final classes, objects, functions and constructors from libraries and Java static methods cannot be mocked. Wrap
+  such a call in a top-level function of main code that matches a `mockable` pattern, for example
+  `fun newId(): UUID = UUID.randomUUID()`, and stub that function.
 - Private members of classes outside `mockable` cannot be stubbed or verified.
 - No JUnit 4 integration: use `lokkiScope { }`. Kotest is not supported.
 - IntelliJ IDEA shows `LOKKI_*` diagnostics only with the registry key
