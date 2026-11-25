@@ -1,18 +1,23 @@
 package io.lokki.compiler.fir
 
 import io.lokki.compiler.BuildConfig
+import io.lokki.compiler.COMPOSABLE_ANNOTATION
 import io.lokki.compiler.CONSTRUCTORS
 import io.lokki.compiler.CONSTRUCTORS_HOLDER
 import io.lokki.compiler.INTERCEPTION_POINTS_KOTLIN
+import io.lokki.compiler.InterceptionExclusion
 import io.lokki.compiler.InterceptionMark
 import io.lokki.compiler.REDIRECT
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
+import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.declarations.FirDeclarationOrigin
+import org.jetbrains.kotlin.fir.declarations.hasAnnotation
 import org.jetbrains.kotlin.fir.declarations.processAllDeclaredCallables
 import org.jetbrains.kotlin.fir.declarations.utils.compilerPluginMetadata
 import org.jetbrains.kotlin.fir.declarations.utils.isConst
+import org.jetbrains.kotlin.fir.declarations.utils.isExternal
 import org.jetbrains.kotlin.fir.declarations.utils.isInline
 import org.jetbrains.kotlin.fir.declarations.utils.isInlineOrValue
 import org.jetbrains.kotlin.fir.declarations.utils.isInner
@@ -31,7 +36,10 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
+import org.jetbrains.kotlin.fir.unwrapFakeOverrides
+import org.jetbrains.kotlin.load.java.JvmAbi
 import org.jetbrains.kotlin.name.CallableId
+import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
 
 internal sealed interface MemberInterception {
@@ -60,7 +68,7 @@ internal fun FirCallableSymbol<*>.objectInterception(receiver: ConeKotlinType? =
     val owner = receiverObject ?: declaring?.takeIf { it.isRedirectTarget }
         ?: return MemberInterception.NotApplicable
     val inherited = declaring != owner || isSubstitutionOrIntersectionOverride
-    val reason = propertyProblem() ?: when {
+    val reason = exclusion()?.reason ?: when {
         this is FirNamedFunctionSymbol && isMemberOfAny -> "it is a member of 'Any'"
         else -> owner.interceptionProblem()?.let { "'${owner.displayName}' $it" }
     }
@@ -118,24 +126,37 @@ internal fun FirCallableSymbol<*>.staticInterception(): MemberInterception {
     if (id.classId != null || id.packageName == CallableId.PACKAGE_FQ_NAME_FOR_LOCAL) {
         return MemberInterception.NotApplicable
     }
-    val inline = if (this is FirPropertySymbol) getterSymbol?.isInline == true else isInline
     val problem = when {
-        inline -> "is inline"
         origin is FirDeclarationOrigin.Source -> DECLARED_HERE.takeIf {
             moduleData == context.session.moduleData && !isMockableInThisCompilation(context.session)
         }
         else -> markProblem("it, its file or its package")
     }
-    val reason = propertyProblem() ?: problem?.let { "it $it" }
+    val reason = exclusion()?.reason ?: problem?.let { "it $it" }
     return reason?.let(MemberInterception::NotIntercepted) ?: MemberInterception.Intercepted
 }
 
-private fun FirCallableSymbol<*>.propertyProblem(): String? =
-    when {
-        this is FirPropertySymbol && isConst -> "it is a constant, which is inlined at compile time"
-        this is FirPropertySymbol && isLateInit -> "it is a lateinit property, whose getter lokki does not intercept"
-        else -> null
+context(context: CheckerContext)
+internal fun FirCallableSymbol<*>.exclusion(): InterceptionExclusion? {
+    val declared = unwrapFakeOverrides()
+    return InterceptionExclusion.entries.firstOrNull { it.excludes(declared, context.session) }
+}
+
+private fun InterceptionExclusion.excludes(callable: FirCallableSymbol<*>, session: FirSession): Boolean {
+    val property = callable as? FirPropertySymbol
+    val accessor = property?.getterSymbol ?: callable
+    return when (this) {
+        InterceptionExclusion.CONSTANT -> property?.isConst == true
+        InterceptionExclusion.LATEINIT -> property?.isLateInit == true
+        InterceptionExclusion.JVM_FIELD -> property?.backingFieldSymbol?.hasAnnotation(JVM_FIELD, session) == true
+        InterceptionExclusion.TYPE_PARAMETERS -> property?.typeParameterSymbols.orEmpty().isNotEmpty()
+        InterceptionExclusion.INLINE -> accessor.isInline
+        InterceptionExclusion.EXTERNAL -> callable.isExternal || accessor.isExternal
+        InterceptionExclusion.COMPOSABLE -> accessor.hasAnnotation(COMPOSABLE_ANNOTATION, session)
     }
+}
+
+private val JVM_FIELD = ClassId.topLevel(JvmAbi.JVM_FIELD_ANNOTATION_FQ_NAME)
 
 context(context: CheckerContext)
 private fun FirBasedSymbol<*>.markProblem(additions: String): String? =

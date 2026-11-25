@@ -6,6 +6,8 @@
 // FILE: clock.kt
 package sample.mocked
 
+import androidx.compose.runtime.Composable
+
 object Clock {
     const val LIMIT = 1
 
@@ -18,8 +20,24 @@ object Clock {
 
     <!NOTHING_TO_INLINE!>inline<!> fun inlined(): Int = 1
 
+    val <T> List<T>.second: T
+        get() = this[1]
+
+    external fun native(): Int
+
+    @Composable
+    fun composable(): Int = 1
+
+    val tagged: Int
+        @Composable get() = 1
+
     override fun toString(): String = "clock"
 }
+
+// FILE: composable.kt
+package androidx.compose.runtime
+
+annotation class Composable
 
 // FILE: registry.kt
 package sample.plain
@@ -45,6 +63,10 @@ fun test() {
     every { Clock.<!LOKKI_NOT_INTERCEPTABLE!>LIMIT<!> } returns 2
     every { Clock.<!LOKKI_NOT_INTERCEPTABLE!>name<!> } returns ""
     every { Clock.<!LOKKI_NOT_INTERCEPTABLE!>field<!> } returns ""
+    every { Clock.<!LOKKI_NOT_INTERCEPTABLE!>native<!>() } returns 2
+    every { Clock.<!LOKKI_NOT_INTERCEPTABLE!>composable<!>() } returns 2
+    every { Clock.<!LOKKI_NOT_INTERCEPTABLE!>tagged<!> } returns 2
+    with(Clock) { every { listOf(1, 2).<!LOKKI_NOT_INTERCEPTABLE!>second<!> } returns 2 }
     every { Clock.<!LOKKI_NOT_INTERCEPTABLE!>toString<!>() } returns ""
     every { Registry.<!LOKKI_NOT_INTERCEPTABLE!>lookup<!>() } returns ""
 }

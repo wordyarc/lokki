@@ -4,6 +4,7 @@ import io.lokki.compiler.CHILD_MOCK_NEEDED
 import io.lokki.compiler.CoreClass
 import io.lokki.compiler.DynamicNames
 import io.lokki.compiler.FINALIZER_REASON
+import io.lokki.compiler.InterceptionExclusion
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.LokkiDiagnostics
 import io.lokki.compiler.MatcherNames
@@ -16,6 +17,7 @@ import io.lokki.compiler.fir.MemberInterception
 import io.lokki.compiler.fir.argument
 import io.lokki.compiler.fir.blockArgument
 import io.lokki.compiler.fir.displayName
+import io.lokki.compiler.fir.exclusion
 import io.lokki.compiler.fir.intrinsicKind
 import io.lokki.compiler.fir.isClassFinalizer
 import io.lokki.compiler.fir.isFinalType
@@ -252,9 +254,19 @@ private class StubBlock(
             )
             call.extensionReceiver != null ->
                 notInterceptable(call, callee, "it is an extension, not a member. $action the member it calls")
-            else -> notInterceptable(call, callee, "it is not a member")
+            else -> notInterceptable(call, callee, notMemberReason(callee))
         }
     }
+
+    private fun notMemberReason(callee: FirCallableSymbol<*>): String =
+        when (val exclusion = with(context) { callee.exclusion() }) {
+            null -> "it is not a member"
+            InterceptionExclusion.INLINE -> inlineReason
+            else -> exclusion.reason
+        }
+
+    private val inlineReason: String
+        get() = "it is inline. $action the member it calls"
 
     private fun FirQualifiedAccessExpression.configuresStub(): Boolean =
         listOfNotNull(dispatchReceiver, extensionReceiver).any { receiver ->
@@ -431,7 +443,7 @@ private class StubBlock(
         val interception = with(context) { callee.objectInterception(receiver.resolvedType) }
         return when {
             callee is FirFieldSymbol -> "it is a field"
-            inline -> "it is inline. $action the member it calls"
+            inline -> inlineReason
             callee.isClassFinalizer(session) -> FINALIZER_REASON
             interception is MemberInterception.NotIntercepted -> interception.reason
             interception == MemberInterception.Intercepted -> null

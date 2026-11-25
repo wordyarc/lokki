@@ -130,48 +130,35 @@ private class MockFieldCollector(
 
     private fun resolveParameters(function: IrFunction, annotated: List<IrValueParameter>): MockParameterGroup {
         val regular = function.parameters.filter { it.kind == IrParameterKind.Regular }
-        val kinds = annotated.associateWith { it.mockAnnotations!! }
+        val mocks = annotated.associateWith { it.mockAnnotations!! }
         val requests = annotated.mapNotNull { parameter ->
-            val (annotation, kind, inject) = kinds.getValue(parameter)
-            (inject ?: annotation.takeIf { kind == IntrinsicKind.SPY })
+            val mock = mocks.getValue(parameter)
+            (mock.inject ?: mock.annotation.takeIf { mock.kind == IntrinsicKind.SPY })
                 ?.let { InjectionRequest(parameter, parameter.type, it) }
         }
         val plan = planner.planParameters(annotated, requests)
         val fields = annotated.map { parameter ->
-            val (annotation, kind, inject) = kinds.getValue(parameter)
+            val mock = mocks.getValue(parameter)
+            val conflict = mock.conflict("parameter")
             val result = plan.results[parameter]
-            val injection = result as? Injection
-            val type = parameter.type.makeNotNull()
-            val conflict = if (inject != null && kind != IntrinsicKind.INJECT_MOCKS && kind != IntrinsicKind.SPY) {
-                Unsupported("A parameter cannot have both '@InjectMocks' and '@${annotation.annotationClass!!.name}'")
-            } else {
-                null
-            }
-            val failed = (result as? InjectionProblem)?.takeIf { inject != null }
-                ?.let { FailedInjection(it, type.classOrNull?.owner?.displayName ?: type.renderReadable()) }
-            val mocked = inject == null || kind == IntrinsicKind.SPY
-            val site = if (mocked && conflict == null && failed == null) {
-                mockability.site(
-                    MockRequest(
-                        kind == IntrinsicKind.SPY,
-                        type,
-                        null,
-                        listOfNotNull(parameter.additionalInterface),
-                        "'@AdditionalInterface'",
-                        injection?.construction,
-                    )
-                ).chainedIf(kind != IntrinsicKind.SPY && function.chainsMocks)
-            } else {
-                null
+            val resolved = mock.resolve(parameter.type, conflict, result, function.chainsMocks) {
+                MockRequest(
+                    mock.kind == IntrinsicKind.SPY,
+                    parameter.type.makeNotNull(),
+                    null,
+                    listOfNotNull(parameter.additionalInterface),
+                    "'@AdditionalInterface'",
+                    it?.construction,
+                )
             }
             MockParameterField(
                 parameter,
                 regular.indexOf(parameter),
-                annotation,
-                kind,
-                conflict ?: failed ?: (site as? MockSite.Rejected)?.problem,
-                site as? MockSite.Mocked,
-                injection,
+                mock.annotation,
+                mock.kind,
+                resolved.problem,
+                resolved.site,
+                resolved.injection,
             )
         }
         return MockParameterGroup(function, fields)
@@ -179,50 +166,66 @@ private class MockFieldCollector(
 
     private fun resolve(owner: IrClass, annotated: List<Annotated>): ClassMockFields {
         val problems = annotated.associateWith { it.declarationProblem() }
-        val targets = annotated.filter { it.inject != null && problems[it] == null }
-        val plan = planner.plan(owner, targets.map { InjectionRequest(it.property, it.property.valueType, it.inject!!) })
+        val targets = annotated.filter { it.mock.inject != null && problems[it] == null }
+        val plan = planner.plan(
+            owner,
+            targets.map { InjectionRequest(it.property, it.property.valueType, it.mock.inject!!) },
+        )
         val fields = annotated.map { field ->
-            val result = plan.results[field.property]
-            val injection = result as? Injection
-            val failed = (result as? InjectionProblem)?.let { FailedInjection(it, field.typeName) }
-            val site = if (field.isMock && problems[field] == null && failed == null) {
-                mockability.site(field.request(injection))
-                    .chainedIf(field.kind != IntrinsicKind.SPY && field.property.chainsMocks)
-            } else {
-                null
+            val property = field.property
+            val result = plan.results[property]
+            val resolved = field.mock.resolve(property.valueType, problems[field], result, property.chainsMocks) {
+                field.request(it)
             }
-            val problem = problems[field] ?: failed ?: (site as? MockSite.Rejected)?.problem
-            val mocked = site as? MockSite.Mocked
-            field.field(problem ?: field.immutableProblem(mocked), mocked, injection)
+            field.field(resolved.problem ?: field.immutableProblem(resolved.site), resolved.site, resolved.injection)
         }
         val byProperty = fields.associateBy { it.property }
         val injected = plan.order.map { byProperty.getValue(it as IrProperty) }.filter { it.problem == null }
         return ClassMockFields(fields, injected)
     }
 
+    private fun MockAnnotations.resolve(
+        type: IrType,
+        declared: MockProblem?,
+        result: InjectionResult?,
+        chains: Boolean,
+        request: (Injection?) -> MockRequest,
+    ): ResolvedMock {
+        val injection = result as? Injection
+        val failed = (result as? InjectionProblem)?.takeIf { inject != null }
+            ?.let { FailedInjection(it, type.typeName) }
+        val site = if (isMock && declared == null && failed == null) {
+            mockability.site(request(injection)).chainedIf(kind != IntrinsicKind.SPY && chains)
+        } else {
+            null
+        }
+        val problem = declared ?: failed ?: (site as? MockSite.Rejected)?.problem
+        return ResolvedMock(problem, site as? MockSite.Mocked, injection)
+    }
+
     private fun Annotated.declarationProblem(): MockProblem? =
         when {
             property.constructorParameter != null ->
-                Unsupported("'@$annotationName' on a property of the primary constructor must be on its parameter")
-            property.parent !is IrClass -> Unsupported("'@$annotationName' initializes only properties of classes")
-            property.backingField == null -> Unsupported("'@$annotationName' needs a property with a backing field")
-            inject == null -> null
-            kind != IntrinsicKind.INJECT_MOCKS && kind != IntrinsicKind.SPY ->
-                Unsupported("A property cannot have both '@InjectMocks' and '@$annotationName'")
-            !property.isVar -> Unsupported("'@InjectMocks' needs a 'lateinit var' or 'var' property")
-            kind == IntrinsicKind.SPY -> mockability.problemOf(property.valueType.makeNotNull())
-            else -> null
+                Unsupported("'@${mock.name}' on a property of the primary constructor must be on its parameter")
+            property.parent !is IrClass -> Unsupported("'@${mock.name}' initializes only properties of classes")
+            property.backingField == null -> Unsupported("'@${mock.name}' needs a property with a backing field")
+            mock.inject == null -> null
+            else -> mock.conflict("property") ?: when {
+                !property.isVar -> Unsupported("'@InjectMocks' needs a 'lateinit var' or 'var' property")
+                mock.kind == IntrinsicKind.SPY -> mockability.problemOf(property.valueType.makeNotNull())
+                else -> null
+            }
         }
 
     private fun Annotated.immutableProblem(site: MockSite.Mocked?): MockProblem? {
-        if (inject != null || property.isVar || property.constructsSpy(kind, site)) return null
-        return Unsupported("'@$annotationName' needs a 'lateinit var' or 'var' property")
+        if (mock.inject != null || property.isVar || property.constructsSpy(mock.kind, site)) return null
+        return Unsupported("'@${mock.name}' needs a 'lateinit var' or 'var' property")
     }
 
     private fun Annotated.request(injection: Injection?): MockRequest {
         val instance = property.backingField?.initializer?.expression
         return MockRequest(
-            kind == IntrinsicKind.SPY,
+            mock.kind == IntrinsicKind.SPY,
             property.valueType.makeNotNull(),
             instance,
             listOfNotNull(property.additionalInterface),
@@ -232,32 +235,33 @@ private class MockFieldCollector(
     }
 }
 
-private class Annotated(
-    val property: IrProperty,
-    val annotation: IrAnnotation,
-    val kind: IntrinsicKind,
-    val inject: IrAnnotation?,
-) {
-    val annotationName: String
+private class ResolvedMock(val problem: MockProblem?, val site: MockSite.Mocked?, val injection: Injection?)
+
+private class Annotated(val property: IrProperty, val mock: MockAnnotations) {
+    fun field(problem: MockProblem?, site: MockSite.Mocked?, injection: Injection?): MockField =
+        MockField(property, mock.annotation, mock.kind, mock.inject, problem, site, injection)
+}
+
+private val IrProperty.annotated: Annotated?
+    get() = mockAnnotations?.takeUnless { isFakeOverride }?.let { Annotated(this, it) }
+
+private class MockAnnotations(val annotation: IrAnnotation, val kind: IntrinsicKind, val inject: IrAnnotation?) {
+    val name: String
         get() = annotation.annotationClass!!.name.asString()
 
     val isMock: Boolean
         get() = inject == null || kind == IntrinsicKind.SPY
 
-    val typeName: String
-        get() {
-            val type = property.valueType.makeNotNull()
-            return type.classOrNull?.owner?.displayName ?: type.renderReadable()
-        }
-
-    fun field(problem: MockProblem?, site: MockSite.Mocked?, injection: Injection?): MockField =
-        MockField(property, annotation, kind, inject, problem, site, injection)
+    fun conflict(declaration: String): MockProblem? =
+        Unsupported("A $declaration cannot have both '@InjectMocks' and '@$name'")
+            .takeIf { inject != null && kind != IntrinsicKind.INJECT_MOCKS && kind != IntrinsicKind.SPY }
 }
 
-private val IrProperty.annotated: Annotated?
-    get() = mockAnnotations?.takeUnless { isFakeOverride }?.let { Annotated(this, it.annotation, it.kind, it.inject) }
-
-private data class MockAnnotations(val annotation: IrAnnotation, val kind: IntrinsicKind, val inject: IrAnnotation?)
+private val IrType.typeName: String
+    get() {
+        val type = makeNotNull()
+        return type.classOrNull?.owner?.displayName ?: type.renderReadable()
+    }
 
 private val IrAnnotationContainer.mockAnnotations: MockAnnotations?
     get() {

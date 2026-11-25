@@ -11,6 +11,18 @@ internal val CONSTRUCTORS_HOLDER = Name.identifier("LokkiConstructorsHolder")
 
 internal const val INTERCEPTION_POINTS_KOTLIN = "2.4.20"
 
+internal val COMPOSABLE_ANNOTATION = ClassId.fromString("androidx/compose/runtime/Composable")
+
+internal enum class InterceptionExclusion(val reason: String) {
+    CONSTANT("it is a constant, which is inlined at compile time"),
+    LATEINIT("it is a lateinit property, whose getter lokki does not intercept"),
+    JVM_FIELD("it is a @JvmField property, which is read from its field without a getter"),
+    TYPE_PARAMETERS("it is a property with type parameters, which lokki does not intercept"),
+    INLINE("it is inline"),
+    EXTERNAL("it is external and has no body to intercept"),
+    COMPOSABLE("it is @Composable, whose body lokki leaves to the Compose compiler"),
+}
+
 internal val INTERCEPTION_MARK = byteArrayOf(1)
 
 internal val REIFIED_HELPER_MARK = byteArrayOf(2)
