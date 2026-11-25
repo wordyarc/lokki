@@ -39,10 +39,8 @@ public class LokkiGradleSubplugin : KotlinCompilerPluginSupportPlugin {
 
     override fun applyToCompilation(kotlinCompilation: KotlinCompilation<*>): Provider<List<SubpluginOption>> {
         val lokki = kotlinCompilation.lokki
-        kotlinCompilation.compileTaskProvider.configure {
-            it.compilerOptions.freeCompilerArgs.add(
-                "-Xcompiler-plugin-order=${BuildConfig.COMPILER_PLUGIN_ID}>androidx.compose.compiler.plugins.kotlin"
-            )
+        kotlinCompilation.compileTaskProvider.configure { task ->
+            task.compilerOptions.freeCompilerArgs.addAll(PLUGIN_ORDER.map { "-Xcompiler-plugin-order=$it" })
         }
         val test = kotlinCompilation.isTest()
         if (test || lokki.applyToMain.get()) {
@@ -166,6 +164,10 @@ private fun Project.testSuiteSourceSetNames(): Set<String> =
         .orEmpty()
 
 private val PLATFORM_TYPES = setOf(KotlinPlatformType.jvm, KotlinPlatformType.androidJvm)
+private val PLUGIN_ORDER = listOf(
+    "${BuildConfig.COMPILER_PLUGIN_ID}>androidx.compose.compiler.plugins.kotlin",
+    "org.jetbrains.kotlin.parcelize>${BuildConfig.COMPILER_PLUGIN_ID}",
+)
 private val TEST_COMPILATION_NAMES = setOf(KotlinCompilation.TEST_COMPILATION_NAME, "testFixtures", "hostTest", "deviceTest")
 private val ANDROID_TEST_SUFFIXES = listOf("UnitTest", "AndroidTest", "TestFixtures")
 

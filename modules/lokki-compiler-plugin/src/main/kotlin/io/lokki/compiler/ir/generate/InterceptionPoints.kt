@@ -116,7 +116,7 @@ internal class InterceptionPoints(private val lokki: LokkiIrContext, private val
     }
 
     private fun generateConstructors(target: IrClass) {
-        val constructors = target.constructors.filter { it.visibility.isInterceptable && !it.isExpect }.toList()
+        val constructors = target.constructors.filter { it.isInterceptable }.toList()
         if (constructors.isEmpty()) return
         val redirect = target.addRedirect(CONSTRUCTORS, target, CONSTRUCTOR_MESSAGE)
         target.addConstructorsHolder(redirect)

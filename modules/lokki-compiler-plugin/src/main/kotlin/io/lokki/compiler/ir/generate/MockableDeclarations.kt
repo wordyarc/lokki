@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.DescriptorVisibility
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.declarations.IrClass
+import org.jetbrains.kotlin.ir.declarations.IrConstructor
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationWithName
@@ -61,6 +62,9 @@ private fun IrClass.matches(mockable: MockablePatterns): Boolean =
 
 private val IrClass.isHiddenInFile: Boolean
     get() = generateSequence(this) { it.parent as? IrClass }.any { DescriptorVisibilities.isPrivate(it.visibility) }
+
+internal val IrConstructor.isInterceptable: Boolean
+    get() = origin == IrDeclarationOrigin.DEFINED && visibility.isInterceptable && !isExpect
 
 internal val IrSimpleFunction.isOpenable: Boolean
     get() = correspondingPropertySymbol == null && !isTailrec && !isClassFinalizer && isOpenableAccessor

@@ -34,6 +34,7 @@ maven-publish = "0.37.0"
 plugin-publish = "2.2.1"
 asm = "9.10.1"
 compose-runtime = "1.12.1"
+serialization = "1.9.0"
 
 [libraries]
 # -- Plugin APIs --------------------------------------------------------------

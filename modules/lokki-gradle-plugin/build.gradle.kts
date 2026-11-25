@@ -136,6 +136,7 @@ testing {
                     systemProperty("lokki.test.latestTestedKotlin", latestTestedKotlin)
                     systemProperty("lokki.test.testedKotlin", testedKotlin.joinToString(","))
                     systemProperty("lokki.test.composeRuntimeVersion", libs.versions.compose.runtime.get())
+                    systemProperty("lokki.test.serializationVersion", libs.versions.serialization.get())
                 }
             }
         }

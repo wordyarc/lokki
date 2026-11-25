@@ -14,6 +14,9 @@ val LOKKI_GROUP: String = System.getProperty("lokki.test.lokkiGroup")
 val LOKKI_PLUGIN_ID: String = System.getProperty("lokki.test.pluginId")
 val LOKKI_VERSION: String = System.getProperty("lokki.test.lokkiVersion")
 val COMPOSE_RUNTIME_VERSION: String = System.getProperty("lokki.test.composeRuntimeVersion")
+val SERIALIZATION_VERSION: String = System.getProperty("lokki.test.serializationVersion")
+
+val LOKKI_PLUGIN: String = "id(\"$LOKKI_PLUGIN_ID\") version \"$LOKKI_VERSION\""
 
 const val INTERCEPTION_POINTS_KOTLIN: String = "2.4.20"
 

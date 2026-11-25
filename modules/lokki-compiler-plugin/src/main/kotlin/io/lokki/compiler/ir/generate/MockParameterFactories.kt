@@ -14,6 +14,7 @@ import io.lokki.compiler.ir.collect.MockParameterField
 import io.lokki.compiler.ir.collect.MockParameterGroup
 import io.lokki.compiler.ir.irCast
 import io.lokki.compiler.ir.irInvoke
+import io.lokki.compiler.ir.typeKey
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
 import org.jetbrains.kotlin.ir.builders.irBlock
@@ -40,7 +41,6 @@ import org.jetbrains.kotlin.ir.types.makeNotNull
 import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.util.nonDispatchParameters
 import org.jetbrains.kotlin.ir.util.parentAsClass
-import org.jetbrains.kotlin.ir.util.render
 
 internal class MockParameterFactories(private val lokki: LokkiIrContext) {
     private val context = lokki.pluginContext
@@ -56,8 +56,9 @@ internal class MockParameterFactories(private val lokki: LokkiIrContext) {
     private fun generate(group: MockParameterGroup, file: IrFile, mocks: Map<MockClassKey, IrClass>) {
         val function = group.function
         val owner = function.parentAsClass
+        val typeParameters = (owner.typeParameters + function.typeParameters).map { it.symbol }
         val signature = function.parameters.filter { it.kind == IrParameterKind.Regular }
-            .joinToString(",") { it.type.render() }
+            .joinToString(",") { it.type.typeKey(typeParameters) }
         val key = "${owner.kotlinFqName}#${function.name}($signature)"
         val name = file.generatedClassName(owner.name, "LokkiParameters", key)
         val factory = file.addImplementation(lokki, name, function, symbols[CoreClass.MOCK_PARAMETER_FACTORY])
@@ -116,8 +117,9 @@ internal class MockParameterFactories(private val lokki: LokkiIrContext) {
         val mock = mocks.getValue(site.key)
         val spec = irSpec(symbols, irString(field.name), irInt(field.flags(site.types.form)))
         return when (site.types.form) {
-            MockForm.Mock, MockForm.Delegation -> irNewMock(symbols, mock, site.types, spec)
+            MockForm.Mock -> irNewMock(symbols, mock, site.types, spec)
             is MockForm.Construction -> irConstruct(mock, site.types.typeArguments, listOf(spec))
+            MockForm.Delegation -> error("a parameter has no instance to delegate to")
         }
     }
 
