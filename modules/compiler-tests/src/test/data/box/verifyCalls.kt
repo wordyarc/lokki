@@ -46,7 +46,13 @@ fun box(): String {
     }
     failure(
         "Verification failed: call 1 of 1: $name.find(eq(2), eq(false)). No matching calls found.\n\n" +
-            "Calls to same method:\n1) $name.find(1, false)\n2) $name.find(2, true)\n\n$CALL_SITES"
+            "Calls to same method:\n" +
+            "1) $name.find(1, false)\n" +
+            "   [0]: argument: 1, matcher: eq(2), result: -\n" +
+            "   [1]: argument: false, matcher: eq(false), result: +\n" +
+            "2) $name.find(2, true)\n" +
+            "   [0]: argument: 2, matcher: eq(2), result: +\n" +
+            "   [1]: argument: true, matcher: eq(false), result: -\n\n$CALL_SITES"
     ) { verify { repo.find(2) } }?.let { return it }
     failure(
         "Verification failed: call 1 of 1: $name.find(any(), any()). " +
@@ -100,7 +106,13 @@ fun box(): String {
     if (names != listOf("a", "b")) return "Fail: capture into a list $names"
     failure(
         "Verification failed: call 2 of 2: $name.find(eq(5), eq(false)). No matching calls found.\n\n" +
-            "Calls to same method:\n1) $name.find(1, false)\n2) $name.find(2, true)\n\n$CALL_SITES"
+            "Calls to same method:\n" +
+            "1) $name.find(1, false)\n" +
+            "   [0]: argument: 1, matcher: eq(5), result: -\n" +
+            "   [1]: argument: false, matcher: eq(false), result: +\n" +
+            "2) $name.find(2, true)\n" +
+            "   [0]: argument: 2, matcher: eq(5), result: -\n" +
+            "   [1]: argument: true, matcher: eq(false), result: -\n\n$CALL_SITES"
     ) {
         verify {
             repo.save(capture(names))

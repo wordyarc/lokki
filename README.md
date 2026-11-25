@@ -270,6 +270,7 @@ Behaviour that differs:
 ./gradlew -p integration-testing check            # end-to-end tests and the MockK conformance suite
 ./gradlew :compiler-tests:test --tests '*Name*'   # selected compiler plugin tests
 ./gradlew updateKotlinAbi                         # update the ABI dumps after a public API change
+./gradlew :benchmarks:jmh                         # JMH benchmarks of mock creation, calls and verification
 ```
 
 Gradle downloads the JDK 25 toolchain of the build if it is missing. The Gradle plugin tests in `build` need an

@@ -95,7 +95,13 @@ fun failures(): String? {
         return "suppressed ${unequal.suppressedExceptions}"
     }
     val expected = "Verification failed: call 1 of 1: $name.find(matcher(), any()). No matching calls found.\n\n" +
-        "Calls to same method:\n1) $name.find(1, a)\n2) $name.find(-2, null)\n\n$CALL_SITES\n\n" +
+        "Calls to same method:\n" +
+        "1) $name.find(1, a)\n" +
+        "   [0]: argument: 1, matcher: matcher(), result: -\n" +
+        "   [1]: argument: a, matcher: any(), result: +\n" +
+        "2) $name.find(-2, null)\n" +
+        "   [0]: argument: -2, matcher: matcher(), result: -\n" +
+        "   [1]: argument: null, matcher: any(), result: +\n\n$CALL_SITES\n\n" +
         "Assertion errors in matchers:\n" +
         "1) $name.find(1, a), argument [0]: java.lang.AssertionError: expected [5] but found [1]\n" +
         "2) $name.find(-2, null), argument [0]: java.lang.AssertionError: expected [5] but found [-2]"

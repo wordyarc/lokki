@@ -45,7 +45,7 @@ internal object LokkiCallChecker : FirFunctionCallChecker(MppCheckerKind.Common)
             IntrinsicKind.EXCLUDE_BLOCK -> checkBlock(call, function, kind)
             IntrinsicKind.MATCHER -> checkMatcher(call, function)
             IntrinsicKind.ANSWER -> checkAnswer(call, function)
-            IntrinsicKind.AWAITS -> checkCoroutines(call, "${function.name} Awaits")
+            IntrinsicKind.AWAITS -> checkAwaits(call, "${function.name} Awaits")
             else -> {}
         }
     }

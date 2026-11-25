@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.fir.declarations.FirFunction
 import org.jetbrains.kotlin.fir.declarations.impl.FirDefaultPropertyAccessor
 import org.jetbrains.kotlin.fir.declarations.utils.hasBackingField
 import org.jetbrains.kotlin.fir.declarations.utils.isAbstract
+import org.jetbrains.kotlin.fir.declarations.utils.isSuspend
 import org.jetbrains.kotlin.fir.expressions.FirAnonymousFunctionExpression
 import org.jetbrains.kotlin.fir.expressions.FirArgumentList
 import org.jetbrains.kotlin.fir.expressions.FirBlock
@@ -60,7 +61,11 @@ context(context: CheckerContext, reporter: DiagnosticReporter)
 internal fun checkStubAnswer(call: FirFunctionCall, function: FirCallableSymbol<*>, kind: IntrinsicKind) {
     val name = function.name.asString()
     when {
-        kind == IntrinsicKind.JUST_AWAIT_BLOCK -> checkCoroutines(call, name)
+        kind == IntrinsicKind.JUST_AWAIT_BLOCK -> {
+            checkCoroutines(call, name)
+            val block = call.blockArgument(function) as? FirAnonymousFunctionExpression
+            checkAwaitedMember(call, name, block?.anonymousFunction)
+        }
         kind == IntrinsicKind.STUB_BLOCK && context.dropsValueOf(call) -> reporter.reportOn(
             call.calleeReference.source ?: call.source,
             LokkiDiagnostics.LOKKI_STUB_WITHOUT_ANSWER,
@@ -78,7 +83,25 @@ internal fun checkAnswer(answer: FirFunctionCall, function: FirCallableSymbol<*>
 }
 
 context(context: CheckerContext, reporter: DiagnosticReporter)
-internal fun checkCoroutines(call: FirFunctionCall, name: String) {
+internal fun checkAwaits(call: FirFunctionCall, name: String) {
+    checkCoroutines(call, name)
+    checkAwaitedMember(call, name, call.stubBlock())
+}
+
+context(context: CheckerContext, reporter: DiagnosticReporter)
+private fun checkAwaitedMember(call: FirFunctionCall, name: String, block: FirAnonymousFunction?) {
+    val (member, _) = block?.stubbedMember() ?: return
+    if (member.isSuspend) return
+    reporter.reportOn(
+        call.calleeReference.source ?: call.source,
+        LokkiDiagnostics.LOKKI_AWAITS_OF_NON_SUSPEND_MEMBER,
+        name,
+        member.name.asString(),
+    )
+}
+
+context(context: CheckerContext, reporter: DiagnosticReporter)
+private fun checkCoroutines(call: FirFunctionCall, name: String) {
     val symbols = context.session.symbolProvider
         .getTopLevelFunctionSymbols(AWAIT_CANCELLATION.packageName, AWAIT_CANCELLATION.callableName)
     if (symbols.isNotEmpty()) return

@@ -331,9 +331,31 @@ class MockStateTest {
 
         assertEquals("at once", state.answer(FIND_MEMBER, arrayOf(1, true)))
         assertEquals(
-            "coAnswers suspended in non-suspend $name.find(2, true); " +
-                "an answer of a non-suspend member must complete without suspension",
+            "the answer of non-suspend $name.find(2, true) suspended: an answer of a non-suspend member, " +
+                "such as coAnswers, coAndThen or just Awaits, must complete without suspension",
             assertFailsWith<LokkiException> { state.answer(FIND_MEMBER, arrayOf(2, true)) }.message,
+        )
+    }
+
+    @Test
+    fun testToStringDescribesStubsAndCalls() {
+        state.stub<String>(FIND, arrayOf(EqMatcher(1), AnyMatcher)) returns "one" andThen "two"
+        state.stub<String>(FIND, arrayOf(AnyMatcher, EqMatcher(true))) throws IllegalStateException("closed")
+        state.stub<String>(FIND, arrayOf(EqMatcher(2), AnyMatcher)) answers { "two" }
+        state.stub<String>(FIND, arrayOf(EqMatcher(3), AnyMatcher)) returnsArgument 0
+        state.stub<String>(FIND, arrayOf(EqMatcher(4), AnyMatcher)) coAnswers { "four" }
+        state.answer(FIND_MEMBER, arrayOf(1, false))
+        state.answer(FIND_MEMBER, arrayOf(2, false))
+
+        assertEquals(
+            "MockState(name=$name, scope=null, stubs=[" +
+                "find(eq(1), any()) returns one andThen returns two, " +
+                "find(any(), eq(true)) throws java.lang.IllegalStateException: closed, " +
+                "find(eq(2), any()) answers { }, " +
+                "find(eq(3), any()) returnsArgument 0, " +
+                "find(eq(4), any()) coAnswers { }" +
+                "], calls=[find(1, false), find(2, false)])",
+            state.toString(),
         )
     }
 

@@ -40,6 +40,7 @@ internal object LokkiDiagnostics : KtDiagnosticsContainer() {
     val LOKKI_FINAL_MEMBERS_NOT_MOCKED by warning3<KtElement, String, String, String>()
     val LOKKI_ABSTRACT_ORIGINAL_CALL by error2<KtElement, String, String>()
     val LOKKI_MISSING_COROUTINES_DEPENDENCY by error1<KtElement, String>()
+    val LOKKI_AWAITS_OF_NON_SUSPEND_MEMBER by error2<KtElement, String, String>()
     val LOKKI_REF_EQ_OF_VALUE_CLASS by error2<KtElement, String, String>()
     val LOKKI_UNSAFE_SPY_DELEGATION by error3<KtElement, String, String, String>()
     val LOKKI_SPY_ARGUMENT_NOT_CONSTRUCTOR_CALL by warning2<KtElement, String, String>()
@@ -185,6 +186,13 @@ private object LokkiDiagnosticRenderers : BaseDiagnosticRendererFactory() {
             LokkiDiagnostics.LOKKI_MISSING_COROUTINES_DEPENDENCY,
             "''{0}'' waits in ''kotlinx.coroutines.awaitCancellation()'', which is not on the classpath of this " +
                 "compilation: add ''org.jetbrains.kotlinx:kotlinx-coroutines-core'' to the test dependencies.",
+            CommonRenderers.STRING,
+        )
+        map.put(
+            LokkiDiagnostics.LOKKI_AWAITS_OF_NON_SUSPEND_MEMBER,
+            "''{0}'' suspends until cancellation, but ''{1}'' cannot suspend: every call of it would throw. " +
+                "Use ''returns'', ''answers'', ''throws'' or ''just Runs''.",
+            CommonRenderers.STRING,
             CommonRenderers.STRING,
         )
         map.put(

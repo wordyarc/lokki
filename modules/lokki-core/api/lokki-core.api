@@ -763,6 +763,7 @@ public final class io/lokki/internal/MockState {
 	public final fun noOriginal (I[Ljava/lang/Object;)Ljava/lang/Object;
 	public final fun stub (Ljava/lang/String;[Lio/lokki/Matcher;)Lio/lokki/StubScope;
 	public final fun stubLenient (Ljava/lang/String;[Lio/lokki/Matcher;)Lio/lokki/StubScope;
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class io/lokki/internal/NoRelaxedDefault {

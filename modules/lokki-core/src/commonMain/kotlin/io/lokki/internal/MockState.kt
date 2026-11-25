@@ -234,7 +234,17 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
 
     internal fun chainPositions(): List<StubPosition> = data.chainPositions()
 
-    internal fun call(member: Int, arguments: String): String = "$name.${description(member).name}($arguments)"
+    internal fun call(member: Int, arguments: String): String = "$name.${memberCall(member, arguments)}"
+
+    override fun toString(): String {
+        val stubs = data.stubs.withIndex().flatMap { (member, entries) ->
+            entries.orEmpty().map { "${description(member).name}$it" }
+        }
+        val calls = records().map { memberCall(it.member, it.arguments.joinToString { argument -> argument.toStr() }) }
+        return "MockState(name=$name, scope=$scope, stubs=$stubs, calls=$calls)"
+    }
+
+    private fun memberCall(member: Int, arguments: String): String = "${description(member).name}($arguments)"
 
     private val mock: GeneratedMock
         get() = owner as GeneratedMock
@@ -617,6 +627,8 @@ internal class StubEntry(
             answer
         }
     }
+
+    override fun toString(): String = "($arguments) ${answers.joinToString(" andThen ")}"
 }
 
 private class PendingStub<T, B>(
@@ -630,7 +642,7 @@ private class PendingStub<T, B>(
     override fun answers(answer: Answer<T>): AdditionalAnswerScope<T, B> = add(listOf(answer))
 
     override fun answers(answer: AnswerScope<T, B>.(Call) -> T): AdditionalAnswerScope<T, B> =
-        add(listOf(Answer { call -> AnswerScope<T, B>(call).answer(call) }))
+        add(listOf(FunctionAnswer { call -> AnswerScope<T, B>(call).answer(call) }))
 
     override fun coAnswers(answer: suspend AnswerScope<T, B>.(Call) -> T): AdditionalAnswerScope<T, B> =
         add(listOf(SuspendingAnswer { call -> AnswerScope<T, B>(call).answer(call) }))

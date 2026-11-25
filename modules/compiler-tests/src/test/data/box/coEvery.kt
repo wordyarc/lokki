@@ -166,8 +166,8 @@ fun box(): String {
         5
     }
     val nonSuspend = failure { api.size() }.replace(Regex("""\(#\d+\)"""), "")
-    if (nonSuspend != "LokkiException: coAnswers suspended in non-suspend Api.size(); " +
-        "an answer of a non-suspend member must complete without suspension"
+    if (nonSuspend != "LokkiException: the answer of non-suspend Api.size() suspended: an answer of a " +
+        "non-suspend member, such as coAnswers, coAndThen or just Awaits, must complete without suspension"
     ) {
         return "Fail suspension of a non-suspend member: $nonSuspend"
     }

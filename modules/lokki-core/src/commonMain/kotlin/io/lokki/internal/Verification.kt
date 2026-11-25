@@ -99,7 +99,7 @@ internal class Verification(
         }
         if (outcome.failure != null) {
             if (inverse) return
-            fail("Verification failed: ${outcome.failure}${forwardingNote()}", outcome.assertions)
+            fail("Verification failed: ${outcome.failure}${forwardingNote()}", outcome.assertions, outcome.thrown)
         }
         if (timeout > 0 && (uncalled.isNotEmpty() || absent.isNotEmpty() || constructed.isNotEmpty())) {
             sleep((deadline - nanoTime()) / NANOS_PER_MILLI)
@@ -171,7 +171,7 @@ internal class Verification(
     private fun verifyUnordered(): Outcome {
         val matches = ArrayList<Match>()
         expectations.forEachIndexed { index, expectation ->
-            val outcome = expectation.verify("call ${index + 1} of ${expectations.size}: $expectation")
+            val outcome = expectation.verify("call ${index + 1} of ${expectations.size}: $expectation", !inverse)
             if (outcome.failure != null) return outcome
             matches += outcome.matches
         }
@@ -252,7 +252,7 @@ internal class Verification(
     }
 
     private fun Outcome.afterTimeout(): Outcome =
-        if (failure == null) this else Outcome(matches, "$failure (timeout = $timeout ms)", assertions)
+        if (failure == null) this else Outcome(matches, "$failure (timeout = $timeout ms)", assertions, thrown)
 
     private fun forwardingNote(): String {
         val forwarding = states.filter { it.forwardsCalls }
@@ -263,10 +263,15 @@ internal class Verification(
             "calls that object makes on itself are not recorded. To record them, spy a new instance: $spies"
     }
 
-    private fun fail(message: String, assertions: List<FailedAssertion> = emptyList()): Nothing {
+    private fun fail(
+        message: String,
+        assertions: List<FailedAssertion> = emptyList(),
+        thrown: List<Exception> = emptyList(),
+    ): Nothing {
         val unanswered = (states + uncalled + absent.flatMap { it.states }).distinct().flatMap { it.unansweredRecords() }.unansweredReport()
         val error = AssertionError(unanswered + message + assertions.report())
         assertions.forEach { error.addSuppressed(it.error) }
+        thrown.forEach(error::addSuppressed)
         throw error
     }
 }
@@ -296,7 +301,7 @@ private class Expectation(
     fun matches(call: CallRecord): Boolean =
         call.state in states && call.member == member(call.state) && evaluation(call).all()
 
-    fun verify(description: String): Outcome {
+    fun verify(description: String, compares: Boolean): Outcome {
         val calls = records()
         val callsOfMember = calls.filter { it.member == member(it.state) }
         val only = callsOfMember.singleOrNull()
@@ -327,16 +332,22 @@ private class Expectation(
                 0 in min..max -> null
                 else -> "$description. Only one matching call to ${only.state.name}/" +
                     "${only.state.description(only.member).name} happened, but arguments are not matching:\n" +
-                    "${difference(only, results)}${only.callSite()}"
+                    "${differences(only).joinToString("") { "$it\n" }}${only.callSite()}"
             }
             matching.size in min..max -> null
             matching.isEmpty() -> "$description. No matching calls found.\n\n" +
-                "Calls to same method:\n${callsOfMember.numbered()}\n${callsOfMember.callSites()}"
+                "Calls to same method:\n${if (compares) callsOfMember.compared() else callsOfMember.numbered()}\n" +
+                callsOfMember.callSites()
             else -> "$description. ${matching.size} matching calls found, but needs ${bounds()}\n" +
                 "Calls:\n${calls.numbered()}\n${calls.callSites()}"
         }
-        val assertions = callsOfMember.flatMap { evaluations[it]?.assertions.orEmpty() }
-        return Outcome(matching.map { Match(this, it) }, failure, assertions)
+        val evaluated = callsOfMember.mapNotNull { evaluations[it] }
+        return Outcome(
+            matching.map { Match(this, it) },
+            failure,
+            evaluated.flatMap { it.assertions },
+            evaluated.flatMap { it.thrown },
+        )
     }
 
     fun matchingCalls(): List<CallRecord> = records().filter(::matches)
@@ -366,11 +377,18 @@ private class Expectation(
 
     private fun evaluation(call: CallRecord): Evaluation = evaluations.getOrPut(call) { Evaluation(call) }
 
-    private fun difference(record: CallRecord, results: BooleanArray): String =
-        record.arguments.withIndex().joinToString("") { (index, argument) ->
-            val result = matchers[index].typeMismatch(argument)?.let { "- ($it)" } ?: if (results[index]) "+" else "-"
-            "[$index]: argument: ${argument.toStr()}, matcher: ${matchers[index]}, result: $result\n"
+    private fun List<CallRecord>.compared(): String =
+        withIndex().joinToString("\n") { (index, call) ->
+            "${index + 1}) $call" + differences(call).joinToString("") { "\n$DIFFERENCE_INDENT$it" }
         }
+
+    private fun differences(record: CallRecord): List<String> {
+        val evaluation = evaluation(record)
+        return record.arguments.indices.map { index ->
+            "[$index]: argument: ${record.arguments[index].toStr()}, matcher: ${matchers[index]}, " +
+                "result: ${evaluation.result(index)}"
+        }
+    }
 
     private fun bounds(): String = boundsOf(min, max)
 
@@ -381,9 +399,23 @@ private class Expectation(
 
         val assertions = ArrayList<FailedAssertion>()
 
+        val thrown = ArrayList<Exception>()
+
         operator fun get(index: Int): Boolean = results[index] ?: evaluate(index).also { results[index] = it }
 
         fun all(): Boolean = matchers.indices.all(::get)
+
+        fun result(index: Int): String {
+            matchers[index].typeMismatch(call.arguments[index])?.let { return "- ($it)" }
+            val matched = results[index] ?: try {
+                get(index)
+            } catch (e: Exception) {
+                results[index] = false
+                thrown += e
+                return "- (matcher threw $e)"
+            }
+            return if (matched) "+" else "-"
+        }
 
         private fun evaluate(index: Int): Boolean {
             val errors = ArrayList<AssertionError>()
@@ -444,6 +476,7 @@ private class Outcome(
     val matches: List<Match>,
     val failure: String? = null,
     val assertions: List<FailedAssertion> = emptyList(),
+    val thrown: List<Exception> = emptyList(),
 )
 
 private class FailedAssertion(val call: CallRecord, val argument: Int, val error: AssertionError)
@@ -463,6 +496,7 @@ private fun boundsOf(min: Int, max: Int): String =
     }
 
 private const val NANOS_PER_MILLI = 1_000_000L
+private const val DIFFERENCE_INDENT = "   "
 private const val DIAGONAL: Byte = 1
 private const val UP: Byte = 2
 private const val LEFT: Byte = 3

@@ -96,7 +96,13 @@ fun box(): String {
     }
     val missing = message { coVerify { api.load(3) } }
     if (missing != "Verification failed: call 1 of 1: $name.load(eq(3), eq(false)). No matching calls found.\n\n" +
-        "Calls to same method:\n1) $name.load(1, false)\n2) $name.load(2, true)\n\n$CALL_SITES"
+        "Calls to same method:\n" +
+        "1) $name.load(1, false)\n" +
+        "   [0]: argument: 1, matcher: eq(3), result: -\n" +
+        "   [1]: argument: false, matcher: eq(false), result: +\n" +
+        "2) $name.load(2, true)\n" +
+        "   [0]: argument: 2, matcher: eq(3), result: -\n" +
+        "   [1]: argument: true, matcher: eq(false), result: -\n\n$CALL_SITES"
     ) {
         return "Fail failure text: $missing"
     }

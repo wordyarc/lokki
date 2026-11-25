@@ -43,7 +43,7 @@ val LOKKI_ABI_FLAGS = mapOf(
     "METHOD_PRIVATE_CALL" to 64,
 )
 
-private val withoutPublicApi = setOf("compiler-tests", "lokki-compiler-plugin", "lokki-maven")
+private val withoutPublicApi = setOf("benchmarks", "compiler-tests", "lokki-compiler-plugin", "lokki-maven")
 
 internal val Project.abiCheckEnabled: Boolean
     get() = name !in withoutPublicApi && !path.startsWith(COMPILER_COMPAT_PROJECT)

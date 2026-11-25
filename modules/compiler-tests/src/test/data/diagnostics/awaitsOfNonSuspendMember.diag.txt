@@ -1,0 +1,13 @@
+/awaitsOfNonSuspendMember.kt:28:26: error: 'just Awaits' suspends until cancellation, but 'size' cannot suspend: every call of it would throw. Use 'returns', 'answers', 'throws' or 'just Runs'.
+
+/awaitsOfNonSuspendMember.kt:29:28: error: 'just Awaits' suspends until cancellation, but 'size' cannot suspend: every call of it would throw. Use 'returns', 'answers', 'throws' or 'just Runs'.
+
+/awaitsOfNonSuspendMember.kt:30:36: error: 'andThenJust Awaits' suspends until cancellation, but 'size' cannot suspend: every call of it would throw. Use 'returns', 'answers', 'throws' or 'just Runs'.
+
+/awaitsOfNonSuspendMember.kt:31:5: error: 'coJustAwait' suspends until cancellation, but 'reset' cannot suspend: every call of it would throw. Use 'returns', 'answers', 'throws' or 'just Runs'.
+
+/awaitsOfNonSuspendMember.kt:32:24: error: 'just Awaits' suspends until cancellation, but 'name' cannot suspend: every call of it would throw. Use 'returns', 'answers', 'throws' or 'just Runs'.
+
+/awaitsOfNonSuspendMember.kt:33:33: error: 'just Awaits' suspends until cancellation, but 'limit' cannot suspend: every call of it would throw. Use 'returns', 'answers', 'throws' or 'just Runs'.
+
+/awaitsOfNonSuspendMember.kt:34:28: error: 'just Awaits' suspends until cancellation, but 'invoke' cannot suspend: every call of it would throw. Use 'returns', 'answers', 'throws' or 'just Runs'.

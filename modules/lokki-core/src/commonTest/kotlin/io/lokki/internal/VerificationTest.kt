@@ -112,9 +112,55 @@ class VerificationTest {
 
         assertEquals(
             "Verification failed: call 2 of 2: $name.find(eq(1), any()). No matching calls found.\n\n" +
-                "Calls to same method:\n1) $name.find(2, true)\n2) $name.find(3, true)\n$CALL_SITES",
+                "Calls to same method:\n" +
+                "1) $name.find(2, true)\n" +
+                "   [0]: argument: 2, matcher: eq(1), result: -\n" +
+                "   [1]: argument: true, matcher: any(), result: +\n" +
+                "2) $name.find(3, true)\n" +
+                "   [0]: argument: 3, matcher: eq(1), result: -\n" +
+                "   [1]: argument: true, matcher: any(), result: +\n$CALL_SITES",
             failure(Verification(), SAVE to arrayOf(AnyMatcher), expectation(1)),
         )
+    }
+
+    @Test
+    fun testMatcherThatThrowsOnlyForTheReportIsSuppressed() {
+        val failing = IllegalStateException("boom")
+        val throwing = object : Matcher<Any?> {
+            override fun match(arg: Any?): Boolean = throw failing
+
+            override fun toString(): String = "throwing()"
+        }
+        find(2, true)
+        find(3, false)
+
+        val error = assertFailsWith<AssertionError> { verify(FIND to arrayOf(EqMatcher(1), throwing)) }
+        assertEquals(
+            "Verification failed: call 1 of 1: $name.find(eq(1), throwing()). No matching calls found.\n\n" +
+                "Calls to same method:\n" +
+                "1) $name.find(2, true)\n" +
+                "   [0]: argument: 2, matcher: eq(1), result: -\n" +
+                "   [1]: argument: true, matcher: throwing(), result: - (matcher threw $failing)\n" +
+                "2) $name.find(3, false)\n" +
+                "   [0]: argument: 3, matcher: eq(1), result: -\n" +
+                "   [1]: argument: false, matcher: throwing(), result: - (matcher threw $failing)\n$CALL_SITES",
+            error.message,
+        )
+        assertEquals(listOf<Throwable>(failing, failing), error.suppressedExceptions)
+    }
+
+    @Test
+    fun testInverseVerificationDoesNotEvaluateMatchersForTheReport() {
+        var evaluations = 0
+        val counting = object : Matcher<Any?> {
+            override fun match(arg: Any?): Boolean = evaluations++ > 0
+        }
+        find(2, true)
+        find(3, false)
+
+        verify(FIND to arrayOf(EqMatcher(1), counting), verification = Verification(inverse = true))
+
+        assertEquals(0, evaluations)
     }
 
     @Test
@@ -313,7 +359,13 @@ class VerificationTest {
         assertEquals("deleted expected [false] but found [true]", second.message)
         assertEquals(
             "Verification failed: call 1 of 1: $name.find(matcher(), matcher()). No matching calls found.\n\n" +
-                "Calls to same method:\n1) $name.find(2, false)\n2) $name.find(1, true)\n$CALL_SITES\n\n" +
+                "Calls to same method:\n" +
+                "1) $name.find(2, false)\n" +
+                "   [0]: argument: 2, matcher: matcher(), result: -\n" +
+                "   [1]: argument: false, matcher: matcher(), result: +\n" +
+                "2) $name.find(1, true)\n" +
+                "   [0]: argument: 1, matcher: matcher(), result: +\n" +
+                "   [1]: argument: true, matcher: matcher(), result: -\n$CALL_SITES\n\n" +
                 "Assertion errors in matchers:\n" +
                 "1) $name.find(2, false), argument [0]: $first\n" +
                 "2) $name.find(1, true), argument [1]: $second",

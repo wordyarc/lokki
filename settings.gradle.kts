@@ -19,6 +19,7 @@ dependencyResolutionManagement {
 rootProject.name = "lokki"
 
 listOf(
+    "benchmarks",
     "compiler-tests",
     "lokki-bdd",
     "lokki-compiler-compat",

@@ -89,9 +89,11 @@ fun box(): String {
         service.fetch()
     }
 
-    every { api.size() } just Awaits
+    every { api.size() }.forever()
     val nonSuspend = failure { api.size() }
-    if (nonSuspend != "coAnswers suspended in non-suspend Api.size(); an answer of a non-suspend member must complete without suspension") {
+    if (nonSuspend != "the answer of non-suspend Api.size() suspended: an answer of a non-suspend member, " +
+        "such as coAnswers, coAndThen or just Awaits, must complete without suspension"
+    ) {
         return "Fail non-suspend: $nonSuspend"
     }
 
