@@ -20,6 +20,10 @@ public interface JavaDefaults {
 
     <T extends CharSequence> T first(List<T> values);
 
+    CharSequence title();
+
+    Void done();
+
     void run();
 }
 
@@ -31,6 +35,7 @@ import io.lokki.every
 import io.lokki.mock
 import io.lokki.verify
 import java.util.Optional
+import java.util.concurrent.Callable
 
 interface Engine
 
@@ -49,6 +54,7 @@ interface Defaults {
     fun long(): Long
     fun float(): Float
     fun double(): Double
+    fun text(): CharSequence
     fun unit()
     fun nullableEngine(): Engine?
     fun nullableInt(): Int?
@@ -75,6 +81,7 @@ interface Defaults {
     fun chars(): CharArray
     fun <R> convertOrNull(): R?
     fun nothing(): Nothing
+    fun void(): Void
     fun engine(id: Int): Engine
     fun color(): Color
     fun code(): Code
@@ -120,6 +127,7 @@ fun box(): String {
     )
     val expected = listOf("", 0, false, 0.toByte(), 0.toShort(), '\u0000', 0L, 0f, 0.0, Unit, null, null, null, null)
     if (values != expected) return "Fail values: $values"
+    if (defaults.text() != "") return "Fail CharSequence: ${defaults.text()}"
     defaults.count = 3
 
     val empties = listOf(
@@ -157,6 +165,7 @@ fun box(): String {
 
     val messages = listOf(
         missing { defaults.nothing() },
+        missing { defaults.void() },
         missing { defaults.engine(1) },
         missing { defaults.color() },
         missing { defaults.code() },
@@ -168,6 +177,7 @@ fun box(): String {
     )
     val expectedMessages = listOf(
         noDefault("Nothing", "Defaults.nothing()"),
+        noDefault("Void", "Defaults.void()"),
         noChild("Engine", "Defaults.engine(1)"),
         noDefault("Color", "Defaults.color()"),
         noDefault("Code", "Defaults.code()"),
@@ -188,6 +198,7 @@ fun box(): String {
 
     if (mock<Box<String>>(relaxed = true).get() != "") return "Fail substituted type argument"
     if (mock<Box<Int?>>(relaxed = true).get() != null) return "Fail nullable type argument"
+    if (mock<Callable<Void>>(relaxed = true).call() != null) return "Fail Void type argument"
     if (mock<Box<Array<String>>>(relaxed = true).get().javaClass != Array<String>::class.java) {
         return "Fail array type argument"
     }
@@ -209,6 +220,7 @@ fun box(): String {
     val java = mock<JavaDefaults>(relaxed = true)
     java.run()
     if (java.name() != "" || java.boxed() != 0 || java.primitive() != 0) return "Fail platform types"
+    if (java.title() != "" || java.done() != null) return "Fail Java CharSequence and Void"
     if (java.names().javaClass != ArrayList::class.java || !java.names().add("x")) return "Fail Java list"
     if (java.array().javaClass != Array<String>::class.java) return "Fail Java array"
     val thread = missing { java.thread() }

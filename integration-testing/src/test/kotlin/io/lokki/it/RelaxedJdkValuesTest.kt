@@ -9,6 +9,11 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.Period
+import java.util.concurrent.Callable
+import java.util.stream.DoubleStream
+import java.util.stream.IntStream
+import java.util.stream.LongStream
+import java.util.stream.Stream
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -27,6 +32,14 @@ class RelaxedJdkValuesTest {
         val printed: LocalDateTime
     }
 
+    interface Feed {
+        val title: CharSequence
+        fun lines(): Stream<String>
+        fun sizes(): IntStream
+        fun offsets(): LongStream
+        fun weights(): DoubleStream
+    }
+
     private val invoice = mock<Invoice>(relaxed = true)
 
     @Test
@@ -42,6 +55,22 @@ class RelaxedJdkValuesTest {
     @Test
     fun nullableTypeReturnsNull() {
         assertNull(invoice.paid)
+    }
+
+    @Test
+    fun charSequenceAndStreamsReturnEmptyValues() {
+        val feed = mock<Feed>(relaxed = true)
+
+        assertEquals<CharSequence>("", feed.title)
+        assertEquals(0L, feed.lines().count())
+        assertEquals(0L, feed.sizes().count())
+        assertEquals(0L, feed.offsets().count())
+        assertEquals(0L, feed.weights().count())
+    }
+
+    @Test
+    fun javaVoidReturnsNull() {
+        assertNull(mock<Callable<Void>>(relaxed = true).call())
     }
 
     @Test

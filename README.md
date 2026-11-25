@@ -231,8 +231,9 @@ Behaviour that differs:
   creates them — a file, class, function, property or local variable — is annotated with `@ChainedMocks`: lokki
   generates their classes at compile time, so the annotation marks where that cost is paid.
 - A relaxed mock returns `null` for nullable types and for a Java type parameter that allows it, such as
-  `<T> T query(...)`, empty values for primitives, strings, collections, arrays and `Optional`, and the `ZERO` or
-  `EPOCH` of a type that declares one, such as `Duration.ZERO`. Any other return type throws `LokkiException`.
+  `<T> T query(...)`, empty values for primitives, strings, collections, streams, arrays and `Optional`, and the
+  `ZERO` or `EPOCH` of a type that declares one, such as `Duration.ZERO`. Any other return type throws
+  `LokkiException`.
 - Spies are not copies: `spy(Foo(args))` constructs the spy itself, and `spy(existing)` forwards calls to `existing`,
   so the calls that `existing` makes on itself bypass stubs and are not recorded.
 - A stub of a property does not write its backing field: MockK copies the value of `returns` into the field. Code that

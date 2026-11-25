@@ -120,7 +120,7 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
             ?: noMatcherFactory(function.name.asString())
     }
 
-    fun optionalEmpty(optional: IrClass): IrSimpleFunction = optional.function("empty")
+    fun emptyFactory(owner: IrClass): IrSimpleFunction = owner.function("empty")
 
     fun javaUtilClass(name: String): IrClass = findClass(JAVA_UTIL_PACKAGE, name)
 

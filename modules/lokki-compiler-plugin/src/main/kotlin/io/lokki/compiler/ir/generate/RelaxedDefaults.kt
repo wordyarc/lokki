@@ -50,6 +50,7 @@ import org.jetbrains.kotlin.ir.util.primaryConstructor
 import org.jetbrains.kotlin.ir.util.properties
 import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.ir.util.substitute
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.StandardClassIds
 
 internal class RelaxedDefault(val key: String, val expression: IrBuilderWithScope.() -> IrExpression)
@@ -79,7 +80,8 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
         }
         return when {
             klass == builtIns.unitClass -> RelaxedDefault("kotlin.Unit") { irGetObjectValue(builtIns.unitType, klass) }
-            klass == builtIns.stringClass -> RelaxedDefault("kotlin.String") { irString("") }
+            klass == builtIns.stringClass || klass == builtIns.charSequenceClass ->
+                RelaxedDefault("kotlin.String") { irString("") }
             klass.defaultType.isPrimitiveType() -> RelaxedDefault(klass.owner.kotlinFqName.asString()) {
                 IrConstImpl.defaultValueForType(startOffset, endOffset, klass.defaultType)
             }
@@ -88,6 +90,7 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
                 irCallConstructor(klass.owner.constructors.single { it.parameters.size == 1 }.symbol, emptyList())
                     .apply { arguments[0] = irInt(0) }
             }
+            platform && klass.owner.kotlinFqName == JAVA_LANG_VOID -> null
             else -> empty(klass.owner)
                 ?: child?.invoke(type as IrSimpleType)
                 ?: missing(file, type.renderReadable(parameterName), suggestsChainedMocks(type))
@@ -124,8 +127,9 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
             "kotlin.collections.Set" -> call(symbols.emptySet)
             "kotlin.collections.Map" -> call(symbols.emptyMap)
             "kotlin.sequences.Sequence" -> call(symbols.emptySequence)
-            "java.util.Optional", "java.util.OptionalInt", "java.util.OptionalLong", "java.util.OptionalDouble" ->
-                call(symbols.optionalEmpty(klass))
+            "java.util.Optional", "java.util.OptionalInt", "java.util.OptionalLong", "java.util.OptionalDouble",
+            "java.util.stream.Stream", "java.util.stream.IntStream", "java.util.stream.LongStream",
+            "java.util.stream.DoubleStream" -> call(symbols.emptyFactory(klass))
             "kotlin.collections.MutableIterable", "kotlin.collections.MutableCollection",
             "kotlin.collections.MutableList", "java.util.ArrayList" -> construct("ArrayList")
             "kotlin.collections.MutableSet", "java.util.LinkedHashSet" -> construct("LinkedHashSet")
@@ -196,3 +200,5 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
             )
         }
 }
+
+private val JAVA_LANG_VOID = FqName("java.lang.Void")
