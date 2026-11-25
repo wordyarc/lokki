@@ -34,6 +34,7 @@ import org.jetbrains.kotlin.ir.expressions.IrVarargElement
 import org.jetbrains.kotlin.ir.expressions.impl.IrClassReferenceImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrFunctionExpressionImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrGetEnumValueImpl
+import org.jetbrains.kotlin.ir.expressions.impl.IrInstanceInitializerCallImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrVarargImpl
 import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
@@ -163,15 +164,15 @@ internal fun IrBuilder.irArrayGet(symbols: LokkiSymbols, array: IrValueDeclarati
 internal fun IrBuilder.irJavaClass(symbols: LokkiSymbols, type: IrSimpleType): IrExpression {
     val javaClass = symbols.javaClass
     return irCall(javaClass.symbol, javaClass.returnType.classOrFail.typeWith(type), listOf(type)).apply {
-        arguments[0] = IrClassReferenceImpl(
-            startOffset,
-            endOffset,
-            context.irBuiltIns.kClassClass.typeWith(type),
-            type.classOrFail,
-            type,
-        )
+        arguments[0] = irClassReference(type)
     }
 }
+
+internal fun IrBuilder.irClassReference(type: IrSimpleType): IrExpression =
+    IrClassReferenceImpl(startOffset, endOffset, context.irBuiltIns.kClassClass.typeWith(type), type.classOrFail, type)
+
+internal fun IrBuilder.irInstanceInitializer(owner: IrClass): IrExpression =
+    IrInstanceInitializerCallImpl(startOffset, endOffset, owner.symbol, context.irBuiltIns.unitType)
 
 internal fun IrBuilderWithScope.irThrowLokkiException(symbols: LokkiSymbols, message: String): IrExpression =
     irThrow(irInvoke(symbols[CoreConstructor.LOKKI_EXCEPTION], irString(message), irNull()))

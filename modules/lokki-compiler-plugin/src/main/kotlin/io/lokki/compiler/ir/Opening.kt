@@ -5,8 +5,6 @@ import io.lokki.compiler.FINALIZE
 import io.lokki.compiler.InterceptionMark
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
-import org.jetbrains.kotlin.fir.declarations.utils.compilerPluginMetadata
-import org.jetbrains.kotlin.fir.lazy.AbstractFir2IrLazyDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
@@ -17,12 +15,12 @@ import org.jetbrains.kotlin.ir.util.parentAsClass
 import org.jetbrains.kotlin.ir.util.resolveFakeOverride
 import org.jetbrains.kotlin.ir.util.resolveFakeOverrideMaybeAbstractOrFail
 
-internal val IrClass.effectiveModality: Modality
-    get() = if (modality == Modality.FINAL && kind == ClassKind.CLASS && isOpenedInBytecode) Modality.OPEN else modality
+internal fun IrClass.effectiveModality(lokki: LokkiIrContext): Modality =
+    if (modality == Modality.FINAL && kind == ClassKind.CLASS && isOpenedInBytecode(lokki)) Modality.OPEN else modality
 
-internal val IrSimpleFunction.isOverridable: Boolean
-    get() = modality != Modality.FINAL ||
-        (resolveFakeOverride() ?: this).let { it.correspondingPropertySymbol?.owner ?: it }.isOpenedInBytecode
+internal fun IrSimpleFunction.isOverridable(lokki: LokkiIrContext): Boolean =
+    modality != Modality.FINAL ||
+        (resolveFakeOverride() ?: this).let { it.correspondingPropertySymbol?.owner ?: it }.isOpenedInBytecode(lokki)
 
 internal val IrSimpleFunction.isPrivateHook: Boolean
     get() = BuildConfig.PRIVATE_HOOK_INFIX in name.asString()
@@ -34,9 +32,5 @@ internal val IrSimpleFunction.isClassFinalizer: Boolean
         return declared.modality != Modality.ABSTRACT && !declared.parentAsClass.isInterface
     }
 
-private val IrDeclaration.isOpenedInBytecode: Boolean
-    get() {
-        val fir = (this as? AbstractFir2IrLazyDeclaration<*>)?.fir ?: return false
-        return InterceptionMark.of(fir.compilerPluginMetadata?.get(BuildConfig.COMPILER_PLUGIN_ID)) ==
-            InterceptionMark.CURRENT
-    }
+private fun IrDeclaration.isOpenedInBytecode(lokki: LokkiIrContext): Boolean =
+    lokki.mark(this) == InterceptionMark.CURRENT

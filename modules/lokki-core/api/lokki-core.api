@@ -817,9 +817,14 @@ public final class io/lokki/internal/RegistrationScope : io/lokki/VerificationSc
 	public fun <init> ()V
 }
 
+public final class io/lokki/internal/ReifiedCall {
+}
+
 public final class io/lokki/internal/ReifiedMocks {
 	public static final field INSTANCE Lio/lokki/internal/ReifiedMocks;
 	public final fun create (Lkotlin/reflect/KType;Lio/lokki/internal/MockSpec;)Ljava/lang/Object;
+	public final fun enter ([Lkotlin/reflect/KType;[Lkotlin/jvm/functions/Function1;)Lio/lokki/internal/ReifiedCall;
+	public final fun exit (Lio/lokki/internal/ReifiedCall;)V
 	public final fun register (Lkotlin/reflect/KType;Lkotlin/jvm/functions/Function1;)V
 }
 

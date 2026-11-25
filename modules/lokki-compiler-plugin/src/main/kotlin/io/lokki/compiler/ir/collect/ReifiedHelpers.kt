@@ -6,10 +6,10 @@ import io.lokki.compiler.ParameterNames
 import io.lokki.compiler.REIFIED_HELPER_MARK
 import io.lokki.compiler.ir.LokkiIrContext
 import io.lokki.compiler.ir.argument
+import io.lokki.compiler.ir.hasMetadataSource
 import io.lokki.compiler.ir.intrinsicKind
 import io.lokki.compiler.ir.unwrapTemporary
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
-import org.jetbrains.kotlin.fir.backend.FirMetadataSource
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
@@ -25,7 +25,7 @@ import org.jetbrains.kotlin.ir.visitors.IrVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
 
-internal class ReifiedHelpers(lokki: LokkiIrContext) {
+internal class ReifiedHelpers(private val lokki: LokkiIrContext) {
     private val registrar = lokki.pluginContext.metadataDeclarationRegistrar
     private val declared = HashMap<IrSimpleFunction, Set<Int>>()
 
@@ -52,7 +52,7 @@ internal class ReifiedHelpers(lokki: LokkiIrContext) {
             }
         } while (changed)
         for ((helper, parameters) in declared) {
-            if (parameters.isEmpty() || helper.metadata !is FirMetadataSource) continue
+            if (parameters.isEmpty() || !helper.hasMetadataSource) continue
             if (DescriptorVisibilities.isPrivate(helper.visibility)) continue
             val data = REIFIED_HELPER_MARK + parameters.sorted().map(Int::toByte).toByteArray()
             registrar.addCustomMetadataExtension(helper, BuildConfig.COMPILER_PLUGIN_ID, data)
@@ -70,7 +70,7 @@ internal class ReifiedHelpers(lokki: LokkiIrContext) {
         if (!function.isInline) return emptySet()
         val declaration = function.resolveFakeOverride() ?: function
         declared[declaration]?.let { return it }
-        val data = registrar.getCustomMetadataExtension(declaration, BuildConfig.COMPILER_PLUGIN_ID) ?: return emptySet()
+        val data = lokki.metadata(declaration) ?: return emptySet()
         if (data.firstOrNull() != REIFIED_HELPER_MARK[0]) return emptySet()
         return data.drop(REIFIED_HELPER_MARK.size).map(Byte::toInt).toSet()
     }

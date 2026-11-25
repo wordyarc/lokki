@@ -69,6 +69,7 @@ import org.jetbrains.kotlin.ir.builders.irNull
 import org.jetbrains.kotlin.ir.builders.irString
 import org.jetbrains.kotlin.ir.builders.irTemporary
 import org.jetbrains.kotlin.ir.builders.irTrue
+import org.jetbrains.kotlin.ir.builders.irTry
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrFunction
@@ -103,14 +104,16 @@ internal class DslLowering(
         val lowered = file.ir.locatingInternalErrors(expression) { lowerIntrinsic(expression, kind) }
         val reified = sites.reifiedCalls[expression] ?: return lowered
         return builder(expression).irBlock(resultType = lowered.type) {
-            for (mocked in reified) {
-                +irInvoke(
-                    symbols[CoreFunction.REIFIED_REGISTER],
-                    irTypeOf(mocked.type),
-                    irFactory(symbols, mocks.getValue(mocked.site.key), mocked.site.types),
+            val factory = context.irBuiltIns.functionN(1)
+                .typeWith(symbols[CoreClass.MOCK_SPEC].defaultType, context.irBuiltIns.anyType)
+            val call = irTemporary(
+                irInvoke(
+                    symbols[CoreFunction.REIFIED_ENTER],
+                    irArrayOf(symbols.typeOf.returnType, reified.map { irTypeOf(it.type) }),
+                    irArrayOf(factory, reified.map { irFactory(symbols, mocks.getValue(it.site.key), it.site.types) }),
                 )
-            }
-            +lowered
+            )
+            +irTry(lowered.type, lowered, emptyList(), irInvoke(symbols[CoreFunction.REIFIED_EXIT], irGet(call)))
         }.also { it.patchDeclarationParents(currentScope!!.scope.getLocalDeclarationParent()) }
     }
 
@@ -383,7 +386,7 @@ internal class DslLowering(
             ?: return null.also { unsupported(this, "An argument of '$name' must be a class literal") }
         return classes.map { target ->
             file.redirects.constructors(target) ?: return null.also {
-                file.diagnostics.notInterceptable(
+                file.diagnostics.objectNotInterceptable(
                     this,
                     target.name.asString(),
                     "it has no constructor interception point: add it to lokki { mockable(...) } of its module",
@@ -432,7 +435,7 @@ internal class DslLowering(
                     unsupported(this, "An argument of '$name' must be a string literal with the name of a file class")
                 }
                 file.redirects.file(className).ifEmpty {
-                    file.diagnostics.notInterceptable(
+                    file.diagnostics.objectNotInterceptable(
                         element,
                         className,
                         "it is not a file class with interception points: add its functions or package to " +

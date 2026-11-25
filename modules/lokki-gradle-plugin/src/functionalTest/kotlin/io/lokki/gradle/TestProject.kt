@@ -13,6 +13,7 @@ val TESTED_KOTLIN: List<String> = System.getProperty("lokki.test.testedKotlin").
 val LOKKI_GROUP: String = System.getProperty("lokki.test.lokkiGroup")
 val LOKKI_PLUGIN_ID: String = System.getProperty("lokki.test.pluginId")
 val LOKKI_VERSION: String = System.getProperty("lokki.test.lokkiVersion")
+val COMPOSE_RUNTIME_VERSION: String = System.getProperty("lokki.test.composeRuntimeVersion")
 
 const val INTERCEPTION_POINTS_KOTLIN: String = "2.4.20"
 
@@ -48,6 +49,7 @@ class TestProject(
     private val gradle: GradleUnderTest,
     subprojects: List<String> = emptyList(),
     android: Boolean = false,
+    google: Boolean = android,
 ) {
     private val buildReports = dir.resolve("build/reports/kotlin-build")
 
@@ -57,7 +59,7 @@ class TestProject(
         }
         val repositories = System.getProperty("lokki.test.repositories").split(File.pathSeparator)
             .map { "maven(\"${File(it).toURI()}\")" }
-            .plus(listOfNotNull("google()".takeIf { android }, "mavenCentral()"))
+            .plus(listOfNotNull("google()".takeIf { google }, "mavenCentral()"))
             .joinToString("; ")
         val settings = listOf(
             "pluginManagement { repositories { $repositories } }",

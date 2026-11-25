@@ -122,49 +122,29 @@ internal object MockPropertyChecker : FirPropertyChecker(MppCheckerKind.Common) 
         val external = (declaration.annotations + declaration.backingField?.annotations.orEmpty())
             .firstNotNullOfOrNull { annotation -> annotation.externalKind(session)?.let { annotation to it } }
         if (external != null) return inspectExternal(declaration, external.first, external.second)
-        val kinds = declaration.annotations.mapNotNull { annotation ->
-            annotation.fieldKind(session)?.let { annotation to it }
-        }
-        val inject = kinds.find { (_, kind) -> kind == IntrinsicKind.INJECT_MOCKS }?.first
-        val (annotation, kind) = kinds.find { (candidate, _) -> candidate !== inject } ?: kinds.firstOrNull() ?: return
-        checkRuntimeVersion(annotation.source)
-        val name = annotation.toAnnotationClassLikeSymbol(session)!!.name.asString()
+        val mock = declaration.annotatedMock() ?: return
         val parameter = declaration.correspondingValueParameterFromPrimaryConstructor
         if (parameter != null) {
             if (parameter.resolvedAnnotationsWithArguments.none { it.fieldKind(session) != null }) {
-                reporter.reportOn(annotation.source, LokkiDiagnostics.LOKKI_UNSUPPORTED_MOCK_PARAMETER, name)
+                reporter.reportOn(mock.annotation.source, LokkiDiagnostics.LOKKI_UNSUPPORTED_MOCK_PARAMETER, mock.name)
             }
             return
         }
         if (declaration.isLocal) return
         val declaredType = declaration.returnTypeRef.coneType.lowerBoundIfFlexible().fullyExpandedType()
-        if (inject != null && kind != IntrinsicKind.INJECT_MOCKS && kind != IntrinsicKind.SPY) {
-            reporter.reportOn(
-                inject.source,
-                LokkiDiagnostics.LOKKI_UNSUPPORTED_INJECTION,
-                declaredType.toRegularClassSymbol(session)?.displayName ?: declaredType.renderReadable(),
-                "a property cannot have both '@InjectMocks' and '@$name'",
-            )
-            return
-        }
-        if (kind == IntrinsicKind.INJECT_MOCKS) {
+        if (mock.isConflicting) return mock.reportConflict(declaredType, "property")
+        val source = mock.annotation.source
+        if (mock.kind == IntrinsicKind.INJECT_MOCKS) {
             if (!declaration.isVar) {
-                reporter.reportOn(annotation.source, LokkiDiagnostics.LOKKI_MOCK_PROPERTY_NOT_MUTABLE, name, LOKKI, "")
+                reporter.reportOn(source, LokkiDiagnostics.LOKKI_MOCK_PROPERTY_NOT_MUTABLE, mock.name, LOKKI, "")
             }
             return
         }
-        val constructed = if (kind == IntrinsicKind.SPY) declaration.initializer?.constructedType() else null
-        val mocked = MockedType(
-            if (kind == IntrinsicKind.SPY) kind else IntrinsicKind.MOCK,
-            constructed ?: declaredType,
-            annotation.source,
-            "The mocked type",
-            "@$name",
-        )
-        if (!mocked.check { additionalInterface(declaration) }) return
-        if (!declaration.isVar && (inject != null || constructed == null)) {
-            val hint = if (kind == IntrinsicKind.SPY && inject == null) SPY_VAL_HINT else ""
-            reporter.reportOn(annotation.source, LokkiDiagnostics.LOKKI_MOCK_PROPERTY_NOT_MUTABLE, name, LOKKI, hint)
+        val constructed = if (mock.kind == IntrinsicKind.SPY) declaration.initializer?.constructedType() else null
+        if (!mock.mocked(constructed ?: declaredType).check { additionalInterface(declaration) }) return
+        if (!declaration.isVar && (mock.inject != null || constructed == null)) {
+            val hint = if (mock.kind == IntrinsicKind.SPY && mock.inject == null) SPY_VAL_HINT else ""
+            reporter.reportOn(source, LokkiDiagnostics.LOKKI_MOCK_PROPERTY_NOT_MUTABLE, mock.name, LOKKI, hint)
         }
     }
 }
@@ -174,14 +154,9 @@ private fun inspectExternal(declaration: FirProperty, annotation: FirAnnotation,
     checkRuntimeVersion(annotation.source)
     val name = annotation.toAnnotationClassLikeSymbol(context.session)!!.name.asString()
     val type = declaration.returnTypeRef.coneType.lowerBoundIfFlexible().fullyExpandedType()
-    val mocked = MockedType(
-        if (kind == IntrinsicKind.EXTERNAL_SPY) IntrinsicKind.SPY else IntrinsicKind.MOCK,
-        type,
-        annotation.source,
-        "The mocked type",
-        "@$name",
-    )
-    if (!mocked.check { true }) return
+    val mocked = if (kind == IntrinsicKind.EXTERNAL_SPY) IntrinsicKind.SPY else IntrinsicKind.MOCK
+    val mock = AnnotatedMock(annotation, mocked, null, name)
+    if (!mock.mocked(type).check { true }) return
     if (!declaration.isVar) {
         reporter.reportOn(
             annotation.source,
@@ -203,38 +178,55 @@ internal object MockParameterChecker : FirValueParameterChecker(MppCheckerKind.C
 
     context(context: CheckerContext, reporter: DiagnosticReporter)
     private fun inspect(declaration: FirValueParameter) {
-        val session = context.session
-        val kinds = declaration.annotations.mapNotNull { annotation ->
-            annotation.fieldKind(session)?.let { annotation to it }
-        }
-        val inject = kinds.find { (_, kind) -> kind == IntrinsicKind.INJECT_MOCKS }?.first
-        val (annotation, kind) = kinds.find { (candidate, _) -> candidate !== inject } ?: kinds.firstOrNull() ?: return
-        checkRuntimeVersion(annotation.source)
-        val name = annotation.toAnnotationClassLikeSymbol(session)!!.name.asString()
+        val mock = declaration.annotatedMock() ?: return
         if (!declaration.containingDeclarationSymbol.takesMockParameters()) {
-            reporter.reportOn(annotation.source, LokkiDiagnostics.LOKKI_UNSUPPORTED_MOCK_PARAMETER, name)
+            reporter.reportOn(mock.annotation.source, LokkiDiagnostics.LOKKI_UNSUPPORTED_MOCK_PARAMETER, mock.name)
             return
         }
         val type = declaration.returnTypeRef.coneType.lowerBoundIfFlexible().fullyExpandedType()
-        if (inject != null && kind != IntrinsicKind.INJECT_MOCKS && kind != IntrinsicKind.SPY) {
-            reporter.reportOn(
-                inject.source,
-                LokkiDiagnostics.LOKKI_UNSUPPORTED_INJECTION,
-                type.toRegularClassSymbol(session)?.displayName ?: type.renderReadable(),
-                "a parameter cannot have both '@InjectMocks' and '@$name'",
-            )
-            return
-        }
-        if (kind == IntrinsicKind.INJECT_MOCKS) return
-        val mocked = MockedType(
+        if (mock.isConflicting) return mock.reportConflict(type, "parameter")
+        if (mock.kind == IntrinsicKind.INJECT_MOCKS) return
+        mock.mocked(type).check { additionalInterface(declaration) }
+    }
+}
+
+private class AnnotatedMock(
+    val annotation: FirAnnotation,
+    val kind: IntrinsicKind,
+    val inject: FirAnnotation?,
+    val name: String,
+) {
+    val isConflicting: Boolean
+        get() = inject != null && kind != IntrinsicKind.INJECT_MOCKS && kind != IntrinsicKind.SPY
+
+    fun mocked(type: ConeKotlinType): MockedType =
+        MockedType(
             if (kind == IntrinsicKind.SPY) kind else IntrinsicKind.MOCK,
             type,
             annotation.source,
             "The mocked type",
             "@$name",
         )
-        mocked.check { additionalInterface(declaration) }
-    }
+}
+
+context(context: CheckerContext, reporter: DiagnosticReporter)
+private fun FirAnnotationContainer.annotatedMock(): AnnotatedMock? {
+    val session = context.session
+    val kinds = annotations.mapNotNull { annotation -> annotation.fieldKind(session)?.let { annotation to it } }
+    val inject = kinds.find { (_, kind) -> kind == IntrinsicKind.INJECT_MOCKS }?.first
+    val (annotation, kind) = kinds.find { (candidate, _) -> candidate !== inject } ?: kinds.firstOrNull() ?: return null
+    checkRuntimeVersion(annotation.source)
+    return AnnotatedMock(annotation, kind, inject, annotation.toAnnotationClassLikeSymbol(session)!!.name.asString())
+}
+
+context(context: CheckerContext, reporter: DiagnosticReporter)
+private fun AnnotatedMock.reportConflict(type: ConeKotlinType, declaration: String) {
+    reporter.reportOn(
+        inject?.source,
+        LokkiDiagnostics.LOKKI_UNSUPPORTED_INJECTION,
+        type.toRegularClassSymbol(context.session)?.displayName ?: type.renderReadable(),
+        "a $declaration cannot have both '@InjectMocks' and '@$name'",
+    )
 }
 
 context(context: CheckerContext)

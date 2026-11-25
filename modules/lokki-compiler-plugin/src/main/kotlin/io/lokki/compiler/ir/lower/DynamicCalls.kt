@@ -34,9 +34,11 @@ import org.jetbrains.kotlin.ir.util.resolveFakeOverride
 import org.jetbrains.kotlin.ir.util.simpleFunctions
 import org.jetbrains.kotlin.ir.util.superClass
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
-import org.jetbrains.kotlin.name.FqName
 
-internal class DynamicCalls(lokki: LokkiIrContext, private val file: FileContext) : IrElementTransformerVoid() {
+internal class DynamicCalls(
+    private val lokki: LokkiIrContext,
+    private val file: FileContext,
+) : IrElementTransformerVoid() {
     private val context = lokki.pluginContext
     private val anyClass = context.irBuiltIns.anyClass.owner
 
@@ -59,7 +61,7 @@ internal class DynamicCalls(lokki: LokkiIrContext, private val file: FileContext
             DynamicKind.SETTER -> accessor(call, owner, name) { it.setter }
         } ?: return null
         member.notInterceptableReason()?.let { reason ->
-            file.diagnostics.notInterceptableMember(call, name, reason)
+            file.diagnostics.notInterceptable(call, name, reason)
             file.failedDynamicCalls += call
             return null
         }
@@ -118,7 +120,7 @@ internal class DynamicCalls(lokki: LokkiIrContext, private val file: FileContext
     private fun IrExpression.listLiteralElements(): List<IrExpression?>? {
         val list = this as? IrCall ?: return null
         val function = list.symbol.owner
-        if (function.kotlinFqName !in LIST_FACTORIES) return null
+        if (function.kotlinFqName !in DynamicNames.LIST_FACTORIES) return null
         val argument = function.parameters.firstOrNull { it.kind == IrParameterKind.Regular }
             ?.let { list.arguments[it] } ?: return emptyList()
         if (argument !is IrVararg) return listOf(argument)
@@ -193,7 +195,7 @@ internal class DynamicCalls(lokki: LokkiIrContext, private val file: FileContext
             !isVisibleFrom(file.ir) -> "it is not visible from this file, and a mock cannot override it"
             isInline -> "it is inline. Stub the member it calls"
             isClassFinalizer -> FINALIZER_REASON
-            !isOverridable -> "it is final"
+            !isOverridable(lokki) -> "it is final"
             else -> null
         }
 
@@ -224,4 +226,3 @@ private val IrSimpleFunction.signature: String
     ) { it.type.erasedUpperBound.name.asString() }
 
 private const val LIST_LITERAL = "pass the arguments as a literal 'listOf(...)': lokki resolves the member at compile time"
-private val LIST_FACTORIES = setOf(FqName("kotlin.collections.listOf"), FqName("kotlin.collections.emptyList"))

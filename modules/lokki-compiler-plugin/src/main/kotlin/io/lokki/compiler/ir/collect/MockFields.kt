@@ -40,8 +40,7 @@ internal class MockField(
     val injection: Injection?,
 ) {
     val name: String
-        get() = ((annotation.argument(ParameterNames.NAME) as? IrConst)?.value as? String)?.takeIf { it.isNotBlank() }
-            ?: property.name.asString()
+        get() = annotation.mockName ?: property.name.asString()
 
     val isConstructedSpy: Boolean = property.constructsSpy(kind, site)
 
@@ -59,8 +58,7 @@ internal class MockParameterField(
     val injection: Injection?,
 ) {
     val name: String
-        get() = ((annotation.argument(ParameterNames.NAME) as? IrConst)?.value as? String)?.takeIf { it.isNotBlank() }
-            ?: parameter.name.asString()
+        get() = annotation.mockName ?: parameter.name.asString()
 }
 
 internal class MockParameterGroup(val function: IrFunction, val parameters: List<MockParameterField>)
@@ -132,7 +130,7 @@ private class MockFieldCollector(
 
     private fun resolveParameters(function: IrFunction, annotated: List<IrValueParameter>): MockParameterGroup {
         val regular = function.parameters.filter { it.kind == IrParameterKind.Regular }
-        val kinds = annotated.associateWith { it.mockAnnotationKinds }
+        val kinds = annotated.associateWith { it.mockAnnotations!! }
         val requests = annotated.mapNotNull { parameter ->
             val (annotation, kind, inject) = kinds.getValue(parameter)
             (inject ?: annotation.takeIf { kind == IntrinsicKind.SPY })
@@ -153,15 +151,12 @@ private class MockFieldCollector(
                 ?.let { FailedInjection(it, type.classOrNull?.owner?.displayName ?: type.renderReadable()) }
             val mocked = inject == null || kind == IntrinsicKind.SPY
             val site = if (mocked && conflict == null && failed == null) {
-                val additional = parameter.annotations.find { it.annotationKind == IntrinsicKind.ADDITIONAL_INTERFACE }
-                    ?.let { it.argument(ParameterNames.INTERFACE_TYPE) as? IrClassReference }
-                    ?.let { AddedInterface(it.classType, it) }
                 mockability.site(
                     MockRequest(
                         kind == IntrinsicKind.SPY,
                         type,
                         null,
-                        listOfNotNull(additional),
+                        listOfNotNull(parameter.additionalInterface),
                         "'@AdditionalInterface'",
                         injection?.construction,
                     )
@@ -230,7 +225,7 @@ private class MockFieldCollector(
             kind == IntrinsicKind.SPY,
             property.valueType.makeNotNull(),
             instance,
-            listOfNotNull(additionalInterface),
+            listOfNotNull(property.additionalInterface),
             "'@AdditionalInterface'",
             injection?.takeIf { instance == null }?.construction,
         )
@@ -246,11 +241,6 @@ private class Annotated(
     val annotationName: String
         get() = annotation.annotationClass!!.name.asString()
 
-    val additionalInterface: AddedInterface?
-        get() = property.annotations.find { it.annotationKind == IntrinsicKind.ADDITIONAL_INTERFACE }
-            ?.let { it.argument(ParameterNames.INTERFACE_TYPE) as? IrClassReference }
-            ?.let { AddedInterface(it.classType, it) }
-
     val isMock: Boolean
         get() = inject == null || kind == IntrinsicKind.SPY
 
@@ -265,8 +255,12 @@ private class Annotated(
 }
 
 private val IrProperty.annotated: Annotated?
+    get() = mockAnnotations?.takeUnless { isFakeOverride }?.let { Annotated(this, it.annotation, it.kind, it.inject) }
+
+private data class MockAnnotations(val annotation: IrAnnotation, val kind: IntrinsicKind, val inject: IrAnnotation?)
+
+private val IrAnnotationContainer.mockAnnotations: MockAnnotations?
     get() {
-        if (isFakeOverride) return null
         val kinds = annotations.mapNotNull { annotation ->
             annotation.annotationKind?.takeIf { it in FIELD_KINDS }?.let { annotation to it }
         }
@@ -274,8 +268,16 @@ private val IrProperty.annotated: Annotated?
         val (annotation, kind) = kinds.find { (_, kind) -> kind != IntrinsicKind.INJECT_MOCKS }
             ?: kinds.firstOrNull()
             ?: return null
-        return Annotated(this, annotation, kind, inject)
+        return MockAnnotations(annotation, kind, inject)
     }
+
+private val IrAnnotationContainer.additionalInterface: AddedInterface?
+    get() = annotations.find { it.annotationKind == IntrinsicKind.ADDITIONAL_INTERFACE }
+        ?.let { it.argument(ParameterNames.INTERFACE_TYPE) as? IrClassReference }
+        ?.let { AddedInterface(it.classType, it) }
+
+private val IrAnnotation.mockName: String?
+    get() = ((argument(ParameterNames.NAME) as? IrConst)?.value as? String)?.takeIf { it.isNotBlank() }
 
 private fun MockSite.chainedIf(condition: Boolean): MockSite =
     if (condition && this is MockSite.Mocked) chained() else this
@@ -290,22 +292,6 @@ internal val IrProperty.constructorParameter: IrValueParameter?
 
 internal val IrAnnotationContainer.mockAnnotationName: String?
     get() = annotations.find { it.annotationKind in FIELD_KINDS }?.annotationClass?.name?.asString()
-
-private data class ParameterAnnotations(
-    val annotation: IrAnnotation,
-    val kind: IntrinsicKind,
-    val inject: IrAnnotation?,
-)
-
-private val IrValueParameter.mockAnnotationKinds: ParameterAnnotations
-    get() {
-        val kinds = annotations.mapNotNull { annotation ->
-            annotation.annotationKind?.takeIf { it in FIELD_KINDS }?.let { annotation to it }
-        }
-        val inject = kinds.find { (_, kind) -> kind == IntrinsicKind.INJECT_MOCKS }?.first
-        val (annotation, kind) = kinds.find { (_, kind) -> kind != IntrinsicKind.INJECT_MOCKS } ?: kinds.first()
-        return ParameterAnnotations(annotation, kind, inject)
-    }
 
 private val IrFunction.takesMockParameters: Boolean
     get() {

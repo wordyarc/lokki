@@ -19,6 +19,7 @@ import io.lokki.compiler.ir.collect.withOwnParameters
 import io.lokki.compiler.ir.irArrayGet
 import io.lokki.compiler.ir.irArrayOf
 import io.lokki.compiler.ir.irCast
+import io.lokki.compiler.ir.irInstanceInitializer
 import io.lokki.compiler.ir.irInvoke
 import io.lokki.compiler.ir.irThrowLokkiException
 import io.lokki.compiler.ir.isClassFinalizer
@@ -70,14 +71,11 @@ import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOriginImpl
 import org.jetbrains.kotlin.ir.declarations.IrField
 import org.jetbrains.kotlin.ir.declarations.IrFile
-import org.jetbrains.kotlin.ir.declarations.IrFunction
-import org.jetbrains.kotlin.ir.declarations.IrOverridableDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.declarations.IrTypeParameter
 import org.jetbrains.kotlin.ir.declarations.IrValueDeclaration
-import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.declarations.name
 import org.jetbrains.kotlin.ir.expressions.IrBranch
 import org.jetbrains.kotlin.ir.expressions.IrDelegatingConstructorCall
@@ -85,7 +83,6 @@ import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrStatementContainer
 import org.jetbrains.kotlin.ir.expressions.impl.IrCallImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
-import org.jetbrains.kotlin.ir.expressions.impl.IrInstanceInitializerCallImpl
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.IrSimpleType
@@ -102,7 +99,6 @@ import org.jetbrains.kotlin.ir.types.typeOrNull
 import org.jetbrains.kotlin.ir.types.typeWith
 import org.jetbrains.kotlin.ir.util.addChild
 import org.jetbrains.kotlin.ir.util.constructors
-import org.jetbrains.kotlin.ir.util.copyTo
 import org.jetbrains.kotlin.ir.util.createThisReceiverParameter
 import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.defaultValueForType
@@ -120,7 +116,6 @@ import org.jetbrains.kotlin.ir.util.substitute
 import org.jetbrains.kotlin.ir.visitors.IrVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
-import org.jetbrains.kotlin.load.kotlin.PackagePartClassUtils
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.util.OperatorNameConventions
@@ -153,10 +148,11 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         val file = classes.file.ir
         val mocked = usage.mockedTypes.type.mockedClass
         val form = usage.mockedTypes.form
+        val kind = if (form == MockForm.Mock) "LokkiMock" else "LokkiSpy"
         val mock = context.irFactory.buildClass {
             startOffset = usage.firstUse.startOffset
             endOffset = usage.firstUse.endOffset
-            name = file.mockClassName(key, mocked, form)
+            name = file.generatedClassName(mocked.name, kind, key.typeKey)
             origin = this@MockClassGenerator.origin
             visibility = if (mocked.isLocal) DescriptorVisibilities.LOCAL else usage.visibility
             modality = Modality.OPEN
@@ -198,7 +194,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
             .filter { it.root.parent != generatedMock }
             .partition { it.isMethodOfAny() }
         val members = METHODS_OF_ANY.map { name -> methodsOfAny.single { it.name == name } } +
-            declared.filter { it.isOverridable && !it.isClassFinalizer }
+            declared.filter { it.isOverridable(lokki) && !it.isClassFinalizer }
         val delegated = members.filter {
             form == MockForm.Delegation && !it.isPrivateHook && it.delegatedTo(mocked) != null
         }.toSet()
@@ -225,7 +221,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         }
         val spied = mocked.takeIf { form is MockForm.Construction }
         members.forEachIndexed { index, member ->
-            if (member.isOverridable) member.implement(mock, state, index, spied)
+            if (member.isOverridable(lokki)) member.implement(mock, state, index, spied)
         }
         val forward = Forward(mocked, delegate, delegated)
         original.implementOriginal(mock, forward, state, originals, ORIGINAL_BRANCH_BYTES)
@@ -321,9 +317,6 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
             typeArguments.indices.forEach { index -> typeArguments[index] = mockedType.arguments[index].typeOrFail }
         }
 
-    private fun IrBuilderWithScope.irInstanceInitializer(mock: IrClass): IrExpression =
-        IrInstanceInitializerCallImpl(startOffset, endOffset, mock.symbol, context.irBuiltIns.unitType)
-
     private fun IrClass.addDescriptor(mockedClass: IrClass, members: List<IrSimpleFunction>): IrField {
         val descriptor = addField {
             name = DESCRIPTOR
@@ -354,8 +347,7 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
     }
 
     private fun IrSimpleFunction.implementState(mock: IrClass, isFinal: Boolean): IrField {
-        materialize()
-        parameters = listOf(mock.dispatchReceiverFor(this))
+        materializeIn(mock, this@MockClassGenerator.origin, Modality.OPEN)
         val state = mock.addField {
             name = STATE
             type = symbols[CoreClass.MOCK_STATE].defaultType
@@ -401,10 +393,10 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
 
     private fun IrSimpleFunction.implement(mock: IrClass, state: IrField, member: Int, spied: IrClass?) {
         val abstract = modality == Modality.ABSTRACT
-        materialize()
+        materializeIn(mock, this@MockClassGenerator.origin, Modality.OPEN)
         correspondingPropertySymbol?.owner?.materialize()
         val declared = nonDispatchParameters.map { it.type }
-        acceptNullArguments(mock)
+        acceptNullArguments()
         body = DeclarationIrBuilder(context, symbol).irBlockBody {
             val self = dispatchReceiverParameter!!
             val current = irGetField(irGet(self), state)
@@ -548,9 +540,9 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         otherwise: IrBuilderWithScope.(IrSimpleFunction) -> IrExpression,
         branches: IrBuilderWithScope.(IrSimpleFunction, List<IndexedValue<T>>) -> List<IrBranch>,
     ) {
-        materialize()
+        materializeIn(mock, this@MockClassGenerator.origin, Modality.OPEN)
         markSynthetic()
-        adoptParameters(mock)
+        nonDispatchParameters.forEach { it.origin = MOCK_PARAMETER }
         val parts = entries.groupBy { it.index / partSize }
         if (parts.size <= 1) return dispatch(otherwise) { branches(it, entries) }
 
@@ -640,23 +632,9 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         return irThrowLokkiException(symbols, message)
     }
 
-    private fun IrSimpleFunction.acceptNullArguments(mock: IrClass) {
-        parameters = parameters.map { parameter ->
-            when {
-                parameter.kind == IrParameterKind.DispatchReceiver -> mock.dispatchReceiverFor(this)
-                parameter.type.isNonNullReference -> parameter.apply { type = type.makeNullable() }
-                else -> parameter
-            }
-        }
-    }
-
-    private fun IrSimpleFunction.adoptParameters(mock: IrClass) {
-        parameters = parameters.map { parameter ->
-            if (parameter.kind == IrParameterKind.DispatchReceiver) {
-                mock.dispatchReceiverFor(this)
-            } else {
-                parameter.apply { origin = MOCK_PARAMETER }
-            }
+    private fun IrSimpleFunction.acceptNullArguments() {
+        for (parameter in nonDispatchParameters) {
+            if (parameter.type.isNonNullReference) parameter.type = parameter.type.makeNullable()
         }
     }
 
@@ -664,16 +642,13 @@ internal class MockClassGenerator(private val lokki: LokkiIrContext) {
         annotations += DeclarationIrBuilder(context, symbol).irAnnotation(symbols.jvmSynthetic)
     }
 
-    private fun IrOverridableDeclaration<*>.materialize() {
+    private fun IrProperty.materialize() {
         isFakeOverride = false
         origin = this@MockClassGenerator.origin
         modality = Modality.OPEN
-        if (this is IrProperty) isLateinit = false
+        isLateinit = false
     }
 }
-
-internal fun IrClass.dispatchReceiverFor(function: IrFunction): IrValueParameter =
-    thisReceiver!!.let { it.copyTo(function, type = it.type) }
 
 private fun IrSimpleFunction.delegatedTo(mocked: IrClass): IrSimpleFunctionSymbol? =
     if (isMethodOfAny()) null else overriddenSymbols.find { it.owner.parentAsClass == mocked }
@@ -688,13 +663,6 @@ private fun IrFile.addAfter(mocked: IrClass, mock: IrClass) {
             if (index >= 0) statements!!.add(index + 1, mock) else element.acceptChildrenVoid(this)
         }
     })
-}
-
-private fun IrFile.mockClassName(key: MockClassKey, mocked: IrClass, form: MockForm): Name {
-    val hash = key.typeKey.hashCode().toHexString()
-    val filePart = PackagePartClassUtils.getFilePartShortName(name)
-    val kind = if (form == MockForm.Mock) "LokkiMock" else "LokkiSpy"
-    return Name.identifier("${mocked.name}\$$kind\$$hash\$$filePart")
 }
 
 private val IrClass.descriptorName: String

@@ -172,7 +172,7 @@ private class MockCollector(private val file: FileContext) : IrVisitorVoid() {
             }
         }
         blockStatementCalls += expression.blockStatementCalls()
-        for (link in expression.blockCalls().flatMap { it.receiver?.links().orEmpty() }) {
+        for (link in expression.blockCalls().flatMap { it.receiver?.links(file.lokki).orEmpty() }) {
             val site = file.mockability.child(link.call.type)?.chainedIf(true) ?: continue
             links[link.call] = site
             add(link.call, site)

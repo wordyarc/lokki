@@ -135,6 +135,7 @@ testing {
                     systemProperty("lokki.test.minKotlinVersion", compilerApiBaseline)
                     systemProperty("lokki.test.latestTestedKotlin", latestTestedKotlin)
                     systemProperty("lokki.test.testedKotlin", testedKotlin.joinToString(","))
+                    systemProperty("lokki.test.composeRuntimeVersion", libs.versions.compose.runtime.get())
                 }
             }
         }

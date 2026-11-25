@@ -132,8 +132,8 @@ private fun IrBlock.safeCall(): StubbedCall? {
     )
 }
 
-internal val IrSimpleFunction.isLink: Boolean
-    get() = dispatchReceiverParameter != null && isOverridable && !isMethodOfAny()
+internal fun IrSimpleFunction.isLink(lokki: LokkiIrContext): Boolean =
+    dispatchReceiverParameter != null && isOverridable(lokki) && !isMethodOfAny()
 
 private val IrExpression?.isAllAny: Boolean
     get() = when (this) {
@@ -190,8 +190,8 @@ internal fun IrCall.replaceBlockCalls(replacement: (IrCall, IrSimpleFunction) ->
     (block.body as? IrBlockBody)?.statements?.replaceAll { if (it is IrExpression) it.replaced() else it }
 }
 
-internal fun IrExpression.links(): List<StubbedCall> {
-    wrapped?.let { return it.links() }
-    val link = memberCall()?.takeIf { it.call.symbol.owner.isLink } ?: return emptyList()
-    return link.receiver?.links().orEmpty() + link
+internal fun IrExpression.links(lokki: LokkiIrContext): List<StubbedCall> {
+    wrapped?.let { return it.links(lokki) }
+    val link = memberCall()?.takeIf { it.call.symbol.owner.isLink(lokki) } ?: return emptyList()
+    return link.receiver?.links(lokki).orEmpty() + link
 }

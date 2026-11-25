@@ -7,15 +7,11 @@ import io.lokki.compiler.ir.irArrayOf
 import io.lokki.compiler.ir.irInvoke
 import io.lokki.compiler.ir.irJavaClass
 import io.lokki.compiler.ir.isAccessibleFrom
+import io.lokki.compiler.ir.isCompiledDefaultFieldAccessor
 import io.lokki.compiler.ir.isPrivateHook
 import io.lokki.compiler.ir.redirectedName
 import org.jetbrains.kotlin.backend.jvm.ir.getJvmNameFromAnnotation
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
-import org.jetbrains.kotlin.fir.declarations.FirProperty
-import org.jetbrains.kotlin.fir.declarations.FirPropertyAccessor
-import org.jetbrains.kotlin.fir.declarations.impl.FirDefaultPropertyAccessor
-import org.jetbrains.kotlin.fir.declarations.utils.hasBackingField
-import org.jetbrains.kotlin.fir.lazy.AbstractFir2IrLazyDeclaration
 import org.jetbrains.kotlin.ir.builders.IrBuilder
 import org.jetbrains.kotlin.ir.builders.irInt
 import org.jetbrains.kotlin.ir.builders.irString
@@ -95,10 +91,8 @@ private val IrSimpleFunction.hasDefaultField: Boolean
     get() {
         val property = correspondingPropertySymbol?.owner ?: return true
         if (parentAsClass.redirectedName != null) return true
-        val compiled = (property as? AbstractFir2IrLazyDeclaration<*>)?.fir as? FirProperty
-            ?: return property.backingField != null && origin == IrDeclarationOrigin.DEFAULT_PROPERTY_ACCESSOR
-        val accessor = (this as? AbstractFir2IrLazyDeclaration<*>)?.fir as? FirPropertyAccessor
-        return compiled.hasBackingField && (accessor == null || accessor is FirDefaultPropertyAccessor)
+        return isCompiledDefaultFieldAccessor
+            ?: (property.backingField != null && origin == IrDeclarationOrigin.DEFAULT_PROPERTY_ACCESSOR)
     }
 
 private val IrSimpleFunction.descriptionName: String

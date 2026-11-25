@@ -110,7 +110,7 @@ import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 
 internal class StubBlockLowering(
-    lokki: LokkiIrContext,
+    private val lokki: LokkiIrContext,
     private val file: FileContext,
     private val sites: MockSites,
     private val mocks: Map<MockClassKey, IrClass>,
@@ -262,7 +262,7 @@ internal class StubBlockLowering(
             return
         }
         val pattern = mocks.memberCall()?.takeIf {
-            it.call.symbol.owner.isLink || file.redirects.member(it.call.symbol.owner) != null
+            it.call.symbol.owner.isLink(lokki) || file.redirects.member(it.call.symbol.owner) != null
         }
         if (pattern == null || pattern.callsSuspend) {
             if (!mocks.isIndependentOf(block.function)) {
@@ -449,7 +449,7 @@ internal class StubBlockLowering(
             receiver.rewrap(irLinks(block, wrapped))
             return receiver
         }
-        val link = receiver.memberCall()?.takeIf { it.call.symbol.owner.isLink }
+        val link = receiver.memberCall()?.takeIf { it.call.symbol.owner.isLink(lokki) }
         if (link == null) {
             if (receiver.isIndependentOf(block.function)) return receiver
             fail(receiver, "A matcher in the receiver of the stubbed or verified call must be an argument of a link of the call chain")

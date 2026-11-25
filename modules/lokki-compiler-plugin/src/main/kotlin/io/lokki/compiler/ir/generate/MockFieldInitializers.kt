@@ -7,7 +7,6 @@ import io.lokki.compiler.INIT_MOCK_FIELDS_NAME
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.ir.FileContext
 import io.lokki.compiler.ir.LokkiIrContext
-import io.lokki.compiler.ir.argument
 import io.lokki.compiler.ir.collect.ClassMockFields
 import io.lokki.compiler.ir.collect.MockClassKey
 import io.lokki.compiler.ir.collect.MockField
@@ -35,10 +34,8 @@ import org.jetbrains.kotlin.ir.builders.irString
 import org.jetbrains.kotlin.ir.builders.irTemporary
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrFile
-import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
-import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.types.makeNotNull
@@ -83,16 +80,10 @@ internal class MockFieldInitializers(lokki: LokkiIrContext) {
     private fun IrClass.declareInitializer(owners: Set<IrClass>): Initializer {
         val inherited = functions.singleOrNull { it.name == INIT_MOCK_FIELDS && it.isFakeOverride }
         val modality = if (modality == Modality.FINAL) Modality.FINAL else Modality.OPEN
-        val function = inherited?.apply {
-            isFakeOverride = false
-            origin = this@MockFieldInitializers.origin
-            this.modality = modality
-            parameters = parameters.map {
-                if (it.kind == IrParameterKind.DispatchReceiver) dispatchReceiverFor(this) else it
+        val function = inherited?.also { it.materializeIn(this, this@MockFieldInitializers.origin, modality) }
+            ?: addFunction(INIT_MOCK_FIELDS.asString(), context.irBuiltIns.unitType, modality, origin = origin).apply {
+                addValueParameter("flags", context.irBuiltIns.intType)
             }
-        } ?: addFunction(INIT_MOCK_FIELDS.asString(), context.irBuiltIns.unitType, modality, origin = origin).apply {
-            addValueParameter("flags", context.irBuiltIns.intType)
-        }
         val superFunction = when {
             inherited != null -> inherited.overriddenSymbols.first()
             else -> superclasses().firstOrNull { it in owners }?.let { initializers.getValue(it).function.symbol }
@@ -172,7 +163,7 @@ internal class MockFieldInitializers(lokki: LokkiIrContext) {
             }
             IntrinsicKind.RELAXED_MOCK -> irInt(BuildConfig.FLAG_RELAXED)
             else -> {
-                val own = MOCK_FLAGS.fold(0) { own, (name, flag) -> own or field.flag(name, flag) }
+                val own = field.annotation.mockFlags
                 val relaxation = irAnd(irGet(flags), MOCK_FLAGS.fold(0) { all, (_, flag) -> all or flag })
                 if (own == 0) relaxation else irOr(relaxation, irInt(own))
             }
@@ -183,9 +174,6 @@ internal class MockFieldInitializers(lokki: LokkiIrContext) {
 
     private fun IrBuilderWithScope.irAnd(value: IrExpression, mask: Int): IrExpression =
         irCallOp(symbols.intAnd.symbol, context.irBuiltIns.intType, value, irInt(mask))
-
-    private fun MockField.flag(name: String, flag: Int): Int =
-        if ((annotation.argument(name) as? IrConst)?.value == true) flag else 0
 }
 
 private fun IrClass.superclasses(): Sequence<IrClass> = generateSequence(superClass) { it.superClass }

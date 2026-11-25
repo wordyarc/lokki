@@ -7,8 +7,6 @@ import io.lokki.compiler.CoreFunction
 import io.lokki.compiler.IntrinsicKind
 import io.lokki.compiler.ir.FileContext
 import io.lokki.compiler.ir.LokkiIrContext
-import io.lokki.compiler.ir.addFriendAwareFakeOverrides
-import io.lokki.compiler.ir.argument
 import io.lokki.compiler.ir.collect.InjectionSource
 import io.lokki.compiler.ir.collect.MockClassKey
 import io.lokki.compiler.ir.collect.MockForm
@@ -17,15 +15,10 @@ import io.lokki.compiler.ir.collect.MockParameterGroup
 import io.lokki.compiler.ir.irCast
 import io.lokki.compiler.ir.irInvoke
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
-import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
-import org.jetbrains.kotlin.ir.builders.declarations.addConstructor
-import org.jetbrains.kotlin.ir.builders.declarations.buildClass
-import org.jetbrains.kotlin.ir.builders.irAnnotation
 import org.jetbrains.kotlin.ir.builders.irBlock
 import org.jetbrains.kotlin.ir.builders.irBlockBody
 import org.jetbrains.kotlin.ir.builders.irBranch
-import org.jetbrains.kotlin.ir.builders.irDelegatingConstructorCall
 import org.jetbrains.kotlin.ir.builders.irElseBranch
 import org.jetbrains.kotlin.ir.builders.irEquals
 import org.jetbrains.kotlin.ir.builders.irGet
@@ -38,28 +31,16 @@ import org.jetbrains.kotlin.ir.builders.irWhen
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
-import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.declarations.name
-import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrExpression
-import org.jetbrains.kotlin.ir.expressions.impl.IrClassReferenceImpl
-import org.jetbrains.kotlin.ir.expressions.impl.IrInstanceInitializerCallImpl
 import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.makeNotNull
-import org.jetbrains.kotlin.ir.types.typeWith
-import org.jetbrains.kotlin.ir.util.addChild
-import org.jetbrains.kotlin.ir.util.constructors
-import org.jetbrains.kotlin.ir.util.createThisReceiverParameter
-import org.jetbrains.kotlin.ir.util.defaultType
-import org.jetbrains.kotlin.ir.util.functions
 import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.util.nonDispatchParameters
 import org.jetbrains.kotlin.ir.util.parentAsClass
 import org.jetbrains.kotlin.ir.util.render
-import org.jetbrains.kotlin.load.kotlin.PackagePartClassUtils
-import org.jetbrains.kotlin.name.Name
 
 internal class MockParameterFactories(private val lokki: LokkiIrContext) {
     private val context = lokki.pluginContext
@@ -72,42 +53,21 @@ internal class MockParameterFactories(private val lokki: LokkiIrContext) {
         }
     }
 
-    @OptIn(ExperimentalStdlibApi::class)
     private fun generate(group: MockParameterGroup, file: IrFile, mocks: Map<MockClassKey, IrClass>) {
         val function = group.function
         val owner = function.parentAsClass
         val signature = function.parameters.filter { it.kind == IrParameterKind.Regular }
             .joinToString(",") { it.type.render() }
-        val hash = "${owner.kotlinFqName}#${function.name}($signature)".hashCode().toHexString()
-        val filePart = PackagePartClassUtils.getFilePartShortName(file.name)
-        val factory = context.irFactory.buildClass {
-            startOffset = function.startOffset
-            endOffset = function.endOffset
-            name = Name.identifier("${owner.name}\$LokkiParameters\$$hash\$$filePart")
-            origin = lokki.origin
-        }
-        factory.superTypes = listOf(symbols[CoreClass.MOCK_PARAMETER_FACTORY].defaultType)
-        factory.createThisReceiverParameter()
-        file.addChild(factory)
-        factory.addConstructor {
-            startOffset = function.startOffset
-            endOffset = function.endOffset
-            origin = lokki.origin
-            isPrimary = true
-        }.apply {
-            body = DeclarationIrBuilder(context, symbol, startOffset, endOffset).irBlockBody {
-                +irDelegatingConstructorCall(context.irBuiltIns.anyClass.owner.constructors.single())
-                +IrInstanceInitializerCallImpl(startOffset, endOffset, factory.symbol, context.irBuiltIns.unitType)
-            }
-        }
-        factory.addFriendAwareFakeOverrides(lokki.typeSystem)
+        val key = "${owner.kotlinFqName}#${function.name}($signature)"
+        val name = file.generatedClassName(owner.name, "LokkiParameters", key)
+        val factory = file.addImplementation(lokki, name, function, symbols[CoreClass.MOCK_PARAMETER_FACTORY])
         factory.implementCreate(group, mocks)
         factory.implementInject(group)
         group.parameters.forEach { it.annotateWith(factory) }
     }
 
     private fun IrClass.implementCreate(group: MockParameterGroup, mocks: Map<MockClassKey, IrClass>) {
-        val create = implementing(CoreFunction.PARAMETER_CREATE)
+        val create = implementing(symbols[CoreFunction.PARAMETER_CREATE], lokki.origin)
         val (index, values) = create.nonDispatchParameters
         create.body = DeclarationIrBuilder(context, create.symbol).irBlockBody {
             val branches = group.parameters.map { field ->
@@ -118,7 +78,7 @@ internal class MockParameterFactories(private val lokki: LokkiIrContext) {
     }
 
     private fun IrClass.implementInject(group: MockParameterGroup) {
-        val inject = implementing(CoreFunction.PARAMETER_INJECT)
+        val inject = implementing(symbols[CoreFunction.PARAMETER_INJECT], lokki.origin)
         val (index, instance, values) = inject.nonDispatchParameters
         inject.body = DeclarationIrBuilder(context, inject.symbol).irBlockBody {
             for (field in group.parameters) {
@@ -174,35 +134,12 @@ internal class MockParameterFactories(private val lokki: LokkiIrContext) {
         when (kind) {
             IntrinsicKind.SPY -> form.spyFlags or annotation.recordsPrivateCalls
             IntrinsicKind.RELAXED_MOCK -> BuildConfig.FLAG_RELAXED
-            else -> MOCK_FLAGS.fold(0) { flags, (name, flag) ->
-                if ((annotation.argument(name) as? IrConst)?.value == true) flags or flag else flags
-            }
+            else -> annotation.mockFlags
         }
 
     private fun MockParameterField.annotateWith(factory: IrClass) {
-        val type = factory.defaultType
-        parameter.annotations += DeclarationIrBuilder(context, parameter.symbol).run {
-            irAnnotation(symbols[CoreConstructor.MOCK_PARAMETER].symbol).apply {
-                arguments[0] = IrClassReferenceImpl(
-                    startOffset,
-                    endOffset,
-                    context.irBuiltIns.kClassClass.typeWith(type),
-                    factory.symbol,
-                    type,
-                )
-                arguments[1] = irInt(index)
-            }
-        }
+        parameter.annotations += DeclarationIrBuilder(context, parameter.symbol)
+            .irFactoryAnnotation(symbols[CoreConstructor.MOCK_PARAMETER], factory, index)
     }
 
-    private fun IrClass.implementing(entry: CoreFunction): IrSimpleFunction =
-        functions.single { symbols[entry].symbol in it.overriddenSymbols }.apply {
-            isFakeOverride = false
-            origin = lokki.origin
-            modality = Modality.FINAL
-            val owner = this@implementing
-            parameters = parameters.map {
-                if (it.kind == IrParameterKind.DispatchReceiver) owner.dispatchReceiverFor(this) else it
-            }
-        }
 }

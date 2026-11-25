@@ -54,7 +54,8 @@ fun box(): String = lokkiScope {
     val ints = relaxedMock<Box<Int>>()
     if (strings.get() != "" || ints.get() != 0) return@lokkiScope "generic arguments"
     val nested: Box<Int> = boxed<Int>()
-    if (nested.get() != 0) return@lokkiScope "type parameter inside the argument"
+    every { nested.get() } returns 4
+    if (nested.get() != 4) return@lokkiScope "type parameter inside the argument"
     if (byClass<Car>().speed() != 0) return@lokkiScope "mockClass"
     "OK"
 }

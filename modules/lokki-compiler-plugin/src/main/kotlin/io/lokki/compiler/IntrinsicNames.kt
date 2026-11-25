@@ -80,6 +80,7 @@ internal object DynamicNames {
     const val INVOKE_NO_ARGS = "invokeNoArgs"
     const val GET_PROPERTY = "getProperty"
     const val VALUE = "value"
+    val LIST_FACTORIES = setOf(FqName("kotlin.collections.listOf"), FqName("kotlin.collections.emptyList"))
 }
 
 internal object AnswerNames {

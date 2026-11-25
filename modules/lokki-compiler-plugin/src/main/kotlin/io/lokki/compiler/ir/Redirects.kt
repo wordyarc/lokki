@@ -1,6 +1,5 @@
 package io.lokki.compiler.ir
 
-import io.lokki.compiler.BuildConfig
 import io.lokki.compiler.CoreClass
 import io.lokki.compiler.CONSTRUCTORS
 import io.lokki.compiler.CONSTRUCTORS_HOLDER
@@ -13,10 +12,7 @@ import io.lokki.compiler.StaticInterception
 import io.lokki.compiler.ir.collect.MockForm
 import io.lokki.compiler.ir.collect.MockSite
 import io.lokki.compiler.ir.collect.MockedTypes
-import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.descriptors.ClassKind
-import org.jetbrains.kotlin.fir.lazy.Fir2IrLazyClass
-import org.jetbrains.kotlin.fir.resolve.providers.symbolProvider
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationWithName
@@ -50,8 +46,8 @@ import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 
-internal class RedirectLookup(private val context: IrPluginContext, file: IrFile) {
-    private val finder = context.finderForSource(file)
+internal class RedirectLookup(private val lokki: LokkiIrContext, file: IrFile) {
+    private val finder = lokki.pluginContext.finderForSource(file)
     private val objects = HashMap<IrClass, ObjectRedirect?>()
     private val statics = HashMap<IrDeclaration, StaticRedirect?>()
     private val constructorRedirects = HashMap<IrClass, ConstructorRedirect?>()
@@ -83,8 +79,8 @@ internal class RedirectLookup(private val context: IrPluginContext, file: IrFile
         val redirect = when {
             function.isTopLevel -> static(declaration)
             parent is IrClass -> of(parent)?.takeIf {
-                function.isFakeOverride || it.redirect !is Fir2IrLazyClass ||
-                    mark(declaration) == InterceptionMark.CURRENT
+                function.isFakeOverride || it.redirect.isCompiledHere ||
+                    lokki.mark(declaration) == InterceptionMark.CURRENT
             }
             else -> null
         } ?: return null
@@ -100,7 +96,7 @@ internal class RedirectLookup(private val context: IrPluginContext, file: IrFile
     private fun findConstructors(target: IrClass): ConstructorRedirect? {
         if (target.kind != ClassKind.CLASS) return null
         val classId = target.classId ?: return null
-        if (target.getPackageFragment() is IrFile) {
+        if (target.isCompiledHere) {
             val nested = target.declarations.filterIsInstance<IrClass>()
             val redirect = nested.find { it.name == CONSTRUCTORS } ?: return null
             val holder = nested.find { it.name == CONSTRUCTORS_HOLDER } ?: return null
@@ -108,7 +104,7 @@ internal class RedirectLookup(private val context: IrPluginContext, file: IrFile
                 .find { it.name == REDIRECT_PROPERTY } ?: return null
             return ConstructorRedirect(target, redirect, property)
         }
-        if (mark(target) != InterceptionMark.CURRENT) return null
+        if (lokki.mark(target) != InterceptionMark.CURRENT) return null
         val redirect = finder.findClass(classId.createNestedClassId(CONSTRUCTORS))?.owner ?: return null
         val holder = classId.createNestedClassId(CONSTRUCTORS_HOLDER)
         val property = finder.findProperties(CallableId(holder, REDIRECT_PROPERTY)).singleOrNull()?.owner
@@ -123,9 +119,8 @@ internal class RedirectLookup(private val context: IrPluginContext, file: IrFile
         val short = facade.shortName().asString()
         finder.findClass(ClassId(packageName, Name.identifier("$short$FILE_REDIRECT_SUFFIX")))
             ?.let { return listOf(it.owner) }
-        val session = (finder.findClass(CoreClass.GENERATED_MOCK.id)?.owner as? Fir2IrLazyClass)?.session
-            ?: return emptyList()
-        return session.symbolProvider.symbolNamesProvider.getTopLevelClassifierNamesInPackage(packageName).orEmpty()
+        val compiled = finder.findClass(CoreClass.GENERATED_MOCK.id)?.owner ?: return emptyList()
+        return compiled.topLevelClassifierNames(packageName)
             .filter { it.asString().startsWith("${short}__") && it.asString().endsWith(FILE_REDIRECT_SUFFIX) }
             .sortedBy { it.asString() }
             .mapNotNull { finder.findClass(ClassId(packageName, it))?.owner }
@@ -147,15 +142,10 @@ internal class RedirectLookup(private val context: IrPluginContext, file: IrFile
         }.mapNotNull { static(it) }.filter { it.redirect == redirect }
     }
 
-    fun mark(declaration: IrDeclaration): InterceptionMark = InterceptionMark.of(data(declaration))
-
-    private fun data(declaration: IrDeclaration): ByteArray? =
-        context.metadataDeclarationRegistrar.getCustomMetadataExtension(declaration, BuildConfig.COMPILER_PLUGIN_ID)
-
     private fun find(target: IrClass): ObjectRedirect? {
         if (!target.isRedirectTarget) return null
         val generated = target.declarations.filterIsInstance<IrClass>().find { it.name == REDIRECT }
-        if (generated == null && mark(target) != InterceptionMark.CURRENT) return null
+        if (generated == null && lokki.mark(target) != InterceptionMark.CURRENT) return null
         val classId = target.classId ?: return null
         val redirect = generated ?: finder.findClass(classId.createNestedClassId(REDIRECT))?.owner ?: return null
         val property = target.declarations.filterIsInstance<IrProperty>().find { it.name == REDIRECT_PROPERTY }
@@ -168,7 +158,7 @@ internal class RedirectLookup(private val context: IrPluginContext, file: IrFile
         if (!declaration.isTopLevel) return null
         val function = (declaration as? IrProperty)?.getter ?: declaration as? IrSimpleFunction ?: return null
         generatedStatic(declaration, function)?.let { return it }
-        val interception = StaticInterception.decode(data(declaration)) ?: return null
+        val interception = StaticInterception.decode(lokki.metadata(declaration)) ?: return null
         val redirect = finder.findClass(interception.redirect)?.owner ?: return null
         val callable = CallableId(interception.redirect.packageFqName, interception.property)
         val property = finder.findProperties(callable).singleOrNull()?.owner ?: return null
@@ -188,6 +178,9 @@ private fun generatedStatic(declaration: IrDeclarationWithName, function: IrSimp
 @OptIn(ExperimentalStdlibApi::class)
 internal fun redirectPropertyName(declaration: IrDeclarationWithName, function: IrSimpleFunction): Name =
     Name.identifier("${declaration.name}\$lokkiRedirect\$${function.ownKey.hashCode().toHexString()}")
+
+private val IrDeclaration.isCompiledHere: Boolean
+    get() = getPackageFragment() is IrFile
 
 internal sealed class Redirect(val redirect: IrClass, val property: IrProperty) {
     abstract val name: String

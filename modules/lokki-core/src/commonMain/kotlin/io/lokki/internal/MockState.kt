@@ -50,32 +50,8 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
     internal val forwardsCalls: Boolean
         get() = flags and DELEGATE != 0
 
-    private var stubs: Array<Array<StubEntry>?>
-        get() = data.stubs
-        set(value) {
-            data.stubs = value
-        }
-
-    private val records: ArrayList<CallRecord>
-        get() = data.records
-
-    private var waiters: Array<RecordSignal>
-        get() = data.waiters
-        set(value) {
-            data.waiters = value
-        }
-
-    private var exclusions: Array<Exclusion>
-        get() = data.exclusions
-        set(value) {
-            data.exclusions = value
-        }
-
     @Volatile
     private var capture: DefaultsCapture? = null
-
-    private val children: ArrayList<Child>
-        get() = data.children
 
     internal val scope: LokkiScope? = if (representative != null) representative.scope else LokkiScope.owner()
 
@@ -145,16 +121,14 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
     }
 
     fun forgetRecords() {
-        synchronized(records) { records.clear() }
+        data.forgetRecords()
     }
 
     fun exclude(key: String, matchers: Array<Matcher<Any?>>, current: Boolean = true) {
         val member = descriptor.member(key)
         if (member <= TO_STRING) return
         checkNotShared()
-        val exclusion = Exclusion(member, matchers, nextMark())
-        synchronized(data) { exclusions += exclusion }
-        if (current) synchronized(records) { records.removeAll { exclusion.matches(it.member, it.arguments) } }
+        data.exclude(Exclusion(member, matchers, nextMark()), current)
     }
 
     fun captureDefaults(key: String, names: Array<String?>, call: (Boolean) -> Unit): Array<Any?> =
@@ -198,42 +172,35 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
     internal fun description(member: Int): MethodDescription = descriptor.description(mock, member)
 
     internal fun register(member: Int, entry: StubEntry) {
-        synchronized(data) {
-            val stubs = stubs.copyOf()
-            stubs[member] = stubs[member]?.plus(entry) ?: arrayOf(entry)
-            this.stubs = stubs
-        }
+        data.register(member, entry)
     }
 
-    internal fun records(since: Long = ALL): List<CallRecord> =
-        synchronized(records) { records.filter { it.sequenceNumber > since } }
+    internal fun records(since: Long = ALL): List<CallRecord> = data.records(since)
 
-    internal fun unansweredRecords(since: Long = ALL): List<CallRecord> =
-        synchronized(records) { records.filter { it.unanswered && it.sequenceNumber > since } }
+    internal fun unansweredRecords(since: Long = ALL): List<CallRecord> = data.unansweredRecords(since)
 
-    internal fun divergedRecords(): List<CallRecord> =
-        synchronized(records) { records.filter { it.unanswered || it.threw } }
+    internal fun divergedRecords(): List<CallRecord> = data.divergedRecords()
 
     internal fun checkNotShared() {
         scope?.checkNotShared(name)
     }
 
     internal fun addWaiter(signal: RecordSignal) {
-        synchronized(records) { waiters += signal }
+        data.addWaiter(signal)
     }
 
     internal fun removeWaiter(signal: RecordSignal) {
-        synchronized(records) { waiters = waiters.filter { it !== signal }.toTypedArray() }
+        data.removeWaiter(signal)
     }
 
     internal fun markVerified(calls: List<CallRecord>) {
-        synchronized(records) { calls.forEach { it.verified = true } }
+        data.markVerified(calls)
     }
 
     internal fun confirmVerified(since: Long = ALL) {
         if (group != null) constructedStates().filter { it !== this }.forEach { it.confirmVerified(since) }
         val recorded = records(since)
-        val unverified = synchronized(records) { recorded.filterNot { it.verified } }
+        val unverified = data.unverified(recorded)
         if (unverified.isEmpty()) return
         checkNotShared()
         throw AssertionError(
@@ -262,23 +229,10 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         exclusionRules: Boolean,
         since: Long = ALL,
     ) {
-        synchronized(data) {
-            if (answers) {
-                stubs = stubs.map { entries ->
-                    entries?.filter { it.mark <= since }?.takeIf { it.isNotEmpty() }?.toTypedArray()
-                }.toTypedArray()
-            }
-            if (childMocks) children.removeAll { it.mark > since }
-            if (exclusionRules) exclusions = exclusions.filter { it.mark <= since }.toTypedArray()
-        }
-        synchronized(records) {
-            if (recordedCalls) records.removeAll { it.sequenceNumber > since }
-            if (verificationMarks) records.forEach { if (it.sequenceNumber > since) it.verified = false }
-        }
+        data.clear(answers, recordedCalls, childMocks, verificationMarks, exclusionRules, since)
     }
 
-    internal fun chainPositions(): List<StubPosition> =
-        stubs.flatMap { entries -> entries.orEmpty().mapNotNull { it.chainPosition() } }
+    internal fun chainPositions(): List<StubPosition> = data.chainPositions()
 
     internal fun call(member: Int, arguments: String): String = "$name.${description(member).name}($arguments)"
 
@@ -299,8 +253,11 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         }
         val changesState = !Registration.isActive
         val link = if (changesState) null else Registration.takeLink(this, member)
-        val record = if (changesState && member > TO_STRING && recordsCalls(member)) record(member, arguments) else null
-        val stub = findStub(member, arguments) ?: return when {
+        val record = when {
+            changesState && member > TO_STRING && recordsCalls(member) -> data.record(root, member, arguments)
+            else -> null
+        }
+        val stub = data.findStub(member, arguments) ?: return when {
             answersWithOriginal(member) -> original(record)
             link?.factory != null -> linkedChild(member, equalTo(arguments), link.stubs, link.factory)
             else -> defaultAnswer(member, arguments, record, link)
@@ -333,7 +290,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         }
 
     private fun markThrown(record: CallRecord?) {
-        if (record != null) synchronized(records) { record.threw = true }
+        if (record != null) data.markThrown(record)
     }
 
     private fun returned(record: CallRecord?, value: Any?): Any? {
@@ -343,19 +300,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
 
     private fun returnedMock(record: CallRecord, state: MockState) {
         record.result = state
-        for (waiter in waiters) waiter.signal()
-    }
-
-    private fun record(member: Int, arguments: Array<Any?>): CallRecord? {
-        val exclusions = exclusions
-        if (exclusions.isNotEmpty() && exclusions.any { it.matches(member, arguments) }) return null
-        val callStack = captureCallStack()
-        return synchronized(records) {
-            val record = CallRecord(root, member, arguments, nextSequenceNumber(), callStack)
-            records += record
-            for (waiter in waiters) waiter.signal()
-            record
-        }
+        data.signal()
     }
 
     private fun captureArguments(member: Int, call: (Boolean) -> Unit, alternate: Boolean): Array<Any?> {
@@ -403,7 +348,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
             ?.let { "\nThe mock belongs to $it, which is closed: the call came after its end" }
             .orEmpty()
         val failure = LokkiException(message + hint + closed)
-        if (record != null) synchronized(records) { record.failure = failure }
+        if (record != null) data.markFailed(record, failure)
         throw failure
     }
 
@@ -416,7 +361,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         val child = child(member, matchers, factory)
         if (!registers) return child
         synchronized(data) {
-            if (stubs[member]?.lastOrNull()?.answersWith(child, matchers) != true) {
+            if (data.stubs[member]?.lastOrNull()?.answersWith(child, matchers) != true) {
                 register(member, StubEntry(matchers, listOf(ConstantAnswer(child)), nextMark()))
             }
         }
@@ -425,9 +370,9 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
 
     private fun child(member: Int, matchers: Array<Matcher<Any?>>, factory: (MockSpec) -> Any): Any =
         synchronized(data) {
-            children.find { it.member == member && it.matchers.isEquivalentTo(matchers) }?.mock
+            data.children.find { it.member == member && it.matchers.isEquivalentTo(matchers) }?.mock
                 ?: factory(MockSpec(childName(), flags and (RELAXED or RELAX_UNIT_FUN)))
-                    .also { children += Child(member, matchers, it, nextMark()) }
+                    .also { data.children += Child(member, matchers, it, nextMark()) }
         }
 
     private fun childName(): String {
@@ -444,13 +389,11 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
     private fun relaxedAnswer(member: Int): Any? = mock.`lokki$relaxed`(member)
 
     private inline fun describeStubs(predicate: (StubEntry) -> Boolean): List<String> {
-        val stubs = stubs
+        val stubs = data.stubs
         return stubs.indices.flatMap { member ->
             stubs[member].orEmpty().filter(predicate).map { call(member, it.arguments) }
         }
     }
-
-    private fun findStub(member: Int, arguments: Array<Any?>): StubEntry? = data.findStub(member, arguments)
 
     internal fun fallBackTo(states: List<MockState>) {
         data.fallbacks = Array(states.size) { states[it].data }
@@ -483,10 +426,101 @@ private class StateData(memberCount: Int) {
     @Volatile
     var fallbacks = emptyArray<StateData>()
 
+    fun register(member: Int, entry: StubEntry) {
+        synchronized(this) {
+            val stubs = stubs.copyOf()
+            stubs[member] = stubs[member]?.plus(entry) ?: arrayOf(entry)
+            this.stubs = stubs
+        }
+    }
+
     fun findStub(member: Int, arguments: Array<Any?>): StubEntry? {
         ownStub(member, arguments)?.let { return it }
         for (fallback in fallbacks) fallback.ownStub(member, arguments)?.let { return it }
         return null
+    }
+
+    fun chainPositions(): List<StubPosition> =
+        stubs.flatMap { entries -> entries.orEmpty().mapNotNull { it.chainPosition() } }
+
+    fun record(state: MockState, member: Int, arguments: Array<Any?>): CallRecord? {
+        val exclusions = exclusions
+        if (exclusions.isNotEmpty() && exclusions.any { it.matches(member, arguments) }) return null
+        val callStack = captureCallStack()
+        return synchronized(records) {
+            val record = CallRecord(state, member, arguments, nextSequenceNumber(), callStack)
+            records += record
+            signal()
+            record
+        }
+    }
+
+    fun signal() {
+        for (waiter in waiters) waiter.signal()
+    }
+
+    fun records(since: Long): List<CallRecord> =
+        synchronized(records) { records.filter { it.sequenceNumber > since } }
+
+    fun unansweredRecords(since: Long): List<CallRecord> =
+        synchronized(records) { records.filter { it.unanswered && it.sequenceNumber > since } }
+
+    fun divergedRecords(): List<CallRecord> =
+        synchronized(records) { records.filter { it.unanswered || it.threw } }
+
+    fun unverified(recorded: List<CallRecord>): List<CallRecord> =
+        synchronized(records) { recorded.filterNot { it.verified } }
+
+    fun forgetRecords() {
+        synchronized(records) { records.clear() }
+    }
+
+    fun markVerified(calls: List<CallRecord>) {
+        synchronized(records) { calls.forEach { it.verified = true } }
+    }
+
+    fun markThrown(record: CallRecord) {
+        synchronized(records) { record.threw = true }
+    }
+
+    fun markFailed(record: CallRecord, failure: LokkiException) {
+        synchronized(records) { record.failure = failure }
+    }
+
+    fun addWaiter(signal: RecordSignal) {
+        synchronized(records) { waiters += signal }
+    }
+
+    fun removeWaiter(signal: RecordSignal) {
+        synchronized(records) { waiters = waiters.filter { it !== signal }.toTypedArray() }
+    }
+
+    fun exclude(exclusion: Exclusion, current: Boolean) {
+        synchronized(this) { exclusions += exclusion }
+        if (current) synchronized(records) { records.removeAll { exclusion.matches(it.member, it.arguments) } }
+    }
+
+    fun clear(
+        answers: Boolean,
+        recordedCalls: Boolean,
+        childMocks: Boolean,
+        verificationMarks: Boolean,
+        exclusionRules: Boolean,
+        since: Long,
+    ) {
+        synchronized(this) {
+            if (answers) {
+                stubs = stubs.map { entries ->
+                    entries?.filter { it.mark <= since }?.takeIf { it.isNotEmpty() }?.toTypedArray()
+                }.toTypedArray()
+            }
+            if (childMocks) children.removeAll { it.mark > since }
+            if (exclusionRules) exclusions = exclusions.filter { it.mark <= since }.toTypedArray()
+        }
+        synchronized(records) {
+            if (recordedCalls) records.removeAll { it.sequenceNumber > since }
+            if (verificationMarks) records.forEach { if (it.sequenceNumber > since) it.verified = false }
+        }
     }
 
     private fun ownStub(member: Int, arguments: Array<Any?>): StubEntry? {

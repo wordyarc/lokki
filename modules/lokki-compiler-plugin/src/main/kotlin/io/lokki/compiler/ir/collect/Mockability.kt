@@ -4,23 +4,22 @@ import io.lokki.compiler.NOT_CLASS_PROBLEM
 import io.lokki.compiler.SEALED_WITHOUT_MOCKABLE_SUBCLASS
 import io.lokki.compiler.TYPE_PARAMETER_PROBLEM
 import io.lokki.compiler.declarationKindProblem
-import io.lokki.compiler.fir.lokkiEnvironment
-import io.lokki.compiler.memberWithClasses
+import io.lokki.compiler.ir.LokkiIrContext
 import io.lokki.compiler.ir.effectiveModality
 import io.lokki.compiler.ir.inaccessibleClasses
 import io.lokki.compiler.ir.isOverridable
 import io.lokki.compiler.ir.isPrivateHook
 import io.lokki.compiler.ir.isVisibleFrom
+import io.lokki.compiler.ir.missingClassesProblem
 import io.lokki.compiler.ir.packageFqName
 import io.lokki.compiler.ir.spiedConstructorCall
 import io.lokki.compiler.ir.typeKey
 import io.lokki.compiler.ir.unwrapTemporary
+import io.lokki.compiler.memberWithClasses
 import io.lokki.compiler.notInterfaceProblem
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
-import org.jetbrains.kotlin.fir.SessionAndScopeSessionHolder
-import org.jetbrains.kotlin.fir.lazy.Fir2IrLazyClass
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrConstructor
@@ -34,7 +33,6 @@ import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.IrTypeArgument
 import org.jetbrains.kotlin.ir.types.IrTypeProjection
-import org.jetbrains.kotlin.ir.types.IrTypeSystemContext
 import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.types.classifierOrNull
 import org.jetbrains.kotlin.ir.types.impl.IrStarProjectionImpl
@@ -114,7 +112,7 @@ internal class MockRequest(
 
 internal class AddedInterface(val type: IrType, val literal: IrElement)
 
-internal class Mockability(private val file: IrFile, private val typeSystem: IrTypeSystemContext) {
+internal class Mockability(private val file: IrFile, private val lokki: LokkiIrContext) {
     private val classProblems = HashMap<IrClass, ClassProblem?>()
 
     private class ClassProblem(val reason: String, val isFrontendRule: Boolean)
@@ -199,13 +197,14 @@ internal class Mockability(private val file: IrFile, private val typeSystem: IrT
 
     private fun mockProblem(type: IrType): NotMockable? {
         val problem = problemOf(type) ?: return null
-        val sealed = type.classOrNull?.owner?.takeIf { it.effectiveModality == Modality.SEALED } ?: return problem
+        val sealed = type.classOrNull?.owner?.takeIf { it.effectiveModality(lokki) == Modality.SEALED }
+            ?: return problem
         return NotMockable(problem.type, SEALED_WITHOUT_MOCKABLE_SUBCLASS, isFrontendRule = !sealed.frontendAcceptsMock)
     }
 
     private fun IrType.sealedRepresentative(): IrType {
         val type = this as? IrSimpleType ?: return this
-        val sealed = type.classOrNull?.owner?.takeIf { it.effectiveModality == Modality.SEALED } ?: return this
+        val sealed = type.classOrNull?.owner?.takeIf { it.effectiveModality(lokki) == Modality.SEALED } ?: return this
         return sealed.sealedSubclasses.firstNotNullOfOrNull { subclass ->
             type.asSubclass(subclass.owner)?.sealedRepresentative()?.takeIf {
                 problemOf(it) == null && subclass.owner.isAccessibleFromFile
@@ -224,7 +223,7 @@ internal class Mockability(private val file: IrFile, private val typeSystem: IrT
         val candidate = subclass.symbol.typeWithArguments(
             subclass.typeParameters.map { bound[it.symbol] ?: IrStarProjectionImpl }
         )
-        return candidate.takeIf { it.isSubtypeOf(this, typeSystem) }
+        return candidate.takeIf { it.isSubtypeOf(this, lokki.typeSystem) }
     }
 
     private val IrClass.isAccessibleFromFile: Boolean
@@ -233,13 +232,14 @@ internal class Mockability(private val file: IrFile, private val typeSystem: IrT
         }
 
     private val IrClass.frontendAcceptsMock: Boolean
-        get() = when (effectiveModality) {
+        get() = when (effectiveModality(lokki)) {
             Modality.SEALED -> sealedSubclasses.any { it.owner.frontendAcceptsMock }
             else -> frontendProblem() == null
         }
 
     private fun IrClass.frontendProblem(): String? =
-        declarationKindProblem(kind, effectiveModality, isFromFriendKotlinModule && !isValue) ?: missingClassesProblem()
+        declarationKindProblem(kind, effectiveModality(lokki), isFromFriendKotlinModule && !isValue)
+            ?: missingClassesProblem()
 
     private fun IrClass.problem(): ClassProblem? {
         val frontend = frontendProblem()
@@ -247,6 +247,10 @@ internal class Mockability(private val file: IrFile, private val typeSystem: IrT
         val reason = hiddenAbstractMembers() ?: uninheritedAbstractMembers() ?: membersWithInaccessibleClasses()
         return reason?.let { ClassProblem(it, isFrontendRule = false) }
     }
+
+    private val IrClass.canBeSubclassed: Boolean
+        get() = kind == ClassKind.CLASS &&
+            effectiveModality(lokki).let { it != Modality.FINAL && it != Modality.SEALED }
 
     private fun IrClass.spyConstructorProblem(): String =
         when {
@@ -281,7 +285,7 @@ internal class Mockability(private val file: IrFile, private val typeSystem: IrT
 
     private fun IrClass.membersWithInaccessibleClasses(): String? {
         val inaccessible = simpleFunctions()
-            .filter { it.isOverridable && it.resolveFakeOverrideMaybeAbstractOrFail().isVisibleFrom(file) }
+            .filter { it.isOverridable(lokki) && it.resolveFakeOverrideMaybeAbstractOrFail().isVisibleFrom(file) }
             .associateWith { it.inaccessibleClasses(file) }
             .filterValues { it.isNotEmpty() }
         if (inaccessible.isEmpty()) return null
@@ -303,24 +307,15 @@ internal class Mockability(private val file: IrFile, private val typeSystem: IrT
         simpleFunctions()
             .filter { member ->
                 !DescriptorVisibilities.isPrivate(member.visibility) && !member.isPrivateHook &&
-                    (!member.isOverridable || member.visibility in PROTECTED || !member.isVisibleFrom(file))
+                    (!member.isOverridable(lokki) || member.visibility in PROTECTED || !member.isVisibleFrom(file))
             }
             .map { it.memberName }
             .distinct()
             .sorted()
 }
 
-private fun IrClass.missingClassesProblem(): String? {
-    val holder: SessionAndScopeSessionHolder = this as? Fir2IrLazyClass
-        ?: return superTypes.firstNotNullOfOrNull { it.classOrNull?.owner?.missingClassesProblem() }
-    return holder.session.lokkiEnvironment.missingClassProblems.getValue(fir.symbol, holder)
-}
-
 internal val IrClass.displayName: String
     get() = if (isLocal) name.asString() else kotlinFqName.asString()
-
-private val IrClass.canBeSubclassed: Boolean
-    get() = kind == ClassKind.CLASS && effectiveModality != Modality.FINAL && effectiveModality != Modality.SEALED
 
 private val IrSimpleFunction.memberName: String
     get() = (correspondingPropertySymbol?.owner?.name ?: name).asString()

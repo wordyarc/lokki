@@ -51,8 +51,8 @@ import org.jetbrains.kotlin.ir.util.substitute
 internal class ConstructorCalls(private val lokki: LokkiIrContext) {
     private val context = lokki.pluginContext
 
-    fun rewrite(file: IrFile) {
-        file.transform(Rewriter(file, RedirectLookup(context, file)), null)
+    fun rewrite(file: IrFile, redirects: RedirectLookup = RedirectLookup(lokki, file)) {
+        file.transform(Rewriter(file, redirects), null)
     }
 
     private inner class Rewriter(

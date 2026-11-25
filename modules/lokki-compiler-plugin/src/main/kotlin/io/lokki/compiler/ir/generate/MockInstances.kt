@@ -28,6 +28,7 @@ import org.jetbrains.kotlin.ir.builders.irReturn
 import org.jetbrains.kotlin.ir.builders.irString
 import org.jetbrains.kotlin.ir.builders.irTemporary
 import org.jetbrains.kotlin.ir.declarations.IrClass
+import org.jetbrains.kotlin.ir.expressions.IrAnnotation
 import org.jetbrains.kotlin.ir.expressions.IrBlock
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrConst
@@ -49,6 +50,11 @@ internal val MOCK_FLAGS = listOf(
     ParameterNames.RELAXED to BuildConfig.FLAG_RELAXED,
     ParameterNames.RELAX_UNIT_FUN to BuildConfig.FLAG_RELAX_UNIT_FUN,
 )
+
+internal val IrAnnotation.mockFlags: Int
+    get() = MOCK_FLAGS.fold(0) { flags, (name, flag) ->
+        if ((argument(name) as? IrConst)?.value == true) flags or flag else flags
+    }
 
 internal val RECORD_PRIVATE_FLAG = ParameterNames.RECORD_PRIVATE_CALLS to BuildConfig.FLAG_RECORD_PRIVATE_CALLS
 

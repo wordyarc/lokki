@@ -19,7 +19,7 @@ const val RESTRICTED_OPTION = "restricted"
 
 const val DEBUG_OPTION = "debug"
 
-const val LOKKI_ABI_VERSION = 7
+const val LOKKI_ABI_VERSION = 8
 
 const val FILE_REDIRECT_SUFFIX = "\$LokkiRedirect"
 

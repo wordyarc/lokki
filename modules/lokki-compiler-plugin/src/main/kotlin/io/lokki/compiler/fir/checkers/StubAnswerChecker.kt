@@ -73,10 +73,7 @@ context(context: CheckerContext, reporter: DiagnosticReporter)
 internal fun checkAnswer(answer: FirFunctionCall, function: FirCallableSymbol<*>) {
     when (function.name.asString()) {
         AnswerNames.RETURNS_ARGUMENT -> checkReturnsArgument(answer)
-        in AnswerNames.BLOCKS -> {
-            checkOriginalCalls(answer)
-            checkFieldValues(answer)
-        }
+        in AnswerNames.BLOCKS -> checkAnswerBlock(answer)
     }
 }
 
@@ -108,15 +105,18 @@ private fun checkReturnsArgument(answer: FirFunctionCall) {
 }
 
 context(context: CheckerContext, reporter: DiagnosticReporter)
-private fun checkOriginalCalls(answer: FirFunctionCall) {
+private fun checkAnswerBlock(answer: FirFunctionCall) {
     val lambda = answer.arguments.singleOrNull()?.unwrapArgument() as? FirAnonymousFunctionExpression
     val block = lambda?.anonymousFunction
     val scope = block?.receiverParameter?.symbol ?: return
     val (member, _) = answer.stubBlock()?.stubbedMember() ?: return
-    if (!member.isAbstract || (member.getContainingClassSymbol() as? FirRegularClassSymbol)?.classKind == ClassKind.ENUM_CLASS) return
+    val owner = member.getContainingClassSymbol() as? FirRegularClassSymbol
+    val hasOriginal = !member.isAbstract || owner?.classKind == ClassKind.ENUM_CLASS
+    val fieldProblem = member.fieldProblem()
+    if (hasOriginal && fieldProblem == null) return
     block.accept(object : FirVisitorVoid() {
         override fun visitElement(element: FirElement) {
-            if (element is FirFunctionCall && element.isOriginalCallIn(scope)) {
+            if (!hasOriginal && element is FirFunctionCall && element.isOriginalCallIn(scope)) {
                 reporter.reportOn(
                     element.calleeReference.source ?: element.source,
                     LokkiDiagnostics.LOKKI_ABSTRACT_ORIGINAL_CALL,
@@ -124,26 +124,12 @@ private fun checkOriginalCalls(answer: FirFunctionCall) {
                     element.calleeReference.name.asString(),
                 )
             }
-            element.acceptChildren(this)
-        }
-    })
-}
-
-context(context: CheckerContext, reporter: DiagnosticReporter)
-private fun checkFieldValues(answer: FirFunctionCall) {
-    val lambda = answer.arguments.singleOrNull()?.unwrapArgument() as? FirAnonymousFunctionExpression
-    val block = lambda?.anonymousFunction
-    val scope = block?.receiverParameter?.symbol ?: return
-    val (member, _) = answer.stubBlock()?.stubbedMember() ?: return
-    val problem = member.fieldProblem() ?: return
-    block.accept(object : FirVisitorVoid() {
-        override fun visitElement(element: FirElement) {
-            if (element is FirQualifiedAccessExpression && element.isFieldValueOf(scope)) {
+            if (fieldProblem != null && element is FirQualifiedAccessExpression && element.isFieldValueOf(scope)) {
                 reporter.reportOn(
                     element.calleeReference.source ?: element.source,
                     LokkiDiagnostics.LOKKI_FIELD_VALUE_UNAVAILABLE,
                     member.name.asString(),
-                    problem,
+                    fieldProblem,
                 )
             }
             element.acceptChildren(this)

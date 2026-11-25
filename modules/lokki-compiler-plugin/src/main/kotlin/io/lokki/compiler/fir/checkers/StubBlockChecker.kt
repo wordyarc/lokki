@@ -38,7 +38,6 @@ import org.jetbrains.kotlin.fir.analysis.checkers.unsubstitutedScope
 import org.jetbrains.kotlin.fir.declarations.FirAnonymousFunction
 import org.jetbrains.kotlin.fir.declarations.FirNamedFunction
 import org.jetbrains.kotlin.fir.declarations.FirRegularClass
-import org.jetbrains.kotlin.fir.declarations.toAnnotationClassId
 import org.jetbrains.kotlin.fir.declarations.utils.isInline
 import org.jetbrains.kotlin.fir.declarations.utils.isOperator
 import org.jetbrains.kotlin.fir.declarations.utils.isStatic
@@ -72,7 +71,6 @@ import org.jetbrains.kotlin.fir.expressions.arguments
 import org.jetbrains.kotlin.fir.expressions.unwrapArgument
 import org.jetbrains.kotlin.fir.expressions.unwrapSmartcastExpression
 import org.jetbrains.kotlin.fir.references.toResolvedCallableSymbol
-import org.jetbrains.kotlin.fir.references.toResolvedPropertySymbol
 import org.jetbrains.kotlin.fir.resolve.defaultType
 import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
 import org.jetbrains.kotlin.fir.resolve.toRegularClassSymbol
@@ -85,7 +83,6 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirValueParameterSymbol
-import org.jetbrains.kotlin.fir.symbols.resolvedAnnotationsWithClassIds
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.fir.types.coneType
 import org.jetbrains.kotlin.fir.types.renderReadable
@@ -288,7 +285,7 @@ private class StubBlock(
     private fun FirExpression.listLiteralElements(): List<FirExpression>? {
         val list = unwrapArgument() as? FirFunctionCall ?: return null
         val factory = list.calleeReference.toResolvedCallableSymbol()?.callableId?.asSingleFqName()
-        if (factory !in LIST_FACTORIES) return null
+        if (factory !in DynamicNames.LIST_FACTORIES) return null
         return list.arguments.flatMap { (it.unwrapArgument() as? FirVarargArgumentsExpression)?.arguments ?: listOf(it) }
     }
 
@@ -318,7 +315,7 @@ private class StubBlock(
         arguments: List<FirExpression>,
     ) {
         checkReceiverMatchers(receiver)
-        if (reportForeignMock(receiver, context, reporter)) return
+        if (with(context) { with(reporter) { reportForeignMock(receiver) } }) return
         val reason = notInterceptableReason(callee, receiver)
         val notRecorded = when (mode) {
             BlockMode.STUB -> null
@@ -646,29 +643,4 @@ private val STUB_SCOPES = setOf(CoreClass.STUB_SCOPE.id, CoreClass.ADDITIONAL_AN
 private val COROUTINE_BUILDERS = setOf(
     FqName("kotlinx.coroutines.runBlocking"),
     FqName("kotlinx.coroutines.test.runTest"),
-)
-
-private val LIST_FACTORIES = setOf(FqName("kotlin.collections.listOf"), FqName("kotlin.collections.emptyList"))
-
-private fun reportForeignMock(receiver: FirExpression, context: CheckerContext, reporter: DiagnosticReporter): Boolean {
-    val access = receiver.unwrapSmartcastExpression() as? FirPropertyAccessExpression ?: return false
-    val property = access.calleeReference.toResolvedPropertySymbol() ?: return false
-    val annotations = property.resolvedAnnotationsWithClassIds +
-        property.backingFieldSymbol?.resolvedAnnotationsWithClassIds.orEmpty()
-    val (foreign, replacement) = annotations.firstNotNullOfOrNull { annotation ->
-        val id = annotation.toAnnotationClassId(context.session)?.asSingleFqName()?.asString()
-        id?.let { FOREIGN_MOCKS[it] }?.let { id to it }
-    } ?: return false
-    val name = property.name.asString()
-    reporter.reportOn(receiver.source, LokkiDiagnostics.LOKKI_FOREIGN_MOCK, name, foreign, replacement, context)
-    return true
-}
-
-private val FOREIGN_MOCKS = mapOf(
-    "org.springframework.boot.test.mock.mockito.MockBean" to "io.lokki.spring.MockBean",
-    "org.springframework.boot.test.mock.mockito.SpyBean" to "io.lokki.spring.SpyBean",
-    "org.springframework.test.context.bean.override.mockito.MockitoBean" to "io.lokki.spring.MockBean",
-    "org.springframework.test.context.bean.override.mockito.MockitoSpyBean" to "io.lokki.spring.SpyBean",
-    "com.ninjasquad.springmockk.MockkBean" to "io.lokki.spring.MockBean",
-    "com.ninjasquad.springmockk.MockkSpyBean" to "io.lokki.spring.SpyBean",
 )

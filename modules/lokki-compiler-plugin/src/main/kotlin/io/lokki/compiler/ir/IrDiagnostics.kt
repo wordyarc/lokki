@@ -23,11 +23,11 @@ internal class IrDiagnostics(private val lokki: LokkiIrContext, private val file
         at(element).report(LokkiDiagnostics.LOKKI_UNSUPPORTED, reason)
     }
 
-    fun notInterceptable(element: IrElement, name: String, reason: String) {
+    fun objectNotInterceptable(element: IrElement, name: String, reason: String) {
         at(element).report(LokkiDiagnostics.LOKKI_OBJECT_NOT_INTERCEPTABLE, name, reason)
     }
 
-    fun notInterceptableMember(element: IrElement, name: String, reason: String) {
+    fun notInterceptable(element: IrElement, name: String, reason: String) {
         at(element).report(LokkiDiagnostics.LOKKI_NOT_INTERCEPTABLE, name, reason)
     }
 
