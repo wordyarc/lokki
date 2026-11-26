@@ -37,7 +37,7 @@ may be rejected by a newer runtime: recompile test fixtures and test libraries w
 ```kotlin
 plugins {
     kotlin("jvm") version "2.4.20"
-    id("io.github.wordyarc.lokki") version "0.3.0"
+    id("io.github.wordyarc.lokki") version "0.3.1"
 }
 ```
 
