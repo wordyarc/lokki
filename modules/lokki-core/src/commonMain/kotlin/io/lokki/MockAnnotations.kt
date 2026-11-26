@@ -5,6 +5,8 @@ import io.lokki.internal.MockFieldsOwner
 import io.lokki.internal.RECORD_PRIVATE_CALLS
 import io.lokki.internal.RELAXED
 import io.lokki.internal.RELAX_UNIT_FUN
+import io.lokki.internal.pluginNotApplied
+import io.lokki.internal.uninitializedMockPropertiesOwner
 import kotlin.reflect.KClass
 
 @LokkiIntrinsic(LokkiIntrinsic.Kind.MOCK)
@@ -60,6 +62,14 @@ public object MockAnnotations {
     ) {
         val flags = (if (relaxed) RELAXED else 0) or (if (relaxUnitFun) RELAX_UNIT_FUN else 0) or
             (if (overrideRecordPrivateCalls) RECORD_PRIVATE_CALLS else 0)
-        for (target in obj) (target as? MockFieldsOwner)?.`lokki$initMockFields`(flags)
+        for (target in obj) {
+            if (target is MockFieldsOwner) {
+                target.`lokki$initMockFields`(flags)
+            } else {
+                uninitializedMockPropertiesOwner(target)?.let { owner ->
+                    pluginNotApplied("the compilation of $owner, so its mock properties are not initialized")
+                }
+            }
+        }
     }
 }
