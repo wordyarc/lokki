@@ -74,6 +74,7 @@ class TestProject(
             "gradle.properties",
             listOfNotNull(
                 "org.gradle.configuration-cache=true",
+                "org.gradle.jvmargs=-Xmx1g -XX:MaxMetaspaceSize=1g",
                 "kotlin.build.report.output=file",
                 gradle.javaHome?.let { "org.gradle.java.home=$it" },
             ).joinToString("\n"),
