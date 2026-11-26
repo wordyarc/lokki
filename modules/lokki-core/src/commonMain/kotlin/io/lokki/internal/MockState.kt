@@ -55,6 +55,9 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
 
     internal val scope: LokkiScope? = if (representative != null) representative.scope else LokkiScope.owner()
 
+    @Volatile
+    private var lastBorrower: LokkiScope? = null
+
     init {
         if (representative != null && !representative.descriptor.hasSameMembers(descriptor)) {
             throw LokkiException("the constructor mock of ${descriptor.name} has members of another shape")
@@ -182,7 +185,18 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
     internal fun divergedRecords(): List<CallRecord> = data.divergedRecords()
 
     internal fun checkNotShared() {
-        scope?.checkNotShared(name)
+        val owner = scope
+        if (owner != null) return owner.checkNotShared(name)
+        if (LokkiScope.isAnyOpen) borrower()?.checkNotBorrowedElsewhere(this)
+    }
+
+    private fun borrower(): LokkiScope? {
+        val current = LokkiScope.currentScope ?: return null
+        if (current !== lastBorrower) {
+            current.borrow(this)
+            lastBorrower = current
+        }
+        return current
     }
 
     internal fun addWaiter(signal: RecordSignal) {
@@ -256,6 +270,7 @@ internal class MockState(private val owner: Any, spec: MockSpec, internal val de
         answer: (Answer<Any?>, Call, CallRecord?) -> Any?,
     ): Any? {
         if (representative != null && data.isDetached) return original(null)
+        if (scope == null && LokkiScope.isAnyOpen) borrower()
         val capture = capture
         if (capture != null && capture.member == member && capture.thread === currentThread()) {
             capture.arguments = arguments

@@ -19,8 +19,11 @@ import org.junit.jupiter.api.TestMethodOrder
 import org.junit.jupiter.api.extension.ExtendWith
 import org.junit.jupiter.api.parallel.Execution
 import org.junit.jupiter.api.parallel.ExecutionMode
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -159,6 +162,22 @@ class LokkiExtensionFailureTest {
     }
 
     @Test
+    fun mocksCreatedOutsideScopesJoinTheTestThatUsesThem() {
+        val results = runSample(MocksCreatedOutsideScopes::class)
+        val failures = results.testFailures.values.map { it.message!!.lineSequence().first() }.sorted()
+
+        assertEquals(
+            listOf(
+                "1 call to mocks had no answer:",
+                "1 call to mocks had no answer:",
+                "Verification acknowledgment failed",
+            ),
+            failures,
+        )
+        assertEquals(listOf("stubOfPreviousTestIsRolledBack()"), results.succeededTests)
+    }
+
+    @Test
     fun concurrentTestsFailForTheirOwnCallsWithoutAnswer() {
         val failures = runSample(ConcurrentCallsWithoutAnswer::class, *CONCURRENT_TESTS).testFailures
 
@@ -188,6 +207,52 @@ class LokkiExtensionFailureTest {
         @Test
         fun callWithoutAnswer() {
             runCatching { Garage(mock()).leave() }
+        }
+    }
+
+    @Sample
+    @ExtendWith(LokkiExtension::class)
+    @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
+    class MocksCreatedOutsideScopes {
+        @ParameterizedTest
+        @MethodSource("cars")
+        @Order(1)
+        fun callWithoutAnswer(car: Car) {
+            runCatching { Garage(car).leave() }
+        }
+
+        @ParameterizedTest
+        @MethodSource("cars")
+        @Order(2)
+        fun unverifiedCall(car: Car) {
+            every { car.drive(any()) } returns "driven"
+            Garage(car).leave()
+            confirmVerified()
+        }
+
+        @Test
+        @Order(3)
+        fun mockOfAnotherThread() {
+            lateinit var car: Car
+            thread { car = mock() }.join()
+            every { shared.plate } returns "test"
+            runCatching { Garage(car).leave() }
+        }
+
+        @Test
+        @Order(4)
+        fun stubOfPreviousTestIsRolledBack() {
+            assertEquals("provider", shared.plate)
+        }
+
+        private companion object {
+            lateinit var shared: Car
+
+            @JvmStatic
+            fun cars(): List<Car> {
+                if (!::shared.isInitialized) shared = mock { every { plate } returns "provider" }
+                return listOf(mock())
+            }
         }
     }
 

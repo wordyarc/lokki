@@ -114,7 +114,8 @@ every { queue.complete(any()) }
 
 A scope is the lifetime of what a test does to mocks. When it closes, the stubs and recorded calls added in the test
 are removed, mocked objects, functions and constructors are restored, and the test fails if a mock call had no answer,
-even if the code under test caught the exception.
+even if the code under test caught the exception. This covers the mocks created in the test and the mocks it uses
+that were created outside any scope, such as the arguments of a `@MethodSource`.
 
 `LokkiExtension` runs every test class, test and dynamic test in its own scope and initializes `@Mock`,
 `@RelaxedMock`, `@Spy` and `@InjectMocks` properties:

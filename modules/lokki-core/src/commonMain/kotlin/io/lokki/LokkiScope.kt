@@ -21,9 +21,11 @@ internal class LokkiScope private constructor(private val parent: LokkiScope?, p
 
     private val retained = ArrayList<MockState>()
 
+    private val borrowed = LinkedHashSet<MockState>()
+
     private val children = ArrayList<LokkiScope>()
 
-    private val positions: List<StubPosition> = parent?.windowStates()?.flatMap { it.chainPositions() }.orEmpty()
+    private val positions = ArrayList<StubPosition>(parent?.windowStates()?.flatMap { it.chainPositions() }.orEmpty())
 
     @Volatile
     var isClosed: Boolean = false
@@ -38,11 +40,12 @@ internal class LokkiScope private constructor(private val parent: LokkiScope?, p
             }
             isClosed = true
             parent.children -= this
+            opened--
             parent
         }
         Redirects.release(this)
         val own = ownStates()
-        val inherited = parent.windowStates()
+        val inherited = (parent.windowStates() + borrowedStates()).distinct()
         val unanswered = (inherited + own).flatMap { it.unansweredRecords(start) }.sortedBy { it.sequenceNumber }
         for (state in own) {
             state.clear(
@@ -55,7 +58,10 @@ internal class LokkiScope private constructor(private val parent: LokkiScope?, p
             )
         }
         clearWindow(inherited, answers = true, recordedCalls = true, childMocks = true)
-        synchronized(mocks) { retained.clear() }
+        synchronized(mocks) {
+            retained.clear()
+            borrowed.clear()
+        }
         if (unanswered.isEmpty()) return
         val error = AssertionError(unanswered.noAnswerReport(), unanswered.first().failure)
         if (failure == null) throw error
@@ -71,10 +77,18 @@ internal class LokkiScope private constructor(private val parent: LokkiScope?, p
         }
     }
 
+    fun borrow(state: MockState) {
+        synchronized(mocks) {
+            if (isClosed || !borrowed.add(state)) return
+            positions += state.chainPositions()
+        }
+    }
+
     fun isWithin(ancestor: LokkiScope): Boolean = generateSequence(this) { it.parent }.any { it === ancestor }
 
     fun windowStates(): List<MockState> =
-        generateSequence(this) { it.parent }.toList().asReversed().flatMap { it.ownStates() }
+        generateSequence(this) { it.parent }.toList().asReversed().flatMap { it.ownStates() + it.borrowedStates() }
+            .distinct()
 
     fun clearWindow(states: List<MockState>, answers: Boolean, recordedCalls: Boolean, childMocks: Boolean) {
         for (state in states) {
@@ -87,7 +101,7 @@ internal class LokkiScope private constructor(private val parent: LokkiScope?, p
                 since = start,
             )
         }
-        if (answers) positions.forEach { it.restore() }
+        if (answers) synchronized(mocks) { positions.toList() }.forEach { it.restore() }
     }
 
     fun checkNotShared(mock: String) {
@@ -105,11 +119,27 @@ internal class LokkiScope private constructor(private val parent: LokkiScope?, p
         }
     }
 
+    fun checkNotBorrowedElsewhere(state: MockState) {
+        val other = synchronized(tree) {
+            root.descendants().firstOrNull { it.borrows(state) && !isWithin(it) && !it.isWithin(this) }
+        } ?: return
+        throw LokkiException(
+            "mock ${state.name} is used by concurrently running $other and $this; " +
+                "create it per test or serialize them with @ResourceLock"
+        )
+    }
+
     private fun ownStates(): List<MockState> =
         synchronized(mocks) {
             mocks.removeAll { it.get() == null }
             mocks.mapNotNull { it.get() }
         }
+
+    private fun borrowedStates(): List<MockState> = synchronized(mocks) { borrowed.toList() }
+
+    private fun borrows(state: MockState): Boolean = synchronized(mocks) { state in borrowed }
+
+    private fun descendants(): Sequence<LokkiScope> = children.asSequence().flatMap { sequenceOf(it) + it.descendants() }
 
     companion object {
         private val tree = Any()
@@ -118,10 +148,18 @@ internal class LokkiScope private constructor(private val parent: LokkiScope?, p
 
         val root: LokkiScope = LokkiScope(null, "the root scope")
 
+        private var opened = 0
+
+        val isAnyOpen: Boolean
+            get() = opened > 0
+
         fun open(parent: LokkiScope, name: String): LokkiScope =
             synchronized(tree) {
                 if (parent.isClosed) throw LokkiException("$name cannot be opened in $parent, which is closed")
-                LokkiScope(parent, name).also { parent.children += it }
+                LokkiScope(parent, name).also {
+                    parent.children += it
+                    opened++
+                }
             }
 
         fun <R> withCurrent(scope: LokkiScope, block: () -> R): R {

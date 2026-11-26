@@ -165,12 +165,12 @@ class ClearMocksTest {
     }
 
     @Test
-    fun clearAllMocksCurrentThreadOnly() {
+    fun clearAllMocksClearsMockOfAnotherThreadUsedByTest() {
         var mockInOtherThread: MockCls? = null
 
         val thread =
             Thread {
-                mockInOtherThread = mock()
+                mockInOtherThread = mock(relaxed = true)
                 every { mockInOtherThread!!.op(any()) } returns 42
             }
         thread.start()
@@ -183,6 +183,6 @@ class ClearMocksTest {
         clearAllMocks()
 
         assertEquals(2, spyObj.op(1))
-        assertEquals(42, mockInOtherThread?.op(1))
+        assertEquals(0, mockInOtherThread?.op(1))
     }
 }

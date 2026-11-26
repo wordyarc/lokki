@@ -127,6 +127,101 @@ class LokkiScopeTest {
     }
 
     @Test
+    fun testScopeRollsBackMockWithoutOwner() {
+        val repo = repo()
+        stub(repo, AnyMatcher, "outside")
+        find(repo, 1)
+
+        lokkiScope {
+            stub(repo, EqMatcher(2), "inside")
+            assertEquals("inside", find(repo, 2))
+            lokkiScope {
+                stub(repo, EqMatcher(3), "nested")
+                assertEquals("nested", find(repo, 3))
+            }
+            assertEquals("outside", find(repo, 3))
+            assertEquals(listOf(1, 2, 3), repo.`lokki$state`().records().map { it.arguments.single() })
+        }
+
+        assertNull(repo.`lokki$state`().scope)
+        assertEquals("outside", find(repo, 2))
+        assertEquals(listOf(1, 2), repo.`lokki$state`().records().map { it.arguments.single() })
+    }
+
+    @Test
+    fun testScopeRestoresAnswerPositionsOfMockWithoutOwner() {
+        val repo = repo()
+        repo.`lokki$state`().stub<String>(FIND, arrayOf(AnyMatcher)).returnsMany("a", "b", "c")
+        assertEquals("a", find(repo, 1))
+
+        lokkiScope { assertEquals(listOf("b", "c", "c"), List(3) { find(repo, 1) }) }
+
+        assertEquals("b", find(repo, 1))
+    }
+
+    @Test
+    fun testCallWithoutAnswerOnMockWithoutOwnerFailsScope() {
+        val repo = repo()
+
+        val error = assertFailsWith<AssertionError> { lokkiScope { runCatching { find(repo, 1) } } }
+
+        assertContains(error.message!!, "1 call to mocks had no answer:\n1) ${repo.`lokki$state`().name}.find(1)\n")
+        runCatching { find(repo, 2) }
+        lokkiScope { }
+    }
+
+    @Test
+    fun testOperationsWithoutMocksSeeMockWithoutOwner() {
+        val repo = repo()
+        stub(repo, EqMatcher(1), "unused outside")
+        stub(repo, EqMatcher(2), "found")
+        find(repo, 2)
+
+        lokkiScope {
+            checkUnnecessaryStub()
+            confirmVerified()
+            find(repo, 2)
+            val unverified = assertFailsWith<AssertionError> { confirmVerified() }.message!!
+            assertContains(unverified, "Verified call count: 0\nRecorded call count: 1\n")
+            stub(repo, EqMatcher(3), "unused inside")
+            val unused = assertFailsWith<AssertionError> { checkUnnecessaryStub() }.message!!
+            assertContains(unused, "\n\n1) ${repo.`lokki$state`().name}.find(eq(3))")
+
+            clearAllMocks()
+
+            assertEquals(1, repo.`lokki$state`().records().size)
+            checkUnnecessaryStub()
+            confirmVerified()
+        }
+    }
+
+    @Test
+    fun testMockWithoutOwnerCannotBeStubbedOrVerifiedByConcurrentScopes() {
+        val repo = repo()
+        val first = LokkiScope.open(LokkiScope.root, "test first()")
+        val second = LokkiScope.open(LokkiScope.root, "test second()")
+        LokkiScope.withCurrent(first) {
+            stub(repo, EqMatcher(1), "first")
+            lokkiScope { stub(repo, EqMatcher(2), "nested") }
+        }
+
+        val message = LokkiScope.withCurrent(second) {
+            assertFailsWith<LokkiException> { confirmVerified(repo) }
+            assertFailsWith<LokkiException> { stub(repo, EqMatcher(3), "second") }.message
+        }
+
+        assertEquals(
+            "mock ${repo.`lokki$state`().name} is used by concurrently running test first() and test second(); " +
+                "create it per test or serialize them with @ResourceLock",
+            message,
+        )
+        first.close()
+        LokkiScope.withCurrent(second) { stub(repo, EqMatcher(3), "second") }
+        second.close()
+        assertFailsWith<LokkiException> { find(repo, 3) }
+    }
+
+    @Test
     fun testOperationsWithoutMocksSeeTheWindow() {
         lokkiScope {
             val repo = repo()
