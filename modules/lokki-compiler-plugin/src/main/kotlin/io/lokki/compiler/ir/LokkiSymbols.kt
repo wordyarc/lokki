@@ -4,6 +4,7 @@ import io.lokki.compiler.AWAIT_CANCELLATION
 import io.lokki.compiler.CoreClass
 import io.lokki.compiler.CoreConstructor
 import io.lokki.compiler.CoreFunction
+import io.lokki.compiler.EMPTY_FLOW
 import io.lokki.compiler.IncompatibleRuntimeException
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.ir.declarations.IrClass
@@ -55,6 +56,7 @@ internal class LokkiSymbols(private val context: IrPluginContext) {
     val emptySet by lazy { findFunction(COLLECTIONS_PACKAGE, "emptySet") }
     val emptyMap by lazy { findFunction(COLLECTIONS_PACKAGE, "emptyMap") }
     val emptySequence by lazy { findFunction(SEQUENCES_PACKAGE, "emptySequence") }
+    val emptyFlow by lazy { finder.findFunctions(EMPTY_FLOW).singleOrNull()?.owner }
 
     val jvmSynthetic by lazy { finder.findConstructors(ClassId(JVM_PACKAGE, Name.identifier("JvmSynthetic"))).single() }
     val volatile by lazy { finder.findConstructors(ClassId(JVM_PACKAGE, Name.identifier("Volatile"))).single() }

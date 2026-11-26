@@ -1,6 +1,7 @@
 // FILE: sample/JavaDefaults.java
 package sample;
 
+import java.util.Iterator;
 import java.util.List;
 
 public interface JavaDefaults {
@@ -11,6 +12,8 @@ public interface JavaDefaults {
     int primitive();
 
     List<String> names();
+
+    Iterator<String> iterator();
 
     String[] array();
 
@@ -73,6 +76,11 @@ interface Defaults {
     fun linkedHashSet(): LinkedHashSet<String>
     fun hashMap(): HashMap<String, Int>
     fun linkedHashMap(): LinkedHashMap<String, Int>
+    fun arrayDeque(): ArrayDeque<String>
+    fun iterator(): Iterator<String>
+    fun mutableIterator(): MutableIterator<String>
+    fun listIterator(): ListIterator<String>
+    fun mutableListIterator(): MutableListIterator<String>
     fun optional(): Optional<String>
     fun strings(): Array<String>
     fun lists(): Array<List<String>>
@@ -151,6 +159,11 @@ fun box(): String {
         "LinkedHashMap",
     )
     if (classes != expectedClasses) return "Fail mutable classes: $classes"
+    if (defaults.arrayDeque().isNotEmpty() || defaults.arrayDeque() === defaults.arrayDeque()) return "Fail ArrayDeque"
+    val iterators = listOf(
+        defaults.iterator(), defaults.mutableIterator(), defaults.listIterator(), defaults.mutableListIterator(),
+    )
+    if (iterators.any { it.hasNext() }) return "Fail empty iterators"
 
     val arrays = listOf<Any>(defaults.strings(), defaults.lists(), defaults.nested(), defaults.ints(), defaults.chars())
     if (arrays.map { it.javaClass } !=
@@ -222,12 +235,16 @@ fun box(): String {
     if (java.name() != "" || java.boxed() != 0 || java.primitive() != 0) return "Fail platform types"
     if (java.title() != "" || java.done() != null) return "Fail Java CharSequence and Void"
     if (java.names().javaClass != ArrayList::class.java || !java.names().add("x")) return "Fail Java list"
+    if (java.iterator().hasNext()) return "Fail Java iterator"
     if (java.array().javaClass != Array<String>::class.java) return "Fail Java array"
     val thread = missing { java.thread() }
     if (thread != noChild("Thread", "JavaDefaults.thread()")) return "Fail Java message: $thread"
-    val row: String? = java.query("select", listOf("a"))
-    val first: String? = java.first(listOf("b"))
-    if (row != null || first != null) return "Fail Java type parameter: $row $first"
+    val typeParameters = listOf(missing { java.query("select", listOf("a")) }, missing { java.first(listOf("b")) })
+    val expectedTypeParameters = listOf(
+        noDefault("type parameter T", "JavaDefaults.query(select, [a])"),
+        noDefault("type parameter T", "JavaDefaults.first([b])"),
+    )
+    if (typeParameters != expectedTypeParameters) return "Fail Java type parameters: $typeParameters"
 
     return "OK"
 }

@@ -2,6 +2,7 @@
 
 package sample
 
+import io.lokki.LokkiException
 import io.lokki.mock
 import java.util.Optional
 import java.util.OptionalDouble
@@ -37,7 +38,12 @@ fun box(): String {
     if (defaults.uShort() != 0.toUShort()) return "uShort"
     if (defaults.uInt() != 0u) return "uInt"
     if (defaults.uLong() != 0uL) return "uLong"
-    if (defaults.instant() != Instant.fromEpochMilliseconds(0)) return "instant"
+    val instant = try {
+        "returned ${defaults.instant()}"
+    } catch (e: LokkiException) {
+        e.message!!.replace(Regex("""\(#\d+\)"""), "")
+    }
+    if (instant != "relaxed mock has no default for Instant returned by Defaults.instant(); stub the call") return instant
     if (defaults.nullableDuration() != null) return "nullableDuration"
     if (defaults.nullableUInt() != null) return "nullableUInt"
     return "OK"

@@ -13,11 +13,9 @@ import org.jetbrains.kotlin.ir.builders.irCallConstructor
 import org.jetbrains.kotlin.ir.builders.irGetField
 import org.jetbrains.kotlin.ir.builders.irGetObjectValue
 import org.jetbrains.kotlin.ir.builders.irInt
-import org.jetbrains.kotlin.ir.builders.irLong
 import org.jetbrains.kotlin.ir.builders.irString
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrFile
-import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.declarations.IrTypeParameter
 import org.jetbrains.kotlin.ir.declarations.name
@@ -30,7 +28,6 @@ import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.types.classifierOrNull
 import org.jetbrains.kotlin.ir.types.defaultType
-import org.jetbrains.kotlin.ir.types.isLong
 import org.jetbrains.kotlin.ir.types.isMarkedNullable
 import org.jetbrains.kotlin.ir.types.isPrimitiveType
 import org.jetbrains.kotlin.ir.types.makeNullable
@@ -42,8 +39,6 @@ import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.defaultValueForType
 import org.jetbrains.kotlin.ir.util.functions
 import org.jetbrains.kotlin.ir.util.hasAnnotation
-import org.jetbrains.kotlin.ir.util.isFromJava
-import org.jetbrains.kotlin.ir.util.isNullable
 import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.util.nonDispatchParameters
 import org.jetbrains.kotlin.ir.util.primaryConstructor
@@ -71,10 +66,7 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
         val platform = type.hasAnnotation(StandardClassIds.Annotations.FlexibleNullability)
         if (type.isMarkedNullable() && !platform) return null
         val klass = when (val classifier = type.classifierOrNull) {
-            is IrTypeParameterSymbol -> return when {
-                classifier.owner.parent is IrFunction && (platform || member.mayReturnNull(classifier.owner)) -> null
-                else -> missing(file, "type parameter ${parameterName(classifier.owner)}")
-            }
+            is IrTypeParameterSymbol -> return missing(file, "type parameter ${parameterName(classifier.owner)}")
             is IrClassSymbol -> classifier
             else -> return missing(file, type.render())
         }
@@ -97,15 +89,6 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
         }
     }
 
-    private fun IrSimpleFunction.mayReturnNull(parameter: IrTypeParameter): Boolean =
-        parameter.superTypes.all { it.isNullable() } && isDeclaredInJava()
-
-    private fun IrSimpleFunction.isDeclaredInJava(): Boolean =
-        overriddenSymbols.isNotEmpty() && overriddenSymbols.all { symbol ->
-            val overridden = symbol.owner
-            if (overridden.isFakeOverride) overridden.isDeclaredInJava() else overridden.isFromJava()
-        }
-
     private fun array(type: IrSimpleType, file: IrFile, parameterName: (IrTypeParameter) -> String): RelaxedDefault {
         val element = type.arguments.single().typeOrNull ?: builtIns.anyNType
         val elementClass = element.classOrNull
@@ -127,21 +110,25 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
             "kotlin.collections.Set" -> call(symbols.emptySet)
             "kotlin.collections.Map" -> call(symbols.emptyMap)
             "kotlin.sequences.Sequence" -> call(symbols.emptySequence)
+            "kotlinx.coroutines.flow.Flow" -> symbols.emptyFlow?.let(::call)
             "java.util.Optional", "java.util.OptionalInt", "java.util.OptionalLong", "java.util.OptionalDouble",
             "java.util.stream.Stream", "java.util.stream.IntStream", "java.util.stream.LongStream",
             "java.util.stream.DoubleStream" -> call(symbols.emptyFactory(klass))
+            "kotlin.collections.Iterator", "kotlin.collections.MutableIterator", "kotlin.collections.ListIterator",
+            "kotlin.collections.MutableListIterator" -> listIterator()
             "kotlin.collections.MutableIterable", "kotlin.collections.MutableCollection",
-            "kotlin.collections.MutableList", "java.util.ArrayList" -> construct("ArrayList")
-            "kotlin.collections.MutableSet", "java.util.LinkedHashSet" -> construct("LinkedHashSet")
+            "kotlin.collections.MutableList" -> construct(symbols.javaUtilClass("ArrayList"))
+            "kotlin.collections.MutableSet" -> construct(symbols.javaUtilClass("LinkedHashSet"))
+            "kotlin.collections.MutableMap" -> construct(symbols.javaUtilClass("LinkedHashMap"))
+            "java.util.Queue", "java.util.Deque" -> construct(symbols.javaUtilClass("ArrayDeque"))
+            "java.util.SortedSet", "java.util.NavigableSet" -> construct(symbols.javaUtilClass("TreeSet"))
+            "java.util.SortedMap", "java.util.NavigableMap" -> construct(symbols.javaUtilClass("TreeMap"))
+            "java.util.ArrayList", "java.util.LinkedList", "java.util.ArrayDeque", "java.util.PriorityQueue",
+            "java.util.HashSet", "java.util.LinkedHashSet", "java.util.TreeSet", "java.util.HashMap",
+            "java.util.LinkedHashMap", "java.util.TreeMap", "kotlin.collections.ArrayDeque" -> construct(klass)
             "kotlin.UByte", "kotlin.UShort", "kotlin.UInt", "kotlin.ULong" -> unsigned(klass)
             "kotlin.time.Duration" -> zeroDuration(klass)
-            "kotlin.time.Instant", "kotlinx.datetime.Instant" -> epoch(klass)
-            "java.time.Instant", "java.time.LocalDate" -> constant(klass, "EPOCH")
-            "java.time.Duration", "java.time.Period", "java.math.BigDecimal", "java.math.BigInteger" ->
-                constant(klass, "ZERO")
-            "java.util.HashSet" -> construct("HashSet")
-            "kotlin.collections.MutableMap", "java.util.LinkedHashMap" -> construct("LinkedHashMap")
-            "java.util.HashMap" -> construct("HashMap")
+            "java.time.Duration", "java.time.Period", "java.math.BigDecimal", "java.math.BigInteger" -> zero(klass)
             else -> null
         }
 
@@ -165,29 +152,28 @@ internal class RelaxedDefaults(lokki: LokkiIrContext) {
         return RelaxedDefault(klass.kotlinFqName.asString()) { irInvoke(zero, receiver = irGetObject(companion)) }
     }
 
-    private fun epoch(klass: IrClass): RelaxedDefault? {
-        val companion = klass.companionObject() ?: return null
-        val fromMillis = companion.functions.singleOrNull { function ->
-            function.name.asString() == "fromEpochMilliseconds" &&
-                function.nonDispatchParameters.singleOrNull()?.type?.isLong() == true
-        } ?: return null
-        return RelaxedDefault(klass.kotlinFqName.asString()) {
-            irInvoke(fromMillis, irLong(0), receiver = irGetObject(companion))
-        }
-    }
-
-    private fun constant(klass: IrClass, name: String): RelaxedDefault? {
-        val field = klass.properties.singleOrNull { it.name.asString() == name }?.backingField ?: return null
+    private fun zero(klass: IrClass): RelaxedDefault? {
+        val field = klass.properties.singleOrNull { it.name.asString() == "ZERO" }?.backingField ?: return null
         return RelaxedDefault(klass.kotlinFqName.asString()) { irGetField(null, field) }
     }
 
-    private fun construct(name: String): RelaxedDefault {
-        val klass = symbols.javaUtilClass(name)
-        val typeArguments = klass.typeParameters.map { builtIns.anyNType }
-        return RelaxedDefault(klass.kotlinFqName.asString()) {
-            irCallConstructor(klass.constructors.single { it.parameters.isEmpty() }.symbol, typeArguments)
-                .apply { type = klass.typeWith(typeArguments) }
+    private fun construct(klass: IrClass): RelaxedDefault =
+        RelaxedDefault(klass.kotlinFqName.asString()) { irEmpty(klass) }
+
+    private fun listIterator(): RelaxedDefault {
+        val list = symbols.javaUtilClass("ArrayList")
+        val function = list.functions
+            .single { it.name.asString() == "listIterator" && it.nonDispatchParameters.isEmpty() }
+        val type = function.returnType.substitute(list.typeParameters, list.typeParameters.map { builtIns.anyNType })
+        return RelaxedDefault("${list.kotlinFqName}.listIterator") {
+            irInvoke(function, receiver = irEmpty(list), type = type)
         }
+    }
+
+    private fun IrBuilderWithScope.irEmpty(klass: IrClass): IrExpression {
+        val typeArguments = klass.typeParameters.map { builtIns.anyNType }
+        return irCallConstructor(klass.constructors.single { it.parameters.isEmpty() }.symbol, typeArguments)
+            .apply { type = klass.typeWith(typeArguments) }
     }
 
     private fun missing(file: IrFile, description: String, mockable: Boolean = false): RelaxedDefault =

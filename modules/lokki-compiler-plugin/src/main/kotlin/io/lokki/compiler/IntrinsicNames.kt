@@ -13,6 +13,7 @@ internal fun publicClassId(name: String): ClassId = ClassId(LOKKI_PACKAGE, Name.
 internal fun internalClassId(name: String): ClassId = ClassId(LOKKI_INTERNAL_PACKAGE, Name.identifier(name))
 
 internal val AWAIT_CANCELLATION = CallableId(FqName("kotlinx.coroutines"), Name.identifier("awaitCancellation"))
+internal val EMPTY_FLOW = CallableId(FqName("kotlinx.coroutines.flow"), Name.identifier("emptyFlow"))
 internal val OVERRIDE_MOCKS = publicClassId("OverrideMocks")
 internal val ARRAY_OF = CallableId(FqName("kotlin"), Name.identifier("arrayOf"))
 

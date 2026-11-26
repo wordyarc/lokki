@@ -38,6 +38,17 @@ public interface Templates {
     <T> T nonNullBound(List<T> rows);
 }
 
+// FILE: sample/Annotated.java
+package sample;
+
+import java.util.List;
+
+public interface Annotated {
+    @org.jetbrains.annotations.Nullable <T> T nullableResult(List<T> rows);
+
+    @org.jetbrains.annotations.Nullable String nullableText();
+}
+
 // FILE: sample/DerivedTemplates.java
 package sample;
 
@@ -72,12 +83,12 @@ private const val NO_DEFAULT = "relaxed mock has no default for type parameter T
 
 fun box(): String {
     val templates = mock<Templates>(relaxed = true)
-    if (templates.nullableBound<String?>(listOf("a")) != null) return "Fail nullable bound"
-    if (templates.nullableTextBound<CharSequence?>() != null) return "Fail nullable class bound"
+    if (NO_DEFAULT !in failure { templates.nullableBound<String?>(listOf("a")) }) return "Fail nullable bound"
+    if (NO_DEFAULT !in failure { templates.nullableTextBound<CharSequence?>() }) return "Fail nullable class bound"
     if (NO_DEFAULT !in failure { templates.nonNullBound(listOf("a")) }) return "Fail non-null bound"
 
     val derived = mock<DerivedTemplates>(relaxed = true)
-    if (derived.nullableBound<String?>(listOf("a")) != null) return "Fail inherited nullable bound"
+    if (NO_DEFAULT !in failure { derived.nullableBound<String?>(listOf("a")) }) return "Fail inherited nullable bound"
     if (NO_DEFAULT !in failure { derived.nonNullBound(listOf("a")) }) return "Fail inherited non-null bound"
 
     val generic = mock<KotlinGeneric>(relaxed = true)
@@ -85,6 +96,9 @@ fun box(): String {
 
     val override = mock<KotlinOverride>(relaxed = true)
     if (NO_DEFAULT !in failure { override.nullableBound<String?>(listOf("a")) }) return "Fail Kotlin override"
-    if (override.nullableTextBound<CharSequence?>() != null) return "Fail member inherited from Java"
+    if (NO_DEFAULT !in failure { override.nullableTextBound<CharSequence?>() }) return "Fail member inherited from Java"
+
+    val annotated = mock<Annotated>(relaxed = true)
+    if (annotated.nullableResult(listOf("a")) != null || annotated.nullableText() != null) return "Fail nullable result"
     return "OK"
 }
