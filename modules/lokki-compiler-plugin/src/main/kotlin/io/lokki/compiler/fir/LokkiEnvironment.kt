@@ -35,6 +35,9 @@ internal class LokkiEnvironment(
 
     val finalMembers: FirCache<FirRegularClassSymbol, List<String>, SessionAndScopeSessionHolder> =
         session.firCachesFactory.createCache { mocked, holder -> with(holder) { mocked.findFinalMembers() } }
+
+    val finalDeclaredMembers: FirCache<FirRegularClassSymbol, List<String>, SessionAndScopeSessionHolder> =
+        session.firCachesFactory.createCache { mocked, holder -> with(holder) { mocked.findFinalDeclaredMembers() } }
 }
 
 internal val FirSession.lokkiEnvironment: LokkiEnvironment by FirSession.sessionComponentAccessor()

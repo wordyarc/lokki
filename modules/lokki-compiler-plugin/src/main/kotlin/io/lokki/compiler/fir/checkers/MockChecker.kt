@@ -12,6 +12,7 @@ import io.lokki.compiler.fir.displayName
 import io.lokki.compiler.fir.effectiveModality
 import io.lokki.compiler.fir.externalKind
 import io.lokki.compiler.fir.fieldKind
+import io.lokki.compiler.fir.finalDeclaredMembers
 import io.lokki.compiler.fir.finalMembers
 import io.lokki.compiler.fir.intrinsicKind
 import io.lokki.compiler.fir.isFromFriendKotlinModule
@@ -32,6 +33,7 @@ import org.jetbrains.kotlin.fir.analysis.checkers.MppCheckerKind
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.analysis.checkers.declaration.FirPropertyChecker
 import org.jetbrains.kotlin.fir.analysis.checkers.declaration.FirValueParameterChecker
+import org.jetbrains.kotlin.fir.canSeeInternalsOf
 import org.jetbrains.kotlin.fir.declarations.FirProperty
 import org.jetbrains.kotlin.fir.declarations.FirValueParameter
 import org.jetbrains.kotlin.fir.declarations.findArgumentByName
@@ -43,9 +45,11 @@ import org.jetbrains.kotlin.fir.expressions.FirAnnotation
 import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
 import org.jetbrains.kotlin.fir.expressions.FirGetClassCall
+import org.jetbrains.kotlin.fir.expressions.FirLiteralExpression
 import org.jetbrains.kotlin.fir.expressions.FirVarargArgumentsExpression
 import org.jetbrains.kotlin.fir.expressions.arguments
 import org.jetbrains.kotlin.fir.expressions.unwrapArgument
+import org.jetbrains.kotlin.fir.moduleData
 import org.jetbrains.kotlin.fir.references.toResolvedCallableSymbol
 import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
 import org.jetbrains.kotlin.fir.resolve.getContainingClassSymbol
@@ -82,7 +86,8 @@ internal fun checkMock(call: FirFunctionCall, function: FirCallableSymbol<*>, ki
         ?: argument.toConeTypeProjection().type?.lowerBoundIfFlexible()?.fullyExpandedType()
         ?: return
     if (kind == IntrinsicKind.MOCK && type.isReifiedHelperParameter && !call.hasMoreInterfaces()) return
-    val mocked = MockedType(kind, type, source, "The type argument", function.name.asString())
+    val relaxed = call.argument(ParameterNames.RELAXED).isTrue
+    val mocked = MockedType(kind, type, source, "The type argument", function.name.asString(), relaxed)
     mocked.check { moreInterfaces(call, function) }
 }
 
@@ -206,6 +211,7 @@ private class AnnotatedMock(
             annotation.source,
             "The mocked type",
             "@$name",
+            kind == IntrinsicKind.RELAXED_MOCK || annotation.findArgumentByName(RELAXED).isTrue,
         )
 }
 
@@ -239,7 +245,11 @@ private class MockedType(
     val source: KtSourceElement?,
     val subject: String,
     val dsl: String,
+    val relaxed: Boolean,
 )
+
+private val FirExpression?.isTrue: Boolean
+    get() = (this?.unwrapArgument() as? FirLiteralExpression)?.value == true
 
 context(context: CheckerContext, reporter: DiagnosticReporter)
 private fun MockedType.check(interfaces: () -> Boolean): Boolean {
@@ -264,7 +274,7 @@ private fun MockedType.check(interfaces: () -> Boolean): Boolean {
     mocked.restriction()?.let { restriction ->
         reporter.reportOn(source, LokkiDiagnostics.LOKKI_RESTRICTED_TYPE, mocked.displayName, restriction)
     }
-    val finalMembers = mocked.finalMembers()
+    val finalMembers = mocked.finalMembers().ifEmpty { if (relaxed) mocked.finalDeclaredMembers() else emptyList() }
     if (finalMembers.isNotEmpty()) {
         val advice = when {
             mocked.isOpenedInBytecode(context.session) ->
@@ -272,6 +282,7 @@ private fun MockedType.check(interfaces: () -> Boolean): Boolean {
                     "members inherited from classes it does not open"
             mocked.isFromFriendKotlinModule(context.session) ->
                 "Make them open or add their classes to lokki { mockable(...) }"
+            !context.session.moduleData.canSeeInternalsOf(mocked.moduleData) -> LIBRARY_CLASS_ADVICE
             else -> "Make them open"
         }
         reporter.reportOn(
@@ -362,6 +373,10 @@ private fun FirExpression.interfaceArguments(): List<FirExpression> =
     }
 
 private val INTERFACE_TYPE = Name.identifier(ParameterNames.INTERFACE_TYPE)
+private val RELAXED = Name.identifier(ParameterNames.RELAXED)
+private const val LIBRARY_CLASS_ADVICE =
+    "Create a real instance, for example with a builder or a factory of the class; a mock that is only passed " +
+        "along does not need to be relaxed"
 private val ADDITIONAL_INTERFACE = IntrinsicKind.ADDITIONAL_INTERFACE
 private const val SPY_VAL_HINT =
     ". A 'val' can be a spy only with a constructor call of an open class as the initializer, such as 'val car = Car()'"

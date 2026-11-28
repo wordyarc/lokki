@@ -29,11 +29,15 @@ import org.jetbrains.kotlin.fir.resolve.toRegularClassSymbol
 import org.jetbrains.kotlin.fir.resolve.toSymbol
 import org.jetbrains.kotlin.fir.resolve.toTypeParameterSymbol
 import org.jetbrains.kotlin.fir.scopes.FirTypeScope
+import org.jetbrains.kotlin.fir.scopes.getDirectOverriddenSafe
 import org.jetbrains.kotlin.fir.scopes.processAllCallables
 import org.jetbrains.kotlin.fir.scopes.unsubstitutedScope
 import org.jetbrains.kotlin.fir.symbols.SymbolInternals
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirFieldSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirFunctionSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.types.ConeClassLikeType
 import org.jetbrains.kotlin.fir.types.ConeDefinitelyNotNullType
@@ -80,6 +84,10 @@ context(context: CheckerContext)
 internal fun FirRegularClassSymbol.finalMembers(): List<String> =
     context.session.lokkiEnvironment.finalMembers.getValue(this, context.sessionHolder)
 
+context(context: CheckerContext)
+internal fun FirRegularClassSymbol.finalDeclaredMembers(): List<String> =
+    context.session.lokkiEnvironment.finalDeclaredMembers.getValue(this, context.sessionHolder)
+
 context(holder: SessionAndScopeSessionHolder)
 internal fun FirRegularClassSymbol.findMissingClassesProblem(): String? =
     missingSupertypes().takeIf { it.isNotEmpty() }?.let(::missingSupertypesProblem)
@@ -100,6 +108,26 @@ internal fun FirRegularClassSymbol.findFinalMembers(): List<String> {
     }
     return members.toList()
 }
+
+context(holder: SessionAndScopeSessionHolder)
+internal fun FirRegularClassSymbol.findFinalDeclaredMembers(): List<String> {
+    if (classKind != ClassKind.CLASS || holder.session.moduleData.canSeeInternalsOf(moduleData)) return emptyList()
+    val scope = memberScope()
+    val declared = mutableListOf<FirCallableSymbol<*>>()
+    scope.processAllCallables { member ->
+        if (member !is FirFieldSymbol && member.visibility == Visibilities.Public &&
+            member.unwrapFakeOverrides() === member && member.containingClassLookupTag() == toLookupTag() &&
+            !scope.overrides(member)
+        ) {
+            declared += member
+        }
+    }
+    if (declared.isEmpty() || declared.any { !it.isFinal || it.isOpenedInBytecode(holder.session) }) return emptyList()
+    return declared.mapTo(sortedSetOf()) { it.name.asString() }.toList()
+}
+
+private fun FirTypeScope.overrides(member: FirCallableSymbol<*>): Boolean =
+    (member is FirNamedFunctionSymbol || member is FirPropertySymbol) && getDirectOverriddenSafe(member).isNotEmpty()
 
 internal fun FirRegularClassSymbol.findRestriction(session: FirSession, restricted: MockablePatterns?): String? {
     val supertypes = lookupSuperTypes(this, lookupInterfaces = true, deep = true, session)

@@ -1,0 +1,13 @@
+/test.kt:102:14: warning: The mock of 'lib.Response' does not intercept its final members 'completed', 'task': they run the original code on an instance created without a constructor. Create a real instance, for example with a builder or a factory of the class; a mock that is only passed along does not need to be relaxed.
+
+/test.kt:103:5: warning: The mock of 'lib.Response' does not intercept its final members 'completed', 'task': they run the original code on an instance created without a constructor. Create a real instance, for example with a builder or a factory of the class; a mock that is only passed along does not need to be relaxed.
+
+/test.kt:106:5: warning: The mock of 'lib.Library' does not intercept its final members 'describe', 'id': they run the original code on an instance created without a constructor. Create a real instance, for example with a builder or a factory of the class; a mock that is only passed along does not need to be relaxed.
+
+/test.kt:117:10: warning: The mock of 'lib.Response' does not intercept its final members 'completed', 'task': they run the original code on an instance created without a constructor. Create a real instance, for example with a builder or a factory of the class; a mock that is only passed along does not need to be relaxed.
+
+/test.kt:118:5: warning: The mock of 'lib.Response' does not intercept its final members 'completed', 'task': they run the original code on an instance created without a constructor. Create a real instance, for example with a builder or a factory of the class; a mock that is only passed along does not need to be relaxed.
+
+/test.kt:119:10: warning: The mock of 'lib.Library' does not intercept its final members 'describe', 'id': they run the original code on an instance created without a constructor. Create a real instance, for example with a builder or a factory of the class; a mock that is only passed along does not need to be relaxed.
+
+/test.kt:120:10: warning: The mock of 'lib.Point' does not intercept its final members 'y': they run the original code on an instance created without a constructor. Create a real instance, for example with a builder or a factory of the class; a mock that is only passed along does not need to be relaxed.
