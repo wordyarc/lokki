@@ -54,7 +54,7 @@ context(context: CheckerContext)
 internal fun FirRegularClassSymbol.interceptionProblem(): String? {
     if (origin is FirDeclarationOrigin.Source) {
         return DECLARED_HERE.takeIf {
-            moduleData == context.session.moduleData && !isMockableInThisCompilation(context.session)
+            moduleData == context.session.moduleData && !isInterceptableInThisCompilation(context.session)
         }
     }
     return markProblem("it or its package")
@@ -100,16 +100,21 @@ internal fun FirRegularClassSymbol.constructorInterceptionProblem(): String? {
         isInlineOrValue -> "it is a value class"
         modality == Modality.ABSTRACT || modality == Modality.SEALED -> "it is abstract, so it has no instances of its own"
         origin is FirDeclarationOrigin.Source -> DECLARED_HERE.takeIf {
-            moduleData == context.session.moduleData && !isMockableInThisCompilation(context.session)
+            moduleData == context.session.moduleData && !isInterceptableInThisCompilation(context.session)
         }
-        else -> markProblem("it or its package") ?: (
-            "it has no constructor interception point: rebuild the module that declares it".takeIf {
-                context.session.symbolProvider.getClassLikeSymbolByClassId(classId.createNestedClassId(CONSTRUCTORS)) == null ||
-                    context.session.symbolProvider.getClassLikeSymbolByClassId(classId.createNestedClassId(CONSTRUCTORS_HOLDER)) == null
-            }
-        )
+        else -> markProblem("it or its package") ?: NO_CONSTRUCTOR_INTERCEPTION.takeIf { !hasConstructorRedirect() }
     }
 }
+
+context(context: CheckerContext)
+private fun FirRegularClassSymbol.hasConstructorRedirect(): Boolean =
+    listOf(CONSTRUCTORS, CONSTRUCTORS_HOLDER).all { nested ->
+        context.session.symbolProvider.getClassLikeSymbolByClassId(classId.createNestedClassId(nested)) != null
+    }
+
+private const val NO_CONSTRUCTOR_INTERCEPTION =
+    "it has no constructor interception point: add it or its package to lokki { interceptable(...) } of the " +
+        "module that declares it"
 
 context(context: CheckerContext)
 private fun FirRegularClassSymbol.redirectDeclares(member: Name): Boolean {
@@ -128,7 +133,7 @@ internal fun FirCallableSymbol<*>.staticInterception(): MemberInterception {
     }
     val problem = when {
         origin is FirDeclarationOrigin.Source -> DECLARED_HERE.takeIf {
-            moduleData == context.session.moduleData && !isMockableInThisCompilation(context.session)
+            moduleData == context.session.moduleData && !isInterceptableInThisCompilation(context.session)
         }
         else -> markProblem("it, its file or its package")
     }
@@ -165,7 +170,8 @@ private fun FirBasedSymbol<*>.markProblem(additions: String): String? =
         InterceptionMark.OTHER_FORMAT ->
             "has interception points of another version of lokki: rebuild the module that declares it"
         InterceptionMark.ABSENT -> missingInterceptionPoints()
-            ?: "has no interception points: add $additions to lokki { mockable(...) } of the module that declares it"
+            ?: "has no interception points: add $additions to lokki { interceptable(...) } of the module that " +
+                "declares it"
     }
 
 context(context: CheckerContext)
@@ -178,5 +184,5 @@ internal fun FirBasedSymbol<*>.mark(): InterceptionMark =
     InterceptionMark.of(fir.compilerPluginMetadata?.get(BuildConfig.COMPILER_PLUGIN_ID))
 
 private const val DECLARED_HERE =
-    "is declared in this compilation and has no interception points: name it in lokki { mockable(...) } " +
+    "is declared in this compilation and has no interception points: name it in lokki { interceptable(...) } " +
         "(in test sources a package pattern does not apply)"

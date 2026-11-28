@@ -1,4 +1,4 @@
-/test.kt:30:21: error: Calls of 'sample.Closed' cannot be intercepted: has no interception points: add it or its package to lokki { mockable(...) } of the module that declares it.
+/test.kt:30:21: error: Calls of 'sample.Closed' cannot be intercepted: has no interception points: add it or its package to lokki { interceptable(...) } of the module that declares it.
 
 /test.kt:31:21: error: Calls of 'sample.Base' cannot be intercepted: it is abstract, so it has no instances of its own.
 

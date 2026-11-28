@@ -1,5 +1,5 @@
 // MODULE: main
-// MOCKABLE: sample.** marked.Marked named.picked
+// INTERCEPTABLE: sample.** marked.Marked named.picked
 // FILE: cars.kt
 package sample
 

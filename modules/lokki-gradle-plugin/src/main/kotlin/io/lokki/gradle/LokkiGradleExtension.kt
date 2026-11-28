@@ -9,6 +9,9 @@ public abstract class LokkiGradleExtension @Inject constructor(objects: ObjectFa
     @get:JvmName("getMockable")
     internal val mockable: SetProperty<String> = objects.setProperty(String::class.java)
 
+    @get:JvmName("getInterceptable")
+    internal val interceptable: SetProperty<String> = objects.setProperty(String::class.java)
+
     @get:JvmName("getRestricted")
     internal val restricted: SetProperty<String> = objects.setProperty(String::class.java)
 
@@ -20,11 +23,15 @@ public abstract class LokkiGradleExtension @Inject constructor(objects: ObjectFa
     public val recordStackTraces: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
 
     init {
-        listOf(mockable, restricted, testCompilations, applyToMain, recordStackTraces).forEach { it.finalizeValueOnRead() }
+        listOf(mockable, interceptable, restricted, testCompilations, applyToMain, recordStackTraces).forEach { it.finalizeValueOnRead() }
     }
 
     public fun mockable(vararg patterns: String) {
         mockable.addAll(*patterns)
+    }
+
+    public fun interceptable(vararg patterns: String) {
+        interceptable.addAll(*patterns)
     }
 
     public fun restricted(vararg patterns: String) {

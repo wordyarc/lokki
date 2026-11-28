@@ -1,5 +1,5 @@
 // MODULE: main
-// MOCKABLE: sample.Service sample.WithDefault sample.Typed
+// INTERCEPTABLE: sample.Service sample.WithDefault sample.Typed
 // FILE: main.kt
 package sample
 

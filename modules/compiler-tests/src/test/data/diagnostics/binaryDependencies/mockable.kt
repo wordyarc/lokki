@@ -60,16 +60,27 @@ object Registry
 
 data class Settings(val enabled: Boolean, val limit: Int)
 
+object Clock {
+    fun hour(): Int = 12
+}
+
+fun newId(): String = "id"
+
 // MODULE: test()(main)
 // FILE: test.kt
 package test
 
 import io.lokki.every
 import io.lokki.mock
+import io.lokki.mockConstructor
+import io.lokki.mockObject
+import io.lokki.mockStatic
+import sample.Clock
 import sample.Aliased
 import sample.Engine
 import sample.Fuel
 import sample.Locked
+import sample.newId
 import sample.Registry
 import sample.Rpm
 import sample.Settings
@@ -91,4 +102,8 @@ fun test() {
     mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Registry<!>>()
     mock<<!LOKKI_TYPE_NOT_MOCKABLE!>Window<!>>()
     mock<Settings>()
+    mockObject(<!LOKKI_OBJECT_NOT_INTERCEPTABLE!>Clock<!>)
+    every { Clock.<!LOKKI_NOT_INTERCEPTABLE!>hour<!>() } returns 9
+    mockStatic(<!LOKKI_OBJECT_NOT_INTERCEPTABLE!>::newId<!>)
+    mockConstructor(<!LOKKI_OBJECT_NOT_INTERCEPTABLE!>Engine::class<!>)
 }

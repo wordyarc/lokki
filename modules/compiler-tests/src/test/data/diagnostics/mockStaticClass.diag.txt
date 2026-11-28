@@ -1,9 +1,9 @@
-/test.kt:18:16: error: Calls of 'JavaStatics' cannot be intercepted: it is a Java class, whose static methods lokki does not intercept. Inject the dependency or call it through a Kotlin object from lokki { mockable(...) }.
+/test.kt:18:16: error: Calls of 'JavaStatics' cannot be intercepted: it is a Java class, whose static methods lokki does not intercept. Inject the dependency or call it through a Kotlin object from lokki { interceptable(...) }.
 
-/test.kt:19:16: error: Calls of 'java.time.LocalDate' cannot be intercepted: it is a Java class, whose static methods lokki does not intercept. Inject the dependency or call it through a Kotlin object from lokki { mockable(...) }.
+/test.kt:19:16: error: Calls of 'java.time.LocalDate' cannot be intercepted: it is a Java class, whose static methods lokki does not intercept. Inject the dependency or call it through a Kotlin object from lokki { interceptable(...) }.
 
 /test.kt:20:16: error: Calls of 'Plain' cannot be intercepted: it has no static members: only an object and a companion object of a Kotlin class have them.
 
-/test.kt:21:16: error: Calls of 'Local' cannot be intercepted: it is declared in this compilation and has no interception points: name it in lokki { mockable(...) } (in test sources a package pattern does not apply).
+/test.kt:21:16: error: Calls of 'Local' cannot be intercepted: it is declared in this compilation and has no interception points: name it in lokki { interceptable(...) } (in test sources a package pattern does not apply).
 
 /test.kt:22:16: error: Calls of 'KClass<*>' cannot be intercepted: pass class literals such as 'Clock::class': 'mockStatic' chooses them at compile time.

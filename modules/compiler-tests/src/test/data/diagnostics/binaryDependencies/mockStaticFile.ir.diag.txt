@@ -1,1 +1,1 @@
-/test.kt:17:16: error: Calls of 'sample.PickedKt' cannot be intercepted: it is not a file class with interception points: add its functions or package to lokki { mockable(...) } of the module that declares them.
+/test.kt:17:16: error: Calls of 'sample.PickedKt' cannot be intercepted: it is not a file class with interception points: add its functions or package to lokki { interceptable(...) } of the module that declares them.

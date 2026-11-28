@@ -9,13 +9,14 @@ import org.jetbrains.kotlin.fir.extensions.FirExtensionSessionComponent
 
 internal class LokkiFirExtensionRegistrar(
     private val compat: CompilerCompat,
-    private val mockable: MockablePatterns?,
+    private val opened: MockablePatterns?,
+    private val intercepted: MockablePatterns?,
     private val restricted: MockablePatterns?,
 ) : FirExtensionRegistrar() {
     override fun ExtensionRegistrarContext.configurePlugin() {
         linked {
             +FirExtensionSessionComponent.Factory { session ->
-                LokkiEnvironment(session, compat.registersClassesAsMetadataVisible, mockable, restricted)
+                LokkiEnvironment(session, compat.registersClassesAsMetadataVisible, opened, intercepted, restricted)
             }
             +::LokkiFirCheckersExtension
             registerDiagnosticContainers(LokkiDiagnostics)

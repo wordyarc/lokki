@@ -2,7 +2,7 @@
 // RENDER_DIAGNOSTICS_FULL_TEXT
 
 // MODULE: main
-// MOCKABLE: sample.mocked.**
+// INTERCEPTABLE: sample.mocked.**
 // FILE: clock.kt
 package sample.mocked
 

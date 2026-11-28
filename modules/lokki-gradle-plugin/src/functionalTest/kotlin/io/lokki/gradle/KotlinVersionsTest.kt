@@ -82,7 +82,8 @@ class KotlinVersionsTest {
             }
 
             lokki {
-                mockable("sample.Engine", "sample.Clock", "sample.now")
+                mockable("sample.Engine")
+                interceptable("sample.Clock", "sample.now")
             }
 
             testing {

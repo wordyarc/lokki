@@ -1,5 +1,5 @@
 // MODULE: main
-// MOCKABLE: sample.**
+// INTERCEPTABLE: sample.**
 // FILE: services.kt
 package sample
 

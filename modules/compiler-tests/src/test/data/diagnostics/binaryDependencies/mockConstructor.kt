@@ -1,7 +1,7 @@
 // RUN_PIPELINE_TILL: FRONTEND
 // RENDER_DIAGNOSTICS_FULL_TEXT
 // MODULE: main
-// MOCKABLE: sample.Open
+// INTERCEPTABLE: sample.Open
 // FILE: main.kt
 package sample
 

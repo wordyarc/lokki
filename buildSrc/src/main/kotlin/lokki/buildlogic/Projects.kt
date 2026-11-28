@@ -15,6 +15,8 @@ internal val Project.kotlinModuleName: String
 
 const val MOCKABLE_OPTION = "mockable"
 
+const val INTERCEPTABLE_OPTION = "interceptable"
+
 const val RESTRICTED_OPTION = "restricted"
 
 const val DEBUG_OPTION = "debug"

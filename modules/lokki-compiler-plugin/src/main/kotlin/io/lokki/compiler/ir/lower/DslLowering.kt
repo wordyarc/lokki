@@ -389,7 +389,7 @@ internal class DslLowering(
                 file.diagnostics.objectNotInterceptable(
                     this,
                     target.name.asString(),
-                    "it has no constructor interception point: add it to lokki { mockable(...) } of its module",
+                    "it has no constructor interception point: add it to lokki { interceptable(...) } of its module",
                 )
             }
         }
@@ -439,7 +439,7 @@ internal class DslLowering(
                         element,
                         className,
                         "it is not a file class with interception points: add its functions or package to " +
-                            "lokki { mockable(...) } of the module that declares them",
+                            "lokki { interceptable(...) } of the module that declares them",
                     )
                     return null
                 }

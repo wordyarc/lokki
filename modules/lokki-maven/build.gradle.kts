@@ -1,5 +1,6 @@
 import lokki.buildlogic.COMPILER_PLUGIN_ID
 import lokki.buildlogic.LocationSystemProperty
+import lokki.buildlogic.INTERCEPTABLE_OPTION
 import lokki.buildlogic.MOCKABLE_OPTION
 import lokki.buildlogic.compilerApiBaseline
 import lokki.buildlogic.functionalTestRepository
@@ -35,6 +36,7 @@ buildConfig {
     packageName("io.lokki.maven")
     buildConfigField("COMPILER_PLUGIN_ID", COMPILER_PLUGIN_ID)
     buildConfigField("MOCKABLE_OPTION", MOCKABLE_OPTION)
+    buildConfigField("INTERCEPTABLE_OPTION", INTERCEPTABLE_OPTION)
 }
 
 interface ArchiveAccess {

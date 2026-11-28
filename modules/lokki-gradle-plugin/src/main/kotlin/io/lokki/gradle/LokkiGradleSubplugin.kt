@@ -48,16 +48,17 @@ public class LokkiGradleSubplugin : KotlinCompilerPluginSupportPlugin {
                 implementation("${BuildConfig.GROUP}:lokki-core:${BuildConfig.VERSION}")
             }
         }
-        if (!test && lokki.mockable.get().isNotEmpty()) kotlinCompilation.warnAboutMockableBytecode()
-        val patterns = lokki.mockable.zip(lokki.restricted) { mockable, restricted -> mockable to restricted }
+        if (!test && lokki.changesMain()) kotlinCompilation.warnAboutMainBytecode(lokki.interceptable.get().isNotEmpty())
+        val mainMode = lokki.mockable.zip(lokki.interceptable) { mockable, interceptable ->
+            mockable.map { SubpluginOption(BuildConfig.MOCKABLE_OPTION, it) } +
+                interceptable.map { SubpluginOption(BuildConfig.INTERCEPTABLE_OPTION, it) }
+        }
+        val patterns = mainMode.zip(lokki.restricted) { options, restricted -> options to restricted }
         val debugging = kotlinCompilation.target.project.booleanProperty(DEBUG)
-        return debugging.zip(patterns) { debug, (mockable, restricted) ->
-            val opened = when {
-                test -> mockable.filterNot { it.endsWith(SUBPACKAGES) }
-                else -> mockable
-            }.map { SubpluginOption(BuildConfig.MOCKABLE_OPTION, it) }
+        return debugging.zip(patterns) { debug, (options, restricted) ->
+            val declarations = if (test) options.filterNot { it.value.endsWith(SUBPACKAGES) } else options
             val checked = if (test) restricted.map { SubpluginOption(BuildConfig.RESTRICTED_OPTION, it) } else emptyList()
-            opened + checked + listOfNotNull(SubpluginOption(BuildConfig.DEBUG_OPTION, "true").takeIf { debug })
+            declarations + checked + listOfNotNull(SubpluginOption(BuildConfig.DEBUG_OPTION, "true").takeIf { debug })
         }
     }
 }
@@ -70,7 +71,9 @@ internal class StackTraceRecording(@get:Input val enabled: Provider<Boolean>) : 
 private val KotlinCompilation<*>.lokki: LokkiGradleExtension
     get() = target.project.extensions.getByType(LokkiGradleExtension::class.java)
 
-private fun LokkiGradleExtension.appliesToMain(): Boolean = applyToMain.get() || mockable.get().isNotEmpty()
+private fun LokkiGradleExtension.appliesToMain(): Boolean = applyToMain.get() || changesMain()
+
+private fun LokkiGradleExtension.changesMain(): Boolean = mockable.get().isNotEmpty() || interceptable.get().isNotEmpty()
 
 private fun Project.booleanProperty(name: String): Provider<Boolean> =
     providers.gradleProperty(name).map { it.toBoolean() }.orElse(false)
@@ -118,14 +121,18 @@ private fun Project.checkKotlinVersion(version: String) {
     }
 }
 
-private fun KotlinCompilation<*>.warnAboutMockableBytecode() {
+private fun KotlinCompilation<*>.warnAboutMainBytecode(intercepts: Boolean) {
     val project = target.project
     if (project.providers.gradleProperty(MOCKABLE_PUBLICATION_NOWARN).orNull?.toBoolean() == true) return
     val task = project.absoluteProjectPath(compileTaskProvider.name)
     fun warn(outputs: String) {
+        val change = when {
+            intercepts -> "lokki { interceptable(...) } adds interception points to objects, top-level functions " +
+                "and constructor calls and opens classes"
+            else -> "lokki { mockable(...) } opens classes"
+        }
         project.logger.warn(
-            "lokki { mockable(...) } opens classes and adds interception points to objects and top-level " +
-                "functions compiled by $task, and $outputs contain this bytecode. To disable this warning, set " +
+            "$change compiled by $task, and $outputs contain this bytecode. To disable this warning, set " +
                 "$MOCKABLE_PUBLICATION_NOWARN=true in gradle.properties."
         )
     }

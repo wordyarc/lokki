@@ -392,7 +392,7 @@ internal class StubBlockLowering(
             irStateOf(block, target.redirect, receiver?.let(::irGet)) ?: fail(
                 stubbed.call,
                 "'${stubbed.call.name}' has no interception point: lokki intercepts top-level functions and " +
-                    "properties of main compilations with lokki { mockable(...) }",
+                    "properties of main compilations with lokki { interceptable(...) }",
             )
         )
         val matchers = irArguments(block, stubbed, receiver, state, target.key)
@@ -481,7 +481,7 @@ internal class StubBlockLowering(
         val type = call.typeArguments[0]!!
         val target = type.classOrNull?.owner ?: fail(call, "'${call.name}' needs a class as its type argument")
         val redirect = file.redirects.constructors(target)
-            ?: fail(call, "'${target.name}' has no constructor interception point: add it to lokki { mockable(...) }")
+            ?: fail(call, "'${target.name}' has no constructor interception point: add it to lokki { interceptable(...) }")
         val key = irString(redirect.key)
         val name = irString(target.name.asString())
         val parameter = call.symbol.owner.parameters.find { it.varargElementType != null }

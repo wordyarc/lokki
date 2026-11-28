@@ -30,7 +30,7 @@ class ComposeTest {
             }
 
             lokki {
-                mockable("sample.**")
+                interceptable("sample.**")
             }
 
             testing {

@@ -2,7 +2,7 @@
 // RENDER_IR_DIAGNOSTICS_FULL_TEXT
 
 // MODULE: main
-// MOCKABLE: sample.**
+// INTERCEPTABLE: sample.**
 // FILE: main.kt
 package sample
 

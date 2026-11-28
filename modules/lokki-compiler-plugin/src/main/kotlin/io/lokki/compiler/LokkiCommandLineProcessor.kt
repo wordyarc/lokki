@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.config.CompilerConfigurationKey
 
 object LokkiConfigurationKeys {
     val MOCKABLE: CompilerConfigurationKey<List<String>> = CompilerConfigurationKey.create("lokki mockable")
+    val INTERCEPTABLE: CompilerConfigurationKey<List<String>> = CompilerConfigurationKey.create("lokki interceptable")
     val RESTRICTED: CompilerConfigurationKey<List<String>> = CompilerConfigurationKey.create("lokki restricted")
     val DEBUG: CompilerConfigurationKey<Boolean> = CompilerConfigurationKey.create("lokki debug")
 }
@@ -17,13 +18,17 @@ class LokkiCommandLineProcessor : CommandLineProcessor {
     override val pluginId: String
         get() = BuildConfig.COMPILER_PLUGIN_ID
     override val pluginOptions: Collection<CliOption>
-        get() = listOf(MOCKABLE_OPTION, RESTRICTED_OPTION, DEBUG_OPTION)
+        get() = listOf(MOCKABLE_OPTION, INTERCEPTABLE_OPTION, RESTRICTED_OPTION, DEBUG_OPTION)
 
     override fun processOption(option: AbstractCliOption, value: String, configuration: CompilerConfiguration) {
         when (option) {
             MOCKABLE_OPTION -> {
                 mockablePatternProblem(value)?.let { throw CliOptionProcessingException(it) }
                 configuration.appendList(LokkiConfigurationKeys.MOCKABLE, value)
+            }
+            INTERCEPTABLE_OPTION -> {
+                mockablePatternProblem(value, INTERCEPTABLE_OPTION.optionName)?.let { throw CliOptionProcessingException(it) }
+                configuration.appendList(LokkiConfigurationKeys.INTERCEPTABLE, value)
             }
             RESTRICTED_OPTION -> {
                 mockablePatternProblem(value, RESTRICTED_OPTION.optionName)?.let { throw CliOptionProcessingException(it) }
@@ -38,7 +43,16 @@ class LokkiCommandLineProcessor : CommandLineProcessor {
 private val MOCKABLE_OPTION = CliOption(
     BuildConfig.MOCKABLE_OPTION,
     "<pattern>",
-    "A package followed by '.**', a class, an annotation or a function whose declarations become mockable",
+    "A package followed by '.**', a class or an annotation whose classes and their members become open",
+    required = false,
+    allowMultipleOccurrences = true,
+)
+
+private val INTERCEPTABLE_OPTION = CliOption(
+    BuildConfig.INTERCEPTABLE_OPTION,
+    "<pattern>",
+    "A package followed by '.**', a class, an object, an annotation or a function whose declarations get " +
+        "interception points: classes are also opened, and their constructor calls are intercepted",
     required = false,
     allowMultipleOccurrences = true,
 )

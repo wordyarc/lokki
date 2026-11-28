@@ -1,6 +1,6 @@
 // RUN_PIPELINE_TILL: FRONTEND
 // RENDER_DIAGNOSTICS_FULL_TEXT
-// MOCKABLE: fixture.Named
+// INTERCEPTABLE: fixture.Named
 
 // FILE: fixture.kt
 package fixture

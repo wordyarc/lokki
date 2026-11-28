@@ -1,11 +1,11 @@
-/mockObject.kt:19:16: error: Calls of 'test.Local' cannot be intercepted: it is declared in this compilation and has no interception points: name it in lokki { mockable(...) } (in test sources a package pattern does not apply).
+/mockObject.kt:19:16: error: Calls of 'test.Local' cannot be intercepted: it is declared in this compilation and has no interception points: name it in lokki { interceptable(...) } (in test sources a package pattern does not apply).
 
 /mockObject.kt:20:16: error: Calls of 'test.Service' cannot be intercepted: it is not an object: lokki intercepts calls of objects, companion objects and enum entries, and an instance of an open class is spied with 'spy(Foo(...))'.
 
-/mockObject.kt:21:16: error: Calls of 'test.Mode' cannot be intercepted: it is declared in this compilation and has no interception points: name it in lokki { mockable(...) } (in test sources a package pattern does not apply).
+/mockObject.kt:21:16: error: Calls of 'test.Mode' cannot be intercepted: it is declared in this compilation and has no interception points: name it in lokki { interceptable(...) } (in test sources a package pattern does not apply).
 
 /mockObject.kt:22:16: error: Calls of 'Array<Any>' cannot be intercepted: pass the objects as separate arguments: 'mockObject' does not see the elements of an array.
 
 /mockObject.kt:23:16: error: Calls of 'kotlin.Any' cannot be intercepted: it is not an object: lokki intercepts calls of objects, companion objects and enum entries, and an instance of an open class is spied with 'spy(Foo(...))'.
 
-/mockObject.kt:24:19: error: A call of 'f' cannot be intercepted: 'test.Local' is declared in this compilation and has no interception points: name it in lokki { mockable(...) } (in test sources a package pattern does not apply).
+/mockObject.kt:24:19: error: A call of 'f' cannot be intercepted: 'test.Local' is declared in this compilation and has no interception points: name it in lokki { interceptable(...) } (in test sources a package pattern does not apply).

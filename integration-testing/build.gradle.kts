@@ -14,7 +14,14 @@ kotlin {
 }
 
 lokki {
-    mockable("io.lokki.it.mockable.**", "io.lokki.it.conformance.**")
+    mockable("io.lokki.it.mockable.**")
+    interceptable(
+        "io.lokki.it.mockable.Clock",
+        "io.lokki.it.mockable.Ticket",
+        "io.lokki.it.mockable.today",
+        "io.lokki.it.mockable.stamp",
+        "io.lokki.it.conformance.**",
+    )
 }
 
 val interceptionPoints = libs.versions.kotlin.get().substringBefore('-').split('.').map(String::toInt)

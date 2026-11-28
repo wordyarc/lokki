@@ -50,7 +50,7 @@ class ParcelizeTest {
             }
 
             lokki {
-                mockable("sample.**")
+                interceptable("sample.**")
             }
 
             dependencies {

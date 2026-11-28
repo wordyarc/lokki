@@ -17,7 +17,8 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 internal class LokkiEnvironment(
     session: FirSession,
     val interceptionPoints: Boolean,
-    val mockable: MockablePatterns?,
+    val opened: MockablePatterns?,
+    val intercepted: MockablePatterns?,
     private val restricted: MockablePatterns?,
 ) : FirExtensionSessionComponent(session) {
     val runtimeAbi: Int by session.firCachesFactory.createLazyValue {

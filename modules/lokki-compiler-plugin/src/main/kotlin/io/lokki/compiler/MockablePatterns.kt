@@ -22,9 +22,9 @@ internal fun mockablePatternProblem(pattern: String, option: String = BuildConfi
     val name = pattern.removeSuffix(SUBPACKAGES)
     if (name.isNotEmpty() && isValidJavaFqName(name)) return null
     val names = when (option) {
-        BuildConfig.MOCKABLE_OPTION ->
-            "a class, an annotation or a function, e.g. 'com.acme.**', 'com.acme.Engine', 'com.acme.Mockable' or " +
-                "'com.acme.buildCar'"
+        BuildConfig.INTERCEPTABLE_OPTION ->
+            "a class, an object, an annotation or a function, e.g. 'com.acme.**', 'com.acme.Engine', " +
+                "'com.acme.Clock', 'com.acme.Mockable' or 'com.acme.buildCar'"
         else -> "a class or an annotation, e.g. 'com.acme.**', 'com.acme.Engine' or 'com.acme.Mockable'"
     }
     return "Invalid $option pattern '$pattern': expected a package followed by '$SUBPACKAGES', $names"

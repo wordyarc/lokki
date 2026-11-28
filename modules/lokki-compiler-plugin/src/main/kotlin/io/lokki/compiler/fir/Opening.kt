@@ -29,7 +29,7 @@ import org.jetbrains.kotlin.fir.unwrapFakeOverrides
 
 internal fun FirRegularClassSymbol.isOpenedInBytecode(session: FirSession): Boolean =
     classKind == ClassKind.CLASS &&
-        (mark() == InterceptionMark.CURRENT || isUnmarkedSource(session) || isMockableInThisCompilation(session))
+        (mark() == InterceptionMark.CURRENT || isUnmarkedSource(session) || isOpenedInThisCompilation(session))
 
 internal fun FirRegularClassSymbol.effectiveModality(session: FirSession): Modality? =
     if (modality == Modality.FINAL && isOpenedInBytecode(session)) Modality.OPEN else modality
@@ -39,7 +39,7 @@ internal fun FirCallableSymbol<*>.isOpenedInBytecode(session: FirSession): Boole
     if (declaration.mark() == InterceptionMark.CURRENT) return true
     val owner = declaration.containingClassLookupTag()?.toRegularClassSymbol(session) ?: return false
     val inline = if (declaration is FirPropertySymbol) declaration.getterSymbol?.isInline == true else declaration.isInline
-    val opened = owner.isUnmarkedSource(session) || owner.isMockableInThisCompilation(session)
+    val opened = owner.isUnmarkedSource(session) || owner.isOpenedInThisCompilation(session)
     return opened && !inline && !declaration.isTailRec
 }
 
@@ -52,16 +52,22 @@ internal fun FirCallableSymbol<*>.isClassFinalizer(session: FirSession): Boolean
     return declared.modality != Modality.ABSTRACT && owner.classKind != ClassKind.INTERFACE
 }
 
-internal fun FirRegularClassSymbol.isMockableInThisCompilation(session: FirSession): Boolean {
-    val patterns = session.lokkiEnvironment.mockable ?: return false
+internal fun FirRegularClassSymbol.isOpenedInThisCompilation(session: FirSession): Boolean =
+    matchesInThisCompilation(session.lokkiEnvironment.opened, session)
+
+internal fun FirRegularClassSymbol.isInterceptableInThisCompilation(session: FirSession): Boolean =
+    matchesInThisCompilation(session.lokkiEnvironment.intercepted, session)
+
+private fun FirRegularClassSymbol.matchesInThisCompilation(patterns: MockablePatterns?, session: FirSession): Boolean {
+    if (patterns == null) return false
     if (origin !is FirDeclarationOrigin.Source || moduleData != session.moduleData || isInlineOrValue) return false
     val outer = classId.outerClassId?.takeIf { isCompanion }
         ?.let { session.symbolProvider.getClassLikeSymbolByClassId(it) as? FirRegularClassSymbol }
     return listOfNotNull(this, outer).any { it.matches(patterns, session) }
 }
 
-internal fun FirCallableSymbol<*>.isMockableInThisCompilation(session: FirSession): Boolean {
-    val patterns = session.lokkiEnvironment.mockable ?: return false
+internal fun FirCallableSymbol<*>.isInterceptableInThisCompilation(session: FirSession): Boolean {
+    val patterns = session.lokkiEnvironment.intercepted ?: return false
     val id = callableId ?: return false
     if (origin !is FirDeclarationOrigin.Source || moduleData != session.moduleData) return false
     if (patterns.matches(id) || hasAnnotationFrom(patterns, session)) return true

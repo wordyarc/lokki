@@ -1,7 +1,7 @@
 // RUN_PIPELINE_TILL: FIR2IR
 // RENDER_IR_DIAGNOSTICS_FULL_TEXT
 // MODULE: main
-// MOCKABLE: sample.Picked
+// INTERCEPTABLE: sample.Picked
 // FILE: picked.kt
 package sample
 

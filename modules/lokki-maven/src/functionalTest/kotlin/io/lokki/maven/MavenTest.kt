@@ -42,35 +42,35 @@ class MavenTest {
     }
 
     @Test
-    fun testMockableInCompileExecution() {
+    fun testInterceptableInCompileExecution() {
         assumeInterceptionPoints()
         val project = TestProject(projectDir)
-        project.pom(compileConfiguration = MOCKABLE_OPTIONS)
+        project.pom(compileConfiguration = INTERCEPTABLE_OPTIONS)
         project.write("src/main/kotlin/sample/Clock.kt", CLOCK)
         project.write("src/test/kotlin/sample/ClockTest.kt", CLOCK_TEST)
 
         val result = project.build("test")
 
         assertEquals(3, project.testCount("sample.ClockTest"))
-        val warnings = result.output.lines().filter { "lokki:mockable opens classes" in it }
+        val warnings = result.output.lines().filter { "lokki:interceptable adds interception points" in it }
         assertEquals(1, warnings.size, result.output)
         assertContains(
             warnings.single(),
-            "[WARNING] lokki:mockable opens classes and adds interception points to objects and top-level functions " +
-                "compiled by the execution 'compile' of sample:sample, and the artifacts of this project " +
-                "contain this bytecode. To disable this warning, set the property " +
+            "[WARNING] lokki:interceptable adds interception points to objects, top-level functions and " +
+                "constructor calls and opens classes compiled by the execution 'compile' of sample:sample, and the " +
+                "artifacts of this project contain this bytecode. To disable this warning, set the property " +
                 "lokki.mockablePublication.nowarn=true.",
         )
 
         val quiet = project.build("compile", "-Dlokki.mockablePublication.nowarn=true")
-        assertFalse("lokki:mockable" in quiet.output, quiet.output)
+        assertFalse("lokki:interceptable" in quiet.output, quiet.output)
     }
 
     @Test
-    fun testRebuildOfMockableMainWithoutClean() {
+    fun testRebuildOfInterceptableMainWithoutClean() {
         assumeInterceptionPoints()
         val project = TestProject(projectDir)
-        project.pom(compileConfiguration = MOCKABLE_OPTIONS)
+        project.pom(compileConfiguration = INTERCEPTABLE_OPTIONS)
         project.write("src/main/kotlin/sample/Clock.kt", CLOCK)
         project.write("src/test/kotlin/sample/ClockTest.kt", CLOCK_TEST)
 
@@ -81,9 +81,9 @@ class MavenTest {
     }
 
     @Test
-    fun testMockableInPluginConfiguration() {
+    fun testInterceptableInPluginConfiguration() {
         val project = TestProject(projectDir)
-        project.pom(configuration = MOCKABLE_OPTIONS)
+        project.pom(configuration = INTERCEPTABLE_OPTIONS)
         project.write("src/main/kotlin/sample/Clock.kt", CLOCK)
         project.write("src/test/kotlin/sample/ClockTest.kt", CLOCK_TEST)
 
@@ -91,10 +91,10 @@ class MavenTest {
 
         assertContains(
             failure.output,
-            "lokki:mockable opens classes of the main code, but the execution 'test-compile' of " +
-                "kotlin-maven-plugin passes it to the test compilation too. Set <pluginOptions> with lokki:mockable " +
-                "in the configuration of the execution of the compile goal instead of the configuration of the " +
-                "plugin.",
+            "lokki:interceptable changes the main code, but the execution 'test-compile' of " +
+                "kotlin-maven-plugin passes it to the test compilation too. Set <pluginOptions> with " +
+                "lokki:interceptable in the configuration of the execution of the compile goal instead of the " +
+                "configuration of the plugin.",
         )
     }
 
@@ -154,8 +154,9 @@ class MavenTest {
     }
 }
 
-private const val MOCKABLE_OPTIONS =
-    "<pluginOptions><option>lokki:mockable=sample.Clock</option><option>lokki:mockable=sample.now</option></pluginOptions>"
+private const val INTERCEPTABLE_OPTIONS =
+    "<pluginOptions><option>lokki:interceptable=sample.Clock</option><option>lokki:interceptable=sample.now</option>" +
+        "</pluginOptions>"
 
 private const val GARAGE: String =
     """

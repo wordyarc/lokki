@@ -267,14 +267,19 @@ class CompilationApplicabilityTest {
             """,
         )
 
-        val result = project.build("test")
+        val opened = project.build("test")
 
-        assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
-        assertFalse(PUBLICATION_WARNING in result.output, result.output)
+        assertEquals(TaskOutcome.SUCCESS, opened.task(":test")?.outcome)
+        assertFalse(PUBLICATION_WARNING in opened.output, opened.output)
         assertTrue(project.dependsOnLokki("kotlinCompilerPluginClasspathMain"))
         assertFalse(project.dependsOnLokki("compileClasspath"))
         assertFalse(project.dependsOnLokki("runtimeClasspath"))
-        val mainClasses = projectDir.resolve("build/classes/kotlin/main").walk().filter { it.extension == "class" }.toList()
+        assertEquals(setOf("Engine.class", "Registry.class"), mainClasses().mapTo(HashSet()) { it.name })
+
+        project.writeBuildScript("interceptable", "\"sample.**\"")
+        val intercepted = project.build("test")
+
+        assertEquals(TaskOutcome.SUCCESS, intercepted.task(":test")?.outcome)
         val generated = if (KOTLIN_VERSION.hasInterceptionPoints) {
             setOf(
                 "Registry\$LokkiRedirect.class",
@@ -284,11 +289,14 @@ class CompilationApplicabilityTest {
         } else {
             emptySet()
         }
-        assertEquals(setOf("Engine.class", "Registry.class") + generated, mainClasses.mapTo(HashSet()) { it.name })
-        for (file in mainClasses) {
+        assertEquals(setOf("Engine.class", "Registry.class") + generated, mainClasses().mapTo(HashSet()) { it.name })
+        for (file in mainClasses()) {
             assertFalse("io/lokki" in file.readText(Charsets.ISO_8859_1), file.name)
         }
     }
+
+    private fun mainClasses(): List<File> =
+        projectDir.resolve("build/classes/kotlin/main").walk().filter { it.extension == "class" }.toList()
 
     @ParameterizedTest
     @EnumSource(GradleUnderTest::class)
@@ -298,8 +306,8 @@ class CompilationApplicabilityTest {
 
         val result = project.buildAndFail("compileKotlin")
 
-        val problem = "Invalid mockable pattern 'sample.*': expected a package followed by '.**', a class, an annotation " +
-            "or a function, e.g. 'com.acme.**', 'com.acme.Engine', 'com.acme.Mockable' or 'com.acme.buildCar'"
+        val problem = "Invalid mockable pattern 'sample.*': expected a package followed by '.**', a class or an " +
+            "annotation, e.g. 'com.acme.**', 'com.acme.Engine' or 'com.acme.Mockable'"
         assertTrue(problem in result.output, result.output)
     }
 
@@ -316,37 +324,47 @@ class CompilationApplicabilityTest {
         val warned = project.build("compileKotlin")
 
         assertTrue(
-            "lokki { mockable(...) } opens classes and adds interception points to objects and top-level functions " +
-                "compiled by :compileKotlin, $PUBLICATION_WARNING" in warned.output,
+            "lokki { mockable(...) } opens classes compiled by :compileKotlin, $PUBLICATION_WARNING" in warned.output,
             warned.output,
+        )
+
+        project.writeBuildScript("interceptable", "\"sample.**\"", "`maven-publish`")
+        val intercepted = project.build("compileKotlin")
+
+        assertTrue(
+            "lokki { interceptable(...) } adds interception points to objects, top-level functions and constructor " +
+                "calls and opens classes compiled by :compileKotlin, $PUBLICATION_WARNING" in intercepted.output,
+            intercepted.output,
         )
     }
 
     private fun mockableProject(gradle: GradleUnderTest, patterns: String, vararg plugins: String): TestProject =
-        TestProject(projectDir, gradle).apply {
-            write(
-                "build.gradle.kts",
-                """
-                plugins {
-                    kotlin("jvm") version "$KOTLIN_VERSION"
-                    id("$LOKKI_PLUGIN_ID") version "$LOKKI_VERSION"
-                    ${plugins.joinToString("; ")}
-                }
+        TestProject(projectDir, gradle).apply { writeBuildScript("mockable", patterns, *plugins) }
 
-                lokki {
-                    mockable($patterns)
-                }
+    private fun TestProject.writeBuildScript(setting: String, patterns: String, vararg plugins: String) {
+        write(
+            "build.gradle.kts",
+            """
+            plugins {
+                kotlin("jvm") version "$KOTLIN_VERSION"
+                id("$LOKKI_PLUGIN_ID") version "$LOKKI_VERSION"
+                ${plugins.joinToString("; ")}
+            }
 
-                testing {
-                    suites {
-                        named<JvmTestSuite>("test") {
-                            useKotlinTest("$KOTLIN_VERSION")
-                        }
+            lokki {
+                $setting($patterns)
+            }
+
+            testing {
+                suites {
+                    named<JvmTestSuite>("test") {
+                        useKotlinTest("$KOTLIN_VERSION")
                     }
                 }
-                """,
-            )
-        }
+            }
+            """,
+        )
+    }
 
     private fun TestProject.dependsOnLokki(configuration: String): Boolean =
         "$LOKKI_GROUP:" in build("dependencies", "--configuration", configuration).output

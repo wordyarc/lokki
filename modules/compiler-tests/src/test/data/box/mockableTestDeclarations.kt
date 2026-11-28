@@ -1,4 +1,4 @@
-// MOCKABLE: fixture.Clock fixture.Engine fixture.now fixture.Marked
+// INTERCEPTABLE: fixture.Clock fixture.Engine fixture.now fixture.Marked
 // FILE: fixture.kt
 package fixture
 

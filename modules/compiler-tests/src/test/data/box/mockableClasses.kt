@@ -240,5 +240,8 @@ private fun checkModifiers(): String {
         Gear::class.java,
     )
     finals.find { !it.isFinal() }?.let { return "Fail: ${it.name} was opened" }
+
+    val points = listOf("sample.engine.Engine\$LokkiConstructorsHolder", "sample.engine.Registry\$LokkiRedirect")
+    points.find { runCatching { Class.forName(it) }.isSuccess }?.let { return "Fail: $it was generated" }
     return "OK"
 }

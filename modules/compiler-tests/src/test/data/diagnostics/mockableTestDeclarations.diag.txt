@@ -1,7 +1,7 @@
-/test.kt:35:16: error: Calls of 'fixture.Unnamed' cannot be intercepted: it is declared in this compilation and has no interception points: name it in lokki { mockable(...) } (in test sources a package pattern does not apply).
+/test.kt:35:16: error: Calls of 'fixture.Unnamed' cannot be intercepted: it is declared in this compilation and has no interception points: name it in lokki { interceptable(...) } (in test sources a package pattern does not apply).
 
-/test.kt:36:21: error: A call of 'time' cannot be intercepted: 'fixture.Unnamed' is declared in this compilation and has no interception points: name it in lokki { mockable(...) } (in test sources a package pattern does not apply).
+/test.kt:36:21: error: A call of 'time' cannot be intercepted: 'fixture.Unnamed' is declared in this compilation and has no interception points: name it in lokki { interceptable(...) } (in test sources a package pattern does not apply).
 
 /test.kt:37:10: error: 'fixture.Plain' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
 
-/test.kt:38:16: error: Calls of 'free' cannot be intercepted: it is declared in this compilation and has no interception points: name it in lokki { mockable(...) } (in test sources a package pattern does not apply).
+/test.kt:38:16: error: Calls of 'free' cannot be intercepted: it is declared in this compilation and has no interception points: name it in lokki { interceptable(...) } (in test sources a package pattern does not apply).

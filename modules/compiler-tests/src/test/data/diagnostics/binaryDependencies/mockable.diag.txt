@@ -1,13 +1,21 @@
-/test.kt:83:23: warning: The mock of 'sample.Engine' does not intercept its final members 'code', 'countdown', 'doubled', 'serial', 'twice': they run the original code on an instance created without a constructor. lokki { mockable(...) } does not open inline and tailrec functions, @JvmField properties and members inherited from classes it does not open.
+/test.kt:94:23: warning: The mock of 'sample.Engine' does not intercept its final members 'code', 'countdown', 'doubled', 'serial', 'twice': they run the original code on an instance created without a constructor. lokki { mockable(...) } does not open inline and tailrec functions, @JvmField properties and members inherited from classes it does not open.
 
-/test.kt:86:10: warning: The mock of 'sample.Aliased' does not intercept its final members 'code', 'serial', 'tag': they run the original code on an instance created without a constructor. lokki { mockable(...) } does not open inline and tailrec functions, @JvmField properties and members inherited from classes it does not open.
+/test.kt:97:10: warning: The mock of 'sample.Aliased' does not intercept its final members 'code', 'serial', 'tag': they run the original code on an instance created without a constructor. lokki { mockable(...) } does not open inline and tailrec functions, @JvmField properties and members inherited from classes it does not open.
 
-/test.kt:87:10: warning: The mock of 'sample.Tagged' does not intercept its final members 'tag': they run the original code on an instance created without a constructor. lokki { mockable(...) } does not open inline and tailrec functions, @JvmField properties and members inherited from classes it does not open.
+/test.kt:98:10: warning: The mock of 'sample.Tagged' does not intercept its final members 'tag': they run the original code on an instance created without a constructor. lokki { mockable(...) } does not open inline and tailrec functions, @JvmField properties and members inherited from classes it does not open.
 
-/test.kt:89:10: error: 'sample.Rpm' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+/test.kt:100:10: error: 'sample.Rpm' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
 
-/test.kt:90:10: error: 'sample.Fuel' cannot be mocked: it is sealed, and none of its subclasses can be mocked.
+/test.kt:101:10: error: 'sample.Fuel' cannot be mocked: it is sealed, and none of its subclasses can be mocked.
 
-/test.kt:91:10: error: 'sample.Registry' cannot be mocked: it is an object.
+/test.kt:102:10: error: 'sample.Registry' cannot be mocked: it is an object.
 
-/test.kt:92:10: error: 'test.Window' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+/test.kt:103:10: error: 'test.Window' cannot be mocked: it is a final class. Extract an interface or make the class and its members open.
+
+/test.kt:105:16: error: Calls of 'sample.Clock' cannot be intercepted: it has no interception points: add it or its package to lokki { interceptable(...) } of the module that declares it.
+
+/test.kt:106:19: error: A call of 'hour' cannot be intercepted: 'sample.Clock' has no interception points: add it or its package to lokki { interceptable(...) } of the module that declares it.
+
+/test.kt:107:16: error: Calls of 'newId' cannot be intercepted: it has no interception points: add it, its file or its package to lokki { interceptable(...) } of the module that declares it.
+
+/test.kt:108:21: error: Calls of 'sample.Engine' cannot be intercepted: it has no constructor interception point: add it or its package to lokki { interceptable(...) } of the module that declares it.

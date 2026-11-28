@@ -30,7 +30,8 @@ import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.util.dumpKotlinLike
 
 internal class LokkiIrGenerationExtension(
-    private val mockable: MockablePatterns?,
+    private val opened: MockablePatterns?,
+    private val intercepted: MockablePatterns?,
     private val lookupTracker: LookupTracker?,
     private val debug: Boolean,
     private val compat: CompilerCompat,
@@ -60,11 +61,11 @@ internal class LokkiIrGenerationExtension(
     }
 
     private fun lower(moduleFragment: IrModuleFragment, lokki: LokkiIrContext) {
-        mockable?.let {
+        opened?.let { patterns ->
             val classes = moduleFragment.sourceClasses()
-            MockableClasses(lokki, it).open(classes)
-            PrivateMembers(lokki, it).generate(classes)
-            InterceptionPoints(lokki, it).generate(moduleFragment, classes)
+            MockableClasses(lokki, patterns).open(classes)
+            PrivateMembers(lokki, patterns).generate(classes)
+            intercepted?.let { InterceptionPoints(lokki, it).generate(moduleFragment, classes) }
         }
         val constructorCalls = ConstructorCalls(lokki)
         if (!lokki.symbols.isRuntimeAvailable) {

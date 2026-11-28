@@ -7,6 +7,7 @@ import lokki.buildlogic.FILE_REDIRECT_SUFFIX
 import lokki.buildlogic.LOKKI_ABI_FLAGS
 import lokki.buildlogic.LOKKI_ABI_VERSION
 import lokki.buildlogic.PRIVATE_HOOK_INFIX
+import lokki.buildlogic.INTERCEPTABLE_OPTION
 import lokki.buildlogic.MOCKABLE_OPTION
 import lokki.buildlogic.RESTRICTED_OPTION
 import lokki.buildlogic.MergeCompilerCompatServices
@@ -64,6 +65,7 @@ buildConfig {
     packageName("io.lokki.compiler")
     buildConfigField("COMPILER_PLUGIN_ID", COMPILER_PLUGIN_ID)
     buildConfigField("MOCKABLE_OPTION", MOCKABLE_OPTION)
+    buildConfigField("INTERCEPTABLE_OPTION", INTERCEPTABLE_OPTION)
     buildConfigField("RESTRICTED_OPTION", RESTRICTED_OPTION)
     buildConfigField("DEBUG_OPTION", DEBUG_OPTION)
     buildConfigField("LOKKI_ABI_VERSION", LOKKI_ABI_VERSION)

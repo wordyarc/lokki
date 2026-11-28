@@ -1,7 +1,7 @@
 // -- Module: <main> --
 /clock.kt:28:1: warning: Expected performance impact from inlining is insignificant. Inlining works best for functions with parameters of function types.
 // -- Module: <test> --
-/test.kt:58:16: error: Calls of 'lookup' cannot be intercepted: it has no interception points: add it, its file or its package to lokki { mockable(...) } of the module that declares it.
+/test.kt:58:16: error: Calls of 'lookup' cannot be intercepted: it has no interception points: add it, its file or its package to lokki { interceptable(...) } of the module that declares it.
 
 /test.kt:59:16: error: Calls of 'LIMIT' cannot be intercepted: it is a constant, which is inlined at compile time.
 

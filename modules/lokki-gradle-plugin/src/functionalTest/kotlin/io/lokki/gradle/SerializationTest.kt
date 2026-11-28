@@ -39,7 +39,7 @@ class SerializationTest {
             }
 
             lokki {
-                mockable("sample.**")
+                interceptable("sample.**")
             }
 
             testing {

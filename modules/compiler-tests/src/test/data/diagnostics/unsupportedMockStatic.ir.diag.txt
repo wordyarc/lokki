@@ -6,4 +6,4 @@
 
 /unsupportedMockStatic.kt:18:18: error: 'local' is not an unbound reference to a top-level function or property with interception points.
 
-/unsupportedMockStatic.kt:19:13: error: 'local' has no interception point: lokki intercepts top-level functions and properties of main compilations with lokki { mockable(...) }.
+/unsupportedMockStatic.kt:19:13: error: 'local' has no interception point: lokki intercepts top-level functions and properties of main compilations with lokki { interceptable(...) }.

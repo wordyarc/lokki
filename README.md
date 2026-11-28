@@ -125,15 +125,16 @@ that need a scope, such as `mockObject` and `mockStatic`, throw `LokkiException`
 
 ### Final classes, objects and top-level functions
 
-Without an agent, only calls of open members can be intercepted. Declarations of the module's main code that match a
-`mockable` pattern are compiled differently: classes and their members are open in the bytecode, and `object`s and
-top-level functions get interception points. A pattern is a package with its subpackages (`com.example.**`), a class,
-an annotation or a function.
+Without an agent, only calls of open members can be intercepted. Classes of the module's main code that match a
+`mockable` pattern are open in the bytecode, together with their members. Declarations that match an `interceptable`
+pattern also get interception points: `object`s, top-level functions and constructor calls. A pattern is a package with
+its subpackages (`com.example.**`), a class, an annotation or, for `interceptable`, an object or a function.
 
 ```kotlin
 // build.gradle.kts
 lokki {
     mockable("com.example.**")
+    interceptable("com.example.Clock")
 }
 ```
 
@@ -158,9 +159,9 @@ a stub. `mockStatic(::function)` does the same for top-level functions and prope
 `mockConstructor(Foo::class)` with `anyConstructed<Foo>()` intercepts constructor calls in code compiled with the
 plugin.
 
-Only the bytecode changes, so smart casts and initialization rules of main code stay as they are. Every call of an
-intercepted function or constructor reads a volatile field, and the plugin warns if the project applies
-`maven-publish`.
+Only the bytecode changes, so smart casts and initialization rules of main code stay as they are. Opening costs
+nothing at run time, every call of an intercepted function or constructor reads a volatile field, and the plugin warns
+if the project applies `maven-publish`.
 
 ## Coming from MockK
 
@@ -198,7 +199,7 @@ Differences in behaviour include:
   `KClass` from a variable. A block passed to `every` or `verify` through your own function is an error.
 - Final classes, objects, functions and constructors from libraries and Java static methods cannot be mocked. Pass
   them to the code under test as a parameter, for example a `kotlin.time.Clock` or a `() -> UUID`, or wrap the call
-  in a top-level function of main code that matches a `mockable` pattern, for example
+  in a top-level function of main code that matches an `interceptable` pattern, for example
   `fun newId(): UUID = UUID.randomUUID()`, and stub that function.
 - No JUnit 4 integration: use `lokkiScope { }`. Kotest is not supported.
 - IntelliJ IDEA shows `LOKKI_*` diagnostics only with the registry key

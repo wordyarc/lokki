@@ -67,7 +67,7 @@ private fun checkStaticClass(argument: FirExpression, function: String) {
         symbol == null -> "it is not a class"
         symbol.isJavaOrEnhancement ->
             "it is a Java class, whose static methods lokki does not intercept. Inject the dependency or call it " +
-                "through a Kotlin object from lokki { mockable(...) }"
+                "through a Kotlin object from lokki { interceptable(...) }"
         symbol.classKind == ClassKind.OBJECT -> symbol.interceptionProblem()?.let { "it $it" }
         companion != null -> companion.interceptionProblem()?.let { "its companion object $it" }
         else -> "it has no static members: only an object and a companion object of a Kotlin class have them"
