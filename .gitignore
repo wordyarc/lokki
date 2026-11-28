@@ -1,5 +1,6 @@
 .idea/*
 !.idea/externalDependencies.xml
+!.idea/icon.png
 !.idea/kotlinTestDataPluginTestDataPaths.xml
 .gradle/
 .kotlin/
